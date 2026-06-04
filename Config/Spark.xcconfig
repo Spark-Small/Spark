@@ -1,0 +1,7 @@
+// Shared build settings — optional local overrides via Secrets.xcconfig
+#include? "Secrets.xcconfig"
+
+SPARK_API_BASE_URL = https://mock.spark.local
+
+// Personal Apple ID / free team: do NOT set CODE_SIGN_ENTITLEMENTS (no Push / Associated Domains).
+// Paid Apple Developer Program: see Config/Secrets.xcconfig.example

@@ -1,0 +1,58 @@
+name: iOS
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ios-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SPARK_DESTINATION: platform=iOS Simulator,name=iPhone 17,OS=26.4.1
+
+jobs:
+  lint:
+    name: swiftlint
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Guardrails
+        run: ./scripts/check-guardrails.sh
+
+      - name: Lint
+        run: ./scripts/lint.sh
+
+  spm-tests:
+    name: spm-tests
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer || true
+
+      - name: Test packages
+        run: ./scripts/test-packages.sh
+
+  app:
+    name: app-build-test
+    runs-on: macos-15
+    needs: [spm-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer || true
+
+      - name: Build
+        run: ./scripts/build-app.sh
+
+      - name: Test app target
+        run: ./scripts/test-app.sh

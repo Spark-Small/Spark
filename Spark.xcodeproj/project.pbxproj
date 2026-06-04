@@ -6,14 +6,45 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		88D5E38C2FD1C88300A4CBD3 /* SparkAppShell in Frameworks */ = {isa = PBXBuildFile; productRef = SPK100012FD19C1D00A4CBD1 /* SparkAppShell */; };
+		88D5E38D2FD1C88300A4CBD3 /* SparkDesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = SPK100022FD19C1D00A4CBD1 /* SparkDesignSystem */; };
+		88D5E38E2FD1C88300A4CBD3 /* SparkCore in Frameworks */ = {isa = PBXBuildFile; productRef = SPK100032FD19C1D00A4CBD1 /* SparkCore */; };
+		88D5E38F2FD1C88300A4CBD3 /* SparkNetworking in Frameworks */ = {isa = PBXBuildFile; productRef = SPK100042FD19C1D00A4CBD1 /* SparkNetworking */; };
+		88D5E3902FD1C88300A4CBD3 /* SparkMessages in Frameworks */ = {isa = PBXBuildFile; productRef = SPK100052FD19C1D00A4CBD1 /* SparkMessages */; };
+		88D5E3912FD1C88300A4CBD3 /* SparkPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = SPK100062FD19C1D00A4CBD1 /* SparkPersistence */; };
+		88D5E3922FD1C88300A4CBD3 /* SparkAuth in Frameworks */ = {isa = PBXBuildFile; productRef = SPK100072FD19C1D00A4CBD1 /* SparkAuth */; };
+		88D5E3932FD1C88300A4CBD3 /* SparkPayments in Frameworks */ = {isa = PBXBuildFile; productRef = SPK100082FD19C1D00A4CBD1 /* SparkPayments */; };
+		88D5E3952FD1C88300A4CBD3 /* SparkActivity in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000A2FD19C1D00A4CBD1 /* SparkActivity */; };
+		88D5E3962FD1C88300A4CBD3 /* SparkSearch in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000B2FD19C1D00A4CBD1 /* SparkSearch */; };
+		88D5E3972FD1C88300A4CBD3 /* SparkCommunity in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000D2FD19C1D00A4CBD1 /* SparkCommunity */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		88D5E0632FD19C2000A4CBD3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 88D5E0462FD19C1D00A4CBD3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 88D5E04D2FD19C1D00A4CBD3;
+			remoteInfo = Spark;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		88D5E04E2FD19C1D00A4CBD3 /* Spark.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Spark.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		88D5E0612FD19C2000A4CBD3 /* SparkTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SparkTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		SPK200012FD19C1D00A4CBD1 /* Spark.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Spark.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		88D5E0502FD19C1D00A4CBD3 /* Spark */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Spark;
+			sourceTree = "<group>";
+		};
+		88D5E0512FD19C2000A4CBD3 /* SparkTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SparkTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -23,6 +54,24 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				88D5E38D2FD1C88300A4CBD3 /* SparkDesignSystem in Frameworks */,
+				88D5E38C2FD1C88300A4CBD3 /* SparkAppShell in Frameworks */,
+				88D5E38F2FD1C88300A4CBD3 /* SparkNetworking in Frameworks */,
+				88D5E3902FD1C88300A4CBD3 /* SparkMessages in Frameworks */,
+				88D5E3912FD1C88300A4CBD3 /* SparkPersistence in Frameworks */,
+				88D5E3922FD1C88300A4CBD3 /* SparkAuth in Frameworks */,
+				88D5E3932FD1C88300A4CBD3 /* SparkPayments in Frameworks */,
+				88D5E3952FD1C88300A4CBD3 /* SparkActivity in Frameworks */,
+				88D5E3962FD1C88300A4CBD3 /* SparkSearch in Frameworks */,
+				88D5E3972FD1C88300A4CBD3 /* SparkCommunity in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		88D5E05D2FD19C2000A4CBD3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				88D5E38E2FD1C88300A4CBD3 /* SparkCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -32,7 +81,9 @@
 		88D5E0452FD19C1D00A4CBD3 = {
 			isa = PBXGroup;
 			children = (
+				SPK200022FD19C1D00A4CBD1 /* Config */,
 				88D5E0502FD19C1D00A4CBD3 /* Spark */,
+				88D5E0512FD19C2000A4CBD3 /* SparkTests */,
 				88D5E04F2FD19C1D00A4CBD3 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,8 +92,17 @@
 			isa = PBXGroup;
 			children = (
 				88D5E04E2FD19C1D00A4CBD3 /* Spark.app */,
+				88D5E0612FD19C2000A4CBD3 /* SparkTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		SPK200022FD19C1D00A4CBD1 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				SPK200012FD19C1D00A4CBD1 /* Spark.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -65,10 +125,43 @@
 			);
 			name = Spark;
 			packageProductDependencies = (
+				SPK100012FD19C1D00A4CBD1 /* SparkAppShell */,
+				SPK100022FD19C1D00A4CBD1 /* SparkDesignSystem */,
+				SPK100042FD19C1D00A4CBD1 /* SparkNetworking */,
+				SPK100052FD19C1D00A4CBD1 /* SparkMessages */,
+				SPK100062FD19C1D00A4CBD1 /* SparkPersistence */,
+				SPK100072FD19C1D00A4CBD1 /* SparkAuth */,
+				SPK100082FD19C1D00A4CBD1 /* SparkPayments */,
+				SPK1000A2FD19C1D00A4CBD1 /* SparkActivity */,
+				SPK1000B2FD19C1D00A4CBD1 /* SparkSearch */,
+				SPK1000D2FD19C1D00A4CBD1 /* SparkCommunity */,
 			);
 			productName = Spark;
 			productReference = 88D5E04E2FD19C1D00A4CBD3 /* Spark.app */;
 			productType = "com.apple.product-type.application";
+		};
+		88D5E05E2FD19C2000A4CBD3 /* SparkTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 88D5E0662FD19C2000A4CBD3 /* Build configuration list for PBXNativeTarget "SparkTests" */;
+			buildPhases = (
+				88D5E05C2FD19C2000A4CBD3 /* Sources */,
+				88D5E05D2FD19C2000A4CBD3 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				88D5E0622FD19C2000A4CBD3 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				88D5E0512FD19C2000A4CBD3 /* SparkTests */,
+			);
+			name = SparkTests;
+			packageProductDependencies = (
+				SPK100032FD19C1D00A4CBD1 /* SparkCore */,
+			);
+			productName = SparkTests;
+			productReference = 88D5E0612FD19C2000A4CBD3 /* SparkTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -83,23 +176,42 @@
 					88D5E04D2FD19C1D00A4CBD3 = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
+					88D5E05E2FD19C2000A4CBD3 = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = 88D5E04D2FD19C1D00A4CBD3;
+					};
 				};
 			};
 			buildConfigurationList = 88D5E0492FD19C1D00A4CBD3 /* Build configuration list for PBXProject "Spark" */;
-			developmentRegion = en;
+			developmentRegion = "zh-Hans";
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
 				Base,
+				en,
+				"zh-Hans",
 			);
 			mainGroup = 88D5E0452FD19C1D00A4CBD3;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				SPK000012FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkCore" */,
+				SPK000022FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkNetworking" */,
+				SPK000032FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkPersistence" */,
+				SPK000042FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkDesignSystem" */,
+				SPK000062FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkMessages" */,
+				SPK000072FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkAppShell" */,
+				SPK000082FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkAuth" */,
+				SPK000092FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkCommunity" */,
+				SPK0000A2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkActivity" */,
+				SPK0000B2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkSearch" */,
+				SPK0000C2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkPayments" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 88D5E04F2FD19C1D00A4CBD3 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				88D5E04D2FD19C1D00A4CBD3 /* Spark */,
+				88D5E05E2FD19C2000A4CBD3 /* SparkTests */,
 			);
 		};
 /* End PBXProject section */
@@ -122,11 +234,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		88D5E05C2FD19C2000A4CBD3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		88D5E0622FD19C2000A4CBD3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 88D5E04D2FD19C1D00A4CBD3 /* Spark */;
+			targetProxy = 88D5E0632FD19C2000A4CBD3 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		88D5E0572FD19C1E00A4CBD3 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = SPK200012FD19C1D00A4CBD1 /* Spark.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -189,6 +317,7 @@
 		};
 		88D5E0582FD19C1E00A4CBD3 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = SPK200012FD19C1D00A4CBD1 /* Spark.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -254,6 +383,9 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/SparkURLScheme.plist;
+				INFOPLIST_KEY_SPARKAPIBaseURL = "$(SPARK_API_BASE_URL)";
+				INFOPLIST_KEY_SPARKPremiumPaywallEnabled = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -264,24 +396,22 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Spark.Spark;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sparksmall.spark;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
-				SDKROOT = auto;
+				REGISTER_APP_GROUPS = NO;
+				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 26.4;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -298,6 +428,9 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/SparkURLScheme.plist;
+				INFOPLIST_KEY_SPARKAPIBaseURL = "$(SPARK_API_BASE_URL)";
+				INFOPLIST_KEY_SPARKPremiumPaywallEnabled = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -308,24 +441,65 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Spark.Spark;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sparksmall.spark;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
-				SDKROOT = auto;
+				REGISTER_APP_GROUPS = NO;
+				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 26.4;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		88D5E0642FD19C2000A4CBD3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = A95ZH5QY7B;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sparksmall.spark.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Spark.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Spark";
+			};
+			name = Debug;
+		};
+		88D5E0652FD19C2000A4CBD3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = A95ZH5QY7B;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sparksmall.spark.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Spark.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Spark";
 			};
 			name = Release;
 		};
@@ -350,7 +524,121 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		88D5E0662FD19C2000A4CBD3 /* Build configuration list for PBXNativeTarget "SparkTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				88D5E0642FD19C2000A4CBD3 /* Debug */,
+				88D5E0652FD19C2000A4CBD3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		SPK000012FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SparkCore;
+		};
+		SPK000022FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkNetworking" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SparkNetworking;
+		};
+		SPK000032FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkPersistence" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SparkPersistence;
+		};
+		SPK000042FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkDesignSystem" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SparkDesignSystem;
+		};
+		SPK000062FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkMessages" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SparkMessages;
+		};
+		SPK000072FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkAppShell" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SparkAppShell;
+		};
+		SPK000082FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkAuth" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SparkAuth;
+		};
+		SPK000092FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkCommunity" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SparkCommunity;
+		};
+		SPK0000A2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkActivity" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SparkActivity;
+		};
+		SPK0000B2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkSearch" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SparkSearch;
+		};
+		SPK0000C2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkPayments" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SparkPayments;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		SPK100012FD19C1D00A4CBD1 /* SparkAppShell */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SPK000072FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkAppShell" */;
+			productName = SparkAppShell;
+		};
+		SPK100022FD19C1D00A4CBD1 /* SparkDesignSystem */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SPK000042FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkDesignSystem" */;
+			productName = SparkDesignSystem;
+		};
+		SPK100032FD19C1D00A4CBD1 /* SparkCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SPK000012FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkCore" */;
+			productName = SparkCore;
+		};
+		SPK100042FD19C1D00A4CBD1 /* SparkNetworking */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SPK000022FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkNetworking" */;
+			productName = SparkNetworking;
+		};
+		SPK100052FD19C1D00A4CBD1 /* SparkMessages */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SPK000062FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkMessages" */;
+			productName = SparkMessages;
+		};
+		SPK100062FD19C1D00A4CBD1 /* SparkPersistence */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SPK000032FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkPersistence" */;
+			productName = SparkPersistence;
+		};
+		SPK100072FD19C1D00A4CBD1 /* SparkAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SPK000082FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkAuth" */;
+			productName = SparkAuth;
+		};
+		SPK100082FD19C1D00A4CBD1 /* SparkPayments */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SPK0000C2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkPayments" */;
+			productName = SparkPayments;
+		};
+		SPK1000A2FD19C1D00A4CBD1 /* SparkActivity */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SPK0000A2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkActivity" */;
+			productName = SparkActivity;
+		};
+		SPK1000B2FD19C1D00A4CBD1 /* SparkSearch */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SPK0000B2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkSearch" */;
+			productName = SparkSearch;
+		};
+		SPK1000D2FD19C1D00A4CBD1 /* SparkCommunity */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SPK000092FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkCommunity" */;
+			productName = SparkCommunity;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 88D5E0462FD19C1D00A4CBD3 /* Project object */;
 }

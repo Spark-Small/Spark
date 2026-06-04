@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["TEAMID.com.sparksmall.spark"],
+        "paths": ["/a/*", "/activity/*", "/tab/*"]
+      }
+    ]
+  }
+}

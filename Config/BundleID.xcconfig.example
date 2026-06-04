@@ -1,0 +1,4 @@
+// Copy to BundleID.xcconfig (gitignored) if your team needs a custom identifier.
+// Spark.xcodeproj default: com.sparksmall.spark
+
+PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.spark

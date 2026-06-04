@@ -1,0 +1,162 @@
+// Module: SparkSearch — Search tab root presentation.
+
+import SparkDesignSystem
+import SwiftUI
+
+public struct SearchRootView: View {
+    @State private var viewModel: SearchViewModel
+    private let onSelectResult: ((SearchResultItem) -> Void)?
+
+    public init(
+        repository: any SearchRepository,
+        initialQuery: String = "",
+        onSelectResult: ((SearchResultItem) -> Void)? = nil
+    ) {
+        let model = SearchViewModel(repository: repository)
+        model.query = initialQuery
+        _viewModel = State(initialValue: model)
+        self.onSelectResult = onSelectResult
+    }
+
+    public init(
+        viewModel: SearchViewModel,
+        onSelectResult: ((SearchResultItem) -> Void)? = nil
+    ) {
+        _viewModel = State(initialValue: viewModel)
+        self.onSelectResult = onSelectResult
+    }
+
+    public var body: some View {
+        @Bindable var viewModel = viewModel
+
+        SparkScreenContainer(
+            navigationTitle: String(localized: "screen.search", defaultValue: "搜索", comment: "Search screen")
+        ) {
+            Group {
+                if viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    suggestionsList
+                } else {
+                    resultsContent
+                }
+            }
+            .searchable(
+                text: $viewModel.query,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: Text(
+                    String(localized: "search.placeholder", defaultValue: "搜索 Spark", comment: "Search placeholder")
+                )
+            )
+            .onSubmit(of: .search) {
+                Task { await viewModel.submitSearch() }
+            }
+            .onChange(of: viewModel.query) { _, newValue in
+                if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    viewModel.clearResults()
+                }
+            }
+            .task(id: viewModel.query) {
+                let trimmed = viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { return }
+                await viewModel.submitSearch()
+            }
+        }
+    }
+
+    private var suggestionsList: some View {
+        List {
+            Section {
+                ForEach(SearchViewModel.defaultSuggestions, id: \.self) { suggestion in
+                    Button {
+                        viewModel.query = suggestion
+                    } label: {
+                        Label(suggestion, systemImage: "clock.arrow.circlepath")
+                    }
+                }
+            } header: {
+                Text(
+                    String(localized: "search.suggestions.title", defaultValue: "建议", comment: "Search section")
+                )
+            }
+        }
+        .sparkScreenListStyle()
+    }
+
+    @ViewBuilder
+    private var resultsContent: some View {
+        switch viewModel.loadState {
+        case .idle, .loading:
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .empty:
+            ContentUnavailableView(
+                String(localized: "search.empty.title", defaultValue: "无结果", comment: "Empty search"),
+                systemImage: "magnifyingglass",
+                description: Text(
+                    String(localized: "search.empty.subtitle", defaultValue: "换个关键词试试", comment: "Empty search hint")
+                )
+            )
+        case .failure(let message):
+            SparkRetryUnavailableView(
+                title: String(localized: "search.error.title", defaultValue: "搜索失败", comment: "Search error"),
+                description: message
+            ) {
+                Task { await viewModel.submitSearch() }
+            }
+        case .loaded:
+            List(viewModel.results) { item in
+                if let onSelectResult, item.isNavigable {
+                    Button {
+                        onSelectResult(item)
+                    } label: {
+                        SearchResultRow(item: item, showsChevron: true)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    SearchResultRow(item: item, showsChevron: false)
+                }
+            }
+            .sparkScreenListStyle()
+        }
+    }
+}
+
+private extension SearchResultItem {
+    var isNavigable: Bool {
+        resultKind?.supportsInAppNavigation == true
+    }
+}
+
+private struct SearchResultRow: View {
+    let item: SearchResultItem
+    let showsChevron: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text((item.resultKind?.localizedLabel ?? item.kind).uppercased())
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(item.title)
+                    .font(.headline)
+                Text(item.subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 0)
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(item.title), \(item.subtitle)")
+    }
+}
+
+#Preview {
+    SearchRootView(repository: MockSearchRepository())
+}

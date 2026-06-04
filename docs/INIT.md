@@ -13,14 +13,16 @@ chmod +x scripts/spark-init-repo.sh
 
 ```bash
 /opt/homebrew/bin/gh auth login
-/opt/homebrew/bin/gh repo create Spark --private --source=. --remote=origin --push
+/opt/homebrew/bin/gh auth setup-git
+git remote add origin https://github.com/Spark-Small/Spark.git  # 若已添加可跳过
+git push -u origin main --force-with-lease   # 远程仅有 Initial commit 时
 git push -u origin develop
 ```
 
-2. 若仓库已存在，使用远程 URL：
+2. 若在新机器克隆已有仓库：
 
 ```bash
-GITHUB_REMOTE_URL=https://github.com/YOUR_ORG/Spark.git ./scripts/spark-init-repo.sh
+gh repo clone Spark-Small/Spark
 ```
 
 ## 第二步：分支保护

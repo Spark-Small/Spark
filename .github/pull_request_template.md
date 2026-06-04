@@ -16,10 +16,21 @@
 
 ## Test plan
 
-- [ ] Unit tests
+- [ ] `make check` (secrets + UI guardrails)
+- [ ] `make lint` and `make test-packages` (see [docs/CI.md](../docs/CI.md))
+- [ ] `make build && make test-app` (app changes)
 - [ ] Manual QA (devices / OS versions)
-- [ ] Accessibility (VoiceOver, Dynamic Type)
-- [ ] Dark mode
+- [ ] Accessibility (VoiceOver, Dynamic Type XL)
+- [ ] Dark mode (UI)
+
+## Spark guardrails
+
+- [ ] [DESIGN_PHILOSOPHY.md](../docs/DESIGN_PHILOSOPHY.md) — no decorative / stub UI
+- [ ] API changes reflected in [API_CONTRACT.md](../docs/API_CONTRACT.md)
+- [ ] New stable copy in `Spark/Localizable.xcstrings` (or justified `defaultValue` only)
+- [ ] Materials / `glassEffect` only — no opacity glass, blur, shadow hacks
+- [ ] ViewModel/View: no `URLSession`; logic in Repository / UseCase
+- [ ] Navigation matches [ARCHITECTURE.md](../docs/ARCHITECTURE.md) (no nested stacks)
 
 ## Checklist
 

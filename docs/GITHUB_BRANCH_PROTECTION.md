@@ -56,9 +56,13 @@ After each merge to `main`, create an annotated tag: `v{MAJOR}.{MINOR}.{PATCH}`.
 
 ## Status checks (when CI is enabled)
 
-Add required checks from `.github/workflows/ci.yml`, for example:
+Add required checks from [`.github/workflows/ios.yml`](../.github/workflows/ios.yml):
 
-- `build-and-test` (or your workflow job name)
+- `swiftlint`
+- `spm-tests`
+- `app-build-test`
+
+See [CI.md](./CI.md).
 
 ---
 

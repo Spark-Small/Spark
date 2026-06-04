@@ -1,32 +1,29 @@
-# Spark — iOS Native (Cursor root rules)
-# iOS 17+ · Xcode 16+ · Swift 6 · SwiftUI + UIKit hybrid
+# Spark — Cursor project rules (index only)
 
-## Stack
-- Swift 6 strict concurrency; no Swift 5 concurrency workarounds
-- SwiftUI primary; UIKit only when SwiftUI cannot (wrap with *Representable)
-- SPM only; URLSession + async/await for networking (no third-party HTTP libs)
-- SwiftData + Keychain; Repository pattern for all data sources
+**Do not duplicate** stack, Liquid Glass, or architecture detail here. Authoritative sources:
 
-## Architecture
-- TCA or MVVM + Clean Architecture: Domain | Data | Presentation
-- @Observable (iOS 17+), not ObservableObject; @Environment for DI (no singletons)
-- Typed routes with NavigationStack; no NavigationView or @EnvironmentObject
-- Business logic unit-testable without UI; no force-unwrap in production
+| Topic | File | When applied |
+|-------|------|----------------|
+| **Product philosophy & role** | `.cursor/rules/ios-product-philosophy.mdc` | Always |
+| Liquid Glass / materials | `.cursor/rules/ios-liquid-glass.mdc` | Always |
+| Swift 6, concurrency, security | `.cursor/rules/ios-foundation.mdc` | Always |
+| SwiftUI patterns | `.cursor/rules/ios-swiftui.mdc` | `**/*.swift` |
+| Design / a11y / localization | `.cursor/rules/ios-design-system.mdc` | `**/*View*.swift` |
+| Performance | `.cursor/rules/ios-performance.mdc` | Manual |
+| New feature module | `.cursor/rules/ios-module-scaffold.mdc` | Manual |
 
-## Concurrency
-- Structured concurrency only; @MainActor for UI; actors for shared mutable state
-- Never DispatchQueue.main.async or .sync on main thread
+## Human docs (not AI rules)
 
-## Code generation defaults
-- Full files with imports; #Preview on every View file
-- os.Logger not print(); max ~300 lines per file; public APIs need ///
-- Prefer semantic colors, Dynamic Type, VoiceOver, Light/Dark, zh-Hans + en localization
+- Agents onboarding: `AGENTS.md`
+- Contributing: `docs/CONTRIBUTING.md`
+- Design philosophy: `docs/DESIGN_PHILOSOPHY.md`
+- Architecture: `docs/ARCHITECTURE.md`
+- Architecture & packages: `docs/PACKAGES.md`
+- API for backend: `docs/API_CONTRACT.md`
+- Local dev / Mock: `docs/DEVELOPMENT.md`
+- CI: `docs/CI.md`
+- Git: `docs/GIT_WORKFLOW.md`
 
-## Modular rules (see .cursor/rules/)
-- ios-foundation.mdc — always on
-- ios-swiftui.mdc — Swift / SwiftUI files
-- ios-module-scaffold.mdc — new feature modules ({MODULE_NAME})
-- ios-design-system.mdc — Views / UI polish
-- ios-performance.mdc — perf work
+## Persona
 
-Persona / role prompt: use Cursor Settings → Rules for AI (or project user rules), not duplicated here.
+Repo role + design philosophy: **`ios-product-philosophy.mdc`**. Extended Alex persona may also live in Cursor Settings → Rules; on UI scope conflicts, **product philosophy wins**.

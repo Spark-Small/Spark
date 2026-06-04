@@ -1,0 +1,51 @@
+# Spark — SwiftLint configuration (see docs/CI.md)
+
+disabled_rules:
+  - trailing_whitespace
+  - todo
+
+opt_in_rules:
+  - empty_count
+  - explicit_init
+  - fatal_error_message
+  - first_where
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - overridden_super_call
+
+included:
+  - Packages
+  - Spark
+  - SparkTests
+
+excluded:
+  - .build
+  - DerivedData
+  - Packages/**/.build
+
+line_length:
+  warning: 140
+  error: 200
+  ignores_urls: true
+  ignores_function_declarations: true
+
+file_length:
+  warning: 400
+  error: 600
+
+type_body_length:
+  warning: 300
+  error: 400
+
+function_body_length:
+  warning: 80
+  error: 120
+
+identifier_name:
+  min_length:
+    warning: 2
+  max_length:
+    warning: 50
+    error: 60
+
+reporter: xcode

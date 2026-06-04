@@ -20,6 +20,8 @@ Podfile.lock
 # Secrets (never commit)
 *.plist.secret
 Config/Secrets.swift
+Config/BundleID.xcconfig
+Config/Secrets.xcconfig
 GoogleService-Info.plist
 Secrets/
 

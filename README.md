@@ -1,48 +1,65 @@
 # Spark
 
-iOS 17+ social app (Swift 6, SwiftUI, Clean Architecture).
+iOS 17+ social app (Swift 6, SwiftUI, SPM, Clean Architecture).
 
 ## Requirements
 
 - Xcode 16+
 - iOS 17.0+ deployment target
+- Simulator: `iPhone 17` (see `Makefile` / `docs/CI.md` for `SPARK_DESTINATION`)
 
 ## Repository layout
 
 ```
-Spark/                 # App target (Xcode)
+Spark/                 # App target
 Packages/              # SPM feature & infra modules
-docs/                  # Workflow & ADRs
-.github/               # PR/Issue templates, CI
-scripts/               # Tooling (incl. repo bootstrap)
+Config/                # xcconfig, URL scheme plist
+docs/                  # Architecture, API contract, workflow — start at docs/README.md
+.github/workflows/     # ios.yml (canonical CI)
+scripts/               # build, test, lint
 ```
+
+## Quick start
+
+```bash
+open Spark.xcodeproj
+# Default API: https://mock.spark.local (Mock auth/messages/payments)
+make test-packages
+make build
+```
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for Staging URL and secrets.
+
+## Documentation
+
+| Doc | Content |
+|-----|---------|
+| [docs/README.md](docs/README.md) | Index |
+| [docs/PACKAGES.md](docs/PACKAGES.md) | Modules |
+| [docs/API_CONTRACT.md](docs/API_CONTRACT.md) | Backend contract |
+| [docs/CI.md](docs/CI.md) | CI & `make` targets |
+| [AGENTS.md](AGENTS.md) | Cursor / agent onboarding |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | PR checklist |
+| [docs/DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md) | Form serves function |
+| [docs/RULES.md](docs/RULES.md) | Canonical docs map |
 
 ## Git workflow
 
-See [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md) and [docs/GITHUB_BRANCH_PROTECTION.md](docs/GITHUB_BRANCH_PROTECTION.md).
-
-### Bootstrap (one-time)
-
-```bash
-chmod +x scripts/spark-init-repo.sh
-./scripts/spark-init-repo.sh
-```
-
-Push to GitHub (create an empty repo first):
-
-```bash
-GITHUB_REMOTE_URL=https://github.com/YOUR_ORG/Spark.git ./scripts/spark-init-repo.sh
-```
-
-### Feature development
+[docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md) · [docs/GITHUB_BRANCH_PROTECTION.md](docs/GITHUB_BRANCH_PROTECTION.md)
 
 ```bash
 git checkout develop && git pull
 git checkout -b feature/42-my-feature
-# … implement …
-# Open PR → Squash merge to develop
+# PR → squash merge to develop
 ```
+
+One-time bootstrap: [docs/INIT.md](docs/INIT.md).
 
 ## Secrets
 
-Never commit `Config/Secrets.swift`, `GoogleService-Info.plist`, or files under `Secrets/`. Use local xcconfig (gitignored) for environment values.
+Do **not** commit:
+
+- `Config/Secrets.xcconfig` (copy from `Config/Secrets.xcconfig.example`)
+- `GoogleService-Info.plist`, `Secrets/`, `*.mobileprovision`, `AuthKey_*.p8`
+
+API URL is injected via xcconfig → Info.plist (`SPARKAPIBaseURL`), not Swift source.
