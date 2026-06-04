@@ -1,0 +1,57 @@
+---
+description: Scaffold a new Spark feature module — replace MODULE_NAME (e.g. Discover, Profile)
+alwaysApply: false
+---
+
+# Module scaffold: Spark{MODULE_NAME}
+
+Replace `{MODULE_NAME}` with PascalCase feature name. **Only** under `Packages/Spark{MODULE_NAME}/` (never `Spark/Features/`).
+
+## Package layout
+
+```
+Packages/Spark{MODULE_NAME}/
+  Package.swift
+  Sources/Spark{MODULE_NAME}/
+    Domain/
+      Models/
+      UseCases/
+      {MODULE_NAME}Repository.swift
+    Data/
+      DTOs/
+      Mock{MODULE_NAME}Repository.swift
+      Live{MODULE_NAME}Repository.swift   // or {MODULE_NAME}Repository+Live.swift
+    Presentation/
+      {MODULE_NAME}RootView.swift
+      {MODULE_NAME}ViewModel.swift
+  Tests/Spark{MODULE_NAME}Tests/
+```
+
+## Requirements
+
+- **Repository protocol** in Domain; **Mock + Live** in Data
+- **UseCase** per operation; typed `{MODULE_NAME}Error: LocalizedError` when needed
+- **ViewModel**: `@MainActor` `@Observable`; UseCases only — no `URLSession` / Keychain in VM
+- **View**: `#Preview` — loading, loaded, empty, error; `String(localized:defaultValue:comment:)`
+- **Navigation**: tab root → `SparkScreenContainer`; push flow → outer `NavigationStack` + `embedding: .none` ([ARCHITECTURE.md](../../docs/ARCHITECTURE.md))
+- **UI**: [DESIGN_PHILOSOPHY.md](../../docs/DESIGN_PHILOSOPHY.md) — no decorative controls; chevron only if row navigates
+- New HTTP routes → [API_CONTRACT.md](../../docs/API_CONTRACT.md) first
+
+## App wiring
+
+1. Add local package to `Spark.xcodeproj`
+2. Register in `CompositionRoot` (Mock vs Live)
+3. `@Environment` or constructor injection from `ContentView` / `SparkAppShell`
+
+## Before PR
+
+```bash
+make check && make lint && make test-packages
+```
+
+## Checklist
+
+- [ ] No singletons
+- [ ] Sendable DTOs / domain models
+- [ ] Cancellation in `.task`
+- [ ] `make check-ui` passes

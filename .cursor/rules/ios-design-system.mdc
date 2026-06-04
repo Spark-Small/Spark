@@ -1,0 +1,33 @@
+---
+description: HIG, accessibility, and visual polish for Spark views
+globs: "**/*View*.swift"
+alwaysApply: false
+---
+
+# Design system & UI (Spark)
+
+**Product philosophy:** form serves function — see `ios-product-philosophy.mdc` and `docs/DESIGN_PHILOSOPHY.md`. No decorative UI; every control must earn its place in the core flow.
+
+## HIG
+- Semantic system colors only; `.tint()` at app root for accent
+- Dynamic Type everywhere — no fixed `font(.system(size:))` for body text
+- Light + Dark + RTL; adaptive iPhone + iPad layouts
+- SF Symbols for icons; custom bitmaps only for brand assets
+
+## Accessibility (mandatory)
+- `.accessibilityLabel`, `.accessibilityHint`, `.accessibilityValue` where needed
+- Correct `accessibilityTraits`; support XL Dynamic Type on every screen
+- VoiceOver order tested on primary flows
+
+## Localization
+- `String(localized:)` / `LocalizedStringKey` — never concatenate localized strings
+- Minimum: `en` + `zh-Hans`
+
+## SwiftUI polish
+- `.sensoryFeedback` for primary actions (iOS 17+)
+- **Liquid Glass**: follow `ios-liquid-glass.mdc` — `.glassEffect()` / Materials only; no opacity fills
+- Prefer native materials, safe area, and standard toolbar patterns
+- Empty and error states with recovery actions (not blank screens)
+
+## Previews
+Include at least: default, dark mode, accessibility size (`.environment(\.sizeCategory, .accessibilityExtraExtraLarge)`).

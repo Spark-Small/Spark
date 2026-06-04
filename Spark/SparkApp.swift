@@ -18,22 +18,6 @@ struct SparkApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(appDelegate: appDelegate)
-                .environment(
-                    \.messagesRepositoryBox,
-                    MessagesRepositoryBox(CompositionRoot.dependencies.messagesRepository)
-                )
-                .environment(
-                    \.activityFeedRepositoryBox,
-                    ActivityFeedRepositoryBox(CompositionRoot.dependencies.activityFeedRepository)
-                )
-                .environment(
-                    \.searchRepositoryBox,
-                    SearchRepositoryBox(CompositionRoot.dependencies.searchRepository)
-                )
-                .environment(
-                    \.communityPostsRepositoryBox,
-                    CommunityPostsRepositoryBox(CompositionRoot.dependencies.communityPostsRepository)
-                )
         }
     }
 }

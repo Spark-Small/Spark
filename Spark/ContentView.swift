@@ -38,12 +38,7 @@ struct ContentView: View {
             paywallRouter: paywallRouter
         )
         .environment(router)
-        .environment(\.paywallRouter, paywallRouter)
         .environment(CompositionRoot.dependencies.entitlementManager)
-        .environment(
-            \.activityFeedRepositoryBox,
-            ActivityFeedRepositoryBox(CompositionRoot.dependencies.activityFeedRepository)
-        )
         .onOpenURL { url in
             router.handle(url: url, isAuthenticated: authViewModel.isAuthenticated)
         }
@@ -56,8 +51,4 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .environment(
-            \.messagesRepositoryBox,
-            MessagesRepositoryBox(CompositionRoot.dependencies.messagesRepository)
-        )
 }

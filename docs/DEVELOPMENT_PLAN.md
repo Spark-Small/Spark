@@ -46,7 +46,7 @@ flowchart LR
 | 1.1 | `ActivityFeedRepository` wired in `CompositionRoot` (Mock vs Live) | `Spark` / `SparkActivity` | ☑ |
 | 1.2 | `LiveActivityFeedRepository` + DTO for `GET /v1/activities/feed` | `SparkActivity` | ☑ |
 | 1.3 | `ActivityRootView` — repository injection via AppShell | `SparkActivity` | ☑ |
-| 1.4 | `ActivityFeedRepositoryBox` environment (mirrors Messages) | `Spark` | ☑ |
+| 1.4 | Constructor DI via `SparkRootView` → `SparkMainTabView` | `SparkAppShell` | ☑ |
 | 1.5 | Unit tests: ViewModel empty/failure; root view init | `SparkActivityTests` | ☑ |
 | 1.6 | `#Preview`: loading, loaded, empty, error | `SparkActivity` | ☑ |
 

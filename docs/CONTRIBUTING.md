@@ -6,7 +6,7 @@ Read first: [DESIGN_PHILOSOPHY.md](DESIGN_PHILOSOPHY.md), [ARCHITECTURE.md](ARCH
 
 1. **Issue / scope** — one user journey or one module per PR (≤ ~400 lines diff).
 2. **Contract** — new/changed HTTP APIs → update `API_CONTRACT.md` **before** `Live*` implementations.
-3. **Mock first** — UI and ViewModels against `Mock*` until Staging exists ([DEVELOPMENT.md](DEVELOPMENT.md)).
+3. **Mock first** — UI and ViewModels against `Mock*`; cut over to Staging per [DEVELOPMENT.md](DEVELOPMENT.md) / [STAGING.md](STAGING.md).
 
 ## Feature checklist
 

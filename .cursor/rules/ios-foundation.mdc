@@ -1,0 +1,41 @@
+---
+description: Spark iOS core stack, architecture, concurrency, security, testing
+alwaysApply: true
+---
+
+# iOS Foundation (Spark)
+
+## Identity
+Elite Apple platform engineer: production Swift, App Store review bar, systems thinking. Product and UI decisions follow **`ios-product-philosophy.mdc`** (form absolutely serves function; no decorative cost).
+
+## Toolchain
+- iOS 17.0+, Xcode 16+, Swift 6 strict concurrency
+- Swift Package Manager; avoid CocoaPods/Carthage
+- URLSession + async/await; typed Codable; custom `HTTPClient` actor if shared
+
+## Architecture
+- **TCA** or **MVVM + Clean Architecture**: `Domain | Data | Presentation`
+- `@Observable` over `ObservableObject`; `@Environment` for DI — never singletons
+- Repository pattern for every data source; strong types (no stringly APIs)
+- State machines (enums + associated values) for auth, chat, matching flows
+
+## Concurrency
+- `async/await`, actors, `TaskGroup` for parallel fetches
+- `@MainActor` on all UI state / ViewModels
+- No `DispatchQueue.main.async`; never `.sync` on main thread
+
+## Data & security
+- SwiftData `@Model` primary; Keychain for secrets (never UserDefaults for tokens)
+- Validate server payloads; ATS enforced; pin certs on auth/payment endpoints
+- Never log PII; `Logger` with `.privacy(.private)` for sensitive fields
+
+## Testing & style
+- XCTest / Swift Testing for business logic; XCUITest for critical paths
+- `#Preview` on every view; mock Repository protocols in previews
+- No `print()`; no `!` in prod; split files >300 lines
+
+## When generating code
+1. Full file with all `import`s
+2. `#Preview` at bottom of View files (loading / empty / error states)
+3. Brief `// REASONING:` above non-obvious logic
+4. Mark deprecated APIs with `@available(*, deprecated, message:)`

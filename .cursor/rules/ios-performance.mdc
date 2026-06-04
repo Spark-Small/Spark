@@ -1,0 +1,27 @@
+---
+description: Performance and resource rules — use when optimizing Spark screens
+alwaysApply: false
+---
+
+# Performance (Spark)
+
+## Before claiming "slow"
+Profile with Instruments (Time Profiler, SwiftUI, Allocations) or MetricKit — no drive-by micro-optimizations.
+
+## Lists & images
+- `LazyVStack` / `LazyHStack` for lists >20 items; cursor pagination at ~80% scroll
+- `AsyncImage` with phase UI, or Nuke via SPM if advanced caching needed
+- Downsample images to display size; coalesce network requests
+
+## SwiftUI lifecycle
+- `.task(id:)` for loads; respect `CancellationError`
+- Prefetch next page in background `Task` with low priority when appropriate
+- No retain cycles — `[weak self]` only in escaping closures that capture self
+
+## Background & battery
+- `BackgroundTasks` for deferrable work; respect Low Power / Low Data Mode
+- Avoid redundant Firestore/listener churn; cache with documented invalidation
+
+## Targets (document exceptions in PR)
+- Cold launch P95 ≤ 1.5s to interactive (mid-tier device)
+- Feed scroll 60fps; idle memory baseline documented per screen

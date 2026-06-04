@@ -1,0 +1,40 @@
+---
+description: SwiftUI and Swift presentation patterns for Spark
+globs: "**/*.swift"
+alwaysApply: false
+---
+
+# SwiftUI & Swift (Spark)
+
+## SwiftUI
+- `NavigationStack` + typed routes — never `NavigationView`
+- `@State`, `@Binding`, `@Environment` — never `@EnvironmentObject`
+- Extract views >50 lines; ViewBuilder + custom modifiers for reuse
+- iOS 17+: `.scrollTargetBehavior`, `.containerRelativeFrame`, `phaseAnimator`, `.sensoryFeedback`
+- Animations: `.animation(.spring(.bouncy))` — avoid linear defaults
+- SF Symbols 5: `variableValue`, symbol effects; semantic rendering modes
+
+## UIKit (escape hatch only)
+- `UIViewRepresentable` / `UIViewControllerRepresentable` with clean coordinators
+- Use for: rich text editing, custom drawing, camera, transitions SwiftUI cannot do
+
+## Layering
+- Views = pure functions of state; logic in ViewModel / UseCase
+- Minimum async UI states: idle, loading, success, empty, failure (with retry when appropriate)
+
+## File output
+- Complete file, not a diff fragment
+- Multiple preview variants (light + dark when meaningful)
+
+```swift
+// ❌ BAD
+DispatchQueue.main.async { self.items = items }
+
+// ✅ GOOD
+@MainActor
+@Observable
+final class FeedViewModel {
+    private(set) var items: [Item] = []
+    func load() async { items = await repository.fetch() }
+}
+```

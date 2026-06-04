@@ -1,4 +1,4 @@
-# Spark — Development (no backend yet)
+# Spark — Development (Mock & Staging)
 
 Doc index: [README.md](README.md) · Rule map: [RULES.md](RULES.md)
 
@@ -19,9 +19,9 @@ You can develop UI and ViewModels without a running server.
 
 If Xcode still reports missing `aps-environment` / `associated-domains`: Product → Clean Build Folder; confirm **Code Sign Entitlements** is empty and `Spark/Spark.entitlements` is gone (entitlements live under `Config/` for optional paid-team use).
 
-## Before backend exists
+## Mock-first development
 
-1. Implement features against **Mock** types (`MockMessagesRepository`, `MockAuthService`).
+1. Implement new features against **Mock** types (`MockMessagesRepository`, `MockAuthService`) until Live paths exist.
 2. Align new endpoints with [`API_CONTRACT.md`](API_CONTRACT.md) before implementing `Live*`.
 3. Run CI locally: `make test-packages && make build && make test-app` (see [`CI.md`](CI.md)).
 

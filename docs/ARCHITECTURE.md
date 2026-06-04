@@ -15,7 +15,7 @@ Data          →  DTOs, Live*, Mock*, mappers
 ## App composition
 
 - `Spark/App/CompositionRoot.swift` — wires `Live*` vs `Mock*` from `APIConfiguration.usesMockBackend`.
-- `Spark/ContentView.swift` — `AppRouter`, environments (`messagesRepository`, `paywallRouter`, etc.).
+- `Spark/ContentView.swift` — builds `SparkRootView` with constructor-injected repositories and routers (`AppRouter`, `PaywallRouter`).
 
 ## Navigation
 

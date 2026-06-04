@@ -1,0 +1,71 @@
+---
+description: iOS 26 Liquid Glass — native SwiftUI materials only (highest UI priority)
+globs: "**/*.swift"
+alwaysApply: true
+---
+
+# UI rendering philosophy — iOS 26 Liquid Glass (system-native)
+
+**Function first** (`ios-product-philosophy.mdc`): use glass/materials only for legibility, depth, and hierarchy — never as ornament.
+
+Every SwiftUI line you generate must match iOS 26 system UI (Control Center, Dynamic Island, Lock Screen widgets, Notification Center). This is not a “glass style” imitation — use Apple’s material APIs, not fake translucency.
+
+## What Liquid Glass is
+
+1. **Refraction** — background refracts through glass, not flat blur
+2. **Specular highlight** — edge/top highlights respond to device motion
+3. **Frosted translucency** — not equivalent to `.ultraThinMaterial` alone
+4. **Dynamic depth** — perceived space between glass and content
+5. **Adaptive tinting** — tint derived from background content
+
+## Forbidden (Web/Material habits)
+
+- `Color.white.opacity(0.1)` pseudo-glass
+- Manual `blur(radius:)`
+- `shadow(color:radius:)` for glass depth
+- Fixed opaque `backgroundColor` on glass surfaces
+- `RoundedRectangle` + `fill(.white.opacity)` cards
+- CSS `backdrop-filter` thinking
+
+## Required APIs (priority order)
+
+```swift
+// 1) iOS 26+ Liquid Glass
+.glassEffect()
+.glassEffect(.regular)
+.glassEffect(.thin)
+.glassEffect(.thick)
+.glassEffect(in: RoundedRectangle(cornerRadius: 20))
+
+// 2) System materials (fallback iOS 17–25; enhanced on iOS 26)
+.background(.ultraThinMaterial)
+.background(.thinMaterial)
+.background(.regularMaterial)
+.background(.thickMaterial)
+.background(.ultraThickMaterial)
+
+// 3) Container / widget glass (iOS 26)
+.backgroundStyle(.glass)
+.containerBackground(.glass, for: .widget)
+
+// 4) Tinted / interactive glass (iOS 26)
+.glassEffect(.regular.tinted(with: .blue))
+.glassEffect(.regular.interactive())
+```
+
+Wrap iOS 26-only APIs in `@available(iOS 26, *)` when deployment target < 26; never fake glass on older OS.
+
+## Pre-generation checklist
+
+Before any View:
+
+- [ ] How does Apple’s system app (Notes/Clock/Weather) render this?
+- [ ] Background is Material/glass, not solid fill?
+- [ ] Corner radius ~20–28pt for system cards?
+- [ ] No explicit border — edge from refraction?
+- [ ] Dark mode via materials (no manual `colorScheme` fills)?
+- [ ] `safeAreaInset` considered for Dynamic Island?
+
+**Stop** if you reach for `.background(Color.white.opacity(0.15))` → use `.background(.regularMaterial)` or `.glassEffect()`.
+
+**Stop** if you reach for `RoundedRectangle(cornerRadius: 12).fill(Color.gray.opacity(0.2))` → use `.glassEffect(in: RoundedRectangle(cornerRadius: 20))`.
