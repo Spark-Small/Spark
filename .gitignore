@@ -1,0 +1,47 @@
+# Xcode
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# CocoaPods (not used; guard against accidental add)
+Pods/
+Podfile.lock
+
+# Secrets (never commit)
+*.plist.secret
+Config/Secrets.swift
+GoogleService-Info.plist
+Secrets/
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# Editor
+.cursor/
+.vscode/
+*.swp
+*~
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Instruments
+*.trace
+
+# TestFlight / signing
+AuthKey_*.p8
+*.mobileprovision

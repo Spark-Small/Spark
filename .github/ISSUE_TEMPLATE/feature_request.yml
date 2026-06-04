@@ -1,0 +1,25 @@
+name: Feature
+description: New product or engineering feature
+title: "[feat]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: story
+    attributes:
+      label: User story
+      description: As a __, I want __, so that __
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope (module)
+      description: e.g. feed, auth, onboarding
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true

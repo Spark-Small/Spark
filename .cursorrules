@@ -1,0 +1,32 @@
+# Spark — iOS Native (Cursor root rules)
+# iOS 17+ · Xcode 16+ · Swift 6 · SwiftUI + UIKit hybrid
+
+## Stack
+- Swift 6 strict concurrency; no Swift 5 concurrency workarounds
+- SwiftUI primary; UIKit only when SwiftUI cannot (wrap with *Representable)
+- SPM only; URLSession + async/await for networking (no third-party HTTP libs)
+- SwiftData + Keychain; Repository pattern for all data sources
+
+## Architecture
+- TCA or MVVM + Clean Architecture: Domain | Data | Presentation
+- @Observable (iOS 17+), not ObservableObject; @Environment for DI (no singletons)
+- Typed routes with NavigationStack; no NavigationView or @EnvironmentObject
+- Business logic unit-testable without UI; no force-unwrap in production
+
+## Concurrency
+- Structured concurrency only; @MainActor for UI; actors for shared mutable state
+- Never DispatchQueue.main.async or .sync on main thread
+
+## Code generation defaults
+- Full files with imports; #Preview on every View file
+- os.Logger not print(); max ~300 lines per file; public APIs need ///
+- Prefer semantic colors, Dynamic Type, VoiceOver, Light/Dark, zh-Hans + en localization
+
+## Modular rules (see .cursor/rules/)
+- ios-foundation.mdc — always on
+- ios-swiftui.mdc — Swift / SwiftUI files
+- ios-module-scaffold.mdc — new feature modules ({MODULE_NAME})
+- ios-design-system.mdc — Views / UI polish
+- ios-performance.mdc — perf work
+
+Persona / role prompt: use Cursor Settings → Rules for AI (or project user rules), not duplicated here.
