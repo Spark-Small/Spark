@@ -4,6 +4,7 @@ import SparkAppShell
 import SparkAuth
 import SparkActivity
 import SparkCommunity
+import SparkLikes
 import SparkMessages
 import SparkPayments
 import SparkPersistence
@@ -27,6 +28,7 @@ struct SparkRootViewTests {
             entitlementManager: EntitlementManager(storeKit: MockStoreKitService()),
             messagesRepository: MockMessagesRepository(),
             activityFeedRepository: MockActivityFeedRepository(),
+            likesFeedRepository: MockLikesFeedRepository(),
             searchRepository: MockSearchRepository(),
             communityPostsRepository: MockCommunityPostsRepository(),
             paywallRouter: PaywallRouter(appRouter: router)

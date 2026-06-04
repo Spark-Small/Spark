@@ -12,6 +12,7 @@
 | [API_CONTRACT.md](API_CONTRACT.md) | REST contract (iOS ↔ backend) |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Mock vs Staging, secrets |
 | [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) | Phased roadmap and acceptance criteria |
+| [LIKES_DEVELOPMENT_PLAN.md](LIKES_DEVELOPMENT_PLAN.md) | 喜欢 tab — social discover / match |
 | [ACTIVITY_UPGRADE_PLAN.md](ACTIVITY_UPGRADE_PLAN.md) | Activity full vision (Phase 15+) |
 | [UNIVERSAL_LINKS.md](UNIVERSAL_LINKS.md) | Associated Domains setup |
 | [STAGING.md](STAGING.md) | Staging smoke checklist |

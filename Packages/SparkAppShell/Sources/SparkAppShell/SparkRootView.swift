@@ -3,6 +3,7 @@
 import SparkAuth
 import SparkActivity
 import SparkCommunity
+import SparkLikes
 import SparkMessages
 import SparkPayments
 import SparkPersistence
@@ -16,6 +17,7 @@ public struct SparkRootView: View {
     @Bindable var entitlementManager: EntitlementManager
     let messagesRepository: any MessagesRepository
     let activityFeedRepository: any ActivityFeedRepository
+    let likesFeedRepository: any LikesFeedRepository
     let searchRepository: any SearchRepository
     let communityPostsRepository: any CommunityPostsRepository
     let paywallRouter: PaywallRouter
@@ -26,6 +28,7 @@ public struct SparkRootView: View {
         entitlementManager: EntitlementManager,
         messagesRepository: any MessagesRepository,
         activityFeedRepository: any ActivityFeedRepository,
+        likesFeedRepository: any LikesFeedRepository,
         searchRepository: any SearchRepository,
         communityPostsRepository: any CommunityPostsRepository,
         paywallRouter: PaywallRouter
@@ -35,6 +38,7 @@ public struct SparkRootView: View {
         self.entitlementManager = entitlementManager
         self.messagesRepository = messagesRepository
         self.activityFeedRepository = activityFeedRepository
+        self.likesFeedRepository = likesFeedRepository
         self.searchRepository = searchRepository
         self.communityPostsRepository = communityPostsRepository
         self.paywallRouter = paywallRouter
@@ -57,6 +61,7 @@ public struct SparkRootView: View {
                     entitlementManager: entitlementManager,
                     messagesRepository: messagesRepository,
                     activityFeedRepository: activityFeedRepository,
+                    likesFeedRepository: likesFeedRepository,
                     searchRepository: searchRepository,
                     communityPostsRepository: communityPostsRepository,
                     paywallRouter: paywallRouter
@@ -86,6 +91,7 @@ public struct SparkRootView: View {
         entitlementManager: EntitlementManager(storeKit: MockStoreKitService()),
         messagesRepository: MockMessagesRepository(),
         activityFeedRepository: MockActivityFeedRepository(),
+        likesFeedRepository: MockLikesFeedRepository(),
         searchRepository: MockSearchRepository(),
         communityPostsRepository: MockCommunityPostsRepository(),
         paywallRouter: PaywallRouter(appRouter: router)

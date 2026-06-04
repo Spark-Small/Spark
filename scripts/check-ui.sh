@@ -34,7 +34,7 @@ if_presentation_matches() {
   fi
 }
 
-if_presentation_matches 'Color\.white\.opacity|Color\.black\.opacity' \
+if_presentation_matches 'Color\.white\.opacity|Color\.black\.opacity|\.white\.opacity|\.black\.opacity' \
   'Do not use opacity fills for glass (use Material or glassEffect)'
 
 if_presentation_matches 'blur\(radius:' \

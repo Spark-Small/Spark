@@ -218,6 +218,55 @@ enum MockActivityCatalog {
                 attendees: MockActivityAttendees.roster(host: "老周", members: ["你", "Amy", "石头", "小鹿", "Han"]),
                 conversationThreadID: ActivityThreadID.make(for: "act_4")
             ),
+            ActivityDetail(
+                id: "act_5",
+                title: String(
+                    localized: "activity.item.5.title",
+                    defaultValue: "读书分享局",
+                    comment: "Activity item"
+                ),
+                summary: String(
+                    localized: "activity.item.5.summary",
+                    defaultValue: "周日午后 · 12 人小局",
+                    comment: "Activity summary"
+                ),
+                category: String(
+                    localized: "activity.category.social",
+                    defaultValue: "社交",
+                    comment: "Activity category"
+                ),
+                description: String(
+                    localized: "activity.item.5.description",
+                    defaultValue: "每人带一本最近在读的书，轮流分享 5 分钟。无推销，纯聊天。",
+                    comment: "Activity description"
+                ),
+                startsAt: nextWeekday(.sunday, hour: 15, minute: 0),
+                locationName: String(
+                    localized: "activity.item.5.location",
+                    defaultValue: "浦东图书馆咖啡区",
+                    comment: "Activity location"
+                ),
+                hostDisplayName: String(
+                    localized: "activity.item.5.host",
+                    defaultValue: "书虫阿宁",
+                    comment: "Activity host"
+                ),
+                hostID: "host_book",
+                hostBio: String(
+                    localized: "activity.item.5.hostBio",
+                    defaultValue: "每月办一次读书小局。",
+                    comment: "Host bio"
+                ),
+                attendeeCount: 6,
+                capacity: 12,
+                rsvpStatus: .invited,
+                lifecycleStatus: .scheduled,
+                attendees: MockActivityAttendees.roster(
+                    host: "书虫阿宁",
+                    members: ["Luna", "老陈", "Momo", "Ken", "小满"]
+                ),
+                conversationThreadID: ActivityThreadID.make(for: "act_5")
+            ),
         ]
     }
 
@@ -265,6 +314,7 @@ enum MockActivityCatalog {
     }
 
     private enum Weekday: Int {
+        case sunday = 1
         case saturday = 7
     }
 }

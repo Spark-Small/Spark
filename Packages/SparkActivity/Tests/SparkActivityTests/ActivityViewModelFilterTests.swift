@@ -27,6 +27,6 @@ struct ActivityViewModelFilterTests {
     @Test func loadPopulatesFourMockActivities() async {
         let viewModel = ActivityViewModel(repository: MockActivityFeedRepository())
         await viewModel.load()
-        #expect(viewModel.items.count == 4)
+        #expect(viewModel.items.count == 5)
     }
 }

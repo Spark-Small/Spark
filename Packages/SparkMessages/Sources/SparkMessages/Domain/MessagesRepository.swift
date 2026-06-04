@@ -10,4 +10,6 @@ public protocol MessagesRepository: Sendable {
     func markAllRead() async throws
     /// Ensures an activity group thread exists after signup (Mock creates locally; Live joins on server).
     func ensureActivityGroupThread(threadID: MessageThreadID, displayName: String, welcomeMessage: String) async throws
+    /// Creates or returns a 1:1 thread after mutual like (Likes tab).
+    func ensureDirectMessageThread(peerUserID: String, peerDisplayName: String) async throws -> MessageThreadID
 }

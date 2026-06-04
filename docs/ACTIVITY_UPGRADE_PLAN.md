@@ -169,8 +169,8 @@ flowchart LR
 
 | # | 交付 | API |
 |---|------|-----|
-| 19.1 | Discover 筛选：时间（本周/本月）、类别 chips | UI |
-| 19.2 | `GET /v1/activities/browse?category=&starts_before=` | 契约扩展 |
+| 19.1 | Discover 筛选：时间（本周/本月）、类别 chips | UI（新屏，非已删的 `ActivityBrowse*`） |
+| 19.2 | `GET /v1/activities/browse?category=&starts_before=` | 契约扩展（iOS 客户端尚未接入） |
 | 19.3 | 空态/筛选无结果 `ContentUnavailableView` | `SparkActivity` |
 
 **验收：** Mock 下列表随筛选变化；默认仍按 `starts_at` 升序。

@@ -5,6 +5,7 @@ import SparkAuth
 import SparkCore
 import SparkActivity
 import SparkCommunity
+import SparkLikes
 import SparkMessages
 import SparkNetworking
 import SparkPayments
@@ -21,6 +22,7 @@ public struct AppDependencies {
     public let authService: any AuthService
     public let messagesRepository: any MessagesRepository
     public let activityFeedRepository: any ActivityFeedRepository
+    public let likesFeedRepository: any LikesFeedRepository
     public let searchRepository: any SearchRepository
     public let communityPostsRepository: any CommunityPostsRepository
     public let storeKitService: any StoreKitServing
@@ -37,6 +39,7 @@ public struct AppDependencies {
         authService: any AuthService,
         messagesRepository: any MessagesRepository,
         activityFeedRepository: any ActivityFeedRepository,
+        likesFeedRepository: any LikesFeedRepository,
         searchRepository: any SearchRepository,
         communityPostsRepository: any CommunityPostsRepository,
         storeKitService: any StoreKitServing,
@@ -51,6 +54,7 @@ public struct AppDependencies {
         self.authService = authService
         self.messagesRepository = messagesRepository
         self.activityFeedRepository = activityFeedRepository
+        self.likesFeedRepository = likesFeedRepository
         self.searchRepository = searchRepository
         self.communityPostsRepository = communityPostsRepository
         self.storeKitService = storeKitService

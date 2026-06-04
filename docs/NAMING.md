@@ -23,5 +23,5 @@
 
 ## Localization keys
 
-- Dot-separated: `tab.activity.browse`, `activity.browse.*`, `screen.activity.browse`, `messages.markRead`
+- Dot-separated: `tab.likes`, `likes.*`, `screen.likes`, `activity.filter.*`, `messages.markRead`
 - Add en + zh-Hans in `Spark/Localizable.xcstrings` when copy stabilizes

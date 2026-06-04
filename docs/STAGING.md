@@ -28,6 +28,7 @@ Use Staging when the backend team has deployed endpoints in [API_CONTRACT.md](AP
 | Auth | `MockAuthService` | `LiveAuthService` |
 | Messages | `MockMessagesRepository` | `LiveMessagesRepository` |
 | Activity feed | `MockActivityFeedRepository` | `LiveActivityFeedRepository` |
+| Likes discover | `MockLikesFeedRepository` | `LiveLikesFeedRepository` |
 | Search | `MockSearchRepository` | `LiveSearchRepository` |
 | Community | `MockCommunityPostsRepository` | `LiveCommunityPostsRepository` |
 | StoreKit | `MockStoreKitService` | `LiveStoreKitService` |
@@ -46,6 +47,11 @@ After login on a Staging build:
 | 4 | Search tab (type query, submit) | `GET /v1/search?q=...` |
 | 5 | Community tab list | `GET /v1/community/posts` |
 | 6 | Community post detail (tap row) | `GET /v1/community/posts/{post_id}` |
+| 7 | Likes tab vertical feed | `GET /v1/likes/feed` |
+| 8 | Like user → match → DM | `POST /v1/likes/{user_id}/like`, `POST /v1/messages/direct-threads` |
+| 9 | Inbound likes list | `GET /v1/likes/inbound` |
+| 10 | Rewind pass | `POST /v1/likes/rewind` |
+| 11 | Viewer profile gate | `GET` / `PATCH /v1/likes/viewer-profile` |
 
 Record failures with HTTP status + `error.code` from the contract error body.
 

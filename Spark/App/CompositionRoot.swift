@@ -5,6 +5,7 @@ import SparkAuth
 import SparkCore
 import SparkActivity
 import SparkCommunity
+import SparkLikes
 import SparkMessages
 import SparkNetworking
 import SparkPayments
@@ -55,6 +56,10 @@ enum CompositionRoot {
             configuration: apiConfiguration,
             apiClient: apiClient
         )
+        let likesFeedRepository = makeLikesFeedRepository(
+            configuration: apiConfiguration,
+            apiClient: apiClient
+        )
         let searchRepository = makeSearchRepository(
             configuration: apiConfiguration,
             apiClient: apiClient
@@ -79,6 +84,7 @@ enum CompositionRoot {
             authService: authService,
             messagesRepository: messagesRepository,
             activityFeedRepository: activityFeedRepository,
+            likesFeedRepository: likesFeedRepository,
             searchRepository: searchRepository,
             communityPostsRepository: communityPostsRepository,
             storeKitService: storeKitService,
@@ -132,6 +138,16 @@ enum CompositionRoot {
             return MockActivityFeedRepository()
         }
         return LiveActivityFeedRepository(apiClient: apiClient)
+    }
+
+    private static func makeLikesFeedRepository(
+        configuration: APIConfiguration,
+        apiClient: APIClient
+    ) -> any LikesFeedRepository {
+        if configuration.usesMockBackend {
+            return MockLikesFeedRepository()
+        }
+        return LiveLikesFeedRepository(apiClient: apiClient)
     }
 
     private static func makeSearchRepository(

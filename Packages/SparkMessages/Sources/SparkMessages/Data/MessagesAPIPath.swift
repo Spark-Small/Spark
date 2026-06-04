@@ -7,6 +7,7 @@ enum MessagesAPIPath {
     static let threads = "/v1/messages/threads"
     static let markRead = "/v1/messages/read"
     static let activityGroupThreads = "/v1/messages/activity-threads"
+    static let directThreads = "/v1/messages/direct-threads"
 
     static func threadMessages(threadID: String) -> String {
         "\(threads)/\(threadID)/messages"

@@ -28,4 +28,28 @@ struct DeepLinkParserTests {
         let route = DeepLinkParser.parse(url: url)
         #expect(route == .activityDetail(activityID: "act_42"))
     }
+
+    @Test func parseLikesTabDeepLink() {
+        let url = URL(string: "spark://likes")!
+        let route = DeepLinkParser.parse(url: url)
+        #expect(route == .tab(.likes, query: nil))
+    }
+
+    @Test func parseUniversalLikesTabLink() {
+        let url = URL(string: "https://spark.app/tab/likes")!
+        let route = DeepLinkParser.parse(url: url)
+        #expect(route == .tab(.likes, query: nil))
+    }
+
+    @Test func parseLikesInboundDeepLink() {
+        let url = URL(string: "spark://likes/inbound")!
+        let route = DeepLinkParser.parse(url: url)
+        #expect(route == .likesInbound)
+    }
+
+    @Test func parseUniversalLikesInboundLink() {
+        let url = URL(string: "https://spark.app/tab/likes/inbound")!
+        let route = DeepLinkParser.parse(url: url)
+        #expect(route == .likesInbound)
+    }
 }

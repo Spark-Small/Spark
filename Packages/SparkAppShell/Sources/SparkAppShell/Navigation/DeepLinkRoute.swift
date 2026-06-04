@@ -5,6 +5,7 @@ import SparkPayments
 
 public enum DeepLinkRoute: Equatable, Sendable {
     case tab(SparkTab, query: String?)
+    case likesInbound
     case paywall(PaywallPlacement)
     case conversation(threadID: String)
     case communityPost(postID: String)

@@ -9,7 +9,7 @@ See also: [API_CONTRACT.md](API_CONTRACT.md), [DEVELOPMENT.md](DEVELOPMENT.md), 
 ```
 Spark (App) — CompositionRoot, environments
  ├── SparkAppShell → SparkAuth, SparkCommunity, SparkMessages,
- │                   SparkActivity, SparkSearch, SparkPersistence, SparkPayments
+ │                   SparkActivity, SparkLikes, SparkSearch, SparkPersistence, SparkPayments
  ├── SparkAuth → SparkCore, SparkNetworking, SparkPersistence, SparkDesignSystem
  ├── SparkPayments → SparkCore
  └── SparkNetworking, SparkMessages, SparkPersistence, SparkDesignSystem
@@ -19,11 +19,12 @@ SparkNetworking → SparkCore
 SparkPersistence → SparkCore
 SparkDesignSystem → SwiftUI primitives
 SparkActivity → SparkCore, SparkNetworking, SparkDesignSystem
+SparkLikes → SparkCore, SparkNetworking, SparkDesignSystem
 SparkCommunity / SparkSearch → SparkCore, SparkNetworking, SparkDesignSystem
 SparkMessages → SparkCore, SparkNetworking, SparkDesignSystem
 ```
 
-App target links: **SparkAppShell**, **SparkAuth**, **SparkPayments**, **SparkDesignSystem**, **SparkNetworking**, **SparkMessages**, **SparkPersistence**, **SparkActivity**, **SparkSearch**, **SparkCommunity**.
+App target links: **SparkAppShell**, **SparkAuth**, **SparkPayments**, **SparkDesignSystem**, **SparkNetworking**, **SparkMessages**, **SparkPersistence**, **SparkActivity**, **SparkLikes**, **SparkSearch**, **SparkCommunity**.
 
 ## Module responsibilities
 
@@ -38,6 +39,7 @@ App target links: **SparkAppShell**, **SparkAuth**, **SparkPayments**, **SparkDe
 | SparkPayments | StoreKit 2, entitlements, `PaywallView`, `SparkFeatureFlags` premium gating |
 | SparkAppShell | `SparkRootView`, tabs, deep links, global presentation |
 | SparkActivity | Activity tab inbox + detail；`GET /v1/activities/feed` + CRUD/RSVP |
+| SparkLikes | 喜欢 tab 垂直发现流；`GET /v1/likes/feed` + like/pass/friend |
 | SparkSearch | Search Mock/Live, suggestions + results list |
 | SparkCommunity | Community posts Mock/Live, feed list + post detail |
 

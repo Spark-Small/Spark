@@ -32,6 +32,19 @@ final class SparkAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
             Task { @MainActor in
                 router?.openActivityDetail(activityID: payload.activityID)
             }
+        } else if let likesPayload = LikesPushPayload.parse(userInfo: response.notification.request.content.userInfo) {
+            Task { @MainActor in
+                switch likesPayload.kind {
+                case .inbound:
+                    router?.openLikesInbound()
+                case .match(let threadID):
+                    if let threadID {
+                        router?.openConversation(threadID: threadID)
+                    } else {
+                        router?.openLikesInbound()
+                    }
+                }
+            }
         }
         completionHandler()
     }

@@ -18,6 +18,7 @@ public final class AppRouter {
     public var pendingCommunityRecapActivityID: String?
     /// Activity to push on the Activity tab (consumed by `ActivityRootView`).
     public var pendingActivityID: String?
+    public var pendingLikesInbound = false
     public var globalSheet: GlobalPresentation?
     public var globalFullScreenCover: GlobalPresentation?
 
@@ -38,7 +39,7 @@ public final class AppRouter {
                 presentAuthRequired()
                 return
             }
-        case .paywall, .conversation, .communityPost, .communityRecap, .activityDetail:
+        case .paywall, .conversation, .communityPost, .communityRecap, .activityDetail, .likesInbound:
             if !isAuthenticated {
                 pendingDeepLinkAfterAuth = route
                 presentAuthRequired()
@@ -65,14 +66,26 @@ public final class AppRouter {
             openCommunityRecap(activityID: activityID)
         case let .activityDetail(activityID):
             openActivityDetail(activityID: activityID)
+        case .likesInbound:
+            openLikesInbound()
         }
     }
 
-    /// Opens activity detail on the Activity tab (universal links, search, share).
+    public func openLikesInbound() {
+        selectedTab = .likes
+        pendingLikesInbound = true
+    }
+
+    /// Opens activity detail on the Activity tab (universal links, search, inbox).
     public func openActivityDetail(activityID: String, preferredTab: SparkTab = .activity) {
-        _ = preferredTab
-        selectedTab = .activity
-        pendingActivityID = activityID
+        selectedTab = preferredTab
+        switch preferredTab {
+        case .activity:
+            pendingActivityID = activityID
+        case .likes, .community, .messages, .search:
+            pendingActivityID = activityID
+            selectedTab = .activity
+        }
     }
 
     /// Switches to Community and queues a post push once the feed is loaded.
@@ -137,6 +150,7 @@ public final class AppRouter {
         pendingCommunityPostID = nil
         pendingCommunityRecapActivityID = nil
         pendingActivityID = nil
+        pendingLikesInbound = false
         dismissGlobalPresentation()
     }
 }

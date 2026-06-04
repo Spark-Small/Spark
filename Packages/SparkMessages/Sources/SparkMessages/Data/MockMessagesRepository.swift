@@ -101,6 +101,21 @@ public actor MockMessagesRepository: MessagesRepository {
         }
     }
 
+    public func ensureDirectMessageThread(peerUserID: String, peerDisplayName: String) async throws -> MessageThreadID {
+        let threadID = MessageThreadID("th_dm_\(peerUserID)")
+        let welcome = String(
+            localized: "likes.dm.welcome",
+            defaultValue: "你们互相喜欢，打个招呼吧",
+            comment: "DM welcome"
+        )
+        try await ensureActivityGroupThread(
+            threadID: threadID,
+            displayName: peerDisplayName,
+            welcomeMessage: welcome
+        )
+        return threadID
+    }
+
     public func ensureActivityGroupThread(
         threadID: MessageThreadID,
         displayName: String,

@@ -66,6 +66,21 @@ public struct LiveMessagesRepository: MessagesRepository, Sendable {
         }
     }
 
+    public func ensureDirectMessageThread(peerUserID: String, peerDisplayName: String) async throws -> MessageThreadID {
+        let body = try JSONEncoder().encode(
+            EnsureDirectMessageThreadRequestDTO(peerUserID: peerUserID, peerDisplayName: peerDisplayName)
+        )
+        do {
+            let dto: DirectMessageThreadResponseDTO = try await apiClient.post(
+                MessagesAPIPath.directThreads,
+                body: body
+            )
+            return MessageThreadID(dto.threadID)
+        } catch {
+            throw MessagesError.underlying(mapToAppError(error))
+        }
+    }
+
     public func ensureActivityGroupThread(
         threadID: MessageThreadID,
         displayName: String,

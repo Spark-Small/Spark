@@ -240,6 +240,16 @@ Signed-in user's activity feed for the Activity tab (`SparkActivity` → `LiveAc
 - `thread_id` convention: `th_activity_{activity_id}`; provision via `POST /v1/messages/activity-threads` when user signs up (`going` / `maybe`).
 - Pagination: not required for MVP; add `cursor` later without breaking this shape.
 
+### `GET /v1/activities/browse` (planned — not in iOS client)
+
+**Status:** Backend / Phase 19 only ([ACTIVITY_UPGRADE_PLAN.md](ACTIVITY_UPGRADE_PLAN.md)). **iOS does not call this path** — public activity discovery was removed with dead `ActivityBrowse*` UI (see [adr/0001-likes-tab-social-discovery.md](adr/0001-likes-tab-social-discovery.md)). **人发现** uses [Likes](#likes-social-discovery) (`GET /v1/likes/feed`).
+
+**Query (draft):** `category`, `starts_after`, `starts_before`, `cursor`
+
+**Response:** Same item shape as [feed](#get-v1activitiesfeed) list entries.
+
+When implementing a future Activity-tab discover screen, add this path to `ActivityAPIPath` and `LiveActivityFeedRepository` in a dedicated PR.
+
 ### `GET /v1/activities/{activity_id}`
 
 Invitation detail for the Activity tab (`SparkActivity` → `LiveActivityFeedRepository.fetchActivity`).
@@ -431,6 +441,31 @@ Idempotent: join or create the activity group thread after signup (`ensureActivi
 
 **Response `204`:** Thread ready; inbox lists `display_name` as peer label.
 
+---
+
+### `POST /v1/messages/direct-threads`
+
+Creates or returns a 1:1 thread after mutual like (`ensureDirectMessageThread`).
+
+**Request:**
+
+```json
+{
+  "peer_user_id": "u_like_2",
+  "peer_display_name": "小雨"
+}
+```
+
+**Response `200`:**
+
+```json
+{
+  "thread_id": "th_dm_u_like_2"
+}
+```
+
+---
+
 ### Messages API path literals (iOS Live)
 
 Documented for `MessagesAPIPath` in `SparkMessages`:
@@ -441,6 +476,7 @@ Documented for `MessagesAPIPath` in `SparkMessages`:
 | GET | `/v1/messages/threads` |
 | POST | `/v1/messages/read` |
 | POST | `/v1/messages/activity-threads` |
+| POST | `/v1/messages/direct-threads` |
 | GET/POST | `/v1/messages/threads/{thread_id}/messages` (built as `threads` + `/{id}/messages`) |
 
 ---
@@ -568,11 +604,199 @@ Single post for the Community detail screen (`SparkCommunity` → `LiveCommunity
 
 ---
 
+## Likes (social discovery)
+
+**Module:** `SparkLikes` · **Tab:** 喜欢 · **ADR:** [adr/0001-likes-tab-social-discovery.md](adr/0001-likes-tab-social-discovery.md)
+
+Vertical discover feed (image/video cards). User actions: **like**, **pass**, **friend_request**. Mutual like → **match** → direct message thread.
+
+### `GET /v1/likes/feed`
+
+**Query:**
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `cursor` | string | No | Opaque pagination cursor |
+| `gender_pref` | string | No | `all` · `same` · `opposite` (client preference) |
+| `intent` | string | No | `friends` · `match` |
+
+**Response `200`:**
+
+```json
+{
+  "items": [
+    {
+      "user_id": "u_like_2",
+      "display_name": "小雨",
+      "bio": "咖啡、聊天、慢生活",
+      "gender": "female",
+      "media": {
+        "kind": "image",
+        "url": "https://cdn.example/like/u2.jpg",
+        "poster_url": null
+      }
+    }
+  ],
+  "next_cursor": "c_abc"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `items[].user_id` | string | Yes | Discoverable user |
+| `items[].display_name` | string | Yes | Card title |
+| `items[].bio` | string | No | One-line subtitle |
+| `items[].gender` | string | No | `male` · `female` · `other` — display/filter only |
+| `items[].media.kind` | string | Yes | `image` · `video` |
+| `items[].media.url` | string | Yes | Asset URL |
+| `items[].media.poster_url` | string | No | Video poster |
+
+**Response `204`:** No more cards (client shows empty state).
+
+---
+
+### `POST /v1/likes/{user_id}/like`
+
+**Response `200`:**
+
+```json
+{
+  "outcome": "matched",
+  "thread_id": "th_dm_u_like_2"
+}
+```
+
+| `outcome` | Meaning |
+|-----------|---------|
+| `matched` | Mutual like; open DM (`thread_id` set) |
+| `pending` | Recorded; wait for peer |
+| `already_connected` | Existing thread; `thread_id` may be set |
+
+---
+
+### `POST /v1/likes/{user_id}/pass`
+
+**Response `204`:** Card removed from future feed for this user pair.
+
+---
+
+### `POST /v1/likes/{user_id}/friend-request`
+
+Non-match friend path (e.g. platonic same-gender).
+
+**Response `200`:**
+
+```json
+{
+  "outcome": "sent"
+}
+```
+
+**Response `409`:** Already friends or request pending (`error.code`: `already_connected`).
+
+---
+
+### `POST /v1/likes/{user_id}/report`
+
+**Request:**
+
+```json
+{
+  "reason": "spam",
+  "detail": "optional text"
+}
+```
+
+**Response `200`:** `{ "report_id": "rp_xxx" }`
+
+---
+
+### `POST /v1/likes/{user_id}/block`
+
+**Response `204`:** User hidden from feed.
+
+---
+
+### `GET /v1/likes/inbound`
+
+Users who liked the viewer (not yet matched / passed).
+
+**Query:** `cursor` (optional)
+
+**Response `200`:**
+
+```json
+{
+  "items": [
+    {
+      "user_id": "u_like_5",
+      "liked_at": "2026-06-05T12:00:00Z",
+      "card": { }
+    }
+  ],
+  "next_cursor": null
+}
+```
+
+`card` uses the same shape as [feed items](#get-v1likesfeed).
+
+---
+
+### `POST /v1/likes/rewind`
+
+Undo the most recent pass (client: once per calendar day recommended).
+
+**Response `200`:** `{ "card": { ... } }` or `{ "card": null }` if unavailable.
+
+---
+
+### `GET /v1/likes/viewer-profile`
+
+Minimum profile for discover gate (like/pass requires `has_photo` + non-empty `display_name`).
+
+**Response `200`:** `{ "display_name": "...", "has_photo": true }`
+
+### `PATCH /v1/likes/viewer-profile`
+
+**Request:** `{ "display_name": "...", "has_photo": true }`
+
+**Response `200`:** Updated profile (same shape as GET).
+
+### Push payloads (APNs)
+
+| `type` | Action |
+|--------|--------|
+| `likes.inbound` | Open inbound list (`spark://likes/inbound`) |
+| `likes.match` | Open DM when `thread_id` set; else inbound |
+
+---
+
+### Likes API path literals (iOS Live)
+
+| Method | Path |
+|--------|------|
+| GET | `/v1/likes/feed` |
+| GET | `/v1/likes/inbound` |
+| GET | `/v1/likes/viewer-profile` |
+| PATCH | `/v1/likes/viewer-profile` |
+| POST | `/v1/likes/rewind` |
+| POST | `/v1/likes/{user_id}/like` |
+| POST | `/v1/likes/{user_id}/pass` |
+| POST | `/v1/likes/{user_id}/friend-request` |
+| POST | `/v1/likes/{user_id}/report` |
+| POST | `/v1/likes/{user_id}/block` |
+
+**Deep links (iOS):** `spark://likes` · `spark://likes/inbound` · Universal `https://spark.app/tab/likes` · `https://spark.app/tab/likes/inbound`
+
+**Feed item extensions (optional):** `media_items[]`, `interest_tags[]`, `coarse_location`, `shared_activity: { activity_id, title }`
+
+---
+
 ## Environment matrix
 
 | Environment | `SPARK_API_BASE_URL` | iOS data layer |
 |-------------|----------------------|----------------|
-| Local / no backend | `https://mock.spark.local` | `MockAuthService`, `MockMessagesRepository`, `MockActivityFeedRepository`, `MockSearchRepository`, `MockCommunityPostsRepository`, `MockStoreKitService` |
+| Local / no backend | `https://mock.spark.local` | `MockAuthService`, `MockMessagesRepository`, `MockActivityFeedRepository`, `MockLikesFeedRepository`, `MockSearchRepository`, `MockCommunityPostsRepository`, `MockStoreKitService` |
 | Staging | `https://api.staging.spark.app` | `Live*` types |
 | Production | `https://api.spark.app` | `Live*` types |
 
@@ -590,3 +814,5 @@ Copy `Config/Secrets.xcconfig.example` → `Config/Secrets.xcconfig` (gitignored
 | 2026-06-05 | Search `GET /v1/search`; Community `GET /v1/community/posts` |
 | 2026-06-05 | Community post detail `GET /v1/community/posts/{post_id}` |
 | 2026-06-05 | Activity invitation fields, detail + RSVP endpoints |
+| 2026-06-05 | Likes discover feed + actions; direct message threads |
+| 2026-06-05 | Remove iOS `ActivityBrowse*`; document planned `GET /v1/activities/browse` only |

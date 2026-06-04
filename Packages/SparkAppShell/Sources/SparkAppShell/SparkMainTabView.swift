@@ -1,8 +1,9 @@
-// Module: SparkAppShell — Four-tab primary interface.
+// Module: SparkAppShell — Five-tab primary interface.
 
 import SparkActivity
 import SparkAuth
 import SparkCommunity
+import SparkLikes
 import SparkMessages
 import SparkPayments
 import SparkSearch
@@ -14,6 +15,7 @@ public struct SparkMainTabView: View {
     @Bindable var entitlementManager: EntitlementManager
     let messagesRepository: any MessagesRepository
     let activityFeedRepository: any ActivityFeedRepository
+    let likesFeedRepository: any LikesFeedRepository
     let searchRepository: any SearchRepository
     let communityPostsRepository: any CommunityPostsRepository
     let paywallRouter: PaywallRouter
@@ -27,6 +29,7 @@ public struct SparkMainTabView: View {
         entitlementManager: EntitlementManager,
         messagesRepository: any MessagesRepository,
         activityFeedRepository: any ActivityFeedRepository,
+        likesFeedRepository: any LikesFeedRepository,
         searchRepository: any SearchRepository,
         communityPostsRepository: any CommunityPostsRepository,
         paywallRouter: PaywallRouter
@@ -36,6 +39,7 @@ public struct SparkMainTabView: View {
         self.entitlementManager = entitlementManager
         self.messagesRepository = messagesRepository
         self.activityFeedRepository = activityFeedRepository
+        self.likesFeedRepository = likesFeedRepository
         self.searchRepository = searchRepository
         self.communityPostsRepository = communityPostsRepository
         self.paywallRouter = paywallRouter
@@ -80,6 +84,35 @@ public struct SparkMainTabView: View {
 
     @ViewBuilder
     private var tabContent: some View {
+        LikesRootView(
+            repository: likesFeedRepository,
+            pendingInbound: $router.pendingLikesInbound,
+            onOpenMatchConversation: { threadID, peerDisplayName, initialMessage in
+            let peerUserID = Self.peerUserID(fromDirectThreadID: threadID)
+            let resolvedThread = try? await messagesRepository.ensureDirectMessageThread(
+                peerUserID: peerUserID,
+                peerDisplayName: peerDisplayName
+            )
+            let thread = (resolvedThread ?? MessageThreadID(threadID)).rawValue
+            if let initialMessage, !initialMessage.isEmpty {
+                _ = try? await messagesRepository.sendMessage(
+                    threadID: MessageThreadID(thread),
+                    body: initialMessage
+                )
+            }
+            await MainActor.run {
+                router.openConversation(threadID: thread)
+            }
+        },
+            onOpenSharedActivity: { activityID in
+                Task { @MainActor in
+                    router.openActivityDetail(activityID: activityID)
+                }
+            }
+        )
+        .tabItem { Label(SparkTab.likes.title, systemImage: SparkTab.likes.systemImage) }
+        .tag(SparkTab.likes)
+
         CommunityRootView(
             repository: communityPostsRepository,
             pendingCommunityPostID: $router.pendingCommunityPostID,
@@ -197,6 +230,14 @@ public struct SparkMainTabView: View {
         case .person, .none:
             break
         }
+    }
+
+    private nonisolated static func peerUserID(fromDirectThreadID threadID: String) -> String {
+        let prefix = "th_dm_"
+        if threadID.hasPrefix(prefix) {
+            return String(threadID.dropFirst(prefix.count))
+        }
+        return threadID
     }
 
     @ToolbarContentBuilder

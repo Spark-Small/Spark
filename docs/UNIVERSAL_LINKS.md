@@ -12,6 +12,7 @@
 2. `Config/Spark.entitlements` declares `applinks:spark.app` and `aps-environment` (not under `Spark/` — avoids Xcode auto-signing on personal teams).
 3. Share/copy uses `https://spark.app/a/{activity_id}` (`ActivityInviteURL.shareLink`).
 4. `DeepLinkParser` maps `/a/{id}` → `activityDetail`; `AppRouter` opens the **活动** tab and queues `pendingActivityID` (`ActivityRootView`).
+5. Likes tab: `spark://likes` or `https://spark.app/tab/likes` → `AppRouter.selectedTab = .likes` (`LikesRootView`).
 
 ## Web
 
