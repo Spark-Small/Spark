@@ -13,6 +13,14 @@ build/
 .build/
 .swiftpm/
 
+# CloudBase function deploy bundles
+cloudfunctions/**/node_modules/
+cloudrun/**/node_modules/
+
+# Local agent tooling (not product source)
+.agents/
+skills-lock.json
+
 # CocoaPods (not used; guard against accidental add)
 Pods/
 Podfile.lock

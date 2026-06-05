@@ -4,6 +4,7 @@ import Foundation
 
 enum MessagesAPIPath {
     static let unreadCount = "/v1/messages/unread-count"
+    static let inbox = "/v1/messages/inbox"
     static let threads = "/v1/messages/threads"
     static let markRead = "/v1/messages/read"
     static let activityGroupThreads = "/v1/messages/activity-threads"
@@ -11,5 +12,17 @@ enum MessagesAPIPath {
 
     static func threadMessages(threadID: String) -> String {
         "\(threads)/\(threadID)/messages"
+    }
+
+    static func conversationContext(threadID: String) -> String {
+        "\(threads)/\(threadID)/context"
+    }
+
+    static func invitationRespond(activityID: String, invitationID: String) -> String {
+        "/v1/activities/\(activityID)/invitations/\(invitationID)/respond"
+    }
+
+    static func dismissActionItem(id: String) -> String {
+        "/v1/messages/inbox/action-items/\(id)/dismiss"
     }
 }

@@ -24,6 +24,12 @@ const {
   serializeCommunityMembers,
 } = require("./lib/community-helpers");
 const {
+  buildInboxResponse,
+  buildConversationContext,
+  dismissActionItemForInvite,
+  dismissInboxActionItem,
+} = require("./lib/messages-helpers");
+const {
   dailyStatsFor,
   incrementSeen,
   consumeSpark,
@@ -73,6 +79,8 @@ const state = {
     community_report_counter: 0,
   },
   communityReports: [],
+  inboxActionItems: [],
+  dismissedInboxActionIds: new Set(),
   dirty: createDirtyTracker(),
 };
 
@@ -372,6 +380,20 @@ app.post("/v1/messages/read", requireAuth, (_req, res) => {
   res.status(204).send();
 });
 
+app.get("/v1/messages/inbox", requireAuth, (_req, res) => {
+  res.json(buildInboxResponse(state));
+});
+
+app.post("/v1/messages/inbox/action-items/:actionItemId/dismiss", requireAuth, (req, res) => {
+  const ok = dismissInboxActionItem(state, req.params.actionItemId);
+  if (!ok) return err(res, 404, "not_found", "Action item not found");
+  res.status(204).send();
+});
+
+app.get("/v1/messages/threads/:threadId/context", requireAuth, (req, res) => {
+  res.json(buildConversationContext(state, req.params.threadId));
+});
+
 app.get("/v1/messages/threads", requireAuth, (_req, res) => {
   const list = [...state.threads.values()].map((t) => ({
     id: t.id,
@@ -559,6 +581,28 @@ app.patch("/v1/activities/:activityId", requireAuth, (req, res) => {
   );
   res.json({ activity: activityDetail(a) });
 });
+
+app.post(
+  "/v1/activities/:activityId/invitations/:invitationId/respond",
+  requireAuth,
+  (req, res) => {
+    const response = req.body?.response;
+    if (!["accept", "decline"].includes(response)) {
+      return err(res, 400, "invalid_request", "response must be accept or decline");
+    }
+    const activity = state.activities.get(req.params.activityId);
+    if (!activity) return err(res, 404, "not_found", "Activity not found");
+    dismissActionItemForInvite(state, req.params.invitationId);
+    if (response === "accept") {
+      activity.rsvp_status = "going";
+      ensureActivityThread(activity, `欢迎加入「${activity.title}」活动群`);
+      activity.attendee_count = Math.max(activity.attendee_count, 1);
+      touchActivity(activity.id);
+    }
+    state.dirty.likes = true;
+    res.status(204).send();
+  }
+);
 
 app.post("/v1/activities/:activityId/rsvp", requireAuth, (req, res) => {
   const a = state.activities.get(req.params.activityId);

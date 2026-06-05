@@ -32,6 +32,9 @@ struct ChatMessageDTO: Decodable, Sendable {
     let body: String
     let sentAt: String
     let isFromCurrentUser: Bool
+    let kind: String?
+    let activityID: String?
+    let system: MessagesSystemPayloadDTO?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -39,6 +42,24 @@ struct ChatMessageDTO: Decodable, Sendable {
         case body
         case sentAt = "sent_at"
         case isFromCurrentUser = "is_from_current_user"
+        case kind
+        case activityID = "activity_id"
+        case system
+    }
+}
+
+struct MessagesSystemPayloadDTO: Decodable, Sendable {
+    let typeLabel: String
+    let title: String
+    let body: String
+    let ctaTitle: String?
+    let ctaActivityID: String?
+
+    enum CodingKeys: String, CodingKey {
+        case typeLabel = "type_label"
+        case title, body
+        case ctaTitle = "cta_title"
+        case ctaActivityID = "cta_activity_id"
     }
 }
 

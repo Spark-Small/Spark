@@ -1,13 +1,15 @@
-// Module: SparkMessages — Thread detail with send composer.
+// Module: SparkMessages — Thread detail with rich message kinds.
 
 import SparkDesignSystem
 import SwiftUI
 
 public struct ConversationDetailView: View {
     @Bindable public var viewModel: ConversationViewModel
+    public var onOpenActivity: ((String) -> Void)?
 
-    public init(viewModel: ConversationViewModel) {
+    public init(viewModel: ConversationViewModel, onOpenActivity: ((String) -> Void)? = nil) {
         self.viewModel = viewModel
+        self.onOpenActivity = onOpenActivity
     }
 
     public var body: some View {
@@ -34,8 +36,25 @@ public struct ConversationDetailView: View {
         .background(.regularMaterial)
         .navigationTitle(viewModel.thread.peerDisplayName)
         .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .top) {
+            if viewModel.isGroupChat {
+                groupActivityBanner
+            } else if viewModel.isDirectMessage {
+                dmContextHeader
+            }
+        }
         .safeAreaInset(edge: .bottom) {
-            composerBar
+            VStack(spacing: 8) {
+                if let sendError = viewModel.sendErrorMessage {
+                    Text(sendError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .accessibilityLabel(sendError)
+                }
+                composerBar
+            }
         }
         .task {
             if viewModel.loadState == .idle {
@@ -44,12 +63,66 @@ public struct ConversationDetailView: View {
         }
     }
 
+    @ViewBuilder
+    private var groupActivityBanner: some View {
+        if let activity = viewModel.groupBannerActivity {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(activity.title)
+                    .font(.subheadline.weight(.semibold))
+                Text(activity.countdownText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(.thinMaterial)
+        }
+    }
+
+    @ViewBuilder
+    private var dmContextHeader: some View {
+        if let activities = viewModel.context?.sharedActivities, !activities.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(activities) { activity in
+                        Button {
+                            onOpenActivity?(activity.id)
+                        } label: {
+                            dmSharedActivityChip(activity: activity)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+            }
+            .background(.thinMaterial)
+        }
+    }
+
+    private func dmSharedActivityChip(activity: InboxActivitySummary) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(
+                String(localized: "messages.dm.sharedActivity", defaultValue: "共同活动", comment: "Shared activity")
+            )
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            Text(activity.title)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+    }
+
     private var messageList: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
                     ForEach(viewModel.messages) { message in
-                        ChatBubble(message: message)
+                        ConversationMessageView(message: message, onOpenActivity: onOpenActivity)
                             .id(message.id)
                     }
                 }
@@ -95,40 +168,6 @@ public struct ConversationDetailView: View {
     }
 }
 
-// MARK: - Bubble
-
-private struct ChatBubble: View {
-    let message: ChatMessage
-
-    var body: some View {
-        HStack {
-            if message.isFromCurrentUser { Spacer(minLength: 48) }
-            Text(message.body)
-                .font(.body)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background {
-                    bubbleBackground
-                }
-            if !message.isFromCurrentUser { Spacer(minLength: 48) }
-        }
-        .accessibilityLabel(accessibilityText)
-    }
-
-    @ViewBuilder
-    private var bubbleBackground: some View {
-        RoundedRectangle(cornerRadius: 20)
-            .fill(message.isFromCurrentUser ? AnyShapeStyle(.regularMaterial) : AnyShapeStyle(.thinMaterial))
-    }
-
-    private var accessibilityText: String {
-        let role = message.isFromCurrentUser
-            ? String(localized: "messages.bubble.you", defaultValue: "你", comment: "You sent")
-            : String(localized: "messages.bubble.them", defaultValue: "对方", comment: "Peer sent")
-        return "\(role): \(message.body)"
-    }
-}
-
 #Preview {
     NavigationStack {
         ConversationDetailView(
@@ -143,5 +182,42 @@ private struct ChatBubble: View {
                 )
             )
         )
+    }
+}
+
+#Preview("Conversation — load failure") {
+    NavigationStack {
+        ConversationDetailView(
+            viewModel: ConversationViewModel(
+                repository: PreviewFailingConversationRepository(),
+                thread: MessageThread(
+                    threadID: MessageThreadID("th_dm_u_like_1"),
+                    peerDisplayName: "Preview",
+                    lastMessagePreview: "",
+                    lastActivityAt: .now,
+                    unreadCount: 0
+                )
+            )
+        )
+    }
+}
+
+private struct PreviewFailingConversationRepository: MessagesRepository, Sendable {
+    struct Failure: LocalizedError {
+        var errorDescription: String? { "Preview failure" }
+    }
+
+    func fetchUnreadCount() async throws -> Int { 0 }
+    func fetchThreads() async throws -> [MessageThread] { [] }
+    func fetchInbox() async throws -> MessagesInbox { MessagesInbox() }
+    func fetchMessages(threadID: MessageThreadID) async throws -> [ChatMessage] { throw Failure() }
+    func fetchConversationContext(threadID: MessageThreadID) async throws -> ConversationContext { throw Failure() }
+    func sendMessage(threadID: MessageThreadID, body: String) async throws -> ChatMessage { throw Failure() }
+    func markAllRead() async throws {}
+    func respondToActivityInvite(activityID: String, invitationID: String, accept: Bool) async throws {}
+    func dismissInboxActionItem(id: String) async throws {}
+    func ensureActivityGroupThread(threadID: MessageThreadID, displayName: String, welcomeMessage: String) async throws {}
+    func ensureDirectMessageThread(peerUserID: String, peerDisplayName: String) async throws -> MessageThreadID {
+        MessageThreadID("th_dm_preview")
     }
 }

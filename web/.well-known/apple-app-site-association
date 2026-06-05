@@ -4,7 +4,15 @@
     "details": [
       {
         "appIDs": ["TEAMID.com.sparksmall.spark"],
-        "paths": ["/a/*", "/activity/*", "/tab/*"]
+        "paths": [
+          "/a/*",
+          "/activity/*",
+          "/activities/*",
+          "/tab/*",
+          "/matches/*",
+          "/community/posts/*",
+          "/messages/thread/*"
+        ]
       }
     ]
   }

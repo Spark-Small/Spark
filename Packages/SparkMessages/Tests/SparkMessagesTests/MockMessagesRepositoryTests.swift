@@ -7,7 +7,7 @@ struct MockMessagesRepositoryTests {
     @Test func fetchThreadsReturnsSortedByActivity() async throws {
         let repository = MockMessagesRepository(unreadCount: 3)
         let threads = try await repository.fetchThreads()
-        #expect(threads.count == 2)
+        #expect(threads.count == 4)
         #expect(threads == threads.sorted { $0.lastActivityAt > $1.lastActivityAt })
     }
 
@@ -29,9 +29,18 @@ struct MockMessagesRepositoryTests {
             welcomeMessage: "欢迎加入"
         )
         let threads = try await repository.fetchThreads()
-        #expect(threads.count == 3)
+        #expect(threads.count == 5)
         #expect(threads.contains { $0.threadID == threadID })
         let messages = try await repository.fetchMessages(threadID: threadID)
         #expect(messages.isEmpty == false)
+    }
+
+    @Test func dismissActionItemPersistsAcrossFetchInbox() async throws {
+        let repository = MockMessagesRepository(unreadCount: 0)
+        let before = try await repository.fetchInbox()
+        #expect(before.actionItems.contains { $0.id == "action_change_1" })
+        try await repository.dismissInboxActionItem(id: "action_change_1")
+        let after = try await repository.fetchInbox()
+        #expect(after.actionItems.contains { $0.id == "action_change_1" } == false)
     }
 }

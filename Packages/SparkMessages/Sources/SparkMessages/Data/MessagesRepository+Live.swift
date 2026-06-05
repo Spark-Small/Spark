@@ -5,6 +5,8 @@ import SparkCore
 import SparkNetworking
 
 public struct LiveMessagesRepository: MessagesRepository, Sendable {
+    private static let logger = SparkLog.logger(category: "Messages.Live")
+
     private let apiClient: APIClient
     private let cache: MessagesCache
 
@@ -19,6 +21,7 @@ public struct LiveMessagesRepository: MessagesRepository, Sendable {
             await cache.set(dto.count)
             return dto.count
         } catch {
+            Self.logger.error("fetchUnreadCount failed: \(error.localizedDescription, privacy: .public)")
             if let cached = await cache.get() {
                 return cached
             }
@@ -27,9 +30,58 @@ public struct LiveMessagesRepository: MessagesRepository, Sendable {
     }
 
     public func fetchThreads() async throws -> [MessageThread] {
+        try await fetchInbox().allThreads.sorted { $0.lastActivityAt > $1.lastActivityAt }
+    }
+
+    public func fetchInbox() async throws -> MessagesInbox {
         do {
-            let dto: MessageThreadsResponseDTO = try await apiClient.get(MessagesAPIPath.threads)
-            return try dto.threads.map(MessagesDTOMapper.thread)
+            let dto: MessagesInboxResponseDTO = try await apiClient.get(MessagesAPIPath.inbox)
+            return try MessagesDTOMapper.inbox(from: dto)
+        } catch let error as MessagesError {
+            if case let .underlying(.server(code, _)) = error, code == 404 {
+                return try await derivedInbox()
+            }
+            throw error
+        } catch {
+            if let appError = error as? AppError, case let .server(code, _) = appError, code == 404 {
+                return try await derivedInbox()
+            }
+            Self.logger.error("fetchInbox failed: \(error.localizedDescription, privacy: .public)")
+            throw MessagesError.underlying(mapToAppError(error))
+        }
+    }
+
+    public func dismissInboxActionItem(id: String) async throws {
+        do {
+            try await apiClient.post(MessagesAPIPath.dismissActionItem(id: id))
+        } catch {
+            Self.logger.error(
+                "dismissInboxActionItem failed for \(id, privacy: .public): \(error.localizedDescription, privacy: .public)"
+            )
+            throw MessagesError.underlying(mapToAppError(error))
+        }
+    }
+
+    public func fetchConversationContext(threadID: MessageThreadID) async throws -> ConversationContext {
+        do {
+            let dto: ConversationContextResponseDTO = try await apiClient.get(
+                MessagesAPIPath.conversationContext(threadID: threadID.rawValue)
+            )
+            return try MessagesDTOMapper.conversationContext(from: dto)
+        } catch {
+            throw MessagesError.underlying(mapToAppError(error))
+        }
+    }
+
+    public func respondToActivityInvite(activityID: String, invitationID: String, accept: Bool) async throws {
+        let body = try JSONEncoder().encode(
+            InvitationRespondRequestDTO(response: accept ? "accept" : "decline")
+        )
+        do {
+            try await apiClient.post(
+                MessagesAPIPath.invitationRespond(activityID: activityID, invitationID: invitationID),
+                body: body
+            )
         } catch {
             throw MessagesError.underlying(mapToAppError(error))
         }
@@ -98,6 +150,32 @@ public struct LiveMessagesRepository: MessagesRepository, Sendable {
         } catch {
             throw MessagesError.underlying(mapToAppError(error))
         }
+    }
+
+    private func derivedInbox() async throws -> MessagesInbox {
+        let dto: MessageThreadsResponseDTO = try await apiClient.get(MessagesAPIPath.threads)
+        let threads = try dto.threads.map(MessagesDTOMapper.thread)
+        let dm = threads.filter(\.threadID.isDirectMessage).map { thread in
+            ConversationPreview(
+                threadID: thread.threadID,
+                kind: .dm,
+                displayName: thread.peerDisplayName,
+                lastMessagePreview: thread.lastMessagePreview,
+                lastMessageAt: thread.lastActivityAt,
+                unreadCount: thread.unreadCount
+            )
+        }
+        let groups = threads.filter(\.threadID.isGroupChat).map { thread in
+            ConversationPreview(
+                threadID: thread.threadID,
+                kind: .groupChat,
+                displayName: thread.peerDisplayName,
+                lastMessagePreview: thread.lastMessagePreview,
+                lastMessageAt: thread.lastActivityAt,
+                unreadCount: thread.unreadCount
+            )
+        }
+        return MessagesInbox(dmConversations: dm, activeGroupChats: groups)
     }
 
     private func mapToAppError(_ error: Error) -> AppError {

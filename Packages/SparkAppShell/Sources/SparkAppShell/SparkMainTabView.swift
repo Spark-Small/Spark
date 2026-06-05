@@ -88,6 +88,10 @@ public struct SparkMainTabView: View {
         .onChange(of: entitlementManager.hasPremium) { _, _ in
             syncPremiumEntitlementToBackend()
         }
+        .onChange(of: router.selectedTab) { _, tab in
+            guard tab == .messages else { return }
+            Task { await messagesViewModel?.load() }
+        }
     }
 
     private func syncPremiumEntitlementToBackend() {
@@ -171,7 +175,7 @@ public struct SparkMainTabView: View {
         .tabItem { Label(SparkTab.community.title, systemImage: SparkTab.community.systemImage) }
         .tag(SparkTab.community)
 
-        messagesTab
+        messagesTabWithBadge
             .tabItem { Label(SparkTab.messages.title, systemImage: SparkTab.messages.systemImage) }
             .tag(SparkTab.messages)
 
@@ -236,11 +240,26 @@ public struct SparkMainTabView: View {
     }
 
     @ViewBuilder
+    private var messagesTabWithBadge: some View {
+        if let badge = messagesViewModel?.tabBadge {
+            messagesTab.badge(badge)
+        } else {
+            messagesTab
+        }
+    }
+
+    @ViewBuilder
     private var messagesTab: some View {
         if let messagesViewModel {
             MessagesRootView(
                 viewModel: messagesViewModel,
-                pendingConversationThreadID: $router.pendingConversationThreadID
+                pendingConversationThreadID: $router.pendingConversationThreadID,
+                onOpenActivity: { activityID in
+                    router.openActivityDetail(activityID: activityID)
+                },
+                onOpenLikes: {
+                    router.selectedTab = .likes
+                }
             )
         } else {
             ProgressView()

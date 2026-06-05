@@ -75,6 +75,10 @@ function applySeed(state) {
     seed.likesState.daily_by_user
   );
   state.rewindByUser = new Map(Object.entries(seed.likesState.rewind_by_user || {}));
+  const { defaultInboxActionItems } = require("./messages-helpers");
+  state.inboxActionItems =
+    seed.likesState.inbox_action_items || defaultInboxActionItems(state.activities);
+  state.dismissedInboxActionIds = new Set(seed.likesState.dismissed_inbox_action_ids || []);
   Object.assign(state.counters, seed.meta);
 }
 
@@ -123,6 +127,8 @@ function serializeLikesState(state) {
     last_pass_user_id: state.lastPassUserId,
     rewind_used_today: state.rewindUsedToday,
     rewind_by_user: Object.fromEntries(state.rewindByUser || new Map()),
+    inbox_action_items: state.inboxActionItems || [],
+    dismissed_inbox_action_ids: [...(state.dismissedInboxActionIds || new Set())],
   };
 }
 
@@ -148,6 +154,14 @@ function applyLikesDoc(state, doc) {
   state.lastPassUserId = doc.last_pass_user_id ?? null;
   state.rewindUsedToday = Boolean(doc.rewind_used_today);
   state.rewindByUser = new Map(Object.entries(doc.rewind_by_user || {}));
+  if (Array.isArray(doc.inbox_action_items)) {
+    state.inboxActionItems = doc.inbox_action_items;
+  }
+  if (Array.isArray(doc.dismissed_inbox_action_ids)) {
+    state.dismissedInboxActionIds = new Set(doc.dismissed_inbox_action_ids);
+  } else if (!state.dismissedInboxActionIds) {
+    state.dismissedInboxActionIds = new Set();
+  }
 }
 
 async function hydrate(state) {
@@ -178,7 +192,13 @@ async function hydrate(state) {
       await persistAll(state);
       return { mode: "cloudbase", seeded: true };
     }
-    return { mode: "cloudbase", seeded: false };
+
+    const { applyInboxMigration } = require("./migrate-inbox-state");
+    const migrated = await applyInboxMigration(state, database, {
+      serializeLikesState,
+      collection: COLLECTION,
+    });
+    return { mode: "cloudbase", seeded: false, migrated };
   } catch (error) {
     console.error("persistence hydrate failed, falling back to seed", error);
     applySeed(state);

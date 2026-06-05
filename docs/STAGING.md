@@ -79,6 +79,10 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 Record failures with HTTP status + `error.code` from the contract error body.
 
+### Inbox persistence migration
+
+Pre-inbox staging DBs may still have legacy thread `th_001` or missing `inbox_action_items`. On cold start, `spark-api` runs `lib/migrate-inbox-state.js` after hydrate: removes legacy threads, merges seed DM/group threads and `mutual_matches`, backfills default action items. Redeploy `cloudfunctions/spark-api` after changing migration logic.
+
 ## Rollback
 
 Remove or comment out `SPARK_API_BASE_URL` in `Secrets.xcconfig`, or set it back to `https://mock.spark.local`, then rebuild.

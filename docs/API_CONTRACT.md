@@ -112,6 +112,106 @@ Marks all threads read for the current user.
 
 ---
 
+### `GET /v1/messages/inbox`
+
+Unified inbox for the messages tab (action items, new matches, DM and group conversations).
+
+**Response `200`:**
+
+```json
+{
+  "action_items": [
+    {
+      "id": "action_1",
+      "type": "activity_invite",
+      "priority": 2,
+      "created_at": "2026-06-04T08:00:00Z",
+      "invite": {
+        "id": "inv_1",
+        "activity": {
+          "id": "act_2",
+          "title": "周末爬香山",
+          "starts_at": "2026-06-07T09:00:00Z",
+          "attendee_count": 12
+        },
+        "inviter": {
+          "id": "u_wang",
+          "display_name": "王芳"
+        }
+      }
+    }
+  ],
+  "unmessaged_matches": [
+    {
+      "id": "match_1",
+      "user": { "id": "u_li", "display_name": "李明" },
+      "matched_at": "2026-06-04T07:00:00Z"
+    }
+  ],
+  "dm_conversations": [
+    {
+      "id": "th_dm_u_ale",
+      "kind": "dm",
+      "display_name": "阿乐",
+      "last_message_preview": "周六一起爬山吗？",
+      "last_message_at": "2026-06-04T10:00:00Z",
+      "unread_count": 1
+    }
+  ],
+  "group_conversations": [
+    {
+      "id": "th_activity_act_1",
+      "kind": "group_chat",
+      "display_name": "周末徒步 · 群",
+      "last_message_preview": "周六 9:30 北门集合",
+      "last_message_at": "2026-06-04T09:30:00Z",
+      "unread_count": 0,
+      "is_archived": false
+    }
+  ]
+}
+```
+
+`action_items[].type`: `activity_invite` | `activity_changed` | `waitlist_promoted`.
+
+`group_conversations` with `is_archived: true` render in the archived disclosure.
+
+**Fallback:** iOS `LiveMessagesRepository` derives a minimal inbox from `GET /v1/messages/threads` when this endpoint returns `404`.
+
+---
+
+### `POST /v1/messages/inbox/action-items/{action_item_id}/dismiss`
+
+Dismiss a non-invite action card (`activity_changed`, `waitlist_promoted`) or manually clear any action item from the inbox. Invite cards are removed via `POST /v1/activities/{activity_id}/invitations/{invitation_id}/respond`.
+
+**Response `204`:** Empty body.
+
+**Errors:** `404 not_found` when `action_item_id` is unknown.
+
+---
+
+### `GET /v1/messages/threads/{thread_id}/context`
+
+DM / thread metadata for conversation detail header.
+
+**Response `200`:**
+
+```json
+{
+  "shared_activities": [
+    {
+      "id": "act_1",
+      "title": "周末爬香山",
+      "starts_at": "2026-06-07T09:00:00Z",
+      "attendee_count": 12
+    }
+  ],
+  "relationship_status": "matched"
+}
+```
+
+---
+
 ### `GET /v1/messages/threads`
 
 Inbox list for the messages tab.
@@ -326,6 +426,26 @@ Allowed `status`: `going` · `maybe` · `declined` (not `host` / `invited`).
 
 ---
 
+### `POST /v1/activities/{activity_id}/invitations/{invitation_id}/respond`
+
+Swift Live path literal: `/v1/activities/\(activityID)/invitations/\(invitationID)/respond`
+
+Respond to an activity invitation from the messages inbox action card.
+
+**Request:**
+
+```json
+{
+  "response": "accept"
+}
+```
+
+Allowed `response`: `accept` · `decline`.
+
+**Response `204`:** Empty body.
+
+---
+
 ### `POST /v1/activities`
 
 Host creates a new activity (`CreateActivityUseCase`).
@@ -501,7 +621,11 @@ Documented for `MessagesAPIPath` in `SparkMessages`:
 | Method | Path |
 |--------|------|
 | GET | `/v1/messages/unread-count` |
+| GET | `/v1/messages/inbox` |
+| POST | `/v1/messages/inbox/action-items/{action_item_id}/dismiss` |
+| POST | `/v1/messages/inbox/action-items/\(id)/dismiss` (iOS `MessagesAPIPath.dismissActionItem`) |
 | GET | `/v1/messages/threads` |
+| GET | `/v1/messages/threads/{thread_id}/context` |
 | POST | `/v1/messages/read` |
 | POST | `/v1/messages/activity-threads` |
 | POST | `/v1/messages/direct-threads` |
@@ -932,7 +1056,7 @@ Minimum profile for discover gate (like/pass requires `has_photo` + non-empty `d
 
 ### `POST /v1/users/avatar/upload-url` (MODULE-F)
 
-Staging returns `upload_url: null` and a ready `avatar_url` (no client upload).
+Staging returns `upload_url: null` and a ready `avatar_url` (no client upload). When `upload_url` is non-null, iOS `PUT`s JPEG bytes (≤ 1 MB) before `PATCH` profile with `avatar_url`.
 
 **Request:** `{ "content_type": "image/jpeg" }`
 

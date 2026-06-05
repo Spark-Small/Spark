@@ -253,4 +253,39 @@ flowchart LR
 
 | 15–24 | **全量 iOS 客户端** | Live 路径、推送/本地提醒、Universal Link、发现筛选、可信、候补、广播、安全、事后 | ☑ Mock |
 
-**Next:** 后端 Staging（Phase 15–16）、`apple-app-site-association` 上线（Phase 17）、见 [ACTIVITY_UPGRADE_PLAN.md](ACTIVITY_UPGRADE_PLAN.md)。
+**Next:** 按 [SPRINT_PROGRESS_PLAN.md](SPRINT_PROGRESS_PLAN.md) 拆 PR 合并（inbox · browse 时间 · avatar/push）；待办：B.3 真机 Push、E.3 图文帖、F COS 真上传、E.0 合规签字。
+
+---
+
+## Phase 25+ — 缺失模块（Out of Scope → 立项）
+
+索引：[MISSING_MODULES_PLAN.md](MISSING_MODULES_PLAN.md) · ADR：`docs/adr/0002`–`0004` · Staging：[STAGING.md](STAGING.md)
+
+| Phase | 模块 | 目标 | Status | 备注 |
+|-------|------|------|--------|------|
+| 25 | **MODULE-A** | CloudBase NoSQL 持久化 + browse API | ☑ MVP | A.1–A.3 shipped；A.4 `_version` 未做 |
+| 26 | **MODULE-D** | Activity Tab 逛局（Browse iOS） | ☑ MVP | ADR-0003 工具栏「逛局」；`LiveActivityBrowseRepository` |
+| 27 | **MODULE-B** | APNs（条件：付费开发者账号） | 🔄 Partial | B.1–B.4 shipped；真 Push 需云函数 `APNS_*` + 付费 Team（[ADR-0005](adr/0005-apns-http2-delivery.md)） |
+| 28 | **MODULE-C** | Universal Links + AASA | 🔄 Partial | 路径解析 + `web/.well-known` 已扩；C.1 线上 AASA 托管 / OG / App Store fallback 未做 |
+| 29 | **MODULE-E** | Community UGC | 🔄 Partial | E.1–E.2 ☑；E.0 合规清单 ☑；E.4 举报 API ☑；E.3 图文 + 自动审核未做 |
+| 30 | **MODULE-F** | 头像上传 | 🔄 Partial | upload-url + iOS PhotosPicker ☑；COS 真上传 + F.4 审核未做 |
+| 31 | **MODULE-G** | 付费 inbound 模糊 | ☑ MVP | `is_visible` + redacted UI + Paywall ☑；`hasPremium` 变更 → `PATCH viewer-profile` 重模糊 ☑（Mock + Live + staging） |
+| 32 | **MODULE-H** | 微信 SDK | ⛔ No-Go | 规划文档明确 Out of Scope |
+
+### Phase 25+ 验收快照（2026-06-05）
+
+| 检查项 | 状态 |
+|--------|------|
+| `make check` | ☑ |
+| `make test-packages` | ☑ |
+| SparkMessages 审查修复清单 | ☑ dismiss API、send 局部错误、UseCase、测试 |
+| Phase 19 browse 时间筛选 | ☑ 本周/本月 segmented |
+| Browse 时间筛选 Staging smoke | ☑ `staging-smoke.sh` week filter |
+| Staging 冷启动持久化 | ☑ `scripts/staging-smoke.sh`（2026-06-05 重部署后通过） |
+| Messages inbox 三栏 + staging | ☑ `GET /v1/messages/inbox`；hydrate 时 `migrate-inbox-state` 合并 seed 线程/行动卡 |
+| Browse ≥2 条 `scheduled` | ☑ 本地 memory smoke |
+| Inbound `is_visible` 非 Premium | ☑ |
+| Community 发帖 + 回复 | ☑ |
+| 真机 APNs 沙箱 | 🔄 需 `APNS_*` 云函数环境变量 + 付费 Team |
+
+`apple-app-site-association`（原 Phase 17）、活动全量见 [ACTIVITY_UPGRADE_PLAN.md](ACTIVITY_UPGRADE_PLAN.md)。

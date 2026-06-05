@@ -108,6 +108,17 @@ REPORT_ID=$(curl -sf -X POST -H "$AUTH" -H 'Content-Type: application/json' \
   | python3 -c 'import sys,json; print(json.load(sys.stdin)["report_id"])')
 [[ -n "$REPORT_ID" ]] && pass "report $REPORT_ID" || fail "community report"
 
+echo "== messages inbox =="
+curl -sf -H "$AUTH" "$BASE_URL/v1/messages/inbox" \
+  | python3 -c 'import sys,json; d=json.load(sys.stdin); assert len(d.get("action_items",[]))>=1; assert len(d.get("unmessaged_matches",[]))>=1; assert len(d.get("dm_conversations",[]))>=1; assert len(d.get("group_conversations",[]))>=1; print("inbox ok")'
+pass "messages inbox"
+
+echo "== inbox action dismiss =="
+curl -sf -X POST -H "$AUTH" "$BASE_URL/v1/messages/inbox/action-items/action_change_1/dismiss" -o /dev/null
+curl -sf -H "$AUTH" "$BASE_URL/v1/messages/inbox" \
+  | python3 -c 'import sys,json; d=json.load(sys.stdin); ids=[i["id"] for i in d.get("action_items",[])]; assert "action_change_1" not in ids; print("dismiss ok")'
+pass "inbox action dismiss"
+
 echo "== notifications stub =="
 curl -sf -X POST -H "$AUTH" -H 'Content-Type: application/json' \
   -d '{"user_id":"u_staging_1","type":"likes.inbound","payload":{}}' \

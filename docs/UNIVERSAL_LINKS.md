@@ -11,8 +11,11 @@
    - `SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) SPARK_ENABLE_PUSH`
 2. `Config/Spark.entitlements` declares `applinks:spark.app` and `aps-environment` (not under `Spark/` — avoids Xcode auto-signing on personal teams).
 3. Share/copy uses `https://spark.app/a/{activity_id}` (`ActivityInviteURL.shareLink`).
-4. `DeepLinkParser` maps `/a/{id}` → `activityDetail`; `AppRouter` opens the **活动** tab and queues `pendingActivityID` (`ActivityRootView`).
+4. `DeepLinkParser` maps `/a/{id}`, `/activity/{id}`, `/activities/{id}` → `activityDetail`; `AppRouter` opens the **活动** tab and queues `pendingActivityID` (`ActivityRootView`).
 5. Likes tab: `spark://likes` or `https://spark.app/tab/likes` → `AppRouter.selectedTab = .likes` (`LikesRootView`).
+6. Inbound likes: `spark://likes/inbound` or `https://spark.app/tab/likes/inbound` → `likesInbound`.
+7. Messages: `https://spark.app/matches/{thread_id}` or `https://spark.app/messages/thread/{thread_id}` → `conversation`.
+8. Community post: `https://spark.app/community/posts/{post_id}` → `communityPost`.
 
 ## Web
 

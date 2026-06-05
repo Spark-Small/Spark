@@ -118,19 +118,60 @@ function buildSeed() {
 
   const threads = new Map([
     [
-      "th_001",
+      "th_dm_u_like_2",
       {
-        id: "th_001",
-        peer_display_name: "阿乐",
-        last_message_preview: "活动现场见！",
-        last_activity_at: "2026-06-04T10:30:00Z",
+        id: "th_dm_u_like_2",
+        peer_display_name: "小雨",
+        last_message_preview: "周六一起爬山吗？",
+        last_activity_at: "2026-06-04T10:00:00Z",
         unread_count: 1,
+        is_partner_online: true,
         messages: [
           {
-            id: "msg_001",
-            thread_id: "th_001",
-            body: "你好！",
-            sent_at: "2026-06-04T09:00:00Z",
+            id: "msg_dm_001",
+            thread_id: "th_dm_u_like_2",
+            body: "周六一起爬山吗？",
+            sent_at: "2026-06-04T10:00:00Z",
+            is_from_current_user: false,
+          },
+        ],
+      },
+    ],
+    [
+      "th_activity_act_001",
+      {
+        id: "th_activity_act_001",
+        peer_display_name: "周末徒步 · 群",
+        last_message_preview: "周六 9:30 北门集合",
+        last_activity_at: "2026-06-04T09:30:00Z",
+        unread_count: 1,
+        member_count: 5,
+        messages: [
+          {
+            id: "msg_grp_001",
+            thread_id: "th_activity_act_001",
+            body: "周六 9:30 北门集合",
+            sent_at: "2026-06-04T09:30:00Z",
+            is_from_current_user: false,
+          },
+        ],
+      },
+    ],
+    [
+      "th_activity_act_002",
+      {
+        id: "th_activity_act_002",
+        peer_display_name: "Staging 咖啡局 · 群",
+        last_message_preview: "欢迎加入活动群聊",
+        last_activity_at: "2026-06-03T18:00:00Z",
+        unread_count: 0,
+        member_count: 2,
+        messages: [
+          {
+            id: "msg_grp_002",
+            thread_id: "th_activity_act_002",
+            body: "欢迎加入活动群聊",
+            sent_at: "2026-06-03T18:00:00Z",
             is_from_current_user: false,
           },
         ],
@@ -213,7 +254,12 @@ function buildSeed() {
     liked_by_me: [],
     liked_by_user: {},
     daily_by_user: {},
-    mutual_matches: { u_like_2: "th_dm_u_like_2" },
+    mutual_matches: {
+      u_like_1: "th_dm_u_like_1",
+      u_like_2: "th_dm_u_like_2",
+    },
+    inbox_action_items: null,
+    dismissed_inbox_action_ids: [],
     last_pass_user_id: null,
     rewind_used_today: false,
     rewind_by_user: {},
