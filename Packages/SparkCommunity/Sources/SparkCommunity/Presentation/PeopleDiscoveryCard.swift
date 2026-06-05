@@ -6,6 +6,7 @@ struct PeopleDiscoveryCard: View {
     let users: [DiscoveredPerson]
     let likedUserIDs: Set<String>
     let onLike: (String) -> Void
+    let onViewProfile: (DiscoveredPerson) -> Void
     let onViewMore: () -> Void
 
     var body: some View {
@@ -21,7 +22,8 @@ struct PeopleDiscoveryCard: View {
                         PeopleMiniCard(
                             user: user,
                             isLiked: likedUserIDs.contains(user.id),
-                            onLike: { onLike(user.id) }
+                            onLike: { onLike(user.id) },
+                            onViewProfile: { onViewProfile(user) }
                         )
                     }
                     ViewMoreCell(action: onViewMore)
@@ -38,13 +40,18 @@ private struct PeopleMiniCard: View {
     let user: DiscoveredPerson
     let isLiked: Bool
     let onLike: () -> Void
+    let onViewProfile: () -> Void
 
     var body: some View {
         VStack(spacing: 8) {
-            avatar
+            Button(action: onViewProfile) {
+                avatar
+            }
+            .buttonStyle(.plain)
             Text(user.displayName)
                 .font(.caption)
                 .lineLimit(1)
+            RelationshipBadge(context: user.relationship)
             Text(user.sharedTag)
                 .font(.caption2)
                 .foregroundStyle(.secondary)

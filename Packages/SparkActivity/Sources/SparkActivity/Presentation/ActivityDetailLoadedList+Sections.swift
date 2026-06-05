@@ -4,14 +4,14 @@ import SparkDesignSystem
 import SwiftUI
 
 extension ActivityDetailLoadedList {
-    private func showsInviteFriendsSection(for activity: ActivityDetail) -> Bool {
+    func showsInviteFriendsSection(for activity: ActivityDetail) -> Bool {
         viewModel.context == .externalEntry
             && activity.lifecycleStatus == .scheduled
             && activity.rsvpStatus != .host
     }
 
     @ViewBuilder
-    private func postEventSection(activity: ActivityDetail) -> some View {
+    func postEventSection(activity: ActivityDetail) -> some View {
         if activity.showsEndedRecap {
             Section {
                 Label(activity.scheduleLine, systemImage: "clock")
@@ -79,7 +79,7 @@ extension ActivityDetailLoadedList {
     }
 
     @ViewBuilder
-    private func hostManagementSection(activity: ActivityDetail) -> some View {
+    func hostManagementSection(activity: ActivityDetail) -> some View {
         Section {
             Text(activity.signupCounts.localizedSummary)
                 .font(.subheadline)
@@ -116,7 +116,7 @@ extension ActivityDetailLoadedList {
     }
 
     @ViewBuilder
-    private func locationRow(activity: ActivityDetail) -> some View {
+    func locationRow(activity: ActivityDetail) -> some View {
         if let url = ActivityMapURL.mapsURL(locationName: activity.locationName) {
             Button {
                 openURL(url)
@@ -136,7 +136,7 @@ extension ActivityDetailLoadedList {
     }
 
     @ViewBuilder
-    private func attendeesSection(activity: ActivityDetail, isHostView: Bool) -> some View {
+    func attendeesSection(activity: ActivityDetail, isHostView: Bool) -> some View {
         Section {
             ForEach(activity.attendees) { attendee in
                 HStack(spacing: 10) {
@@ -194,7 +194,7 @@ extension ActivityDetailLoadedList {
     }
 
     @ViewBuilder
-    private func registrationSection(activity: ActivityDetail) -> some View {
+    func registrationSection(activity: ActivityDetail) -> some View {
         Section {
             if let blocked = activity.registrationBlockedMessage {
                 Text(blocked)
@@ -245,7 +245,7 @@ extension ActivityDetailLoadedList {
     }
 
     @ViewBuilder
-    private func registrantActionsSection(activity: ActivityDetail) -> some View {
+    func registrantActionsSection(activity: ActivityDetail) -> some View {
         if activity.showsRegistrantActions {
             Section {
                 Button {
@@ -291,7 +291,7 @@ extension ActivityDetailLoadedList {
     }
 
     @ViewBuilder
-    private func groupChatSection(activity: ActivityDetail) -> some View {
+    func groupChatSection(activity: ActivityDetail) -> some View {
         if activity.rsvpStatus.hasGroupChatAccess, let onOpenGroupChat {
             Section {
                 Button(
@@ -328,7 +328,7 @@ extension ActivityDetailLoadedList {
     }
 
     @ViewBuilder
-    private func rsvpButtons(for activity: ActivityDetail) -> some View {
+    func rsvpButtons(for activity: ActivityDetail) -> some View {
         ForEach(ActivityRSVPStatus.selectableResponses, id: \.self) { status in
             let isGoing = status == .going
             let disabled = viewModel.isUpdatingRSVP || (isGoing && !activity.canSelectGoing)

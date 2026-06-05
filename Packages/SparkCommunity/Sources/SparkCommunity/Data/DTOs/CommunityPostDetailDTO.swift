@@ -11,16 +11,20 @@ struct CommunityPostDetailDTO: Decodable, Sendable {
     let title: String
     let body: String
     let authorDisplayName: String
+    let authorUserID: String?
     let replyCount: Int
     let replies: [CommunityPostReplyDTO]?
+    let linkedActivity: LinkedActivityDTO?
 
     enum CodingKeys: String, CodingKey {
         case id
         case title
         case body
         case authorDisplayName = "author_display_name"
+        case authorUserID = "author_user_id"
         case replyCount = "reply_count"
         case replies
+        case linkedActivity = "linked_activity"
     }
 }
 

@@ -9,6 +9,7 @@ public struct CommunityRootView: View {
     @State private var viewModel: CommunityViewModel
     @State private var navigationPath = NavigationPath()
     @State private var recapDraft: (title: String, scheduleLine: String)?
+    @State private var profilePreview: CommunityProfilePreview?
 
     private let repository: any CommunityPostsRepository
     private let fetchActivityRecap: ((String) async -> (title: String, scheduleLine: String)?)?
@@ -84,27 +85,30 @@ public struct CommunityRootView: View {
                 }
             }
             .navigationDestination(for: CommunityFeedPost.self) { post in
-                CommunityPostDetailView(
-                    postID: post.id,
-                    repository: repository,
-                    onOpenLinkedActivity: onOpenLinkedActivity
-                )
+                postDetailView(postID: post.id)
             }
             .navigationDestination(for: CommunityPost.self) { post in
-                CommunityPostDetailView(
-                    postID: post.id,
-                    repository: repository,
-                    onOpenLinkedActivity: onOpenLinkedActivity
-                )
+                postDetailView(postID: post.id)
             }
             .navigationDestination(for: String.self) { postID in
-                CommunityPostDetailView(
-                    postID: postID,
+                postDetailView(postID: postID)
+            }
+            .navigationDestination(for: CommunitySummary.self) { community in
+                CommunityDetailView(
+                    communityID: community.id,
                     repository: repository,
-                    onOpenLinkedActivity: onOpenLinkedActivity
+                    likedPersonIDs: viewModel.likedPersonIDs,
+                    onOpenActivity: onOpenLinkedActivity,
+                    onOpenPost: { navigationPath.append($0) },
+                    onLikePerson: likePerson
                 )
             }
         }
+        .communityProfileSheet(
+            preview: $profilePreview,
+            likedPersonIDs: viewModel.likedPersonIDs,
+            onLike: likePerson
+        )
         .onChange(of: pendingCommunityPostID) { _, postID in
             guard let postID else { return }
             Task { await openPendingPost(postID: postID) }
@@ -167,49 +171,80 @@ public struct CommunityRootView: View {
                 Task { await viewModel.load() }
             }
         case .loaded:
-            ScrollView {
-                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-                    if !viewModel.joinedCommunities.isEmpty {
-                        Section {
-                            MyCommunitiesCarousel(communities: viewModel.joinedCommunities)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        if !viewModel.joinedCommunities.isEmpty {
+                            Section {
+                                MyCommunitiesCarousel(
+                                    communities: viewModel.joinedCommunities,
+                                    onSelect: { navigationPath.append($0) },
+                                    onExploreMore: {
+                                        withAnimation {
+                                            proxy.scrollTo(allCommunitiesSectionID, anchor: .top)
+                                        }
+                                    }
+                                )
                                 .frame(height: 88)
                                 .padding(.vertical, 8)
+                            }
                         }
-                    }
 
-                    Section {
-                        ForEach(viewModel.feedItems) { item in
-                            feedRow(item)
-                        }
-                    } header: {
-                        CommunityFeedSectionHeader(
-                            title: String(
-                                localized: "community.feed.section.discover",
-                                defaultValue: "发现",
-                                comment: "Discover section"
-                            )
-                        )
-                    }
-
-                    if !viewModel.allCommunities.isEmpty {
                         Section {
-                            ForEach(viewModel.allCommunities) { community in
-                                CommunityRowCell(community: community)
-                                Divider()
+                            ForEach(viewModel.feedItems) { item in
+                                feedRow(item)
                             }
                         } header: {
                             CommunityFeedSectionHeader(
                                 title: String(
-                                    localized: "community.feed.section.allCommunities",
-                                    defaultValue: "所有社区",
-                                    comment: "All communities"
+                                    localized: "community.feed.section.discover",
+                                    defaultValue: "发现",
+                                    comment: "Discover section"
                                 )
                             )
+                        }
+
+                        if !viewModel.allCommunities.isEmpty {
+                            Section {
+                                ForEach(viewModel.allCommunities) { community in
+                                    Button {
+                                        navigationPath.append(community)
+                                    } label: {
+                                        CommunityRowCell(community: community)
+                                    }
+                                    .buttonStyle(.plain)
+                                    Divider()
+                                }
+                            } header: {
+                                CommunityFeedSectionHeader(
+                                    title: String(
+                                        localized: "community.feed.section.allCommunities",
+                                        defaultValue: "所有社区",
+                                        comment: "All communities"
+                                    )
+                                )
+                                .id(allCommunitiesSectionID)
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+    private var allCommunitiesSectionID: String { "community-all-section" }
+
+    private func postDetailView(postID: String) -> some View {
+        CommunityPostDetailView(
+            postID: postID,
+            repository: repository,
+            onOpenLinkedActivity: onOpenLinkedActivity
+        )
+    }
+
+    private func likePerson(_ userID: String) {
+        viewModel.markPersonLiked(userID)
+        onLikePerson(userID)
     }
 
     @ViewBuilder
@@ -227,10 +262,8 @@ public struct CommunityRootView: View {
             PeopleDiscoveryCard(
                 users: users,
                 likedUserIDs: viewModel.likedPersonIDs,
-                onLike: { userID in
-                    viewModel.markPersonLiked(userID)
-                    onLikePerson(userID)
-                },
+                onLike: likePerson,
+                onViewProfile: { profilePreview = CommunityProfilePreview(person: $0) },
                 onViewMore: onOpenLikesDiscover
             )
         }

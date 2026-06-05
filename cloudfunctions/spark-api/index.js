@@ -18,6 +18,12 @@ const {
   peerUserIdForDirectThread,
 } = require("./lib/push-triggers");
 const {
+  buildCommunityFeed,
+  serializeCommunityDetail,
+  serializeCommunityActivities,
+  serializeCommunityMembers,
+} = require("./lib/community-helpers");
+const {
   dailyStatsFor,
   incrementSeen,
   consumeSpark,
@@ -84,14 +90,19 @@ function serializeReply(reply) {
 }
 
 function serializePostDetail(post) {
-  return {
+  const detail = {
     id: post.id,
     title: post.title,
     body: post.body,
     author_display_name: post.author_display_name,
+    author_user_id: post.author_id || null,
     reply_count: post.reply_count,
     replies: communityRepliesFor(post).map(serializeReply),
   };
+  if (post.id === "cp_001") {
+    detail.linked_activity = { id: "act_001", name: "周末爬香山" };
+  }
+  return detail;
 }
 
 function displayNameFor(userId) {
@@ -722,6 +733,28 @@ app.get("/v1/search", requireAuth, (req, res) => {
 });
 
 // --- Community ---
+
+app.get("/v1/community/feed", requireAuth, (_req, res) => {
+  res.json(buildCommunityFeed(state));
+});
+
+app.get("/v1/community/communities/:communityId", requireAuth, (req, res) => {
+  const community = serializeCommunityDetail(req.params.communityId);
+  if (!community) return err(res, 404, "not_found", "Community not found");
+  res.json({ community });
+});
+
+app.get("/v1/community/communities/:communityId/activities", requireAuth, (req, res) => {
+  const community = serializeCommunityDetail(req.params.communityId);
+  if (!community) return err(res, 404, "not_found", "Community not found");
+  res.json({ activities: serializeCommunityActivities(req.params.communityId) });
+});
+
+app.get("/v1/community/communities/:communityId/members", requireAuth, (req, res) => {
+  const community = serializeCommunityDetail(req.params.communityId);
+  if (!community) return err(res, 404, "not_found", "Community not found");
+  res.json({ members: serializeCommunityMembers(req.params.communityId) });
+});
 
 app.get("/v1/community/posts", requireAuth, (_req, res) => {
   const posts = [...state.communityPosts.values()].map((p) => ({

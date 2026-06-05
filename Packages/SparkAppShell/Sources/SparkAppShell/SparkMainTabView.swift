@@ -3,6 +3,7 @@
 import SparkActivity
 import SparkAuth
 import SparkCommunity
+import SparkCore
 import SparkLikes
 import SparkMessages
 import SparkPayments
@@ -156,8 +157,12 @@ public struct SparkMainTabView: View {
             onOpenLikesDiscover: {
                 router.selectedTab = .likes
             },
-            onLikePerson: { _ in
-                router.selectedTab = .likes
+            onLikePerson: { userID in
+                Task {
+                    _ = try? await likesFeedRepository.submitLike(
+                        SendLikeRequest(userID: UserID(userID), intensity: .like)
+                    )
+                }
             },
             onOpenLinkedActivity: { activityID in
                 router.openActivityDetail(activityID: activityID)

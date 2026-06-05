@@ -21,6 +21,25 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
         MockCommunityTabCatalog.tabExperience()
     }
 
+    public func fetchCommunityDetail(id: String) async throws -> CommunityDetail {
+        guard let detail = MockCommunityDetailCatalog.detail(id: id) else {
+            throw CommunityError.underlying(.server(statusCode: 404, message: nil))
+        }
+        return detail
+    }
+
+    public func fetchCommunityActivities(communityID: String) async throws -> [CommunityLinkedActivity] {
+        MockCommunityDetailCatalog.activities(communityID: communityID)
+    }
+
+    public func fetchCommunityMembers(communityID: String) async throws -> [CommunityMember] {
+        MockCommunityDetailCatalog.members(communityID: communityID)
+    }
+
+    public func fetchCommunityPosts(communityID: String) async throws -> [CommunityFeedPost] {
+        MockCommunityDetailCatalog.posts(communityID: communityID)
+    }
+
     public func fetchPost(id: String) async throws -> CommunityPostDetail {
         guard let post = MockCommunityPostCatalog.allPosts(replyStore: replyStore).first(where: { $0.id == id }) else {
             throw CommunityError.underlying(.server(statusCode: 404, message: nil))

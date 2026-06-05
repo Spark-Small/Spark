@@ -4,14 +4,21 @@ import SwiftUI
 
 struct MyCommunitiesCarousel: View {
     let communities: [CommunitySummary]
+    let onSelect: (CommunitySummary) -> Void
+    let onExploreMore: () -> Void
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
                 ForEach(communities) { community in
-                    CommunityPill(community: community)
+                    Button {
+                        onSelect(community)
+                    } label: {
+                        CommunityPill(community: community)
+                    }
+                    .buttonStyle(.plain)
                 }
-                ExplorePill()
+                ExplorePill(action: onExploreMore)
             }
             .padding(.horizontal, 16)
         }
@@ -69,7 +76,10 @@ private struct CommunityPill: View {
 }
 
 private struct ExplorePill: View {
+    let action: () -> Void
+
     var body: some View {
+        Button(action: action) {
         VStack(spacing: 6) {
             Circle()
                 .fill(.thinMaterial)
@@ -86,5 +96,7 @@ private struct ExplorePill: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(String(localized: "community.explore", defaultValue: "探索更多", comment: "Explore more"))
+        }
+        .buttonStyle(.plain)
     }
 }

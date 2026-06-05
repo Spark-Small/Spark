@@ -55,7 +55,7 @@ private struct EmptyCommunityPostsRepository: CommunityPostsRepository, Sendable
     }
 
     func fetchPost(id: String) async throws -> CommunityPostDetail {
-        throw EmptyCommunityPostsRepository.TestError()
+        throw TestError()
     }
 
     func createPost(_ draft: CreateCommunityPostDraft) async throws -> CommunityPost {
@@ -70,6 +70,22 @@ private struct EmptyCommunityPostsRepository: CommunityPostsRepository, Sendable
 
     func createReply(postID: String, body: String) async throws -> CommunityPostReply {
         throw TestError()
+    }
+
+    func fetchCommunityDetail(id: String) async throws -> CommunityDetail {
+        throw TestError()
+    }
+
+    func fetchCommunityActivities(communityID: String) async throws -> [CommunityLinkedActivity] {
+        []
+    }
+
+    func fetchCommunityMembers(communityID: String) async throws -> [CommunityMember] {
+        []
+    }
+
+    func fetchCommunityPosts(communityID: String) async throws -> [CommunityFeedPost] {
+        []
     }
 
     struct TestError: LocalizedError {
@@ -99,6 +115,22 @@ private struct FailingCommunityPostsRepository: CommunityPostsRepository, Sendab
     }
 
     func createReply(postID: String, body: String) async throws -> CommunityPostReply {
+        throw TestError()
+    }
+
+    func fetchCommunityDetail(id: String) async throws -> CommunityDetail {
+        throw TestError()
+    }
+
+    func fetchCommunityActivities(communityID: String) async throws -> [CommunityLinkedActivity] {
+        throw TestError()
+    }
+
+    func fetchCommunityMembers(communityID: String) async throws -> [CommunityMember] {
+        throw TestError()
+    }
+
+    func fetchCommunityPosts(communityID: String) async throws -> [CommunityFeedPost] {
         throw TestError()
     }
 }

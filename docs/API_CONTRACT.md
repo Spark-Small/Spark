@@ -558,23 +558,60 @@ Full-text search for the Search tab (`SparkSearch` → `LiveSearchRepository`).
 
 ## Community
 
-### `GET /v1/community/feed` (planned)
+### `GET /v1/community/feed`
 
 Tab experience for the Community discover screen (`SparkCommunity` → `LiveCommunityPostsRepository.fetchTabExperience`).
 
-**Status:** Not required for current Live builds — iOS derives a minimal tab from `GET /v1/community/posts` until this endpoint ships.
-
 **Headers:** `Authorization: Bearer <access_token>` (required)
 
-**Response `200` (sketch):**
+**Response `200`:**
 
 ```json
 {
-  "joined_communities": [],
-  "items": [],
+  "joined_communities": [
+    {
+      "id": "cm_hike",
+      "name": "爬山队",
+      "cover_url": "https://example.com/cover.jpg",
+      "member_count": 38,
+      "activity_count": 12,
+      "has_new_posts": true,
+      "bio": ""
+    }
+  ],
+  "items": [
+    { "type": "post", "post": { "id": "cp_001", "author_display_name": "阿乐" } },
+    { "type": "people_discovery", "people": [{ "id": "u_like_1", "display_name": "李明" }] }
+  ],
   "all_communities": []
 }
 ```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `joined_communities` | array | Yes | User's joined groups |
+| `items` | array | Yes | Mixed feed (`post` \| `people_discovery`) |
+| `all_communities` | array | Yes | Discoverable communities |
+
+**Fallback:** iOS Live repo derives a minimal tab from `GET /v1/community/posts` when feed returns `404`.
+
+### `GET /v1/community/communities/{community_id}`
+
+Community detail header (`LiveCommunityPostsRepository.fetchCommunityDetail`).
+
+**Response `200`:** `{ "community": { "id", "name", "cover_url", "member_count", "activity_count", "has_new_posts", "bio", "is_joined" } }`
+
+### `GET /v1/community/communities/{community_id}/activities`
+
+Linked activities for community detail activities tab.
+
+**Response `200`:** `{ "activities": [{ "id", "title", "schedule_line" }] }`
+
+### `GET /v1/community/communities/{community_id}/members`
+
+Members with relationship context.
+
+**Response `200`:** `{ "members": [{ "id", "display_name", "avatar_url", "bio", "relationship_to_viewer" }] }`
 
 ### `GET /v1/community/posts`
 

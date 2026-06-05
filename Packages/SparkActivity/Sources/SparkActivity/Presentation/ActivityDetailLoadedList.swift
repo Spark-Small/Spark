@@ -4,7 +4,7 @@ import SparkDesignSystem
 import SwiftUI
 
 struct ActivityDetailLoadedList: View {
-    @Environment(\.openURL) private var openURL
+    @Environment(\.openURL) var openURL
     @Bindable var viewModel: ActivityDetailViewModel
     let activity: ActivityDetail
     let onOpenGroupChat: ((ActivityDetail) async -> Void)?

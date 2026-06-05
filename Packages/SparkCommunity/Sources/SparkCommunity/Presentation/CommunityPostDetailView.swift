@@ -148,16 +148,7 @@ public struct CommunityPostDetailView: View {
             )
             .font(.headline)
             ForEach(replies) { reply in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(reply.authorDisplayName)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(reply.body)
-                        .font(.subheadline)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(reply.authorDisplayName), \(reply.body)")
+                CommentRow(reply: reply, relationship: .none)
             }
         }
     }

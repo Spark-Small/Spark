@@ -157,7 +157,7 @@ struct CommunityPostCard: View {
     private var attributedContent: AttributedString {
         var line = AttributedString(post.authorDisplayName)
         line.font = .subheadline.weight(.semibold)
-        var body = AttributedString(" \(post.content)")
+        let body = AttributedString(" \(post.content)")
         return line + body
     }
 

@@ -54,6 +54,16 @@ curl -sf -H "$AUTH" "$BASE_URL/v1/likes/inbound" \
   | python3 -c 'import sys,json; d=json.load(sys.stdin); items=d.get("items",[]); assert len(items)>0; assert items[0].get("is_visible") is False; print("refund blur ok")'
 pass "premium sync refund blur"
 
+echo "== community feed =="
+FEED_ITEMS=$(curl -sf -H "$AUTH" "$BASE_URL/v1/community/feed" \
+  | python3 -c 'import sys,json; print(len(json.load(sys.stdin).get("items",[])))')
+[[ "$FEED_ITEMS" -ge 1 ]] && pass "feed items=$FEED_ITEMS" || fail "feed items=$FEED_ITEMS"
+
+echo "== community detail =="
+curl -sf -H "$AUTH" "$BASE_URL/v1/community/communities/cm_hike" \
+  | python3 -c 'import sys,json; c=json.load(sys.stdin)["community"]; assert c["id"]=="cm_hike"; print("community ok")'
+pass "community detail cm_hike"
+
 echo "== community post + reply =="
 POST_ID=$(curl -sf -X POST -H "$AUTH" -H 'Content-Type: application/json' \
   -d '{"title":"Smoke post","body":"Staging smoke body"}' \
