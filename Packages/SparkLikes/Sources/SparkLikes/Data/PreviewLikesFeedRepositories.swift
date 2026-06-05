@@ -20,8 +20,9 @@ struct EmptyLikesFeedRepository: LikesFeedRepository, Sendable {
         profile
     }
 
-    func requestAvatarUploadURL(contentType: String) async throws -> URL {
-        URL(string: "https://picsum.photos/seed/preview-avatar/400/400")!
+    func prepareAvatarUpload(contentType: String) async throws -> AvatarUploadPrepared {
+        let avatarURL = URL(string: "https://picsum.photos/seed/preview-avatar/400/400")!
+        return AvatarUploadPrepared(uploadURL: nil, avatarURL: avatarURL)
     }
 
     func rewindLastPass() async throws -> DiscoverCard? {

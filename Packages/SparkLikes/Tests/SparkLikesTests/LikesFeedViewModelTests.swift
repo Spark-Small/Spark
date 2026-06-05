@@ -166,7 +166,7 @@ private struct FailingLikesFeedRepository: LikesFeedRepository, Sendable {
         throw LikesError.underlying(.networkUnavailable)
     }
 
-    func requestAvatarUploadURL(contentType: String) async throws -> URL {
+    func prepareAvatarUpload(contentType: String) async throws -> AvatarUploadPrepared {
         throw LikesError.underlying(.networkUnavailable)
     }
 
@@ -200,5 +200,22 @@ private struct FailingLikesFeedRepository: LikesFeedRepository, Sendable {
 
     func syncPremiumEntitlement(isActive: Bool) async throws {
         throw LikesError.underlying(.networkUnavailable)
+    }
+}
+
+struct MockLikesInboundPremiumTests {
+    @Test func inboundVisibilityFollowsPremiumSync() async throws {
+        let repository = MockLikesFeedRepository()
+
+        let blurred = try await repository.fetchInbound(cursor: nil)
+        #expect(blurred.items.allSatisfy { !$0.isVisible })
+
+        try await repository.syncPremiumEntitlement(isActive: true)
+        let revealed = try await repository.fetchInbound(cursor: nil)
+        #expect(revealed.items.allSatisfy { $0.isVisible })
+
+        try await repository.syncPremiumEntitlement(isActive: false)
+        let reblurred = try await repository.fetchInbound(cursor: nil)
+        #expect(reblurred.items.allSatisfy { !$0.isVisible })
     }
 }

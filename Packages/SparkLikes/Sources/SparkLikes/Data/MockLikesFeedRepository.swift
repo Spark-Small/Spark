@@ -24,6 +24,8 @@ public actor MockLikesFeedRepository: LikesFeedRepository {
     private var viewerProfile = LikesViewerProfile()
     private var seenTodayCount = 0
     private var sparkUsedToday = 0
+    /// Mirrors Live `PATCH viewer-profile` + inbound `is_visible` (ADR-0004 / MODULE-G).
+    private var inboundVisibleForPremium = false
 
     private enum DailyLimits {
         static let poolSize = 50
@@ -43,6 +45,17 @@ public actor MockLikesFeedRepository: LikesFeedRepository {
     public func fetchInbound(cursor: String?) async throws -> LikesInboundPage {
         let all = MockLikesCatalog.inboundItems()
             .filter { !removedInboundIDs.contains($0.id) && !blockedIDs.contains($0.id) }
+            .map { item in
+                InboundLikeItem(
+                    userID: item.userID,
+                    card: item.card,
+                    likedAt: item.likedAt,
+                    isVisible: inboundVisibleForPremium,
+                    intensity: item.intensity,
+                    opener: item.opener,
+                    likedQuestionID: item.likedQuestionID
+                )
+            }
         if cursor == InboundPagination.pageTwoCursor {
             let remainder = Array(all.dropFirst(1))
             return LikesInboundPage(items: remainder, nextCursor: nil)
@@ -65,8 +78,9 @@ public actor MockLikesFeedRepository: LikesFeedRepository {
         return profile
     }
 
-    public func requestAvatarUploadURL(contentType: String) async throws -> URL {
-        URL(string: "https://picsum.photos/seed/mock-avatar/400/400")!
+    public func prepareAvatarUpload(contentType: String) async throws -> AvatarUploadPrepared {
+        let avatarURL = URL(string: "https://picsum.photos/seed/mock-avatar/400/400")!
+        return AvatarUploadPrepared(uploadURL: nil, avatarURL: avatarURL)
     }
 
     public func rewindLastPass() async throws -> DiscoverCard? {
@@ -160,7 +174,9 @@ public actor MockLikesFeedRepository: LikesFeedRepository {
         passedIDs.insert(userID.rawValue)
     }
 
-    public func syncPremiumEntitlement(isActive: Bool) async throws {}
+    public func syncPremiumEntitlement(isActive: Bool) async throws {
+        inboundVisibleForPremium = isActive
+    }
 
     private func filteredCards(query: LikesFeedQuery) -> [DiscoverCard] {
         MockLikesCatalog.allCards().filter { card in

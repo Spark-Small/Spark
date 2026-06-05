@@ -227,16 +227,29 @@ public final class LikesFeedViewModel {
         statusMessage = nil
     }
 
-    /// Staging/Mock returns a ready `avatar_url`; client marks profile complete without binary upload.
+    public static let maxAvatarJPEGBytes = 1_048_576
+
+    /// When `upload_url` is set, PUT JPEG bytes before saving `avatar_url` (MODULE-F).
     public func uploadAvatarJPEG(_ data: Data) async -> Bool {
         guard !data.isEmpty else { return false }
+        guard data.count <= Self.maxAvatarJPEGBytes else {
+            statusMessage = String(
+                localized: "likes.avatar.tooLarge",
+                defaultValue: "头像不能超过 1 MB",
+                comment: "Avatar size limit"
+            )
+            return false
+        }
         do {
-            let avatarURL = try await requestAvatarUpload(contentType: "image/jpeg")
+            let prepared = try await requestAvatarUpload(contentType: "image/jpeg")
+            if let uploadURL = prepared.uploadURL {
+                try await AvatarUploadTransport.put(data: data, to: uploadURL, contentType: "image/jpeg")
+            }
             var profile = viewerProfile
             profile = LikesViewerProfile(
                 displayName: profile.displayName,
                 hasPhoto: true,
-                avatarURL: avatarURL
+                avatarURL: prepared.avatarURL
             )
             return await saveViewerProfile(profile)
         } catch {

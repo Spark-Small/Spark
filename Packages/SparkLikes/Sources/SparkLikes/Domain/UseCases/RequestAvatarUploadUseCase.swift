@@ -9,7 +9,7 @@ struct RequestAvatarUploadUseCase: Sendable {
         self.repository = repository
     }
 
-    func callAsFunction(contentType: String) async throws -> URL {
-        try await repository.requestAvatarUploadURL(contentType: contentType)
+    func callAsFunction(contentType: String) async throws -> AvatarUploadPrepared {
+        try await repository.prepareAvatarUpload(contentType: contentType)
     }
 }
