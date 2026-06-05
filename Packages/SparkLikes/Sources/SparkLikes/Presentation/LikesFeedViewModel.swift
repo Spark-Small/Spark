@@ -46,6 +46,7 @@ public final class LikesFeedViewModel {
     public var pendingOpener: String?
     public var pendingLikedQuestionID: String?
     public var sparkBurstToken = 0
+    public var friendRequestSuccessToken = 0
 
     let fetchFeed: FetchLikesFeedUseCase
     let fetchInbound: FetchInboundLikesUseCase

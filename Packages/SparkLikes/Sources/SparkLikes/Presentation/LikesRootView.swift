@@ -213,3 +213,15 @@ public struct LikesRootView: View {
         LikesRootView(repository: MockLikesFeedRepository()) { _, _, _ in }
     }
 }
+
+#Preview("Likes — accessibility XL") {
+    LikesPreviewSupport.accessibilityXL {
+        LikesRootView(repository: MockLikesFeedRepository()) { _, _, _ in }
+    }
+}
+
+#Preview("Likes — iPad regular") {
+    LikesPreviewSupport.iPadRegular {
+        LikesRootView(repository: MockLikesFeedRepository()) { _, _, _ in }
+    }
+}

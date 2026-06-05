@@ -127,6 +127,7 @@ extension LikesFeedViewModel {
         defer { isPerformingAction = false }
         do {
             _ = try await submitFriendRequest(userID: card.userID)
+            friendRequestSuccessToken += 1
             recordBrowseProgress()
             statusMessage = String(
                 localized: "likes.friend.sent",

@@ -26,6 +26,8 @@ public final class ConversationViewModel {
     public private(set) var loadState: LoadState = .idle
     public var draftText: String = ""
     public private(set) var isSending = false
+    /// Increments after a successful send; drives composer haptic feedback.
+    public private(set) var sendSuccessToken = 0
     public private(set) var sendErrorMessage: String?
 
     public var isGroupChat: Bool { thread.threadID.isGroupChat }
@@ -102,6 +104,7 @@ public final class ConversationViewModel {
             let message = try await sendMessage(threadID: thread.threadID, body: text)
             messages.append(message)
             draftText = ""
+            sendSuccessToken += 1
         } catch is CancellationError {
             return
         } catch let error as MessagesError {

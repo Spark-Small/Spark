@@ -66,7 +66,7 @@ extension LikesRootView {
                 Image(systemName: "xmark")
                     .font(.title2.weight(.semibold))
                     .frame(width: 56, height: 56)
-                    .background(.thickMaterial, in: Circle())
+                    .sparkGlassControl(Circle())
             }
             .accessibilityLabel(
                 String(localized: "likes.pass.a11y", defaultValue: "跳过", comment: "Pass")
@@ -96,12 +96,13 @@ extension LikesRootView {
                     Image(systemName: "person.badge.plus")
                         .font(.title3.weight(.semibold))
                         .frame(width: 52, height: 52)
-                        .background(.thickMaterial, in: Circle())
+                        .sparkGlassControl(Circle())
                 }
                 .accessibilityLabel(
                     String(localized: "likes.friend.a11y", defaultValue: "加好友", comment: "Friend")
                 )
                 .disabled(viewModel.currentCard == nil || viewModel.isPerformingAction)
+                .sensoryFeedback(.success, trigger: viewModel.friendRequestSuccessToken)
             }
 
             Button {
@@ -215,6 +216,8 @@ extension LikesRootView {
                     onRewind: { Task { await viewModel.rewindLastPass() } },
                     onShowOpenerPicker: { showOpenerPicker = true }
                 )
+                .frame(maxWidth: usesSplitLayout ? SparkAdaptiveLayout.discoverCardMaxWidth : nil)
+                .frame(maxWidth: .infinity)
                 .containerRelativeFrame(.vertical)
                 .onAppear {
                     Task { await viewModel.loadMoreIfNeeded(currentCardID: current.id) }

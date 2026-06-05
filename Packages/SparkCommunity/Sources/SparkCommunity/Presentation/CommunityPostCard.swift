@@ -1,5 +1,6 @@
 // Module: SparkCommunity — Instagram-style feed post card.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct CommunityPostCard: View {
@@ -37,20 +38,17 @@ struct CommunityPostCard: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 12)
         }
-        .background(Color(.systemBackground))
+        .background(.background)
         Divider()
     }
 
     private var authorRow: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                Circle()
-                    .fill(.thinMaterial)
+                Text(String(post.authorDisplayName.prefix(1)))
+                    .font(.caption.weight(.semibold))
                     .frame(width: 32, height: 32)
-                    .overlay {
-                        Text(String(post.authorDisplayName.prefix(1)))
-                            .font(.caption.weight(.semibold))
-                    }
+                    .sparkGlassControl(Circle())
                 VStack(alignment: .leading, spacing: 2) {
                     Text(post.authorDisplayName)
                         .font(.subheadline.weight(.semibold))

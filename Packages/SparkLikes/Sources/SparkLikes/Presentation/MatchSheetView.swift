@@ -1,5 +1,6 @@
 // Module: SparkLikes — Mutual like celebration + icebreakers.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct MatchSheetView: View {
@@ -55,7 +56,7 @@ struct MatchSheetView: View {
                             }
                             .padding(12)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                            .sparkGlassSurface(RoundedRectangle(cornerRadius: 12))
                         }
                         .buttonStyle(.plain)
                     }
@@ -99,15 +100,7 @@ struct MatchSheetView: View {
                 .buttonStyle(.borderless)
         }
         .padding(24)
-        .background {
-            RadialGradient(
-                colors: [.pink.opacity(0.25), .clear],
-                center: .top,
-                startRadius: 20,
-                endRadius: 280
-            )
-            .background(.regularMaterial)
-        }
+        .presentationBackground(.regularMaterial)
         .presentationDetents([.medium, .large])
     }
 
@@ -128,7 +121,7 @@ struct MatchSheetView: View {
             .font(.largeTitle)
             .foregroundStyle(.secondary)
             .frame(width: 72, height: 72)
-            .background(.thinMaterial, in: Circle())
+            .sparkGlassControl(Circle())
     }
 
     private func matchSubtitle(for peerName: String) -> String {
@@ -161,11 +154,23 @@ struct MatchSheetView: View {
 }
 
 #Preview("Match — dark") {
-    LikesPreviewSupport.darkMode {
+    SparkPreviewSupport.darkMode {
         MatchSheetView(
             peerName: "小雨",
             peerCard: nil,
             icebreakers: ["你好，很高兴配对成功"],
+            onSendMessage: { _ in },
+            onDismiss: {}
+        )
+    }
+}
+
+#Preview("Match — accessibility XL") {
+    SparkPreviewSupport.accessibilityXL {
+        MatchSheetView(
+            peerName: "小雨",
+            peerCard: nil,
+            icebreakers: ["你好，很高兴配对成功", "周末有空一起喝咖啡吗？"],
             onSendMessage: { _ in },
             onDismiss: {}
         )

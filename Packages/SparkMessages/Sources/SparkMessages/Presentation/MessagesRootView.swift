@@ -191,6 +191,42 @@ public struct MessagesRootView: View {
     MessagesRootView(viewModel: MessagesViewModel(repository: PreviewFailingInboxRepository()))
 }
 
+#Preview("Messages — dark") {
+    SparkPreviewSupport.darkMode {
+        MessagesRootView(viewModel: MessagesViewModel(repository: MockMessagesRepository(unreadCount: 3)))
+    }
+}
+
+#Preview("Messages — accessibility XL") {
+    SparkPreviewSupport.accessibilityXL {
+        MessagesRootView(viewModel: MessagesViewModel(repository: MockMessagesRepository(unreadCount: 3)))
+    }
+}
+
+#Preview("Messages — iPad split") {
+    SparkPreviewSupport.iPadRegular {
+        MessagesRootView(viewModel: MessagesViewModel(repository: MockMessagesRepository(unreadCount: 3)))
+    }
+}
+
+#Preview("Messages — dark") {
+    SparkPreviewSupport.darkMode {
+        MessagesRootView(viewModel: MessagesViewModel(repository: MockMessagesRepository(unreadCount: 3)))
+    }
+}
+
+#Preview("Messages — accessibility XL") {
+    SparkPreviewSupport.accessibilityXL {
+        MessagesRootView(viewModel: MessagesViewModel(repository: MockMessagesRepository(unreadCount: 3)))
+    }
+}
+
+#Preview("Messages — iPad split") {
+    SparkPreviewSupport.iPadRegular {
+        MessagesRootView(viewModel: MessagesViewModel(repository: MockMessagesRepository(unreadCount: 3)))
+    }
+}
+
 private struct PreviewFailingInboxRepository: MessagesRepository, Sendable {
     struct Failure: LocalizedError {
         var errorDescription: String? { "Inbox unavailable" }

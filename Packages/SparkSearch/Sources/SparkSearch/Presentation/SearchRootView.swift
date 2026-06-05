@@ -4,6 +4,8 @@ import SparkDesignSystem
 import SwiftUI
 
 public struct SearchRootView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     @State private var viewModel: SearchViewModel
     private let onSelectResult: ((SearchResultItem) -> Void)?
 
@@ -60,6 +62,7 @@ public struct SearchRootView: View {
                 await viewModel.submitSearch()
             }
             .scrollDismissesKeyboard(.interactively)
+            .modifier(SearchReadableWidthModifier(horizontalSizeClass: horizontalSizeClass))
         }
     }
 
@@ -71,7 +74,9 @@ public struct SearchRootView: View {
                         viewModel.query = suggestion
                     } label: {
                         Label(suggestion, systemImage: "clock.arrow.circlepath")
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .frame(minHeight: 44)
                 }
             } header: {
                 Text(
@@ -124,6 +129,18 @@ public struct SearchRootView: View {
     }
 }
 
+private struct SearchReadableWidthModifier: ViewModifier {
+    let horizontalSizeClass: UserInterfaceSizeClass?
+
+    func body(content: Content) -> some View {
+        if SparkAdaptiveLayout.usesSplit(horizontalSizeClass: horizontalSizeClass) {
+            content.sparkReadableWidth()
+        } else {
+            content
+        }
+    }
+}
+
 private extension SearchResultItem {
     var isNavigable: Bool {
         resultKind?.supportsInAppNavigation == true
@@ -158,9 +175,71 @@ private struct SearchResultRow: View {
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(item.title), \(item.subtitle)")
+        .accessibilityHint(item.navigationAccessibilityHint)
+    }
+}
+
+private extension SearchResultItem {
+    var navigationAccessibilityHint: String {
+        switch resultKind {
+        case .activity:
+            String(
+                localized: "search.result.hint.activity",
+                defaultValue: "在活动标签页中打开",
+                comment: "Search result opens activity tab"
+            )
+        case .community:
+            String(
+                localized: "search.result.hint.community",
+                defaultValue: "在社区标签页中打开",
+                comment: "Search result opens community tab"
+            )
+        case .person, .none:
+            String(
+                localized: "search.result.hint.person",
+                defaultValue: "查看用户资料",
+                comment: "Search result person hint"
+            )
+        }
     }
 }
 
 #Preview {
     SearchRootView(repository: MockSearchRepository())
+}
+
+#Preview("Search — dark") {
+    SparkPreviewSupport.darkMode {
+        SearchRootView(repository: MockSearchRepository())
+    }
+}
+
+#Preview("Search — accessibility XL") {
+    SparkPreviewSupport.accessibilityXL {
+        SearchRootView(repository: MockSearchRepository())
+    }
+}
+
+#Preview("Search — iPad regular") {
+    SparkPreviewSupport.iPadRegular {
+        SearchRootView(repository: MockSearchRepository())
+    }
+}
+
+#Preview("Search — dark") {
+    SparkPreviewSupport.darkMode {
+        SearchRootView(repository: MockSearchRepository())
+    }
+}
+
+#Preview("Search — accessibility XL") {
+    SparkPreviewSupport.accessibilityXL {
+        SearchRootView(repository: MockSearchRepository())
+    }
+}
+
+#Preview("Search — iPad regular") {
+    SparkPreviewSupport.iPadRegular {
+        SearchRootView(repository: MockSearchRepository())
+    }
 }

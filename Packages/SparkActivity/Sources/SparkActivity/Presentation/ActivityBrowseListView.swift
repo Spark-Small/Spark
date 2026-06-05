@@ -111,6 +111,9 @@ public struct ActivityBrowseListView: View {
                     }
                 }
                 .sparkScreenListStyle()
+                .refreshable {
+                    await viewModel.reload()
+                }
             }
         }
     }

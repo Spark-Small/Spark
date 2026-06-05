@@ -4,7 +4,7 @@ import SparkDesignSystem
 import SwiftUI
 
 public struct CommunityRootView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
 
     @Binding private var pendingCommunityPostID: String?
@@ -13,13 +13,13 @@ public struct CommunityRootView: View {
     @State var navigationPath = NavigationPath()
     @State var splitDestination: CommunitySplitDestination?
     @State private var recapDraft: (title: String, scheduleLine: String)?
-    @State private var profilePreview: CommunityProfilePreview?
+    @State var profilePreview: CommunityProfilePreview?
 
     let repository: any CommunityPostsRepository
     private let fetchActivityRecap: ((String) async -> (title: String, scheduleLine: String)?)?
-    private let onOpenSearch: () -> Void
-    private let onOpenLikesDiscover: () -> Void
-    private let onLikePerson: (String) -> Void
+    let onOpenSearch: () -> Void
+    let onOpenLikesDiscover: () -> Void
+    let onLikePerson: (String) -> Void
     let onOpenLinkedActivity: (String) -> Void
 
     public init(
@@ -144,6 +144,8 @@ public struct CommunityRootView: View {
             ToolbarItem(placement: .primaryAction) {
                 Button(action: onOpenSearch) {
                     Image(systemName: "magnifyingglass")
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel(
                     String(localized: "community.search.a11y", defaultValue: "搜索", comment: "Search")
@@ -189,75 +191,11 @@ public struct CommunityRootView: View {
                 Task { await viewModel.load() }
             }
         case .loaded:
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-                        if !viewModel.joinedCommunities.isEmpty {
-                            Section {
-                                MyCommunitiesCarousel(
-                                    communities: viewModel.joinedCommunities,
-                                    onSelect: { openCommunity($0) },
-                                    onExploreMore: {
-                                        if reduceMotion {
-                                            proxy.scrollTo(allCommunitiesSectionID, anchor: .top)
-                                        } else {
-                                            withAnimation {
-                                                proxy.scrollTo(allCommunitiesSectionID, anchor: .top)
-                                            }
-                                        }
-                                    }
-                                )
-                                .frame(height: 88)
-                                .padding(.vertical, 8)
-                            }
-                        }
-
-                        Section {
-                            ForEach(viewModel.feedItems) { item in
-                                feedRow(item)
-                            }
-                        } header: {
-                            CommunityFeedSectionHeader(
-                                title: String(
-                                    localized: "community.feed.section.discover",
-                                    defaultValue: "发现",
-                                    comment: "Discover section"
-                                )
-                            )
-                        }
-
-                        if !viewModel.allCommunities.isEmpty {
-                            Section {
-                                ForEach(viewModel.allCommunities) { community in
-                                    Button {
-                                        openCommunity(community)
-                                    } label: {
-                                        CommunityRowCell(community: community)
-                                    }
-                                    .buttonStyle(.plain)
-                                    Divider()
-                                }
-                            } header: {
-                                CommunityFeedSectionHeader(
-                                    title: String(
-                                        localized: "community.feed.section.allCommunities",
-                                        defaultValue: "所有社区",
-                                        comment: "All communities"
-                                    )
-                                )
-                                .id(allCommunitiesSectionID)
-                            }
-                        }
-                    }
-                }
-                .refreshable {
-                    await viewModel.load()
-                }
-            }
+            loadedFeedContent
         }
     }
 
-    private var allCommunitiesSectionID: String { "community-all-section" }
+    var allCommunitiesSectionID: String { "community-all-section" }
 
     func postDetailView(postID: String) -> some View {
         CommunityPostDetailView(
@@ -273,7 +211,7 @@ public struct CommunityRootView: View {
     }
 
     @ViewBuilder
-    private func feedRow(_ item: CommunityFeedItem) -> some View {
+    func feedRow(_ item: CommunityFeedItem) -> some View {
         switch item {
         case .post(let post):
             CommunityPostCard(
@@ -319,4 +257,22 @@ private struct RecapSheetItem: Identifiable {
 
 #Preview {
     CommunityRootView(repository: MockCommunityPostsRepository())
+}
+
+#Preview("Community — dark") {
+    SparkPreviewSupport.darkMode {
+        CommunityRootView(repository: MockCommunityPostsRepository())
+    }
+}
+
+#Preview("Community — accessibility XL") {
+    SparkPreviewSupport.accessibilityXL {
+        CommunityRootView(repository: MockCommunityPostsRepository())
+    }
+}
+
+#Preview("Community — iPad split") {
+    SparkPreviewSupport.iPadRegular {
+        CommunityRootView(repository: MockCommunityPostsRepository())
+    }
 }

@@ -154,3 +154,21 @@ public struct ActivityRootView: View {
         repository: FailingActivityFeedRepository()
     )
 }
+
+#Preview("Activity — dark") {
+    SparkPreviewSupport.darkMode {
+        ActivityRootView(repository: MockActivityFeedRepository())
+    }
+}
+
+#Preview("Activity — accessibility XL") {
+    SparkPreviewSupport.accessibilityXL {
+        ActivityRootView(repository: MockActivityFeedRepository())
+    }
+}
+
+#Preview("Activity — iPad split") {
+    SparkPreviewSupport.iPadRegular {
+        ActivityRootView(repository: MockActivityFeedRepository())
+    }
+}

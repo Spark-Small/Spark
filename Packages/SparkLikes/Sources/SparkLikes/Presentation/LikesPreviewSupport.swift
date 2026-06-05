@@ -1,13 +1,18 @@
-// Module: SparkLikes — Preview helpers (dark mode + Dynamic Type).
+// Module: SparkLikes — Preview helpers (forwards to SparkDesignSystem).
 
+import SparkDesignSystem
 import SwiftUI
 
 enum LikesPreviewSupport {
     static func darkMode<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        content().preferredColorScheme(.dark)
+        SparkPreviewSupport.darkMode(content)
     }
 
     static func accessibilityXL<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        content().environment(\.sizeCategory, .accessibilityExtraExtraLarge)
+        SparkPreviewSupport.accessibilityXL(content)
+    }
+
+    static func iPadRegular<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        SparkPreviewSupport.iPadRegular(content)
     }
 }

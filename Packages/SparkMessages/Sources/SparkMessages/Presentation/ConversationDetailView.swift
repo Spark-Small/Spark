@@ -154,7 +154,7 @@ public struct ConversationDetailView: View {
             .lineLimit(1 ... 4)
             .textFieldStyle(.plain)
             .padding(12)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20))
+            .sparkGlassSurface(RoundedRectangle(cornerRadius: 20))
 
             Button {
                 Task { await viewModel.sendTapped() }
@@ -165,13 +165,14 @@ public struct ConversationDetailView: View {
                     .contentShape(Rectangle())
             }
             .disabled(viewModel.draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isSending)
+            .sensoryFeedback(.success, trigger: viewModel.sendSuccessToken)
             .accessibilityLabel(
                 String(localized: "messages.composer.send", defaultValue: "发送", comment: "Send message")
             )
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(.ultraThinMaterial)
+        .sparkGlassSurface(Rectangle())
         .scrollDismissesKeyboard(.interactively)
     }
 }
@@ -207,6 +208,44 @@ public struct ConversationDetailView: View {
                 )
             )
         )
+    }
+}
+
+#Preview("Conversation — dark") {
+    SparkPreviewSupport.darkMode {
+        NavigationStack {
+            ConversationDetailView(
+                viewModel: ConversationViewModel(
+                    repository: MockMessagesRepository(unreadCount: 2),
+                    thread: MessageThread(
+                        threadID: MessageThreadID("th_dm_u_like_1"),
+                        peerDisplayName: "小雨",
+                        lastMessagePreview: "你好",
+                        lastActivityAt: .now,
+                        unreadCount: 0
+                    )
+                )
+            )
+        }
+    }
+}
+
+#Preview("Conversation — accessibility XL") {
+    SparkPreviewSupport.accessibilityXL {
+        NavigationStack {
+            ConversationDetailView(
+                viewModel: ConversationViewModel(
+                    repository: MockMessagesRepository(unreadCount: 2),
+                    thread: MessageThread(
+                        threadID: MessageThreadID("th_dm_u_like_1"),
+                        peerDisplayName: "小雨",
+                        lastMessagePreview: "你好",
+                        lastActivityAt: .now,
+                        unreadCount: 0
+                    )
+                )
+            )
+        }
     }
 }
 

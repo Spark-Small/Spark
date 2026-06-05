@@ -63,6 +63,9 @@ struct LikesInboundListView: View {
             )
         )
         .navigationBarTitleDisplayMode(.inline)
+        .refreshable {
+            await viewModel.refreshInbound()
+        }
         .onAppear {
             LikesTelemetry.inboundOpened(count: viewModel.inboundCount)
         }

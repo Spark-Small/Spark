@@ -89,6 +89,26 @@ This document turns the audit into an execution plan.
 | Double-tap zoom gestures | Documented in `docs/HIG_COMPLIANCE.md`; a11y hints on mock + remote photo layers |
 | iPad split other tabs | Activity list/detail, Community feed/detail, Likes inbound sidebar + discover detail |
 
+## Phase 3 — Five-tab layout completion (2026-06-05)
+
+| Tab | Shipped |
+|-----|---------|
+| 喜欢 | Inbound `.refreshable`; iPad discover card `maxWidth` 480pt; pass/friend glass controls (`sparkGlassControl`) |
+| 社区 | Toolbar search 44×44pt |
+| 消息 | Composer `.sensoryFeedback(.success)` on send |
+| 活动 | 逛局 `ActivityBrowseListView` `.refreshable` (verified) |
+| 搜索 | iPad `sparkReadableWidth` 640pt; suggestion rows 44pt; result `accessibilityHint` |
+| 共用 | `SparkAdaptiveLayout` + `SparkGlassSurface` in SparkDesignSystem |
+
+## Phase 4 — P2 polish (2026-06-05)
+
+| Tab | Shipped |
+|-----|---------|
+| 社区 | iPad split feed `List(selection: $splitDestination)`; `CommunityPostCard` avatar `sparkGlassControl` |
+| 喜欢 | `MatchSheetView` glass + no decorative gradient; `friendRequestSuccessToken` + `.sensoryFeedback(.success)` |
+| 消息 | Composer `sparkGlassSurface`; `ArchivedChatsDisclosure` a11y + iPad regular default expanded |
+| 共用 | `SparkPreviewSupport` (dark / XL / iPad); root Preview matrix on Community / Search / Messages / Activity / Likes |
+
 ---
 
 ## Verification
