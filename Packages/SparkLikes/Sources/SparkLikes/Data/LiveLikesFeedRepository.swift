@@ -79,9 +79,21 @@ public struct LiveLikesFeedRepository: LikesFeedRepository, Sendable {
         }
     }
 
-    public func submitLike(userID: UserID) async throws -> LikeActionResult {
+    public func fetchDailyStats() async throws -> DailyLikeStats {
+        try await request("fetchDailyStats") {
+            let dto: DailyLikeStatsDTO = try await apiClient.get(LikesAPIPath.dailyStats)
+            return LikesDTOMapper.dailyStats(from: dto)
+        }
+    }
+
+    public func submitLike(_ likeRequest: SendLikeRequest) async throws -> LikeActionResult {
         try await request("submitLike") {
-            let dto: LikeActionResponseDTO = try await apiClient.post(LikesAPIPath.like(userID: userID.rawValue))
+            let body = try JSONEncoder().encode(LikesDTOMapper.sendLikeBody(from: likeRequest))
+            let dto: LikeActionResponseDTO = try await apiClient.post(
+                LikesAPIPath.like(userID: likeRequest.userID.rawValue),
+                body: body,
+                as: LikeActionResponseDTO.self
+            )
             return LikesDTOMapper.likeResult(from: dto)
         }
     }
@@ -117,6 +129,17 @@ public struct LiveLikesFeedRepository: LikesFeedRepository, Sendable {
     public func blockUser(userID: UserID) async throws {
         try await request("blockUser") {
             try await apiClient.post(LikesAPIPath.block(userID: userID.rawValue))
+        }
+    }
+
+    public func syncPremiumEntitlement(isActive: Bool) async throws {
+        try await request("syncPremiumEntitlement") {
+            let body = try JSONEncoder().encode(LikesViewerProfileRequestDTO(isPremium: isActive))
+            _ = try await apiClient.patch(
+                LikesAPIPath.viewerProfile,
+                body: body,
+                as: LikesViewerProfileDTO.self
+            )
         }
     }
 

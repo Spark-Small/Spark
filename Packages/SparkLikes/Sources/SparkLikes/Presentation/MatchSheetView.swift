@@ -14,18 +14,15 @@ struct MatchSheetView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "heart.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.pink)
-                .accessibilityHidden(true)
+            avatarRow
             Text(
                 String(
-                    localized: "likes.match.title",
-                    defaultValue: "配对成功！",
-                    comment: "Match title"
+                    localized: "likes.match.celebration.title",
+                    defaultValue: "互相心动了！",
+                    comment: "Match celebration title"
                 )
             )
-            .font(.title2.weight(.bold))
+            .font(.title.weight(.bold))
             Text(matchSubtitle(for: peerName))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -102,7 +99,36 @@ struct MatchSheetView: View {
                 .buttonStyle(.borderless)
         }
         .padding(24)
+        .background {
+            RadialGradient(
+                colors: [.pink.opacity(0.25), .clear],
+                center: .top,
+                startRadius: 20,
+                endRadius: 280
+            )
+            .background(.regularMaterial)
+        }
         .presentationDetents([.medium, .large])
+    }
+
+    private var avatarRow: some View {
+        HStack(spacing: 16) {
+            matchAvatar(symbol: "person.crop.circle.fill")
+            Image(systemName: "heart.fill")
+                .font(.title)
+                .foregroundStyle(.pink)
+                .accessibilityHidden(true)
+            matchAvatar(symbol: "person.crop.circle.fill")
+        }
+        .padding(.top, 8)
+    }
+
+    private func matchAvatar(symbol: String) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: 56))
+            .foregroundStyle(.secondary)
+            .frame(width: 72, height: 72)
+            .background(.thinMaterial, in: Circle())
     }
 
     private func matchSubtitle(for peerName: String) -> String {

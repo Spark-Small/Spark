@@ -10,7 +10,7 @@ struct SubmitLikeUseCase: Sendable {
         self.repository = repository
     }
 
-    func callAsFunction(userID: UserID) async throws -> LikeActionResult {
-        try await repository.submitLike(userID: userID)
+    func callAsFunction(_ request: SendLikeRequest) async throws -> LikeActionResult {
+        try await repository.submitLike(request)
     }
 }

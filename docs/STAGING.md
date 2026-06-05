@@ -12,10 +12,12 @@ Use Staging when the backend team has deployed endpoints in [API_CONTRACT.md](AP
    ```bash
    cp Config/Secrets.xcconfig.example Config/Secrets.xcconfig
    ```
-2. Edit `Config/Secrets.xcconfig` and set your team URL:
+2. Edit `Config/Secrets.xcconfig` and set your team URL (no trailing slash):
    ```
-   SPARK_API_BASE_URL = https://api.staging.spark.app
+   // CloudBase 体验环境（HTTP 云函数 spark-api）
+   SPARK_API_BASE_URL = https://ais-d1gab0emob99361a0.service.tcloudbase.com
    ```
+   Test account: `staging@test.com` / `staging123`. Backend uses CloudBase NoSQL write-through ([ADR-0002](adr/0002-backend-persistence-cloudbase-nosql.md)).
 3. `Config/Spark.xcconfig` already `#include`s `Secrets.xcconfig` when present (gitignored).
 4. Clean build in Xcode (or `make build`) so `APIConfiguration.loadFromBundle()` picks up the new host.
 
@@ -52,6 +54,28 @@ After login on a Staging build:
 | 9 | Inbound likes list | `GET /v1/likes/inbound` |
 | 10 | Rewind pass | `POST /v1/likes/rewind` |
 | 11 | Viewer profile gate | `GET` / `PATCH /v1/likes/viewer-profile` |
+| 12 | Host: create activity | `POST /v1/activities` |
+| 13 | Host: edit / cancel | `PATCH /v1/activities/{id}` · `POST .../cancel` |
+| 14 | Waitlist (use `act_002`, at capacity) | `POST .../waitlist` · host `.../waitlist/{id}/promote` |
+| 15 | Host announce + feedback | `POST .../announce` · `POST .../feedback` |
+| 16 | Report activity | `POST .../report` → `report_id` |
+| 17 | Browse public activities (Activity Tab → 逛局) | `GET /v1/activities/browse` |
+| 18 | Persistence: create activity → wait ~1 min (cold start) → feed still lists it | `POST /v1/activities` then `GET /v1/activities/feed` |
+| 19 | Community reply thread | `POST /v1/community/posts/{id}/replies` then `GET .../{id}` includes `replies` |
+| 20 | Inbound blur (`is_visible: false` for non-premium) | `GET /v1/likes/inbound` |
+| 21 | Device token + push stub | `POST /v1/devices` · `POST /v1/notifications/send` (`202` without `APNS_*`) |
+| 22 | Community post report | `POST /v1/community/posts/{id}/report` → `report_id` |
+
+APNs 真机：云函数配置 `APNS_*` 后 like/match/消息/活动/回复会自动触发 Push（MODULE-B.4）。见 [ADR-0005](adr/0005-apns-http2-delivery.md)。
+
+```bash
+# Full HTTP smoke (auth + browse + inbound + community + devices)
+./scripts/staging-smoke.sh
+
+# Quick browse smoke (after login token)
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "$SPARK_API_BASE_URL/v1/activities/browse"
+```
 
 Record failures with HTTP status + `error.code` from the contract error body.
 

@@ -41,8 +41,24 @@ extension LikesRootView {
                 String(localized: "likes.pass.a11y", defaultValue: "跳过", comment: "Pass")
             )
             .disabled(viewModel.currentCard == nil || viewModel.isPerformingAction)
+            .sensoryFeedback(.impact(weight: .light), trigger: viewModel.cardsBrowsedThisSession)
 
-            if viewModel.preferences.intent == .friends {
+            if viewModel.preferences.intent == .match {
+                Button {
+                    Task { await handleSparkTap() }
+                } label: {
+                    Image(systemName: "bolt.fill")
+                        .font(.title2.weight(.semibold))
+                        .frame(width: 60, height: 60)
+                        .background(.yellow.gradient, in: Circle())
+                        .foregroundStyle(.black)
+                }
+                .accessibilityLabel(
+                    String(localized: "likes.spark.a11y", defaultValue: "心动", comment: "Spark")
+                )
+                .disabled(viewModel.currentCard == nil || viewModel.isPerformingAction)
+                .sensoryFeedback(.impact(weight: .medium), trigger: viewModel.sparkBurstToken)
+            } else {
                 Button {
                     Task { await viewModel.friendRequestCurrentCard() }
                 } label: {
@@ -76,24 +92,22 @@ extension LikesRootView {
         .frame(maxWidth: .infinity)
     }
 
+    func handleSparkTap() async {
+        if viewModel.dailyStats.sparkChargesRemaining <= 0 {
+            onSparkPaywall()
+            return
+        }
+        await viewModel.sparkCurrentCard()
+    }
+
     private var emptyFeedView: some View {
         ContentUnavailableView {
             Label(
-                String(
-                    localized: "likes.empty.title",
-                    defaultValue: "暂时没有更多推荐",
-                    comment: "Empty feed"
-                ),
-                systemImage: "heart.slash"
+                emptyFeedTitle,
+                systemImage: viewModel.isDailyPoolExhausted ? "sun.horizon" : "heart.slash"
             )
         } description: {
-            Text(
-                String(
-                    localized: "likes.empty.subtitle",
-                    defaultValue: "调整发现偏好或稍后再来",
-                    comment: "Empty hint"
-                )
-            )
+            Text(emptyFeedSubtitle)
         } actions: {
             Button(
                 String(
@@ -119,44 +133,61 @@ extension LikesRootView {
         .foregroundStyle(.white)
     }
 
+    private var emptyFeedTitle: String {
+        if viewModel.isDailyPoolExhausted {
+            return String(
+                localized: "likes.empty.daily.title",
+                defaultValue: "今日已看完",
+                comment: "Daily pool exhausted title"
+            )
+        }
+        return String(
+            localized: "likes.empty.title",
+            defaultValue: "暂时没有更多推荐",
+            comment: "Empty feed"
+        )
+    }
+
+    private var emptyFeedSubtitle: String {
+        if viewModel.isDailyPoolExhausted {
+            return String(
+                localized: "likes.empty.daily.subtitle",
+                defaultValue: "明天再来，或去活动认识新朋友",
+                comment: "Daily pool exhausted subtitle"
+            )
+        }
+        return String(
+            localized: "likes.empty.subtitle",
+            defaultValue: "调整发现偏好或稍后再来",
+            comment: "Empty hint"
+        )
+    }
+
     private var loadedFeedView: some View {
-        ScrollView(.vertical) {
-            LazyVStack(spacing: 0) {
-                ForEach(Array(viewModel.cards.enumerated()), id: \.element.id) { index, card in
-                    DiscoverCardView(
-                        card: card,
-                        isActive: scrollPosition == card.id || index == viewModel.currentIndex,
-                        intent: viewModel.preferences.intent,
-                        onOpenProfile: { showProfileSheet = true }
-                    )
-                    .containerRelativeFrame(.vertical)
-                    .id(card.id)
+        VStack(spacing: 8) {
+            LikesFeedProgressBar(
+                seenCount: viewModel.dailyStats.todaySeenCount,
+                poolSize: viewModel.dailyStats.dailyPoolSize
+            )
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+
+            if let current = viewModel.currentCard {
+                DiscoverCardStackView(
+                    currentCard: current,
+                    nextCard: nextCard(after: current),
+                    intent: viewModel.preferences.intent,
+                    sparkBurstToken: viewModel.sparkBurstToken,
+                    onPass: { Task { await viewModel.passCurrentCard() } },
+                    onLike: { Task { await viewModel.likeCurrentCard() } },
+                    onOpenProfile: { showProfileSheet = true },
+                    onRewind: { Task { await viewModel.rewindLastPass() } },
+                    onShowOpenerPicker: { showOpenerPicker = true }
+                )
+                .containerRelativeFrame(.vertical)
+                .onAppear {
+                    Task { await viewModel.loadMoreIfNeeded(currentCardID: current.id) }
                 }
-            }
-            .scrollTargetLayout()
-        }
-        .scrollTargetBehavior(.paging)
-        .scrollPosition(id: $scrollPosition)
-        .scrollIndicators(.hidden)
-        .scrollDisabled(isPhotoZoomed)
-        .onPreferenceChange(DiscoverPhotoZoomedPreferenceKey.self) { isPhotoZoomed = $0 }
-        .onChange(of: scrollPosition) { _, newID in
-            isPhotoZoomed = false
-            if let newID, let index = viewModel.cards.firstIndex(where: { $0.id == newID }) {
-                viewModel.currentIndex = index
-            }
-            Task { await viewModel.loadMoreIfNeeded(currentCardID: newID) }
-        }
-        .onChange(of: viewModel.currentIndex) { _, index in
-            guard index >= 0, index < viewModel.cards.count else { return }
-            let id = viewModel.cards[index].id
-            if scrollPosition != id {
-                scrollPosition = id
-            }
-        }
-        .onAppear {
-            if scrollPosition == nil, let first = viewModel.cards.first {
-                scrollPosition = first.id
             }
         }
         .overlay(alignment: .bottom) {
@@ -165,5 +196,13 @@ extension LikesRootView {
                     .padding(.bottom, 120)
             }
         }
+    }
+
+    private func nextCard(after current: DiscoverCard) -> DiscoverCard? {
+        guard let index = viewModel.cards.firstIndex(where: { $0.id == current.id }),
+              index + 1 < viewModel.cards.count else {
+            return nil
+        }
+        return viewModel.cards[index + 1]
     }
 }

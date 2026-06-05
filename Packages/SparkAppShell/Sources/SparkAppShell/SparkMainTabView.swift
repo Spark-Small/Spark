@@ -82,6 +82,18 @@ public struct SparkMainTabView: View {
                 searchQuery = query
                 router.pendingSearchQuery = nil
             }
+            syncPremiumEntitlementToBackend()
+        }
+        .onChange(of: entitlementManager.hasPremium) { _, _ in
+            syncPremiumEntitlementToBackend()
+        }
+    }
+
+    private func syncPremiumEntitlementToBackend() {
+        guard SparkFeatureFlags.isPremiumInboundBlurEnabled else { return }
+        let isActive = entitlementManager.hasPremium
+        Task {
+            try? await likesFeedRepository.syncPremiumEntitlement(isActive: isActive)
         }
     }
 
@@ -119,6 +131,9 @@ public struct SparkMainTabView: View {
                     && !item.isVisible
             },
             onInboundPaywall: {
+                paywallRouter.presentPaywall(placement: .likes)
+            },
+            onSparkPaywall: {
                 paywallRouter.presentPaywall(placement: .likes)
             }
         )

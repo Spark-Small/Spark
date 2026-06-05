@@ -9,14 +9,14 @@ public struct LikesRootView: View {
     @State var showReportSheet = false
     @State var showInbound = false
     @State var showProfileSheet = false
-    @State var scrollPosition: String?
-    @State var isPhotoZoomed = false
+    @State var showOpenerPicker = false
 
     @Binding var pendingInbound: Bool
     let onOpenMatchConversation: LikesOpenConversationHandler
     let onOpenSharedActivity: (@Sendable (String) -> Void)?
     let isInboundItemBlurred: (InboundLikeItem) -> Bool
     let onInboundPaywall: () -> Void
+    let onSparkPaywall: () -> Void
 
     public init(
         repository: any LikesFeedRepository,
@@ -24,7 +24,8 @@ public struct LikesRootView: View {
         onOpenMatchConversation: @escaping LikesOpenConversationHandler,
         onOpenSharedActivity: (@Sendable (String) -> Void)? = nil,
         isInboundItemBlurred: @escaping (InboundLikeItem) -> Bool = { _ in false },
-        onInboundPaywall: @escaping () -> Void = {}
+        onInboundPaywall: @escaping () -> Void = {},
+        onSparkPaywall: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: LikesFeedViewModel(repository: repository))
         _pendingInbound = pendingInbound
@@ -32,6 +33,7 @@ public struct LikesRootView: View {
         self.onOpenSharedActivity = onOpenSharedActivity
         self.isInboundItemBlurred = isInboundItemBlurred
         self.onInboundPaywall = onInboundPaywall
+        self.onSparkPaywall = onSparkPaywall
     }
 
     init(
@@ -40,7 +42,8 @@ public struct LikesRootView: View {
         onOpenMatchConversation: @escaping LikesOpenConversationHandler,
         onOpenSharedActivity: (@Sendable (String) -> Void)? = nil,
         isInboundItemBlurred: @escaping (InboundLikeItem) -> Bool = { _ in false },
-        onInboundPaywall: @escaping () -> Void = {}
+        onInboundPaywall: @escaping () -> Void = {},
+        onSparkPaywall: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: viewModel)
         _pendingInbound = pendingInbound
@@ -48,6 +51,7 @@ public struct LikesRootView: View {
         self.onOpenSharedActivity = onOpenSharedActivity
         self.isInboundItemBlurred = isInboundItemBlurred
         self.onInboundPaywall = onInboundPaywall
+        self.onSparkPaywall = onSparkPaywall
     }
 
     public var body: some View {
@@ -96,9 +100,16 @@ public struct LikesRootView: View {
                 if let card = viewModel.currentCard {
                     DiscoverProfileSheet(
                         card: card,
+                        highlightedQuestionID: viewModel.pendingLikedQuestionID,
+                        onLikeQuestion: { viewModel.likeQuestion($0) },
                         onReport: { showReportSheet = true },
                         onOpenSharedActivity: onOpenSharedActivity
                     )
+                }
+            }
+            .sheet(isPresented: $showOpenerPicker) {
+                LikesOpenerPickerSheet(suggestions: viewModel.openerSuggestions) { opener in
+                    Task { await viewModel.likeCurrentCard(opener: opener) }
                 }
             }
             .sheet(isPresented: $showReportSheet) {

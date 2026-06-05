@@ -20,11 +20,15 @@ enum LikesDTOMapper {
 
     static func inboundItem(from dto: InboundLikeItemDTO) -> InboundLikeItem? {
         guard let card = card(from: dto.card) else { return nil }
+        let intensity = dto.intensity.flatMap(LikeIntensity.init(rawValue:)) ?? .like
         return InboundLikeItem(
             userID: UserID(dto.userID),
             card: card,
             likedAt: dto.likedAt.flatMap(parseISO8601),
-            isVisible: dto.isVisible ?? true
+            isVisible: dto.isVisible ?? true,
+            intensity: intensity,
+            opener: dto.opener,
+            likedQuestionID: dto.likedQuestionID
         )
     }
 
@@ -44,7 +48,29 @@ enum LikesDTOMapper {
             interestTags: dto.interestTags ?? [],
             coarseLocation: dto.coarseLocation,
             sharedActivityTitle: dto.sharedActivity?.title,
-            sharedActivityID: dto.sharedActivity?.activityID
+            sharedActivityID: dto.sharedActivity?.activityID,
+            sparkQuestions: (dto.sparkQuestions ?? []).map(sparkQuestion(from:)),
+            isDailyPick: dto.isDailyPick ?? false
+        )
+    }
+
+    static func sparkQuestion(from dto: SparkQuestionDTO) -> SparkQuestion {
+        SparkQuestion(id: dto.id, question: dto.question, answer: dto.answer)
+    }
+
+    static func dailyStats(from dto: DailyLikeStatsDTO) -> DailyLikeStats {
+        DailyLikeStats(
+            todaySeenCount: dto.todaySeenCount,
+            dailyPoolSize: dto.dailyPoolSize,
+            sparkChargesRemaining: dto.sparkChargesRemaining
+        )
+    }
+
+    static func sendLikeBody(from request: SendLikeRequest) -> SendLikeRequestDTO {
+        SendLikeRequestDTO(
+            intensity: request.intensity == .like ? nil : request.intensity.wireValue,
+            opener: request.opener,
+            likedQuestionID: request.likedQuestionID
         )
     }
 

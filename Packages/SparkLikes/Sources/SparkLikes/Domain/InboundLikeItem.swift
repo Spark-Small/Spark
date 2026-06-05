@@ -9,6 +9,9 @@ public struct InboundLikeItem: Identifiable, Hashable, Sendable, Equatable {
     public let likedAt: Date?
     /// When `false`, non-premium users see blurred identity (ADR-0004).
     public let isVisible: Bool
+    public let intensity: LikeIntensity
+    public let opener: String?
+    public let likedQuestionID: String?
 
     public var id: String { userID.rawValue }
 
@@ -16,12 +19,18 @@ public struct InboundLikeItem: Identifiable, Hashable, Sendable, Equatable {
         userID: UserID,
         card: DiscoverCard,
         likedAt: Date? = nil,
-        isVisible: Bool = true
+        isVisible: Bool = true,
+        intensity: LikeIntensity = .like,
+        opener: String? = nil,
+        likedQuestionID: String? = nil
     ) {
         self.userID = userID
         self.card = card
         self.likedAt = likedAt
         self.isVisible = isVisible
+        self.intensity = intensity
+        self.opener = opener
+        self.likedQuestionID = likedQuestionID
     }
 }
 

@@ -29,8 +29,26 @@ If Xcode still reports missing `aps-environment` / `associated-domains`: Product
 
 1. Create `Config/Secrets.xcconfig` from `Config/Secrets.xcconfig.example`.
 2. Set `SPARK_API_BASE_URL` to the Staging host (not `mock.spark.local`).
+   - **CloudBase MVP (shipped):** `https://ais-d1gab0emob99361a0.service.tcloudbase.com`
+   - Test account: `staging@test.com` / `staging123`
 3. Follow [`STAGING.md`](STAGING.md) — verify auth, messages, activities, search, and community against [`API_CONTRACT.md`](API_CONTRACT.md).
 4. Keep Mock for SwiftUI previews and unit tests.
+
+### CloudBase backend (`spark-api`)
+
+Source: `cloudfunctions/spark-api/` (HTTP 云函数). Docker variant: `cloudrun/spark-api/` (requires 云托管).
+
+Redeploy after API changes:
+
+```bash
+cd cloudfunctions/spark-api && npm install --omit=dev
+npx mcporter call cloudbase.manageFunctions \
+  action=updateFunctionCode \
+  functionName=spark-api \
+  functionRootPath="$(pwd)/.."
+```
+
+Wait ~30s for gateway propagation, then `curl https://ais-d1gab0emob99361a0.service.tcloudbase.com/health`.
 
 ### Activity Staging smoke (Phase 15 — client ready)
 

@@ -112,8 +112,8 @@ struct LikesViewerProfileGateSheet: View {
                 displayName = viewModel.viewerProfile.displayName
                 hasPhoto = viewModel.viewerProfile.hasPhoto
             }
-            .onChange(of: selectedPhoto) { _, item in
-                guard let item else { return }
+            .onChange(of: selectedPhoto) {
+                guard let item = selectedPhoto else { return }
                 Task {
                     isUploadingAvatar = true
                     defer { isUploadingAvatar = false }

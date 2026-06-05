@@ -5,6 +5,8 @@ import SwiftUI
 
 struct DiscoverProfileSheet: View {
     let card: DiscoverCard
+    var highlightedQuestionID: String?
+    var onLikeQuestion: (String) -> Void = { _ in }
     let onReport: () -> Void
     var onOpenSharedActivity: ((String) -> Void)?
     @Environment(\.dismiss) private var dismiss
@@ -42,6 +44,26 @@ struct DiscoverProfileSheet: View {
                         )
                     ) {
                         FlowTagsView(tags: card.interestTags)
+                    }
+                }
+
+                if !card.sparkQuestions.isEmpty {
+                    Section(
+                        String(
+                            localized: "likes.profile.sparkQuestions",
+                            defaultValue: "火花问题",
+                            comment: "Spark questions section"
+                        )
+                    ) {
+                        ForEach(card.sparkQuestions.prefix(3)) { question in
+                            SparkQuestionCard(
+                                question: question,
+                                isHighlighted: highlightedQuestionID == question.id,
+                                onLike: { onLikeQuestion(question.id) }
+                            )
+                            .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
+                            .listRowBackground(Color.clear)
+                        }
                     }
                 }
 

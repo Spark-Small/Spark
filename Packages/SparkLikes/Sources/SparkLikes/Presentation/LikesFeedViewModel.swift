@@ -15,29 +15,37 @@ public final class LikesFeedViewModel {
         case failure(LikesUserFacingError)
     }
 
-    public private(set) var cards: [DiscoverCard] = []
-    public private(set) var loadState: LoadState = .idle
+    public package(set) var cards: [DiscoverCard] = []
+    public package(set) var loadState: LoadState = .idle
     public var currentIndex: Int = 0
     public var preferences: LikesPreferences
-    public private(set) var isPerformingAction = false
-    public private(set) var statusMessage: String?
-    public private(set) var profileGateSaveError: LikesUserFacingError?
+    public package(set) var isPerformingAction = false
+    public package(set) var statusMessage: String?
+    public package(set) var profileGateSaveError: LikesUserFacingError?
     public var pendingMatch: LikeActionResult?
     public var pendingMatchPeerName: String?
     public var pendingMatchCard: DiscoverCard?
     public var pendingDirectMessage: PendingDirectMessage?
 
-    public private(set) var nextCursor: String?
-    public private(set) var isLoadingMore = false
+    public package(set) var nextCursor: String?
+    public package(set) var isLoadingMore = false
 
-    public private(set) var inboundItems: [InboundLikeItem] = []
-    public private(set) var inboundNextCursor: String?
-    public private(set) var isLoadingMoreInbound = false
-    public private(set) var viewerProfile: LikesViewerProfile = LikesViewerProfile()
+    public package(set) var inboundItems: [InboundLikeItem] = []
+    public package(set) var inboundNextCursor: String?
+    public package(set) var isLoadingMoreInbound = false
+    public package(set) var viewerProfile: LikesViewerProfile = LikesViewerProfile()
     public var showProfileGate = false
     public var showOnboarding = false
-    public private(set) var cardsBrowsedThisSession = 0
+    public package(set) var cardsBrowsedThisSession = 0
     public var showPreferencesHint = false
+    public package(set) var dailyStats = DailyLikeStats(
+        todaySeenCount: 0,
+        dailyPoolSize: 50,
+        sparkChargesRemaining: 3
+    )
+    public var pendingOpener: String?
+    public var pendingLikedQuestionID: String?
+    public var sparkBurstToken = 0
 
     let fetchFeed: FetchLikesFeedUseCase
     let fetchInbound: FetchInboundLikesUseCase
@@ -45,6 +53,8 @@ public final class LikesFeedViewModel {
     let updateViewerProfile: UpdateViewerProfileUseCase
     let rewindPass: RewindPassUseCase
     let submitLike: SubmitLikeUseCase
+    let fetchDailyStats: FetchDailyLikeStatsUseCase
+    let requestAvatarUpload: RequestAvatarUploadUseCase
     let submitPass: SubmitPassUseCase
     let submitFriendRequest: SubmitFriendRequestUseCase
     let reportAndBlockUser: ReportAndBlockUserUseCase
@@ -58,6 +68,8 @@ public final class LikesFeedViewModel {
         updateViewerProfile = UpdateViewerProfileUseCase(repository: repository)
         rewindPass = RewindPassUseCase(repository: repository)
         submitLike = SubmitLikeUseCase(repository: repository)
+        fetchDailyStats = FetchDailyLikeStatsUseCase(repository: repository)
+        requestAvatarUpload = RequestAvatarUploadUseCase(repository: repository)
         submitPass = SubmitPassUseCase(repository: repository)
         submitFriendRequest = SubmitFriendRequestUseCase(repository: repository)
         reportAndBlockUser = ReportAndBlockUserUseCase(repository: repository)
@@ -69,6 +81,19 @@ public final class LikesFeedViewModel {
     }
 
     public var inboundCount: Int { inboundItems.count }
+
+    public var sortedInboundItems: [InboundLikeItem] {
+        inboundItems.sorted(by: Self.inboundSort)
+    }
+
+    public var isDailyPoolExhausted: Bool {
+        dailyStats.isPoolExhausted
+    }
+
+    public var openerSuggestions: [String] {
+        guard let card = currentCard else { return [] }
+        return LikesOpenerSuggestions.suggestions(for: card)
+    }
 
     public var icebreakersForPendingMatch: [String] {
         guard let card = pendingMatchCard else { return [] }
@@ -84,13 +109,15 @@ public final class LikesFeedViewModel {
             async let pageTask = fetchFeed(query: feedQuery(cursor: nil))
             async let inboundTask = fetchInbound(cursor: nil)
             async let profileTask = fetchViewerProfile()
-            let (page, inbound, profile) = try await (pageTask, inboundTask, profileTask)
+            async let statsTask = fetchDailyStats()
+            let (page, inbound, profile, stats) = try await (pageTask, inboundTask, profileTask, statsTask)
             guard generation == loadGeneration else { return }
             cards = page.items
             nextCursor = page.nextCursor
             inboundItems = inbound.items
             inboundNextCursor = inbound.nextCursor
             viewerProfile = profile
+            dailyStats = stats
             currentIndex = 0
             cardsBrowsedThisSession = 0
             showPreferencesHint = false
@@ -200,8 +227,47 @@ public final class LikesFeedViewModel {
         statusMessage = nil
     }
 
+    /// Staging/Mock returns a ready `avatar_url`; client marks profile complete without binary upload.
+    public func uploadAvatarJPEG(_ data: Data) async -> Bool {
+        guard !data.isEmpty else { return false }
+        do {
+            let avatarURL = try await requestAvatarUpload(contentType: "image/jpeg")
+            var profile = viewerProfile
+            profile = LikesViewerProfile(
+                displayName: profile.displayName,
+                hasPhoto: true,
+                avatarURL: avatarURL
+            )
+            return await saveViewerProfile(profile)
+        } catch {
+            setStatusMessage(from: error)
+            return false
+        }
+    }
+
     func setStatusMessage(from error: Error) {
         statusMessage = LikesUserFacingError.from(error).message
+    }
+
+    func refreshDailyStats() async {
+        do {
+            dailyStats = try await fetchDailyStats()
+        } catch {
+            setStatusMessage(from: error)
+        }
+    }
+
+    private static func inboundSort(_ lhs: InboundLikeItem, _ rhs: InboundLikeItem) -> Bool {
+        if lhs.intensity != rhs.intensity {
+            if lhs.intensity == .spark { return true }
+            if rhs.intensity == .spark { return false }
+        }
+        let lhsHasOpener = lhs.opener?.isEmpty == false
+        let rhsHasOpener = rhs.opener?.isEmpty == false
+        if lhsHasOpener != rhsHasOpener {
+            return lhsHasOpener
+        }
+        return (lhs.likedAt ?? .distantPast) > (rhs.likedAt ?? .distantPast)
     }
 
 }

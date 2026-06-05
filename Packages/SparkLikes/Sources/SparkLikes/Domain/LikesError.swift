@@ -7,6 +7,7 @@ public enum LikesError: LocalizedError, Sendable, Equatable {
     case underlying(AppError)
     case alreadyConnected
     case rewindUnavailable
+    case sparkChargesExhausted
 
     public var errorDescription: String? {
         switch self {
@@ -23,6 +24,12 @@ public enum LikesError: LocalizedError, Sendable, Equatable {
                 localized: "likes.error.rewindUnavailable",
                 defaultValue: "今天无法撤回，或没有可撤回的人",
                 comment: "Rewind unavailable"
+            )
+        case .sparkChargesExhausted:
+            String(
+                localized: "likes.error.sparkExhausted",
+                defaultValue: "今日心动次数已用完",
+                comment: "Spark charges exhausted"
             )
         }
     }
@@ -42,6 +49,12 @@ public enum LikesError: LocalizedError, Sendable, Equatable {
                 localized: "likes.error.rewindUnavailable.recovery",
                 defaultValue: "明天再试，或继续浏览新的推荐",
                 comment: "Rewind unavailable recovery"
+            )
+        case .sparkChargesExhausted:
+            String(
+                localized: "likes.error.sparkExhausted.recovery",
+                defaultValue: "升级后可获得更多心动次数",
+                comment: "Spark exhausted recovery"
             )
         }
     }

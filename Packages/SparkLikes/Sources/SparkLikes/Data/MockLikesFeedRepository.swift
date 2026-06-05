@@ -22,13 +22,27 @@ public actor MockLikesFeedRepository: LikesFeedRepository {
     private var rewindUsedOnDay: String?
     private var removedInboundIDs: Set<String> = []
     private var viewerProfile = LikesViewerProfile()
+    private var seenTodayCount = 0
+    private var sparkUsedToday = 0
+
+    private enum DailyLimits {
+        static let poolSize = 50
+        static let freeSparkPerDay = 3
+    }
 
     public init() {}
 
+    public func fetchDailyStats() async throws -> DailyLikeStats {
+        DailyLikeStats(
+            todaySeenCount: seenTodayCount,
+            dailyPoolSize: DailyLimits.poolSize,
+            sparkChargesRemaining: max(0, DailyLimits.freeSparkPerDay - sparkUsedToday)
+        )
+    }
+
     public func fetchInbound(cursor: String?) async throws -> LikesInboundPage {
-        let all = MockLikesCatalog.inboundCards()
+        let all = MockLikesCatalog.inboundItems()
             .filter { !removedInboundIDs.contains($0.id) && !blockedIDs.contains($0.id) }
-            .map { InboundLikeItem(userID: $0.userID, card: $0) }
         if cursor == InboundPagination.pageTwoCursor {
             let remainder = Array(all.dropFirst(1))
             return LikesInboundPage(items: remainder, nextCursor: nil)
@@ -83,9 +97,17 @@ public actor MockLikesFeedRepository: LikesFeedRepository {
         )
     }
 
-    public func submitLike(userID: UserID) async throws -> LikeActionResult {
+    public func submitLike(_ request: SendLikeRequest) async throws -> LikeActionResult {
+        let userID = request.userID
         guard MockLikesCatalog.card(userID: userID) != nil else {
             throw LikesError.underlying(.server(statusCode: 404, message: nil))
+        }
+        if request.intensity == .spark {
+            let remaining = max(0, DailyLimits.freeSparkPerDay - sparkUsedToday)
+            guard remaining > 0 else {
+                throw LikesError.sparkChargesExhausted
+            }
+            sparkUsedToday += 1
         }
         if connectedIDs.contains(userID.rawValue) {
             return LikeActionResult(
@@ -96,6 +118,7 @@ public actor MockLikesFeedRepository: LikesFeedRepository {
         likedIDs.insert(userID.rawValue)
         passedIDs.insert(userID.rawValue)
         removedInboundIDs.insert(userID.rawValue)
+        seenTodayCount += 1
         let isInboundLikeBack = MockLikesCatalog.inboundCards().contains { $0.userID == userID }
         if userID == MockLikesCatalog.mutualMatchUserID || isInboundLikeBack {
             connectedIDs.insert(userID.rawValue)
@@ -112,6 +135,7 @@ public actor MockLikesFeedRepository: LikesFeedRepository {
             lastPassedCard = card
         }
         passedIDs.insert(userID.rawValue)
+        seenTodayCount += 1
     }
 
     public func submitFriendRequest(userID: UserID) async throws -> LikeActionResult {
@@ -135,6 +159,8 @@ public actor MockLikesFeedRepository: LikesFeedRepository {
         blockedIDs.insert(userID.rawValue)
         passedIDs.insert(userID.rawValue)
     }
+
+    public func syncPremiumEntitlement(isActive: Bool) async throws {}
 
     private func filteredCards(query: LikesFeedQuery) -> [DiscoverCard] {
         MockLikesCatalog.allCards().filter { card in

@@ -12,6 +12,7 @@ enum LikesAPIPath {
     static let inbound = "\(likes)/inbound"
     static let rewind = "\(likes)/rewind"
     static let viewerProfile = "\(likes)/viewer-profile"
+    static let dailyStats = "\(likes)/daily-stats"
 
     static func like(userID: String) -> String {
         "\(likes)/\(userID)/like"

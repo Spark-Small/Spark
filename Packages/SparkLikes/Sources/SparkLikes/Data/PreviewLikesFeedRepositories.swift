@@ -28,8 +28,12 @@ struct EmptyLikesFeedRepository: LikesFeedRepository, Sendable {
         nil
     }
 
-    func submitLike(userID: UserID) async throws -> LikeActionResult {
+    func submitLike(_ request: SendLikeRequest) async throws -> LikeActionResult {
         LikeActionResult(outcome: .pending)
+    }
+
+    func fetchDailyStats() async throws -> DailyLikeStats {
+        DailyLikeStats(todaySeenCount: 0, dailyPoolSize: 50, sparkChargesRemaining: 3)
     }
 
     func submitPass(userID: UserID) async throws {}
@@ -41,4 +45,6 @@ struct EmptyLikesFeedRepository: LikesFeedRepository, Sendable {
     func reportUser(userID: UserID, reason: String, detail: String?) async throws {}
 
     func blockUser(userID: UserID) async throws {}
+
+    func syncPremiumEntitlement(isActive: Bool) async throws {}
 }

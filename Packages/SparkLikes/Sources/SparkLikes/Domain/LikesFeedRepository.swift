@@ -28,9 +28,12 @@ public protocol LikesFeedRepository: Sendable {
     /// Staging returns `avatar_url` directly when `upload_url` is null (MODULE-F).
     func requestAvatarUploadURL(contentType: String) async throws -> URL
     func rewindLastPass() async throws -> DiscoverCard?
-    func submitLike(userID: UserID) async throws -> LikeActionResult
+    func submitLike(_ request: SendLikeRequest) async throws -> LikeActionResult
+    func fetchDailyStats() async throws -> DailyLikeStats
     func submitPass(userID: UserID) async throws
     func submitFriendRequest(userID: UserID) async throws -> LikeActionResult
     func reportUser(userID: UserID, reason: String, detail: String?) async throws
     func blockUser(userID: UserID) async throws
+    /// Sync StoreKit premium state for inbound `is_visible` (MODULE-G).
+    func syncPremiumEntitlement(isActive: Bool) async throws
 }

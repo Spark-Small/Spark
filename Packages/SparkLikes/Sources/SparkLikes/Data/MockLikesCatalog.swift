@@ -18,7 +18,64 @@ enum MockLikesCatalog {
     }
 
     static func inboundCards() -> [DiscoverCard] {
-        [inboundCard, inboundCard2]
+        inboundItems().map(\.card)
+    }
+
+    static func inboundItems() -> [InboundLikeItem] {
+        [
+            InboundLikeItem(
+                userID: inboundUserID,
+                card: inboundCard,
+                likedAt: Date().addingTimeInterval(-3_600),
+                intensity: .spark,
+                opener: String(
+                    localized: "likes.mock.inbound.opener1",
+                    defaultValue: "你的笑容很治愈",
+                    comment: "Mock inbound opener"
+                )
+            ),
+            InboundLikeItem(
+                userID: UserID("u_like_6"),
+                card: inboundCard2,
+                likedAt: Date().addingTimeInterval(-7_200),
+                opener: String(
+                    localized: "likes.mock.inbound.opener2",
+                    defaultValue: "想和你去这个活动",
+                    comment: "Mock inbound opener 2"
+                )
+            )
+        ]
+    }
+
+    static func mockSparkQuestions() -> [SparkQuestion] {
+        [
+            SparkQuestion(
+                id: "sq_1",
+                question: String(
+                    localized: "likes.mock.question1",
+                    defaultValue: "周末最想做的事",
+                    comment: "Mock spark question"
+                ),
+                answer: String(
+                    localized: "likes.mock.answer1",
+                    defaultValue: "徒步到山顶看日出",
+                    comment: "Mock spark answer"
+                )
+            ),
+            SparkQuestion(
+                id: "sq_2",
+                question: String(
+                    localized: "likes.mock.question2",
+                    defaultValue: "最近单曲循环",
+                    comment: "Mock spark question 2"
+                ),
+                answer: String(
+                    localized: "likes.mock.answer2",
+                    defaultValue: "City pop 老歌",
+                    comment: "Mock spark answer 2"
+                )
+            )
+        ]
     }
 
     static func card(userID: UserID) -> DiscoverCard? {
@@ -62,7 +119,9 @@ enum MockLikesCatalog {
                 defaultValue: "周末 City Walk",
                 comment: "Shared activity"
             ),
-            sharedActivityID: "act_mock_walk"
+            sharedActivityID: "act_mock_walk",
+            sparkQuestions: mockSparkQuestions(),
+            isDailyPick: true
         )
     }
 

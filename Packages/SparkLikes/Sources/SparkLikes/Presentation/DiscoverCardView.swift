@@ -29,15 +29,46 @@ struct DiscoverCardView: View {
 
     private var cardInfoOverlay: some View {
         VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text(card.displayName)
+                    .font(.title2.weight(.bold))
+                if let location = card.coarseLocation {
+                    Text("· \(location)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if card.isDailyPick {
+                Text(
+                    String(
+                        localized: "likes.card.dailyPick",
+                        defaultValue: "为你精选",
+                        comment: "Daily pick badge"
+                    )
+                )
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.thinMaterial, in: Capsule())
+            }
+            if !card.interestTags.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(card.interestTags.prefix(4), id: \.self) { tag in
+                            Text(tag)
+                                .font(.caption)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(.thinMaterial, in: Capsule())
+                        }
+                    }
+                }
+            }
             if let gender = card.gender {
                 Text(gender.localizedLabel)
                     .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(.thinMaterial, in: Capsule())
+                    .foregroundStyle(.secondary)
             }
-            Text(card.displayName)
-                .font(.title2.weight(.bold))
             if let activity = card.sharedActivityTitle {
                 Label(activity, systemImage: "calendar")
                     .font(.caption.weight(.medium))

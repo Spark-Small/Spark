@@ -25,26 +25,81 @@ extension LikesFeedViewModel {
         }
     }
 
-    public func likeCurrentCard() async {
+    public func likeQuestion(_ questionID: String) {
+        pendingLikedQuestionID = questionID
+        statusMessage = String(
+            localized: "likes.question.liked.pending",
+            defaultValue: "已标记这条回答，发送喜欢时会附上",
+            comment: "Question liked pending"
+        )
+    }
+
+    public func likeCurrentCard(opener: String? = nil) async {
         guard guardDiscoverAction(), let card = currentCard, !isPerformingAction else { return }
+        if isDailyPoolExhausted {
+            loadState = .empty
+            return
+        }
         isPerformingAction = true
         defer { isPerformingAction = false }
+        let request = SendLikeRequest(
+            userID: card.userID,
+            intensity: .like,
+            opener: opener ?? pendingOpener,
+            likedQuestionID: pendingLikedQuestionID
+        )
         do {
-            let result = try await submitLike(userID: card.userID)
+            let result = try await submitLike(request)
+            pendingOpener = nil
+            pendingLikedQuestionID = nil
             recordBrowseProgress()
+            await refreshDailyStats()
             applyLikeResult(result, card: card, source: .feed(advanceOnNonMatch: true))
         } catch {
             setStatusMessage(from: error)
         }
     }
 
-    public func likeInboundUser(_ userID: UserID) async {
-        guard guardDiscoverAction(), !isPerformingAction else { return }
-        guard let card = inboundItems.first(where: { $0.userID == userID })?.card else { return }
+    public func sparkCurrentCard() async {
+        guard guardDiscoverAction(), let card = currentCard, !isPerformingAction else { return }
+        guard dailyStats.sparkChargesRemaining > 0 else {
+            setStatusMessage(from: LikesError.sparkChargesExhausted)
+            return
+        }
+        if isDailyPoolExhausted {
+            loadState = .empty
+            return
+        }
         isPerformingAction = true
         defer { isPerformingAction = false }
+        let request = SendLikeRequest(
+            userID: card.userID,
+            intensity: .spark,
+            opener: pendingOpener,
+            likedQuestionID: pendingLikedQuestionID
+        )
         do {
-            let result = try await submitLike(userID: userID)
+            let result = try await submitLike(request)
+            pendingOpener = nil
+            pendingLikedQuestionID = nil
+            sparkBurstToken += 1
+            recordBrowseProgress()
+            await refreshDailyStats()
+            applyLikeResult(result, card: card, source: .feed(advanceOnNonMatch: true))
+        } catch {
+            setStatusMessage(from: error)
+        }
+    }
+
+    public func likeInboundUser(_ userID: UserID, opener: String? = nil) async {
+        guard guardDiscoverAction(), !isPerformingAction else { return }
+        guard let item = inboundItems.first(where: { $0.userID == userID }) else { return }
+        let card = item.card
+        isPerformingAction = true
+        defer { isPerformingAction = false }
+        let request = SendLikeRequest(userID: userID, intensity: .like, opener: opener)
+        do {
+            let result = try await submitLike(request)
             inboundItems.removeAll { $0.userID == userID }
             applyLikeResult(result, card: card, source: .inbound)
         } catch {
@@ -59,6 +114,7 @@ extension LikesFeedViewModel {
         do {
             try await submitPass(userID: card.userID)
             recordBrowseProgress()
+            await refreshDailyStats()
             advanceToNextCard()
         } catch {
             setStatusMessage(from: error)
@@ -206,7 +262,7 @@ extension LikesFeedViewModel {
         )
     }
 
-    private func feedQuery(cursor: String?) -> LikesFeedQuery {
+    func feedQuery(cursor: String?) -> LikesFeedQuery {
         LikesFeedQuery(
             cursor: cursor,
             genderPreference: preferences.genderPreference,

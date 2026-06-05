@@ -173,7 +173,11 @@ private struct FailingLikesFeedRepository: LikesFeedRepository, Sendable {
         throw LikesError.underlying(.networkUnavailable)
     }
 
-    func submitLike(userID: UserID) async throws -> LikeActionResult {
+    func submitLike(_ request: SendLikeRequest) async throws -> LikeActionResult {
+        throw LikesError.underlying(.networkUnavailable)
+    }
+
+    func fetchDailyStats() async throws -> DailyLikeStats {
         throw LikesError.underlying(.networkUnavailable)
     }
 
@@ -190,6 +194,10 @@ private struct FailingLikesFeedRepository: LikesFeedRepository, Sendable {
     }
 
     func blockUser(userID: UserID) async throws {
+        throw LikesError.underlying(.networkUnavailable)
+    }
+
+    func syncPremiumEntitlement(isActive: Bool) async throws {
         throw LikesError.underlying(.networkUnavailable)
     }
 }

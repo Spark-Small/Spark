@@ -240,15 +240,31 @@ Signed-in user's activity feed for the Activity tab (`SparkActivity` → `LiveAc
 - `thread_id` convention: `th_activity_{activity_id}`; provision via `POST /v1/messages/activity-threads` when user signs up (`going` / `maybe`).
 - Pagination: not required for MVP; add `cursor` later without breaking this shape.
 
-### `GET /v1/activities/browse` (planned — not in iOS client)
+### `GET /v1/activities/browse`
 
-**Status:** Backend / Phase 19 only ([ACTIVITY_UPGRADE_PLAN.md](ACTIVITY_UPGRADE_PLAN.md)). **iOS does not call this path** — public activity discovery was removed with dead `ActivityBrowse*` UI (see [adr/0001-likes-tab-social-discovery.md](adr/0001-likes-tab-social-discovery.md)). **人发现** uses [Likes](#likes-social-discovery) (`GET /v1/likes/feed`).
+**Status:** **Backend + iOS shipped** (`spark-api` MODULE-A.2, `SparkActivity` MODULE-D). Entry: Activity Tab toolbar「逛局」— [ADR-0003](adr/0003-activities-browse-placement.md).
 
-**Query (draft):** `category`, `starts_after`, `starts_before`, `cursor`
+**Headers:** `Authorization: Bearer <access_token>` (required)
 
-**Response:** Same item shape as [feed](#get-v1activitiesfeed) list entries.
+**Query:**
 
-When implementing a future Activity-tab discover screen, add this path to `ActivityAPIPath` and `LiveActivityFeedRepository` in a dedicated PR.
+| Param | Type | Required | Notes |
+|-------|------|----------|-------|
+| `category` | string | No | Exact match on `items[].category` |
+| `starts_after` | ISO8601 | No | Inclusive lower bound on `starts_at` |
+| `starts_before` | ISO8601 | No | Inclusive upper bound on `starts_at` |
+| `cursor` | string | No | Activity `id` for next page |
+
+**Response `200`:** Same item shape as [feed](#get-v1activitiesfeed); excludes `cancelled` / `ended`; sorted by `starts_at` ascending; page size 20.
+
+```json
+{
+  "items": [ { "id": "act_001", "title": "周末徒步", "summary": "…", "category": "活动", "starts_at": "…", "lifecycle_status": "scheduled" } ],
+  "next_cursor": "act_002"
+}
+```
+
+**人发现** remains [Likes](#likes-social-discovery) (`GET /v1/likes/feed`) — not this path.
 
 ### `GET /v1/activities/{activity_id}`
 
@@ -421,7 +437,19 @@ Register APNs device token after user grants notification permission.
 }
 ```
 
-**Response `204`:** Token stored for activity push (`activity.reminder`, `activity.cancelled`, `activity.updated`).
+**Response `204`:** Token stored in `spark_devices` for activity push (`activity.reminder`, `activity.cancelled`, `activity.updated`).
+
+### `POST /v1/notifications/send` (MODULE-B, internal)
+
+Deliver push via APNs HTTP/2 when `APNS_*` env vars are set on the cloud function; otherwise returns `202` queued stub.
+
+**Request:** `{ "user_id": "...", "type": "likes.match", "payload": { "thread_id": "..." } }`
+
+**Response `200` (APNs configured, devices found):** `{ "queued": false, "apns_configured": true, "sent", "failed", "errors" }`
+
+**Response `202` (stub or no devices):** `{ "queued": true, "apns_configured": false|true, "user_id", "type", "payload" }`
+
+**Cloud function env:** `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` (`.p8` PEM), `APNS_BUNDLE_ID`, optional `APNS_USE_SANDBOX` (default sandbox).
 
 ---
 
@@ -578,7 +606,15 @@ Single post for the Community detail screen (`SparkCommunity` → `LiveCommunity
     "title": "周末去哪玩？",
     "body": "城郊步道周六上午集合，还差两人。",
     "author_display_name": "阿乐",
-    "reply_count": 12
+    "reply_count": 12,
+    "replies": [
+      {
+        "id": "cpr_001",
+        "body": "周六可以，几点集合？",
+        "author_display_name": "小雨",
+        "created_at": "2026-06-01T10:00:00.000Z"
+      }
+    ]
   }
 }
 ```
@@ -590,15 +626,47 @@ Single post for the Community detail screen (`SparkCommunity` → `LiveCommunity
 | `post.body` | string | Yes | Full post text |
 | `post.author_display_name` | string | Yes | Author label |
 | `post.reply_count` | integer | Yes | Reply count ≥ 0 |
+| `post.replies` | array | No | Thread replies (may be `[]`) |
+| `post.replies[].id` | string | Yes | Reply id |
+| `post.replies[].body` | string | Yes | Reply text |
+| `post.replies[].author_display_name` | string | Yes | Author label |
+| `post.replies[].created_at` | string (ISO8601) | No | Created timestamp |
 
 **Response `404`:** Unknown post id.
+
+### `POST /v1/community/posts` (MODULE-E)
+
+Create a text post (Staging: no moderation queue).
+
+**Request:** `{ "title": "...", "body": "..." }`
+
+**Response `201`:** `{ "post": { "id", "title", "excerpt", "author_display_name", "reply_count" } }` (list item shape).
+
+### `POST /v1/community/posts/{post_id}/replies` (MODULE-E.2)
+
+Add a text reply to a post thread.
+
+**Request:** `{ "body": "..." }`
+
+**Response `201`:** `{ "reply": { "id", "body", "author_display_name", "created_at" } }`
+
+**Response `404`:** Unknown post id.
+
+### `POST /v1/community/posts/{post_id}/report` (MODULE-E.4)
+
+**Request:** `{ "reason": "spam" }` (optional, max 500 chars)
+
+**Response `201`:** `{ "report_id": "cprpt_001", "status": "pending" }` — persisted to `spark_community_reports`.
 
 ### Community API path literals (iOS Live)
 
 | Method | Path |
 |--------|------|
 | GET | `/v1/community/posts` |
+| POST | `/v1/community/posts` |
 | GET | `/v1/community/posts/{post_id}` (built in `CommunityAPIPath.post`) |
+| POST | `/v1/community/posts/{post_id}/replies` (built in `CommunityAPIPath.replies`) |
+| POST | `/v1/community/posts/{post_id}/report` |
 
 **Deep links (iOS):** `spark://community/post/{post_id}` · `spark://community?post_id={id}`
 
@@ -656,6 +724,23 @@ Vertical discover feed (image/video cards). User actions: **like**, **pass**, **
 ---
 
 ### `POST /v1/likes/{user_id}/like`
+
+**Request (optional JSON body):**
+
+```json
+{
+  "intensity": "spark",
+  "opener": "你的笑容很治愈",
+  "liked_question_id": "sq_1"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `intensity` | string | No | `like` (default) · `spark` (super-like / 心动) |
+| `opener` | string | No | Compliment attached to the like (shown on inbound) |
+| `liked_question_id` | string | No | Spark question the viewer liked from profile |
+| `voice_opener_url` | string | No | Optional voice memo URL when voice icebreaker is supported (no client stub until upload ships) |
 
 **Response `200`:**
 
@@ -731,6 +816,7 @@ Users who liked the viewer (not yet matched / passed).
     {
       "user_id": "u_like_5",
       "liked_at": "2026-06-05T12:00:00Z",
+      "is_visible": false,
       "card": { }
     }
   ],
@@ -739,6 +825,29 @@ Users who liked the viewer (not yet matched / passed).
 ```
 
 `card` uses the same shape as [feed items](#get-v1likesfeed).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `items[].is_visible` | boolean | `false` when viewer lacks premium inbound entitlement (ADR-0004) |
+| `items[].intensity` | string | No | `like` · `spark` — spark likes sort first in client |
+| `items[].opener` | string | No | Compliment from liker |
+| `items[].liked_question_id` | string | No | Question ID if liker praised a spark answer |
+
+---
+
+### `GET /v1/likes/daily-stats`
+
+Daily discover pool progress and spark allowance.
+
+**Response `200`:**
+
+```json
+{
+  "today_seen_count": 12,
+  "daily_pool_size": 50,
+  "spark_charges_remaining": 2
+}
+```
 
 ---
 
@@ -754,13 +863,29 @@ Undo the most recent pass (client: once per calendar day recommended).
 
 Minimum profile for discover gate (like/pass requires `has_photo` + non-empty `display_name`).
 
-**Response `200`:** `{ "display_name": "...", "has_photo": true }`
+**Response `200`:** `{ "display_name": "...", "has_photo": true, "avatar_url": "https://..." }` (`avatar_url` optional)
 
 ### `PATCH /v1/likes/viewer-profile`
 
-**Request:** `{ "display_name": "...", "has_photo": true }`
+**Request:** `{ "display_name": "...", "has_photo": true, "avatar_url": "https://...", "is_premium": true }`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `is_premium` | boolean | No | Synced from StoreKit after purchase / restore / refund (MODULE-G); drives `inbound[].is_visible` |
 
 **Response `200`:** Updated profile (same shape as GET).
+
+### `POST /v1/users/avatar/upload-url` (MODULE-F)
+
+Staging returns `upload_url: null` and a ready `avatar_url` (no client upload).
+
+**Request:** `{ "content_type": "image/jpeg" }`
+
+**Response `200`:** `{ "upload_url": null, "avatar_url": "...", "expires_at": "ISO8601" }`
+
+### `PATCH /v1/users/profile`
+
+Alias for profile fields including `avatar_url` (same semantics as `PATCH /v1/likes/viewer-profile`).
 
 ### Push payloads (APNs)
 
@@ -768,6 +893,11 @@ Minimum profile for discover gate (like/pass requires `has_photo` + non-empty `d
 |--------|--------|
 | `likes.inbound` | Open inbound list (`spark://likes/inbound`) |
 | `likes.match` | Open DM when `thread_id` set; else inbound |
+| `messages.new` | Open thread (`thread_id`) |
+| `activity.updated` / `activity.cancelled` | Open activity detail (`activity_id`) |
+| `community.reply` | Open community post (`post_id`) |
+
+**MODULE-B.4 triggers (server):** like → `likes.inbound` / `likes.match`; DM message → `messages.new`; host patch/cancel/announce → `activity.*`; reply → `community.reply`.
 
 ---
 
@@ -785,22 +915,34 @@ Minimum profile for discover gate (like/pass requires `has_photo` + non-empty `d
 | POST | `/v1/likes/{user_id}/friend-request` |
 | POST | `/v1/likes/{user_id}/report` |
 | POST | `/v1/likes/{user_id}/block` |
+| GET | `/v1/likes/daily-stats` |
 
 **Deep links (iOS):** `spark://likes` · `spark://likes/inbound` · Universal `https://spark.app/tab/likes` · `https://spark.app/tab/likes/inbound`
 
-**Feed item extensions (optional):** `media_items[]`, `interest_tags[]`, `coarse_location`, `shared_activity: { activity_id, title }`
+**Feed item extensions (optional):** `media_items[]`, `interest_tags[]`, `coarse_location`, `shared_activity: { activity_id, title }`, `spark_questions[]: { id, question, answer }`, `is_daily_pick` (boolean)
 
 ---
 
 ## Environment matrix
 
-| Environment | `SPARK_API_BASE_URL` | iOS data layer |
-|-------------|----------------------|----------------|
-| Local / no backend | `https://mock.spark.local` | `MockAuthService`, `MockMessagesRepository`, `MockActivityFeedRepository`, `MockLikesFeedRepository`, `MockSearchRepository`, `MockCommunityPostsRepository`, `MockStoreKitService` |
-| Staging | `https://api.staging.spark.app` | `Live*` types |
-| Production | `https://api.spark.app` | `Live*` types |
+| Environment | `SPARK_API_BASE_URL` | iOS data layer | Backend |
+|-------------|----------------------|----------------|---------|
+| Local / no backend | `https://mock.spark.local` | `Mock*` repositories | None |
+| Staging (CloudBase MVP) | `https://ais-d1gab0emob99361a0.service.tcloudbase.com` | `Live*` types | HTTP 云函数 `spark-api` — CloudBase NoSQL write-through ([ADR-0002](adr/0002-backend-persistence-cloudbase-nosql.md)); `SPARK_PERSISTENCE=memory` for local |
+| Staging (team host) | `https://api.staging.spark.app` | `Live*` types | Team backend |
+| Production | `https://api.spark.app` | `Live*` types | Production API |
 
 Copy `Config/Secrets.xcconfig.example` → `Config/Secrets.xcconfig` (gitignored) to override the base URL without editing shared xcconfig.
+
+### Staging MVP coverage (`spark-api`)
+
+| Area | iOS Live paths | MVP status |
+|------|----------------|------------|
+| Auth | email · session · apple · sign-out | Implemented |
+| Messages | unread · threads · messages · read · activity/direct threads | Implemented |
+| Activities | feed · browse · detail · create · patch · rsvp · waitlist · promote · cancel · report · announce · feedback | Implemented (NoSQL write-through) |
+| Search · Community · Likes · devices | per path tables above | Implemented |
+| `GET /v1/activities/browse` | `LiveActivityBrowseRepository` (MODULE-D) | Backend implemented |
 
 ---
 
@@ -816,3 +958,5 @@ Copy `Config/Secrets.xcconfig.example` → `Config/Secrets.xcconfig` (gitignored
 | 2026-06-05 | Activity invitation fields, detail + RSVP endpoints |
 | 2026-06-05 | Likes discover feed + actions; direct message threads |
 | 2026-06-05 | Remove iOS `ActivityBrowse*`; document planned `GET /v1/activities/browse` only |
+| 2026-06-05 | CloudBase `spark-api` MVP: full iOS Live path coverage except browse; env matrix + coverage table |
+| 2026-06-05 | MODULE-A: CloudBase NoSQL persistence + `GET /v1/activities/browse`; see [MISSING_MODULES_PLAN.md](MISSING_MODULES_PLAN.md) |
