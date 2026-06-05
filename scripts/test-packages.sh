@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-DESTINATION="${SPARK_DESTINATION:-platform=iOS Simulator,name=iPhone 17,OS=26.4.1}"
+DESTINATION="${SPARK_DESTINATION:-platform=iOS Simulator,name=iPhone 17,OS=26.5}"
 
 for package_dir in Packages/Spark*/; do
   [[ -f "${package_dir}Package.swift" ]] || continue

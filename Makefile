@@ -1,7 +1,7 @@
 # Spark — developer commands (Phase 6)
 
 SHELL := /bin/bash
-SPARK_DESTINATION ?= platform=iOS Simulator,name=iPhone 17,OS=26.4.1
+SPARK_DESTINATION ?= platform=iOS Simulator,name=iPhone 17,OS=26.5
 export SPARK_DESTINATION
 
 .PHONY: help check lint test test-packages build ci bootstrap
