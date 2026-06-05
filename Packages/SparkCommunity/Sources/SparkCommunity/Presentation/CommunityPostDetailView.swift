@@ -5,13 +5,23 @@ import SwiftUI
 
 public struct CommunityPostDetailView: View {
     @State private var viewModel: CommunityPostDetailViewModel
+    private let onOpenLinkedActivity: ((String) -> Void)?
 
-    public init(postID: String, repository: any CommunityPostsRepository) {
+    public init(
+        postID: String,
+        repository: any CommunityPostsRepository,
+        onOpenLinkedActivity: ((String) -> Void)? = nil
+    ) {
         _viewModel = State(initialValue: CommunityPostDetailViewModel(postID: postID, repository: repository))
+        self.onOpenLinkedActivity = onOpenLinkedActivity
     }
 
-    public init(viewModel: CommunityPostDetailViewModel) {
+    public init(
+        viewModel: CommunityPostDetailViewModel,
+        onOpenLinkedActivity: ((String) -> Void)? = nil
+    ) {
         _viewModel = State(initialValue: viewModel)
+        self.onOpenLinkedActivity = onOpenLinkedActivity
     }
 
     public var body: some View {
@@ -50,6 +60,9 @@ public struct CommunityPostDetailView: View {
 
     private func detailContent(post: CommunityPostDetail) -> some View {
         VStack(spacing: 0) {
+            if let linkedActivity = post.linkedActivity {
+                activityBanner(linkedActivity)
+            }
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     postHeader(post: post)
@@ -60,9 +73,53 @@ public struct CommunityPostDetailView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
             }
-            replyComposer
+            postingComingSoonBar
         }
         .accessibilityElement(children: .contain)
+    }
+
+    private func activityBanner(_ activity: LinkedActivityContext) -> some View {
+        Button {
+            onOpenLinkedActivity?(activity.id)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "mappin.and.ellipse")
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(
+                        String(
+                            format: String(
+                                localized: "community.detail.activityBanner.title",
+                                defaultValue: "这条帖子来自「%@」活动群",
+                                comment: "Activity banner; %@ is activity name"
+                            ),
+                            locale: .current,
+                            activity.name
+                        )
+                    )
+                    .font(.subheadline.weight(.medium))
+                    Text(
+                        String(
+                            localized: "community.detail.activityBanner.action",
+                            defaultValue: "查看活动详情",
+                            comment: "Open activity"
+                        )
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.thinMaterial)
+        }
+        .buttonStyle(.plain)
+        .disabled(onOpenLinkedActivity == nil)
     }
 
     private func postHeader(post: CommunityPostDetail) -> some View {
@@ -105,57 +162,19 @@ public struct CommunityPostDetailView: View {
         }
     }
 
-    private var replyComposer: some View {
-        VStack(spacing: 8) {
-            if case .failure(let message) = viewModel.replyState {
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            HStack(alignment: .bottom, spacing: 8) {
-                TextField(
-                    String(
-                        localized: "community.reply.placeholder",
-                        defaultValue: "写回复…",
-                        comment: "Reply placeholder"
-                    ),
-                    text: $viewModel.replyDraft,
-                    axis: .vertical
-                )
-                .lineLimit(1 ... 4)
-                .textFieldStyle(.roundedBorder)
-                .accessibilityLabel(
-                    String(
-                        localized: "community.reply.field.a11y",
-                        defaultValue: "回复内容",
-                        comment: "Reply field"
-                    )
-                )
-                Button {
-                    Task { await viewModel.sendReply() }
-                } label: {
-                    if viewModel.replyState == .sending {
-                        ProgressView()
-                    } else {
-                        Text(
-                            String(
-                                localized: "community.reply.send",
-                                defaultValue: "发送",
-                                comment: "Send reply"
-                            )
-                        )
-                    }
-                }
-                .disabled(
-                    viewModel.replyState == .sending ||
-                        viewModel.replyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                )
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-        }
-        .background(.regularMaterial)
+    private var postingComingSoonBar: some View {
+        Text(
+            String(
+                localized: "community.posting.comingSoon",
+                defaultValue: "发帖功能即将开放",
+                comment: "Posting coming soon"
+            )
+        )
+        .font(.footnote)
+        .foregroundStyle(.tertiary)
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(.bar)
     }
 
     private func replyCountLabel(for count: Int) -> String {

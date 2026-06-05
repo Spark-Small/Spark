@@ -60,8 +60,10 @@ public final class CommunityPostDetailViewModel {
                     title: current.title,
                     body: current.body,
                     authorDisplayName: current.authorDisplayName,
+                    authorUserID: current.authorUserID,
                     replyCount: replies.count,
-                    replies: replies
+                    replies: replies,
+                    linkedActivity: current.linkedActivity
                 )
             }
             replyDraft = ""

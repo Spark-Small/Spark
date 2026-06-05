@@ -149,6 +149,18 @@ public struct SparkMainTabView: View {
                     return nil
                 }
                 return (detail.title, detail.scheduleLine)
+            },
+            onOpenSearch: {
+                router.selectedTab = .search
+            },
+            onOpenLikesDiscover: {
+                router.selectedTab = .likes
+            },
+            onLikePerson: { _ in
+                router.selectedTab = .likes
+            },
+            onOpenLinkedActivity: { activityID in
+                router.openActivityDetail(activityID: activityID)
             }
         )
         .tabItem { Label(SparkTab.community.title, systemImage: SparkTab.community.systemImage) }

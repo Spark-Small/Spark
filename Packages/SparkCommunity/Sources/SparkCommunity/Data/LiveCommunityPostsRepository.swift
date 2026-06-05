@@ -20,6 +20,25 @@ public struct LiveCommunityPostsRepository: CommunityPostsRepository, Sendable {
         }
     }
 
+    public func fetchTabExperience() async throws -> CommunityTabExperience {
+        // REASONING: `/v1/community/feed` ships in a follow-up; derive tab from list posts on Live.
+        let posts = try await fetchPosts()
+        let feedPosts = posts.map { summary in
+            CommunityFeedPost(
+                id: summary.id,
+                authorDisplayName: summary.authorDisplayName,
+                authorUserID: summary.id,
+                communityName: String(localized: "community.fallback.name", defaultValue: "社区", comment: "Community"),
+                content: summary.excerpt,
+                likeCount: 0,
+                commentCount: summary.replyCount,
+                createdAt: Date()
+            )
+        }
+        let items = feedPosts.map { CommunityFeedItem.post($0) }
+        return CommunityTabExperience(joinedCommunities: [], feedItems: items, allCommunities: [])
+    }
+
     public func fetchPost(id: String) async throws -> CommunityPostDetail {
         do {
             let dto: CommunityPostDetailResponseDTO = try await apiClient.get(CommunityAPIPath.post(id: id))

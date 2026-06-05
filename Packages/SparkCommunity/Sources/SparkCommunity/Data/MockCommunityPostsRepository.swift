@@ -5,12 +5,20 @@ import Foundation
 public actor MockCommunityPostsRepository: CommunityPostsRepository {
     private var replyStore: [String: [CommunityPostReply]]
 
-    public init(replyStore: [String: [CommunityPostReply]] = MockCommunityPostCatalog.defaultReplies()) {
+    public init() {
+        replyStore = MockCommunityPostCatalog.defaultReplies()
+    }
+
+    public init(replyStore: [String: [CommunityPostReply]]) {
         self.replyStore = replyStore
     }
 
     public func fetchPosts() async throws -> [CommunityPost] {
         MockCommunityPostCatalog.allPosts(replyStore: replyStore).map(MockCommunityPostCatalog.summary)
+    }
+
+    public func fetchTabExperience() async throws -> CommunityTabExperience {
+        MockCommunityTabCatalog.tabExperience()
     }
 
     public func fetchPost(id: String) async throws -> CommunityPostDetail {

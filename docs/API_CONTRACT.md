@@ -558,6 +558,24 @@ Full-text search for the Search tab (`SparkSearch` → `LiveSearchRepository`).
 
 ## Community
 
+### `GET /v1/community/feed` (planned)
+
+Tab experience for the Community discover screen (`SparkCommunity` → `LiveCommunityPostsRepository.fetchTabExperience`).
+
+**Status:** Not required for current Live builds — iOS derives a minimal tab from `GET /v1/community/posts` until this endpoint ships.
+
+**Headers:** `Authorization: Bearer <access_token>` (required)
+
+**Response `200` (sketch):**
+
+```json
+{
+  "joined_communities": [],
+  "items": [],
+  "all_communities": []
+}
+```
+
 ### `GET /v1/community/posts`
 
 Community discussion list for the Community tab (`SparkCommunity` → `LiveCommunityPostsRepository`).

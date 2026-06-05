@@ -25,7 +25,23 @@ enum MockCommunityPostCatalog {
     }
 
     static func allPosts(replyStore: [String: [CommunityPostReply]] = defaultReplies()) -> [CommunityPostDetail] {
-        let base: [CommunityPostDetail] = [
+        postStubs(replyStore: replyStore).map { detail in
+            let replies = replyStore[detail.id, default: []]
+            return CommunityPostDetail(
+                id: detail.id,
+                title: detail.title,
+                body: detail.body,
+                authorDisplayName: detail.authorDisplayName,
+                authorUserID: detail.authorUserID,
+                replyCount: max(detail.replyCount, replies.count),
+                replies: replies,
+                linkedActivity: detail.linkedActivity
+            )
+        }
+    }
+
+    private static func postStubs(replyStore: [String: [CommunityPostReply]]) -> [CommunityPostDetail] {
+        [
             CommunityPostDetail(
                 id: "cp_1",
                 title: String(
@@ -43,7 +59,16 @@ enum MockCommunityPostCatalog {
                     defaultValue: "阿乐",
                     comment: "Author"
                 ),
-                replyCount: replyStore["cp_1", default: []].count
+                authorUserID: "u_host_1",
+                replyCount: replyStore["cp_1", default: []].count,
+                linkedActivity: LinkedActivityContext(
+                    id: "act_001",
+                    name: String(
+                        localized: "community.mock.activity.hike",
+                        defaultValue: "周末爬香山",
+                        comment: "Activity"
+                    )
+                )
             ),
             CommunityPostDetail(
                 id: "cp_2",
@@ -84,17 +109,6 @@ enum MockCommunityPostCatalog {
                 replyCount: replyStore["cp_3", default: []].count
             )
         ]
-        return base.map { detail in
-            let replies = replyStore[detail.id, default: []]
-            return CommunityPostDetail(
-                id: detail.id,
-                title: detail.title,
-                body: detail.body,
-                authorDisplayName: detail.authorDisplayName,
-                replyCount: max(detail.replyCount, replies.count),
-                replies: replies
-            )
-        }
     }
 
     static func summary(from detail: CommunityPostDetail) -> CommunityPost {

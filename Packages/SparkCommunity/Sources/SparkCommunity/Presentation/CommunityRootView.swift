@@ -9,22 +9,33 @@ public struct CommunityRootView: View {
     @State private var viewModel: CommunityViewModel
     @State private var navigationPath = NavigationPath()
     @State private var recapDraft: (title: String, scheduleLine: String)?
-    @State private var showCompose = false
 
     private let repository: any CommunityPostsRepository
     private let fetchActivityRecap: ((String) async -> (title: String, scheduleLine: String)?)?
+    private let onOpenSearch: () -> Void
+    private let onOpenLikesDiscover: () -> Void
+    private let onLikePerson: (String) -> Void
+    private let onOpenLinkedActivity: (String) -> Void
 
     public init(
         repository: any CommunityPostsRepository,
         pendingCommunityPostID: Binding<String?> = .constant(nil),
         pendingRecapActivityID: Binding<String?> = .constant(nil),
-        fetchActivityRecap: ((String) async -> (title: String, scheduleLine: String)?)? = nil
+        fetchActivityRecap: ((String) async -> (title: String, scheduleLine: String)?)? = nil,
+        onOpenSearch: @escaping () -> Void = {},
+        onOpenLikesDiscover: @escaping () -> Void = {},
+        onLikePerson: @escaping (String) -> Void = { _ in },
+        onOpenLinkedActivity: @escaping (String) -> Void = { _ in }
     ) {
         self.repository = repository
         _pendingCommunityPostID = pendingCommunityPostID
         _pendingRecapActivityID = pendingRecapActivityID
         _viewModel = State(initialValue: CommunityViewModel(repository: repository))
         self.fetchActivityRecap = fetchActivityRecap
+        self.onOpenSearch = onOpenSearch
+        self.onOpenLikesDiscover = onOpenLikesDiscover
+        self.onLikePerson = onLikePerson
+        self.onOpenLinkedActivity = onOpenLinkedActivity
     }
 
     public init(
@@ -32,13 +43,21 @@ public struct CommunityRootView: View {
         repository: any CommunityPostsRepository,
         pendingCommunityPostID: Binding<String?> = .constant(nil),
         pendingRecapActivityID: Binding<String?> = .constant(nil),
-        fetchActivityRecap: ((String) async -> (title: String, scheduleLine: String)?)? = nil
+        fetchActivityRecap: ((String) async -> (title: String, scheduleLine: String)?)? = nil,
+        onOpenSearch: @escaping () -> Void = {},
+        onOpenLikesDiscover: @escaping () -> Void = {},
+        onLikePerson: @escaping (String) -> Void = { _ in },
+        onOpenLinkedActivity: @escaping (String) -> Void = { _ in }
     ) {
         self.repository = repository
         _pendingCommunityPostID = pendingCommunityPostID
         _pendingRecapActivityID = pendingRecapActivityID
         _viewModel = State(initialValue: viewModel)
         self.fetchActivityRecap = fetchActivityRecap
+        self.onOpenSearch = onOpenSearch
+        self.onOpenLikesDiscover = onOpenLikesDiscover
+        self.onLikePerson = onLikePerson
+        self.onOpenLinkedActivity = onOpenLinkedActivity
     }
 
     public var body: some View {
@@ -56,24 +75,34 @@ public struct CommunityRootView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showCompose = true
-                    } label: {
-                        Image(systemName: "square.and.pencil")
+                    Button(action: onOpenSearch) {
+                        Image(systemName: "magnifyingglass")
                     }
                     .accessibilityLabel(
-                        String(localized: "community.compose.a11y", defaultValue: "发帖", comment: "Compose post")
+                        String(localized: "community.search.a11y", defaultValue: "搜索", comment: "Search")
                     )
                 }
             }
-            .sheet(isPresented: $showCompose) {
-                CommunityComposeView(viewModel: viewModel)
+            .navigationDestination(for: CommunityFeedPost.self) { post in
+                CommunityPostDetailView(
+                    postID: post.id,
+                    repository: repository,
+                    onOpenLinkedActivity: onOpenLinkedActivity
+                )
             }
             .navigationDestination(for: CommunityPost.self) { post in
-                CommunityPostDetailView(postID: post.id, repository: repository)
+                CommunityPostDetailView(
+                    postID: post.id,
+                    repository: repository,
+                    onOpenLinkedActivity: onOpenLinkedActivity
+                )
             }
             .navigationDestination(for: String.self) { postID in
-                CommunityPostDetailView(postID: postID, repository: repository)
+                CommunityPostDetailView(
+                    postID: postID,
+                    repository: repository,
+                    onOpenLinkedActivity: onOpenLinkedActivity
+                )
             }
         }
         .onChange(of: pendingCommunityPostID) { _, postID in
@@ -125,7 +154,7 @@ public struct CommunityRootView: View {
                 description: Text(
                     String(
                         localized: "community.empty.subtitle",
-                        defaultValue: "来发第一条帖子吧",
+                        defaultValue: "发现附近的活动社区",
                         comment: "Empty community hint"
                     )
                 )
@@ -138,17 +167,76 @@ public struct CommunityRootView: View {
                 Task { await viewModel.load() }
             }
         case .loaded:
-            List(viewModel.posts) { post in
-                NavigationLink(value: post) {
-                    CommunityPostRow(post: post)
+            ScrollView {
+                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    if !viewModel.joinedCommunities.isEmpty {
+                        Section {
+                            MyCommunitiesCarousel(communities: viewModel.joinedCommunities)
+                                .frame(height: 88)
+                                .padding(.vertical, 8)
+                        }
+                    }
+
+                    Section {
+                        ForEach(viewModel.feedItems) { item in
+                            feedRow(item)
+                        }
+                    } header: {
+                        CommunityFeedSectionHeader(
+                            title: String(
+                                localized: "community.feed.section.discover",
+                                defaultValue: "发现",
+                                comment: "Discover section"
+                            )
+                        )
+                    }
+
+                    if !viewModel.allCommunities.isEmpty {
+                        Section {
+                            ForEach(viewModel.allCommunities) { community in
+                                CommunityRowCell(community: community)
+                                Divider()
+                            }
+                        } header: {
+                            CommunityFeedSectionHeader(
+                                title: String(
+                                    localized: "community.feed.section.allCommunities",
+                                    defaultValue: "所有社区",
+                                    comment: "All communities"
+                                )
+                            )
+                        }
+                    }
                 }
             }
-            .sparkScreenListStyle()
+        }
+    }
+
+    @ViewBuilder
+    private func feedRow(_ item: CommunityFeedItem) -> some View {
+        switch item {
+        case .post(let post):
+            CommunityPostCard(
+                post: post,
+                isLiked: viewModel.isPostLiked(post.id),
+                likeCount: viewModel.likeCount(for: post.id),
+                onToggleLike: { viewModel.toggleLike(postID: post.id) },
+                onOpen: { navigationPath.append(post) }
+            )
+        case .peopleDiscovery(let users):
+            PeopleDiscoveryCard(
+                users: users,
+                likedUserIDs: viewModel.likedPersonIDs,
+                onLike: { userID in
+                    viewModel.markPersonLiked(userID)
+                    onLikePerson(userID)
+                },
+                onViewMore: onOpenLikesDiscover
+            )
         }
     }
 
     private func openPendingPost(postID: String) async {
-        // REASONING: Detail loads by id; do not block on feed (search/deep link may arrive before list finishes).
         navigationPath.append(postID)
         pendingCommunityPostID = nil
         if viewModel.loadState == .idle {
@@ -169,40 +257,6 @@ private struct RecapSheetItem: Identifiable {
     let id = UUID()
     let title: String
     let scheduleLine: String
-}
-
-private struct CommunityPostRow: View {
-    let post: CommunityPost
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(post.title)
-                .font(.headline)
-            Text(post.excerpt)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-            HStack(spacing: 8) {
-                Text(post.authorDisplayName)
-                Text("·")
-                Text(replyCountLabel)
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(post.title), \(post.authorDisplayName)")
-    }
-
-    private var replyCountLabel: String {
-        let format = String(
-            localized: "community.replyCount.format",
-            defaultValue: "%lld 条回复",
-            comment: "Reply count; %lld is count"
-        )
-        return String(format: format, locale: .current, post.replyCount)
-    }
 }
 
 #Preview {

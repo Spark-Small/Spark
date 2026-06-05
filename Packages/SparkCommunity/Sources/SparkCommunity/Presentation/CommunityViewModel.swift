@@ -1,4 +1,4 @@
-// Module: SparkCommunity — Community feed state.
+// Module: SparkCommunity — Community tab state.
 
 import Foundation
 import Observation
@@ -15,23 +15,33 @@ public final class CommunityViewModel {
     }
 
     public private(set) var posts: [CommunityPost] = []
+    public private(set) var joinedCommunities: [CommunitySummary] = []
+    public private(set) var feedItems: [CommunityFeedItem] = []
+    public private(set) var allCommunities: [CommunitySummary] = []
     public private(set) var loadState: LoadState = .idle
-    public private(set) var isCreatingPost = false
-    public private(set) var createPostError: String?
+    public private(set) var likedPostIDs: Set<String> = []
+    public private(set) var likedPersonIDs: Set<String> = []
+    public private(set) var likeCountOverrides: [String: Int] = [:]
 
     private let fetchPosts: FetchCommunityPostsUseCase
-    private let createPostUseCase: CreateCommunityPostUseCase
+    private let repository: any CommunityPostsRepository
 
     public init(repository: any CommunityPostsRepository) {
+        self.repository = repository
         fetchPosts = FetchCommunityPostsUseCase(repository: repository)
-        createPostUseCase = CreateCommunityPostUseCase(repository: repository)
     }
 
     public func load() async {
         loadState = .loading
         do {
-            posts = try await fetchPosts()
-            loadState = posts.isEmpty ? .empty : .loaded
+            async let postsTask = fetchPosts()
+            async let tabTask = repository.fetchTabExperience()
+            let (fetchedPosts, tab) = try await (postsTask, tabTask)
+            posts = fetchedPosts
+            joinedCommunities = tab.joinedCommunities
+            feedItems = tab.feedItems
+            allCommunities = tab.allCommunities
+            loadState = feedItems.isEmpty && posts.isEmpty ? .empty : .loaded
         } catch is CancellationError {
             return
         } catch {
@@ -39,22 +49,34 @@ public final class CommunityViewModel {
         }
     }
 
-    @discardableResult
-    public func createPost(_ draft: CreateCommunityPostDraft) async -> CommunityPost? {
-        createPostError = nil
-        guard draft.isValid else { return nil }
-        isCreatingPost = true
-        defer { isCreatingPost = false }
-        do {
-            let post = try await createPostUseCase(draft)
-            posts.insert(post, at: 0)
-            loadState = .loaded
-            return post
-        } catch is CancellationError {
-            return nil
-        } catch {
-            createPostError = error.localizedDescription
-            return nil
+    public func toggleLike(postID: String) {
+        let currentlyLiked = likedPostIDs.contains(postID)
+        if currentlyLiked {
+            likedPostIDs.remove(postID)
+        } else {
+            likedPostIDs.insert(postID)
         }
+        let base = likeCount(for: postID)
+        likeCountOverrides[postID] = base + (currentlyLiked ? -1 : 1)
+    }
+
+    public func markPersonLiked(_ userID: String) {
+        likedPersonIDs.insert(userID)
+    }
+
+    public func isPostLiked(_ postID: String) -> Bool {
+        likedPostIDs.contains(postID)
+    }
+
+    public func likeCount(for postID: String) -> Int {
+        if let override = likeCountOverrides[postID] {
+            return max(0, override)
+        }
+        for item in feedItems {
+            if case .post(let post) = item, post.id == postID {
+                return post.likeCount
+            }
+        }
+        return 0
     }
 }

@@ -5,6 +5,7 @@ import Foundation
 public protocol CommunityPostsRepository: Sendable {
     func fetchPosts() async throws -> [CommunityPost]
     func fetchPost(id: String) async throws -> CommunityPostDetail
+    func fetchTabExperience() async throws -> CommunityTabExperience
     func createPost(_ draft: CreateCommunityPostDraft) async throws -> CommunityPost
     func createReply(postID: String, body: String) async throws -> CommunityPostReply
 }

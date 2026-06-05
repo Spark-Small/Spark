@@ -6,11 +6,14 @@ import Testing
 
 @MainActor
 struct CommunityViewModelTests {
-    @Test func loadPopulatesPosts() async {
+    @Test func loadPopulatesPostsAndTabExperience() async {
         let viewModel = CommunityViewModel(repository: MockCommunityPostsRepository())
         await viewModel.load()
         #expect(viewModel.loadState == .loaded)
         #expect(viewModel.posts.count == 3)
+        #expect(!viewModel.joinedCommunities.isEmpty)
+        #expect(!viewModel.feedItems.isEmpty)
+        #expect(!viewModel.allCommunities.isEmpty)
     }
 
     @Test func loadEmptySetsEmptyState() async {
@@ -18,6 +21,7 @@ struct CommunityViewModelTests {
         await viewModel.load()
         #expect(viewModel.loadState == .empty)
         #expect(viewModel.posts.isEmpty)
+        #expect(viewModel.feedItems.isEmpty)
     }
 
     @Test func loadFailureSetsFailureState() async {
@@ -26,18 +30,29 @@ struct CommunityViewModelTests {
         #expect(viewModel.loadState == .failure("Posts unavailable"))
     }
 
-    @Test func createPostPrependsFeed() async {
+    @Test func toggleLikeUpdatesState() async {
         let viewModel = CommunityViewModel(repository: MockCommunityPostsRepository())
         await viewModel.load()
-        let created = await viewModel.createPost(CreateCommunityPostDraft(title: "新帖", body: "正文"))
-        #expect(created != nil)
-        #expect(viewModel.posts.first?.title == "新帖")
-        #expect(viewModel.posts.count == 4)
+        guard case .post(let post) = viewModel.feedItems.first else {
+            Issue.record("Expected feed post")
+            return
+        }
+        let baseCount = post.likeCount
+        viewModel.toggleLike(postID: post.id)
+        #expect(viewModel.isPostLiked(post.id))
+        #expect(viewModel.likeCount(for: post.id) == baseCount + 1)
+        viewModel.toggleLike(postID: post.id)
+        #expect(!viewModel.isPostLiked(post.id))
+        #expect(viewModel.likeCount(for: post.id) == baseCount)
     }
 }
 
 private struct EmptyCommunityPostsRepository: CommunityPostsRepository, Sendable {
     func fetchPosts() async throws -> [CommunityPost] { [] }
+
+    func fetchTabExperience() async throws -> CommunityTabExperience {
+        CommunityTabExperience(joinedCommunities: [], feedItems: [], allCommunities: [])
+    }
 
     func fetchPost(id: String) async throws -> CommunityPostDetail {
         throw EmptyCommunityPostsRepository.TestError()
@@ -51,6 +66,10 @@ private struct EmptyCommunityPostsRepository: CommunityPostsRepository, Sendable
             authorDisplayName: "你",
             replyCount: 0
         )
+    }
+
+    func createReply(postID: String, body: String) async throws -> CommunityPostReply {
+        throw TestError()
     }
 
     struct TestError: LocalizedError {
@@ -67,11 +86,19 @@ private struct FailingCommunityPostsRepository: CommunityPostsRepository, Sendab
         throw TestError()
     }
 
+    func fetchTabExperience() async throws -> CommunityTabExperience {
+        throw TestError()
+    }
+
     func fetchPost(id: String) async throws -> CommunityPostDetail {
         throw TestError()
     }
 
     func createPost(_ draft: CreateCommunityPostDraft) async throws -> CommunityPost {
+        throw TestError()
+    }
+
+    func createReply(postID: String, body: String) async throws -> CommunityPostReply {
         throw TestError()
     }
 }

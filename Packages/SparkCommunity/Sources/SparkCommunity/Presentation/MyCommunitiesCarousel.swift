@@ -1,0 +1,90 @@
+// Module: SparkCommunity — Joined communities horizontal carousel.
+
+import SwiftUI
+
+struct MyCommunitiesCarousel: View {
+    let communities: [CommunitySummary]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(communities) { community in
+                    CommunityPill(community: community)
+                }
+                ExplorePill()
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+}
+
+private struct CommunityPill: View {
+    let community: CommunitySummary
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ZStack(alignment: .topTrailing) {
+                avatar
+                    .overlay {
+                        if community.hasNewPosts {
+                            Circle()
+                                .stroke(Color.accentColor, lineWidth: 2)
+                        }
+                    }
+                if community.hasNewPosts {
+                    Circle()
+                        .fill(.red)
+                        .frame(width: 10, height: 10)
+                        .offset(x: 2, y: -2)
+                }
+            }
+            Text(community.name)
+                .font(.caption2)
+                .lineLimit(1)
+                .frame(width: 60)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(community.name)
+    }
+
+    @ViewBuilder
+    private var avatar: some View {
+        if let coverURL = community.coverURL {
+            AsyncImage(url: coverURL) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                default:
+                    Circle().fill(.thinMaterial)
+                }
+            }
+            .frame(width: 56, height: 56)
+            .clipShape(Circle())
+        } else {
+            Circle()
+                .fill(.thinMaterial)
+                .frame(width: 56, height: 56)
+        }
+    }
+}
+
+private struct ExplorePill: View {
+    var body: some View {
+        VStack(spacing: 6) {
+            Circle()
+                .fill(.thinMaterial)
+                .frame(width: 56, height: 56)
+                .overlay {
+                    Image(systemName: "plus")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            Text(String(localized: "community.explore", defaultValue: "探索更多", comment: "Explore more"))
+                .font(.caption2)
+                .lineLimit(1)
+                .frame(width: 60)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(String(localized: "community.explore", defaultValue: "探索更多", comment: "Explore more"))
+    }
+}
