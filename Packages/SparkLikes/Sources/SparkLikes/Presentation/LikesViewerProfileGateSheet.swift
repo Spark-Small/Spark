@@ -117,6 +117,7 @@ struct LikesViewerProfileGateSheet: View {
                 Task {
                     isUploadingAvatar = true
                     defer { isUploadingAvatar = false }
+                    // REASONING: Picker cancel or transfer failure — keep sheet open; no alert noise.
                     guard let data = try? await item.loadTransferable(type: Data.self) else { return }
                     if await viewModel.uploadAvatarJPEG(data) {
                         hasPhoto = true

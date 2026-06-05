@@ -42,6 +42,7 @@ public struct ActivityGroupChatCoordinator {
             activityTitle: detail.title,
             scheduleLine: detail.scheduleLine
         )
+        // REASONING: Reschedule notice is best-effort; inbox still reloads if send fails offline.
         try? await messagesRepository.sendMessage(threadID: MessageThreadID(threadID), body: body)
         await reloadInbox()
     }
@@ -50,6 +51,7 @@ public struct ActivityGroupChatCoordinator {
         guard let threadID = detail.conversationThreadID else { return }
         await provisionGroupChat(for: detail)
         let body = ActivityAnnounceCopy.systemMessage(activityTitle: detail.title, body: message)
+        // REASONING: Host announce is best-effort; user already saw the compose UI succeed locally.
         try? await messagesRepository.sendMessage(threadID: MessageThreadID(threadID), body: body)
         await reloadInbox()
     }
@@ -58,6 +60,7 @@ public struct ActivityGroupChatCoordinator {
         guard let threadID = detail.conversationThreadID else { return }
         let displayName = ActivityGroupChatCopy.displayName(activityTitle: detail.title)
         let welcome = ActivityGroupChatCopy.welcomeMessage(activityTitle: detail.title)
+        // REASONING: Thread provisioning is idempotent; failure should not block RSVP navigation.
         try? await messagesRepository.ensureActivityGroupThread(
             threadID: MessageThreadID(threadID),
             displayName: displayName,

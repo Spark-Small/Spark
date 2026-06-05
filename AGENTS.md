@@ -14,6 +14,7 @@
 10. [docs/API_CONTRACT.md](docs/API_CONTRACT.md) — HTTP contract (update before Live APIs)
 11. [docs/STAGING.md](docs/STAGING.md) · [cloudfunctions/spark-api/README.md](cloudfunctions/spark-api/README.md) — CloudBase Staging MVP
 12. [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) — PR checklist
+13. [docs/HIG_COMPLIANCE.md](docs/HIG_COMPLIANCE.md) · [docs/HIG_AUDIT_AND_PLAN.md](docs/HIG_AUDIT_AND_PLAN.md) — HIG audit & compliance
 
 Cursor rules: `.cursor/rules/ios-product-philosophy.mdc` (always), `ios-liquid-glass.mdc`, `ios-foundation.mdc`.
 
@@ -30,6 +31,7 @@ Cursor rules: `.cursor/rules/ios-product-philosophy.mdc` (always), `ios-liquid-g
 ```bash
 make check
 make lint
+make lint-hig       # optional HIG-focused SwiftLint rules
 make test-packages
 ```
 

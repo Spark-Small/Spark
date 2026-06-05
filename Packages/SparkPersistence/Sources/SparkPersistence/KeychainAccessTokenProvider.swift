@@ -15,6 +15,7 @@ public actor KeychainAccessTokenProvider: AccessTokenProviding {
     }
 
     public func accessToken() async -> String? {
+        // REASONING: No token in Keychain is a normal unauthenticated state, not a failure to surface.
         guard let data = try? keychain.load(account: account) else { return nil }
         return String(data: data, encoding: .utf8)
     }

@@ -104,6 +104,7 @@ public struct SparkMainTabView: View {
         guard SparkFeatureFlags.isPremiumInboundBlurEnabled else { return }
         let isActive = entitlementManager.hasPremium
         Task {
+            // REASONING: Background entitlement sync; blur state already reflects StoreKit locally.
             try? await likesFeedRepository.syncPremiumEntitlement(isActive: isActive)
         }
     }
@@ -116,12 +117,14 @@ public struct SparkMainTabView: View {
             pendingInbound: $router.pendingLikesInbound,
             onOpenMatchConversation: { threadID, peerDisplayName, initialMessage in
                 let peerUserID = SparkMainTabRouting.peerUserID(fromDirectThreadID: threadID)
+                // REASONING: Fall back to match thread id when ensure fails offline; user still opens chat.
                 let resolvedThread = try? await messagesRepository.ensureDirectMessageThread(
                     peerUserID: peerUserID,
                     peerDisplayName: peerDisplayName
                 )
                 let thread = (resolvedThread ?? MessageThreadID(threadID)).rawValue
                 if let initialMessage, !initialMessage.isEmpty {
+                    // REASONING: Opener send is best-effort; conversation opens even if message queues later.
                     _ = try? await messagesRepository.sendMessage(
                         threadID: MessageThreadID(thread),
                         body: initialMessage
@@ -157,6 +160,7 @@ public struct SparkMainTabView: View {
             pendingCommunityPostID: $router.pendingCommunityPostID,
             pendingRecapActivityID: $router.pendingCommunityRecapActivityID,
             fetchActivityRecap: { activityID in
+                // REASONING: Recap sheet degrades to empty when activity fetch fails.
                 guard let detail = try? await activityFeedRepository.fetchActivity(id: activityID) else {
                     return nil
                 }
@@ -170,6 +174,7 @@ public struct SparkMainTabView: View {
             },
             onLikePerson: { userID in
                 Task {
+                    // REASONING: Community discovery like is fire-and-forget; no inline error UI on card.
                     _ = try? await likesFeedRepository.submitLike(
                         SendLikeRequest(userID: UserID(userID), intensity: .like)
                     )

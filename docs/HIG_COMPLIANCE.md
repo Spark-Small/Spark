@@ -74,6 +74,23 @@ This memo exists to make UI/interaction changes reviewable and repeatable.
 
 ---
 
+## Error handling (`try?`)
+
+Use `try?` only when failure is **expected or non-actionable** for the current UX path. Every site must have a `// REASONING:` comment (see `ios-foundation.mdc`).
+
+| Pattern | Example | Why ignore is OK |
+|---------|---------|------------------|
+| Missing Keychain session | `AuthSessionStore.load` | Signed-out is normal, not an error banner |
+| Background sync | premium entitlement sync | Local StoreKit state is already authoritative |
+| Best-effort side effects | group chat announce, opener message | Primary navigation must not block |
+| Picker / transfer cancel | avatar `loadTransferable` | User dismissed; no alert |
+| Notification schedule duplicate | `UNUserNotificationCenter.add` | RSVP must not fail on reminder collision |
+| StoreKit unverified entitlement | `Transaction` enumeration | Skip bad payloads; keep verified set |
+
+Prefer `do/catch` with typed errors when the user needs recovery UI.
+
+---
+
 ## Pre-merge checklist (HIG/SDK)
 
 - [ ] Permissions are requested **in context**, not at launch.

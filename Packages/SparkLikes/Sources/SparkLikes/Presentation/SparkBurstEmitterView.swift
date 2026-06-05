@@ -42,6 +42,7 @@ final class SparkBurstUIView: UIView {
         emitterLayer.emitterCells = [heartCell()]
         emitterLayer.birthRate = 1
         Task { @MainActor [weak self] in
+            // REASONING: Cancellation ends the burst early; no user-facing error.
             try? await Task.sleep(for: .milliseconds(800))
             self?.emitterLayer.birthRate = 0
         }

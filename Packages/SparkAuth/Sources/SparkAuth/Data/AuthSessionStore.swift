@@ -24,6 +24,7 @@ public actor AuthSessionStore {
     }
 
     public func load() -> AuthSession? {
+        // REASONING: Missing or unreadable Keychain items mean signed-out — not a thrown error path.
         guard let tokenData = try? keychain.load(account: Self.tokenAccount),
               let userData = try? keychain.load(account: Self.userIDAccount),
               let token = String(data: tokenData, encoding: .utf8),

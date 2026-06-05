@@ -1,6 +1,6 @@
 # Contributing to Spark
 
-Read first: [DESIGN_PHILOSOPHY.md](DESIGN_PHILOSOPHY.md), [ARCHITECTURE.md](ARCHITECTURE.md), [API_CONTRACT.md](API_CONTRACT.md).
+Read first: [DESIGN_PHILOSOPHY.md](DESIGN_PHILOSOPHY.md), [ARCHITECTURE.md](ARCHITECTURE.md), [API_CONTRACT.md](API_CONTRACT.md), [HIG_COMPLIANCE.md](HIG_COMPLIANCE.md).
 
 ## Before you code
 
@@ -23,8 +23,10 @@ Read first: [DESIGN_PHILOSOPHY.md](DESIGN_PHILOSOPHY.md), [ARCHITECTURE.md](ARCH
 ```bash
 make check          # secrets + UI + API contract warnings (no ripgrep required)
 make lint           # SwiftLint strict (brew install swiftlint)
+make lint-hig       # HIG rules: Dynamic Type fonts, semantic colors (optional)
 make test-packages
 make build && make test-app
+make ci             # full pipeline
 ```
 
 ## PR title
@@ -33,4 +35,4 @@ Conventional Commits: `feat(activity): add mock activity feed loader`
 
 ## Review
 
-Reviewers use [UI_REVIEW.md](UI_REVIEW.md) and the PR template **Spark guardrails** section.
+Reviewers use [UI_REVIEW.md](UI_REVIEW.md), [HIG_COMPLIANCE.md](HIG_COMPLIANCE.md), and the PR template **Spark guardrails** section.

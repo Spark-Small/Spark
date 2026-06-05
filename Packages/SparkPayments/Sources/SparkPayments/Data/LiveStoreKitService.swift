@@ -39,6 +39,7 @@ public actor LiveStoreKitService: StoreKitServing {
     public func currentEntitlementProductIDs() async -> Set<String> {
         var ids = Set<String>()
         for await verification in Transaction.currentEntitlements {
+            // REASONING: Skip unverified StoreKit payloads when building the entitlement set.
             if let transaction = try? Self.verify(verification) {
                 ids.insert(transaction.productID)
             }

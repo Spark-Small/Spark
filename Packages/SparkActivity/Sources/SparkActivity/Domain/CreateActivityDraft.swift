@@ -28,7 +28,7 @@ public struct CreateActivityDraft: Sendable, Equatable {
     }
 
     public var isValid: Bool {
-        (try? Self.validate(self)) == nil
+        validationError == nil
     }
 
     public var validationError: ActivityError? {

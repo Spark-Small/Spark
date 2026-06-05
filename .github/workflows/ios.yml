@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SPARK_DESTINATION: platform=iOS Simulator,name=iPhone 17,OS=26.4.1
+  SPARK_DESTINATION: platform=iOS Simulator,name=iPhone 17,OS=26.5
 
 jobs:
   lint:
