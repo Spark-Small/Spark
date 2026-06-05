@@ -15,29 +15,39 @@ public struct LikesRootView: View {
     @Binding var pendingInbound: Bool
     let onOpenMatchConversation: LikesOpenConversationHandler
     let onOpenSharedActivity: (@Sendable (String) -> Void)?
+    let isInboundItemBlurred: (InboundLikeItem) -> Bool
+    let onInboundPaywall: () -> Void
 
     public init(
         repository: any LikesFeedRepository,
         pendingInbound: Binding<Bool> = .constant(false),
         onOpenMatchConversation: @escaping LikesOpenConversationHandler,
-        onOpenSharedActivity: (@Sendable (String) -> Void)? = nil
+        onOpenSharedActivity: (@Sendable (String) -> Void)? = nil,
+        isInboundItemBlurred: @escaping (InboundLikeItem) -> Bool = { _ in false },
+        onInboundPaywall: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: LikesFeedViewModel(repository: repository))
         _pendingInbound = pendingInbound
         self.onOpenMatchConversation = onOpenMatchConversation
         self.onOpenSharedActivity = onOpenSharedActivity
+        self.isInboundItemBlurred = isInboundItemBlurred
+        self.onInboundPaywall = onInboundPaywall
     }
 
     init(
         viewModel: LikesFeedViewModel,
         pendingInbound: Binding<Bool> = .constant(false),
         onOpenMatchConversation: @escaping LikesOpenConversationHandler,
-        onOpenSharedActivity: (@Sendable (String) -> Void)? = nil
+        onOpenSharedActivity: (@Sendable (String) -> Void)? = nil,
+        isInboundItemBlurred: @escaping (InboundLikeItem) -> Bool = { _ in false },
+        onInboundPaywall: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: viewModel)
         _pendingInbound = pendingInbound
         self.onOpenMatchConversation = onOpenMatchConversation
         self.onOpenSharedActivity = onOpenSharedActivity
+        self.isInboundItemBlurred = isInboundItemBlurred
+        self.onInboundPaywall = onInboundPaywall
     }
 
     public var body: some View {
@@ -76,7 +86,11 @@ public struct LikesRootView: View {
                 LikesPreferencesSheet(viewModel: viewModel)
             }
             .sheet(isPresented: $showInbound) {
-                LikesInboundListView(viewModel: viewModel)
+                LikesInboundListView(
+                    viewModel: viewModel,
+                    isItemBlurred: isInboundItemBlurred,
+                    onBlurredItemTap: onInboundPaywall
+                )
             }
             .sheet(isPresented: $showProfileSheet) {
                 if let card = viewModel.currentCard {

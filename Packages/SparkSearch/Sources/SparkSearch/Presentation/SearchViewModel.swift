@@ -17,7 +17,7 @@ public final class SearchViewModel {
     public static let defaultSuggestions: [String] = [
         String(localized: "search.suggestion.events", defaultValue: "附近活动", comment: "Search suggestion"),
         String(localized: "search.suggestion.groups", defaultValue: "跑步俱乐部", comment: "Search suggestion"),
-        String(localized: "search.suggestion.people", defaultValue: "可能认识的人", comment: "Search suggestion"),
+        String(localized: "search.suggestion.people", defaultValue: "可能认识的人", comment: "Search suggestion")
     ]
 
     public var query: String = ""

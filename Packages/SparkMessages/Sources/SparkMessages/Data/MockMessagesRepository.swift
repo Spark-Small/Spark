@@ -44,7 +44,7 @@ public actor MockMessagesRepository: MessagesRepository {
         threads = [hike, run]
         messagesByThread = [
             hike.threadID.rawValue: Self.seedGroupMessages(for: hike, now: now),
-            run.threadID.rawValue: Self.seedGroupMessages(for: run, now: now.addingTimeInterval(-1800)),
+            run.threadID.rawValue: Self.seedGroupMessages(for: run, now: now.addingTimeInterval(-1800))
         ]
     }
 
@@ -138,7 +138,7 @@ public actor MockMessagesRepository: MessagesRepository {
                 body: welcomeMessage,
                 sentAt: now,
                 isFromCurrentUser: false
-            ),
+            )
         ]
     }
 
@@ -150,7 +150,7 @@ public actor MockMessagesRepository: MessagesRepository {
                 body: thread.lastMessagePreview,
                 sentAt: now,
                 isFromCurrentUser: false
-            ),
+            )
         ]
     }
 }

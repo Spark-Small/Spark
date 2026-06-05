@@ -7,10 +7,10 @@ let package = Package(
     name: "SparkPersistence",
     platforms: [.iOS(.v17)],
     products: [
-        .library(name: "SparkPersistence", targets: ["SparkPersistence"]),
+        .library(name: "SparkPersistence", targets: ["SparkPersistence"])
     ],
     dependencies: [
-        .package(path: "../SparkCore"),
+        .package(path: "../SparkCore")
     ],
     targets: [
         .target(
@@ -18,13 +18,13 @@ let package = Package(
             dependencies: ["SparkCore"],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
-                .enableExperimentalFeature("StrictConcurrency"),
+                .enableExperimentalFeature("StrictConcurrency")
             ]
         ),
         .testTarget(
             name: "SparkPersistenceTests",
             dependencies: ["SparkPersistence"],
             swiftSettings: [.swiftLanguageMode(.v6)]
-        ),
+        )
     ]
 )

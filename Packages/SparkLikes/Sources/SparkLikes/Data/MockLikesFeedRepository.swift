@@ -51,6 +51,10 @@ public actor MockLikesFeedRepository: LikesFeedRepository {
         return profile
     }
 
+    public func requestAvatarUploadURL(contentType: String) async throws -> URL {
+        URL(string: "https://picsum.photos/seed/mock-avatar/400/400")!
+    }
+
     public func rewindLastPass() async throws -> DiscoverCard? {
         let today = Self.dayKey(for: Date())
         if rewindUsedOnDay == today {

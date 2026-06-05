@@ -22,6 +22,7 @@ public struct AppDependencies {
     public let authService: any AuthService
     public let messagesRepository: any MessagesRepository
     public let activityFeedRepository: any ActivityFeedRepository
+    public let activityBrowseRepository: any ActivityBrowseRepository
     public let likesFeedRepository: any LikesFeedRepository
     public let searchRepository: any SearchRepository
     public let communityPostsRepository: any CommunityPostsRepository
@@ -39,6 +40,7 @@ public struct AppDependencies {
         authService: any AuthService,
         messagesRepository: any MessagesRepository,
         activityFeedRepository: any ActivityFeedRepository,
+        activityBrowseRepository: any ActivityBrowseRepository,
         likesFeedRepository: any LikesFeedRepository,
         searchRepository: any SearchRepository,
         communityPostsRepository: any CommunityPostsRepository,
@@ -54,6 +56,7 @@ public struct AppDependencies {
         self.authService = authService
         self.messagesRepository = messagesRepository
         self.activityFeedRepository = activityFeedRepository
+        self.activityBrowseRepository = activityBrowseRepository
         self.likesFeedRepository = likesFeedRepository
         self.searchRepository = searchRepository
         self.communityPostsRepository = communityPostsRepository

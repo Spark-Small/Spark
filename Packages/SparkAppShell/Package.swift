@@ -7,7 +7,7 @@ let package = Package(
     name: "SparkAppShell",
     platforms: [.iOS(.v17)],
     products: [
-        .library(name: "SparkAppShell", targets: ["SparkAppShell"]),
+        .library(name: "SparkAppShell", targets: ["SparkAppShell"])
     ],
     dependencies: [
         .package(path: "../SparkAuth"),
@@ -17,7 +17,7 @@ let package = Package(
         .package(path: "../SparkSearch"),
         .package(path: "../SparkLikes"),
         .package(path: "../SparkPersistence"),
-        .package(path: "../SparkPayments"),
+        .package(path: "../SparkPayments")
     ],
     targets: [
         .target(
@@ -30,17 +30,17 @@ let package = Package(
                 "SparkLikes",
                 "SparkSearch",
                 "SparkPersistence",
-                "SparkPayments",
+                "SparkPayments"
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
-                .enableExperimentalFeature("StrictConcurrency"),
+                .enableExperimentalFeature("StrictConcurrency")
             ]
         ),
         .testTarget(
             name: "SparkAppShellTests",
             dependencies: ["SparkAppShell", "SparkPayments"],
             swiftSettings: [.swiftLanguageMode(.v6)]
-        ),
+        )
     ]
 )

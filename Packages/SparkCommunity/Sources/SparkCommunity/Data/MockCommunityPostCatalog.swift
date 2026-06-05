@@ -3,8 +3,29 @@
 import Foundation
 
 enum MockCommunityPostCatalog {
-    static func allPosts() -> [CommunityPostDetail] {
+    static func defaultReplies() -> [String: [CommunityPostReply]] {
         [
+            "cp_1": [
+                CommunityPostReply(
+                    id: "cpr_1",
+                    body: String(
+                        localized: "community.mock.reply.1",
+                        defaultValue: "周六可以，几点集合？",
+                        comment: "Mock reply"
+                    ),
+                    authorDisplayName: String(
+                        localized: "community.mock.2.author",
+                        defaultValue: "小雨",
+                        comment: "Author"
+                    ),
+                    createdAt: Date(timeIntervalSince1970: 1_749_000_000)
+                )
+            ]
+        ]
+    }
+
+    static func allPosts(replyStore: [String: [CommunityPostReply]] = defaultReplies()) -> [CommunityPostDetail] {
+        let base: [CommunityPostDetail] = [
             CommunityPostDetail(
                 id: "cp_1",
                 title: String(
@@ -22,7 +43,7 @@ enum MockCommunityPostCatalog {
                     defaultValue: "阿乐",
                     comment: "Author"
                 ),
-                replyCount: 12
+                replyCount: replyStore["cp_1", default: []].count
             ),
             CommunityPostDetail(
                 id: "cp_2",
@@ -60,9 +81,20 @@ enum MockCommunityPostCatalog {
                     defaultValue: "Nova",
                     comment: "Author"
                 ),
-                replyCount: 2
-            ),
+                replyCount: replyStore["cp_3", default: []].count
+            )
         ]
+        return base.map { detail in
+            let replies = replyStore[detail.id, default: []]
+            return CommunityPostDetail(
+                id: detail.id,
+                title: detail.title,
+                body: detail.body,
+                authorDisplayName: detail.authorDisplayName,
+                replyCount: max(detail.replyCount, replies.count),
+                replies: replies
+            )
+        }
     }
 
     static func summary(from detail: CommunityPostDetail) -> CommunityPost {

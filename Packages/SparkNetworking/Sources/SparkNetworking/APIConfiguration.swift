@@ -15,9 +15,17 @@ public struct APIConfiguration: Sendable, Equatable {
     /// Reads `SPARKAPIBaseURL` from the app Info.plist (injected via `Config/Spark.xcconfig`) with a safe default.
     public static func loadFromBundle(_ bundle: Bundle = .main) -> APIConfiguration {
         let raw = bundle.object(forInfoDictionaryKey: "SPARKAPIBaseURL") as? String
-        let urlString = (raw?.isEmpty == false) ? raw! : "https://mock.spark.local"
+        let urlString: String
+        if let raw, !raw.isEmpty {
+            urlString = raw
+        } else {
+            urlString = "https://mock.spark.local"
+        }
         guard let url = URL(string: urlString) else {
-            return APIConfiguration(baseURL: URL(string: "https://mock.spark.local")!)
+            guard let fallback = URL(string: "https://mock.spark.local") else {
+                preconditionFailure("Invalid default API base URL")
+            }
+            return APIConfiguration(baseURL: fallback)
         }
         return APIConfiguration(baseURL: url)
     }

@@ -49,22 +49,113 @@ public struct CommunityPostDetailView: View {
     }
 
     private func detailContent(post: CommunityPostDetail) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(post.authorDisplayName)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text(post.body)
-                    .font(.body)
-                Text(replyCountLabel(for: post.replyCount))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    postHeader(post: post)
+                    if !post.replies.isEmpty {
+                        repliesSection(replies: post.replies)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
+            replyComposer
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private func postHeader(post: CommunityPostDetail) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(post.authorDisplayName)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(post.body)
+                .font(.body)
+            Text(replyCountLabel(for: post.replyCount))
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(post.title), \(post.authorDisplayName)")
+    }
+
+    private func repliesSection(replies: [CommunityPostReply]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(
+                String(
+                    localized: "community.replies.section.title",
+                    defaultValue: "回复",
+                    comment: "Replies section"
+                )
+            )
+            .font(.headline)
+            ForEach(replies) { reply in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(reply.authorDisplayName)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(reply.body)
+                        .font(.subheadline)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(reply.authorDisplayName), \(reply.body)")
+            }
+        }
+    }
+
+    private var replyComposer: some View {
+        VStack(spacing: 8) {
+            if case .failure(let message) = viewModel.replyState {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            HStack(alignment: .bottom, spacing: 8) {
+                TextField(
+                    String(
+                        localized: "community.reply.placeholder",
+                        defaultValue: "写回复…",
+                        comment: "Reply placeholder"
+                    ),
+                    text: $viewModel.replyDraft,
+                    axis: .vertical
+                )
+                .lineLimit(1 ... 4)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityLabel(
+                    String(
+                        localized: "community.reply.field.a11y",
+                        defaultValue: "回复内容",
+                        comment: "Reply field"
+                    )
+                )
+                Button {
+                    Task { await viewModel.sendReply() }
+                } label: {
+                    if viewModel.replyState == .sending {
+                        ProgressView()
+                    } else {
+                        Text(
+                            String(
+                                localized: "community.reply.send",
+                                defaultValue: "发送",
+                                comment: "Send reply"
+                            )
+                        )
+                    }
+                }
+                .disabled(
+                    viewModel.replyState == .sending ||
+                        viewModel.replyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                )
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+        }
+        .background(.regularMaterial)
     }
 
     private func replyCountLabel(for count: Int) -> String {

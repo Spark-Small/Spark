@@ -17,6 +17,7 @@ public struct SparkRootView: View {
     @Bindable var entitlementManager: EntitlementManager
     let messagesRepository: any MessagesRepository
     let activityFeedRepository: any ActivityFeedRepository
+    let activityBrowseRepository: any ActivityBrowseRepository
     let likesFeedRepository: any LikesFeedRepository
     let searchRepository: any SearchRepository
     let communityPostsRepository: any CommunityPostsRepository
@@ -28,6 +29,7 @@ public struct SparkRootView: View {
         entitlementManager: EntitlementManager,
         messagesRepository: any MessagesRepository,
         activityFeedRepository: any ActivityFeedRepository,
+        activityBrowseRepository: any ActivityBrowseRepository,
         likesFeedRepository: any LikesFeedRepository,
         searchRepository: any SearchRepository,
         communityPostsRepository: any CommunityPostsRepository,
@@ -38,6 +40,7 @@ public struct SparkRootView: View {
         self.entitlementManager = entitlementManager
         self.messagesRepository = messagesRepository
         self.activityFeedRepository = activityFeedRepository
+        self.activityBrowseRepository = activityBrowseRepository
         self.likesFeedRepository = likesFeedRepository
         self.searchRepository = searchRepository
         self.communityPostsRepository = communityPostsRepository
@@ -61,6 +64,7 @@ public struct SparkRootView: View {
                     entitlementManager: entitlementManager,
                     messagesRepository: messagesRepository,
                     activityFeedRepository: activityFeedRepository,
+                    activityBrowseRepository: activityBrowseRepository,
                     likesFeedRepository: likesFeedRepository,
                     searchRepository: searchRepository,
                     communityPostsRepository: communityPostsRepository,

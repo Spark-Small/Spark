@@ -25,6 +25,15 @@ struct CommunityViewModelTests {
         await viewModel.load()
         #expect(viewModel.loadState == .failure("Posts unavailable"))
     }
+
+    @Test func createPostPrependsFeed() async {
+        let viewModel = CommunityViewModel(repository: MockCommunityPostsRepository())
+        await viewModel.load()
+        let created = await viewModel.createPost(CreateCommunityPostDraft(title: "新帖", body: "正文"))
+        #expect(created != nil)
+        #expect(viewModel.posts.first?.title == "新帖")
+        #expect(viewModel.posts.count == 4)
+    }
 }
 
 private struct EmptyCommunityPostsRepository: CommunityPostsRepository, Sendable {
@@ -32,6 +41,16 @@ private struct EmptyCommunityPostsRepository: CommunityPostsRepository, Sendable
 
     func fetchPost(id: String) async throws -> CommunityPostDetail {
         throw EmptyCommunityPostsRepository.TestError()
+    }
+
+    func createPost(_ draft: CreateCommunityPostDraft) async throws -> CommunityPost {
+        CommunityPost(
+            id: "cp_empty",
+            title: draft.title,
+            excerpt: draft.body,
+            authorDisplayName: "你",
+            replyCount: 0
+        )
     }
 
     struct TestError: LocalizedError {
@@ -49,6 +68,10 @@ private struct FailingCommunityPostsRepository: CommunityPostsRepository, Sendab
     }
 
     func fetchPost(id: String) async throws -> CommunityPostDetail {
+        throw TestError()
+    }
+
+    func createPost(_ draft: CreateCommunityPostDraft) async throws -> CommunityPost {
         throw TestError()
     }
 }

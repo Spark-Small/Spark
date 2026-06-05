@@ -56,6 +56,10 @@ enum CompositionRoot {
             configuration: apiConfiguration,
             apiClient: apiClient
         )
+        let activityBrowseRepository = makeActivityBrowseRepository(
+            configuration: apiConfiguration,
+            apiClient: apiClient
+        )
         let likesFeedRepository = makeLikesFeedRepository(
             configuration: apiConfiguration,
             apiClient: apiClient
@@ -84,6 +88,7 @@ enum CompositionRoot {
             authService: authService,
             messagesRepository: messagesRepository,
             activityFeedRepository: activityFeedRepository,
+            activityBrowseRepository: activityBrowseRepository,
             likesFeedRepository: likesFeedRepository,
             searchRepository: searchRepository,
             communityPostsRepository: communityPostsRepository,
@@ -138,6 +143,16 @@ enum CompositionRoot {
             return MockActivityFeedRepository()
         }
         return LiveActivityFeedRepository(apiClient: apiClient)
+    }
+
+    private static func makeActivityBrowseRepository(
+        configuration: APIConfiguration,
+        apiClient: APIClient
+    ) -> any ActivityBrowseRepository {
+        if configuration.usesMockBackend {
+            return MockActivityBrowseRepository()
+        }
+        return LiveActivityBrowseRepository(apiClient: apiClient)
     }
 
     private static func makeLikesFeedRepository(

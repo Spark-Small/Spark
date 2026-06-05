@@ -5,10 +5,12 @@ import Foundation
 public struct LikesViewerProfile: Sendable, Equatable {
     public var displayName: String
     public var hasPhoto: Bool
+    public var avatarURL: URL?
 
-    public init(displayName: String = "", hasPhoto: Bool = false) {
+    public init(displayName: String = "", hasPhoto: Bool = false, avatarURL: URL? = nil) {
         self.displayName = displayName
         self.hasPhoto = hasPhoto
+        self.avatarURL = avatarURL
     }
 
     public var isComplete: Bool {

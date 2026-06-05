@@ -9,6 +9,7 @@ public struct CommunityRootView: View {
     @State private var viewModel: CommunityViewModel
     @State private var navigationPath = NavigationPath()
     @State private var recapDraft: (title: String, scheduleLine: String)?
+    @State private var showCompose = false
 
     private let repository: any CommunityPostsRepository
     private let fetchActivityRecap: ((String) async -> (title: String, scheduleLine: String)?)?
@@ -52,6 +53,21 @@ public struct CommunityRootView: View {
                             await viewModel.load()
                         }
                     }
+            }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showCompose = true
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                    }
+                    .accessibilityLabel(
+                        String(localized: "community.compose.a11y", defaultValue: "发帖", comment: "Compose post")
+                    )
+                }
+            }
+            .sheet(isPresented: $showCompose) {
+                CommunityComposeView(viewModel: viewModel)
             }
             .navigationDestination(for: CommunityPost.self) { post in
                 CommunityPostDetailView(postID: post.id, repository: repository)

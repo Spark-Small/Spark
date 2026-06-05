@@ -33,6 +33,7 @@ struct ContentView: View {
             entitlementManager: CompositionRoot.dependencies.entitlementManager,
             messagesRepository: CompositionRoot.dependencies.messagesRepository,
             activityFeedRepository: CompositionRoot.dependencies.activityFeedRepository,
+            activityBrowseRepository: CompositionRoot.dependencies.activityBrowseRepository,
             likesFeedRepository: CompositionRoot.dependencies.likesFeedRepository,
             searchRepository: CompositionRoot.dependencies.searchRepository,
             communityPostsRepository: CompositionRoot.dependencies.communityPostsRepository,

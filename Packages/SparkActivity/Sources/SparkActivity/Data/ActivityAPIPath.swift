@@ -6,7 +6,31 @@ enum ActivityAPIPath {
     private static let activities = "/v1/activities"
 
     static let feed = "\(activities)/feed"
+    static let browseBase = "\(activities)/browse"
     static let create = activities
+
+    static func browse(query: ActivityBrowseQuery) -> String {
+        guard var components = URLComponents(string: browseBase) else { return browseBase }
+        var queryItems: [URLQueryItem] = []
+        if let category = query.category, !category.isEmpty {
+            queryItems.append(URLQueryItem(name: "category", value: category))
+        }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        if let startsAfter = query.startsAfter {
+            queryItems.append(URLQueryItem(name: "starts_after", value: formatter.string(from: startsAfter)))
+        }
+        if let startsBefore = query.startsBefore {
+            queryItems.append(URLQueryItem(name: "starts_before", value: formatter.string(from: startsBefore)))
+        }
+        if let cursor = query.cursor, !cursor.isEmpty {
+            queryItems.append(URLQueryItem(name: "cursor", value: cursor))
+        }
+        if !queryItems.isEmpty {
+            components.queryItems = queryItems
+        }
+        return components.string ?? browseBase
+    }
 
     static func activitiesByHost(hostID: String) -> String {
         guard var components = URLComponents(string: feed) else { return feed }

@@ -32,7 +32,7 @@ public struct MockSearchRepository: SearchRepository, Sendable {
                     comment: "Search result subtitle"
                 ),
                 kind: SearchResultKind.community.rawValue
-            ),
+            )
         ]
     }
 }

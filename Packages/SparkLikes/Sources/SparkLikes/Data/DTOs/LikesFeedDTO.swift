@@ -25,12 +25,34 @@ struct LikesInboundResponseDTO: Decodable, Sendable {
 struct InboundLikeItemDTO: Decodable, Sendable {
     let userID: String
     let likedAt: String?
+    let isVisible: Bool?
     let card: DiscoverCardDTO
 
     enum CodingKeys: String, CodingKey {
         case userID = "user_id"
         case likedAt = "liked_at"
+        case isVisible = "is_visible"
         case card
+    }
+}
+
+struct AvatarUploadURLResponseDTO: Decodable, Sendable {
+    let uploadURL: String?
+    let avatarURL: String
+    let expiresAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case uploadURL = "upload_url"
+        case avatarURL = "avatar_url"
+        case expiresAt = "expires_at"
+    }
+}
+
+struct AvatarUploadURLRequestDTO: Encodable, Sendable {
+    let contentType: String
+
+    enum CodingKeys: String, CodingKey {
+        case contentType = "content_type"
     }
 }
 
@@ -83,20 +105,24 @@ struct DiscoverMediaDTO: Decodable, Sendable {
 struct LikesViewerProfileDTO: Decodable, Sendable {
     let displayName: String
     let hasPhoto: Bool
+    let avatarURL: String?
 
     enum CodingKeys: String, CodingKey {
         case displayName = "display_name"
         case hasPhoto = "has_photo"
+        case avatarURL = "avatar_url"
     }
 }
 
 struct LikesViewerProfileRequestDTO: Encodable, Sendable {
     let displayName: String
     let hasPhoto: Bool
+    let avatarURL: String?
 
     enum CodingKeys: String, CodingKey {
         case displayName = "display_name"
         case hasPhoto = "has_photo"
+        case avatarURL = "avatar_url"
     }
 }
 

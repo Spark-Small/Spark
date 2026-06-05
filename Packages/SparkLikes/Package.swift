@@ -7,12 +7,12 @@ let package = Package(
     name: "SparkLikes",
     platforms: [.iOS(.v17)],
     products: [
-        .library(name: "SparkLikes", targets: ["SparkLikes"]),
+        .library(name: "SparkLikes", targets: ["SparkLikes"])
     ],
     dependencies: [
         .package(path: "../SparkCore"),
         .package(path: "../SparkNetworking"),
-        .package(path: "../SparkDesignSystem"),
+        .package(path: "../SparkDesignSystem")
     ],
     targets: [
         .target(
@@ -20,13 +20,13 @@ let package = Package(
             dependencies: ["SparkCore", "SparkNetworking", "SparkDesignSystem"],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
-                .enableExperimentalFeature("StrictConcurrency"),
+                .enableExperimentalFeature("StrictConcurrency")
             ]
         ),
         .testTarget(
             name: "SparkLikesTests",
             dependencies: ["SparkLikes"],
             swiftSettings: [.swiftLanguageMode(.v6)]
-        ),
+        )
     ]
 )

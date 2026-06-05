@@ -23,7 +23,7 @@ public actor MockStoreKitService: StoreKitServing {
                 id: SubscriptionProductID.premiumYearly.rawValue,
                 displayName: "Spark Premium Annual",
                 displayPrice: "¥128.00/年"
-            ),
+            )
         ]
     }
 

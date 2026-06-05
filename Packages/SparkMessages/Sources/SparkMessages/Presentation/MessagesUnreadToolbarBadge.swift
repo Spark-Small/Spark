@@ -11,7 +11,7 @@ public struct MessagesUnreadToolbarBadge: View {
     }
 
     public var body: some View {
-        if count > 0 {
+        if !isEmpty {
             Text(displayText)
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.white)

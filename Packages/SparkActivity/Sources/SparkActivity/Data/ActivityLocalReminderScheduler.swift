@@ -38,7 +38,7 @@ public enum ActivityLocalReminderScheduler {
         let now = Date()
         let intervals: [(suffix: String, offset: TimeInterval)] = [
             ("24h", 24 * 3600),
-            ("1h", 3600),
+            ("1h", 3600)
         ]
 
         for item in intervals {
@@ -51,7 +51,7 @@ public enum ActivityLocalReminderScheduler {
             content.categoryIdentifier = reminderCategoryID
             content.userInfo = [
                 "type": "activity.reminder",
-                "activity_id": activity.id,
+                "activity_id": activity.id
             ]
 
             let components = Calendar.current.dateComponents(

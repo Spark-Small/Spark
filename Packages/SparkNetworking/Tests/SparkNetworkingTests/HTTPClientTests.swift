@@ -10,12 +10,9 @@ struct HTTPClientTests {
     @Test func getDecodesSuccessResponse() async throws {
         StubURLProtocol.requestHandler = { request in
             let url = try #require(request.url)
-            let response = HTTPURLResponse(
-                url: url,
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: nil
-            )!
+            let response = try #require(
+                HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)
+            )
             return (response, Data("{\"count\":7}".utf8))
         }
 
@@ -33,7 +30,9 @@ struct HTTPClientTests {
     @Test func unauthorizedMapsToAppError() async throws {
         StubURLProtocol.requestHandler = { request in
             let url = try #require(request.url)
-            let response = HTTPURLResponse(url: url, statusCode: 401, httpVersion: nil, headerFields: nil)!
+            let response = try #require(
+                HTTPURLResponse(url: url, statusCode: 401, httpVersion: nil, headerFields: nil)
+            )
             return (response, Data())
         }
         let config = APIConfiguration(baseURL: URL(string: "https://api.test")!)

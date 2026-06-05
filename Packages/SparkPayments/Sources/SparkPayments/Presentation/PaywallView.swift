@@ -166,6 +166,8 @@ public struct PaywallView: View {
         switch placement {
         case .activity:
             String(localized: "paywall.placement.activity", defaultValue: "活动", comment: "Activity placement")
+        case .likes:
+            String(localized: "paywall.placement.likes", defaultValue: "喜欢", comment: "Likes placement")
         case .community:
             String(localized: "paywall.placement.community", defaultValue: "社区", comment: "Community placement")
         case .messages:

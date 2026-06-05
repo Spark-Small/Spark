@@ -26,6 +26,41 @@ public struct LiveCommunityPostsRepository: CommunityPostsRepository, Sendable {
             return CommunityDTOMapper.postDetail(from: dto.post)
         } catch {
             throw CommunityError.underlying(mapToAppError(error))
+         }
+    }
+
+    public func createPost(_ draft: CreateCommunityPostDraft) async throws -> CommunityPost {
+        do {
+            let body = try JSONEncoder().encode(
+                CreateCommunityPostRequestDTO(
+                    title: draft.title.trimmingCharacters(in: .whitespacesAndNewlines),
+                    body: draft.body.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+            )
+            let dto: CreateCommunityPostResponseDTO = try await apiClient.post(
+                CommunityAPIPath.posts,
+                body: body,
+                as: CreateCommunityPostResponseDTO.self
+            )
+            return CommunityDTOMapper.post(from: dto.post)
+        } catch {
+            throw CommunityError.underlying(mapToAppError(error))
+        }
+    }
+
+    public func createReply(postID: String, body: String) async throws -> CommunityPostReply {
+        do {
+            let payload = try JSONEncoder().encode(
+                CreateCommunityReplyRequestDTO(body: body.trimmingCharacters(in: .whitespacesAndNewlines))
+            )
+            let dto: CreateCommunityReplyResponseDTO = try await apiClient.post(
+                CommunityAPIPath.replies(postID: postID),
+                body: payload,
+                as: CreateCommunityReplyResponseDTO.self
+            )
+            return CommunityDTOMapper.reply(from: dto.reply)
+        } catch {
+            throw CommunityError.underlying(mapToAppError(error))
         }
     }
 

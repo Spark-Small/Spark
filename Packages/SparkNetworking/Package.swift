@@ -7,10 +7,10 @@ let package = Package(
     name: "SparkNetworking",
     platforms: [.iOS(.v17)],
     products: [
-        .library(name: "SparkNetworking", targets: ["SparkNetworking"]),
+        .library(name: "SparkNetworking", targets: ["SparkNetworking"])
     ],
     dependencies: [
-        .package(path: "../SparkCore"),
+        .package(path: "../SparkCore")
     ],
     targets: [
         .target(
@@ -18,13 +18,13 @@ let package = Package(
             dependencies: ["SparkCore"],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
-                .enableExperimentalFeature("StrictConcurrency"),
+                .enableExperimentalFeature("StrictConcurrency")
             ]
         ),
         .testTarget(
             name: "SparkNetworkingTests",
             dependencies: ["SparkNetworking"],
             swiftSettings: [.swiftLanguageMode(.v6)]
-        ),
+        )
     ]
 )

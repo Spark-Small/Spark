@@ -4,6 +4,9 @@ import Foundation
 
 enum LikesAPIPath {
     private static let likes = "/v1/likes"
+    private static let users = "/v1/users"
+
+    static let avatarUploadURL = "\(users)/avatar/upload-url"
 
     static let feed = "\(likes)/feed"
     static let inbound = "\(likes)/inbound"
@@ -34,7 +37,7 @@ enum LikesAPIPath {
         guard var components = URLComponents(string: feed) else { return feed }
         var items: [URLQueryItem] = [
             URLQueryItem(name: "gender_pref", value: query.genderPreference.wireValue),
-            URLQueryItem(name: "intent", value: query.intent.wireValue),
+            URLQueryItem(name: "intent", value: query.intent.wireValue)
         ]
         if let cursor = query.cursor, !cursor.isEmpty {
             items.append(URLQueryItem(name: "cursor", value: cursor))

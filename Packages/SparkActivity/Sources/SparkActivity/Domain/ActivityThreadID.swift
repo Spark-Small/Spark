@@ -11,7 +11,14 @@ public enum ActivityThreadID {
 public enum ActivityInviteURL {
     public static func deepLink(activityID: String) -> URL {
         // REASONING: Matches DeepLinkParser `spark://activity/{id}`.
-        URL(string: "spark://activity/\(activityID)")!
+        var components = URLComponents()
+        components.scheme = "spark"
+        components.host = "activity"
+        components.path = "/\(activityID)"
+        guard let url = components.url else {
+            preconditionFailure("Invalid activity deep link for id: \(activityID)")
+        }
+        return url
     }
 
     public static func universalLink(activityID: String) -> URL {

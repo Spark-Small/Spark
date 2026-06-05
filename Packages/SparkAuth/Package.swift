@@ -7,13 +7,13 @@ let package = Package(
     name: "SparkAuth",
     platforms: [.iOS(.v17)],
     products: [
-        .library(name: "SparkAuth", targets: ["SparkAuth"]),
+        .library(name: "SparkAuth", targets: ["SparkAuth"])
     ],
     dependencies: [
         .package(path: "../SparkCore"),
         .package(path: "../SparkNetworking"),
         .package(path: "../SparkPersistence"),
-        .package(path: "../SparkDesignSystem"),
+        .package(path: "../SparkDesignSystem")
     ],
     targets: [
         .target(
@@ -21,13 +21,13 @@ let package = Package(
             dependencies: ["SparkCore", "SparkNetworking", "SparkPersistence", "SparkDesignSystem"],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
-                .enableExperimentalFeature("StrictConcurrency"),
+                .enableExperimentalFeature("StrictConcurrency")
             ]
         ),
         .testTarget(
             name: "SparkAuthTests",
             dependencies: ["SparkAuth"],
             swiftSettings: [.swiftLanguageMode(.v6)]
-        ),
+        )
     ]
 )

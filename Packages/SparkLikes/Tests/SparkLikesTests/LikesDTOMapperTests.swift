@@ -25,6 +25,23 @@ struct LikesDTOMapperTests {
         #expect(item.likedAt != nil)
     }
 
+    @Test func inboundItemParsesIsVisible() throws {
+        let json = """
+        {
+          "user_id": "u1",
+          "is_visible": false,
+          "card": {
+            "user_id": "u1",
+            "display_name": "Test",
+            "media": { "kind": "image", "url": "https://example.com/a.jpg" }
+          }
+        }
+        """
+        let dto = try JSONDecoder().decode(InboundLikeItemDTO.self, from: Data(json.utf8))
+        let item = try #require(LikesDTOMapper.inboundItem(from: dto))
+        #expect(item.isVisible == false)
+    }
+
     @Test func inboundItemParsesFractionalISO8601() throws {
         let json = """
         {

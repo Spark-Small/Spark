@@ -41,7 +41,11 @@ public struct LiveLikesFeedRepository: LikesFeedRepository, Sendable {
     public func updateViewerProfile(_ profile: LikesViewerProfile) async throws -> LikesViewerProfile {
         try await request("updateViewerProfile") {
             let body = try JSONEncoder().encode(
-                LikesViewerProfileRequestDTO(displayName: profile.displayName, hasPhoto: profile.hasPhoto)
+                LikesViewerProfileRequestDTO(
+                    displayName: profile.displayName,
+                    hasPhoto: profile.hasPhoto,
+                    avatarURL: profile.avatarURL?.absoluteString
+                )
             )
             let dto: LikesViewerProfileDTO = try await apiClient.patch(
                 LikesAPIPath.viewerProfile,
@@ -49,6 +53,21 @@ public struct LiveLikesFeedRepository: LikesFeedRepository, Sendable {
                 as: LikesViewerProfileDTO.self
             )
             return LikesDTOMapper.viewerProfile(from: dto)
+        }
+    }
+
+    public func requestAvatarUploadURL(contentType: String) async throws -> URL {
+        try await request("requestAvatarUploadURL") {
+            let body = try JSONEncoder().encode(AvatarUploadURLRequestDTO(contentType: contentType))
+            let dto: AvatarUploadURLResponseDTO = try await apiClient.post(
+                LikesAPIPath.avatarUploadURL,
+                body: body,
+                as: AvatarUploadURLResponseDTO.self
+            )
+            guard let url = URL(string: dto.avatarURL) else {
+                throw LikesError.underlying(.unknown(message: "Invalid avatar_url"))
+            }
+            return url
         }
     }
 

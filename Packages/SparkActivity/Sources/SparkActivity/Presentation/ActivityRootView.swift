@@ -4,25 +4,28 @@ import SparkDesignSystem
 import SwiftUI
 
 public struct ActivityRootView: View {
-    @Binding private var pendingActivityID: String?
-    @State private var viewModel: ActivityViewModel
-    @State private var navigationPath = NavigationPath()
+    @Binding var pendingActivityID: String?
+    @State var viewModel: ActivityViewModel
+    @State var navigationPath = NavigationPath()
 
-    private let repository: any ActivityFeedRepository
-    private let onRSVPCompleted: ((ActivityDetail) async -> Void)?
-    private let onOpenGroupChat: ((ActivityDetail) async -> Void)?
-    private let onActivityCreated: ((ActivityDetail) async -> Void)?
-    private let isItemLocked: (Int) -> Bool
-    private let onLockedItemTap: (() -> Void)?
-    private let onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)?
-    private let onActivityRescheduled: ((ActivityDetail) async -> Void)?
-    private let onCommunityRecap: ((ActivityDetail) -> Void)?
+    let repository: any ActivityFeedRepository
+    let browseRepository: (any ActivityBrowseRepository)?
+    let onRSVPCompleted: ((ActivityDetail) async -> Void)?
+    let onOpenGroupChat: ((ActivityDetail) async -> Void)?
+    let onActivityCreated: ((ActivityDetail) async -> Void)?
+    let isItemLocked: (Int) -> Bool
+    let onLockedItemTap: (() -> Void)?
+    let onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)?
+    let onActivityRescheduled: ((ActivityDetail) async -> Void)?
+    let onCommunityRecap: ((ActivityDetail) -> Void)?
 
-    @State private var showCreateActivity = false
-    @State private var showNotificationSettings = false
+    @State var showCreateActivity = false
+    @State var showNotificationSettings = false
+    @State var showBrowse = false
 
     public init(
         repository: any ActivityFeedRepository,
+        browseRepository: (any ActivityBrowseRepository)? = nil,
         pendingActivityID: Binding<String?> = .constant(nil),
         onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
         onOpenGroupChat: ((ActivityDetail) async -> Void)? = nil,
@@ -34,6 +37,7 @@ public struct ActivityRootView: View {
         onCommunityRecap: ((ActivityDetail) -> Void)? = nil
     ) {
         self.repository = repository
+        self.browseRepository = browseRepository
         _pendingActivityID = pendingActivityID
         _viewModel = State(initialValue: ActivityViewModel(repository: repository))
         self.onRSVPCompleted = onRSVPCompleted
@@ -49,6 +53,7 @@ public struct ActivityRootView: View {
     init(
         viewModel: ActivityViewModel,
         repository: any ActivityFeedRepository,
+        browseRepository: (any ActivityBrowseRepository)? = nil,
         pendingActivityID: Binding<String?> = .constant(nil),
         onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
         onOpenGroupChat: ((ActivityDetail) async -> Void)? = nil,
@@ -60,6 +65,7 @@ public struct ActivityRootView: View {
         onCommunityRecap: ((ActivityDetail) -> Void)? = nil
     ) {
         self.repository = repository
+        self.browseRepository = browseRepository
         _pendingActivityID = pendingActivityID
         _viewModel = State(initialValue: viewModel)
         self.onRSVPCompleted = onRSVPCompleted
@@ -94,6 +100,20 @@ public struct ActivityRootView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        if browseRepository != nil {
+                            Button {
+                                showBrowse = true
+                            } label: {
+                                Label(
+                                    String(
+                                        localized: "activity.browse.entry",
+                                        defaultValue: "逛局",
+                                        comment: "Browse public activities"
+                                    ),
+                                    systemImage: "map"
+                                )
+                            }
+                        }
                         Button {
                             showNotificationSettings = true
                         } label: {
@@ -138,6 +158,16 @@ public struct ActivityRootView: View {
                 }
                 .presentationDetents([.medium])
             }
+            .sheet(isPresented: $showBrowse) {
+                if let browseRepository {
+                    ActivityBrowseListView(
+                        browseRepository: browseRepository,
+                        feedRepository: repository,
+                        onRSVPCompleted: onRSVPCompleted,
+                        onOpenGroupChat: onOpenGroupChat
+                    )
+                }
+            }
             .sheet(isPresented: $showCreateActivity) {
                 NavigationStack {
                     CreateActivityView(
@@ -163,34 +193,6 @@ public struct ActivityRootView: View {
                 Task { await openPendingActivity(activityID: activityID) }
             }
         }
-    }
-
-    private func activityDetailView(activityID: String) -> some View {
-        ActivityDetailView(
-            activityID: activityID,
-            repository: repository,
-            context: .inbox,
-            onRSVPCompleted: onRSVPCompleted,
-            onOpenGroupChat: onOpenGroupChat,
-            onActivityUpdated: { _ in await viewModel.load() },
-            onHostAnnouncePosted: onHostAnnouncePosted,
-            onActivityRescheduled: onActivityRescheduled,
-            onCommunityRecap: onCommunityRecap
-        )
-    }
-
-    private func externalActivityDetailView(activityID: String) -> some View {
-        ActivityDetailView(
-            activityID: activityID,
-            repository: repository,
-            context: .externalEntry,
-            onRSVPCompleted: onRSVPCompleted,
-            onOpenGroupChat: onOpenGroupChat,
-            onActivityUpdated: { _ in await viewModel.load() },
-            onHostAnnouncePosted: onHostAnnouncePosted,
-            onActivityRescheduled: onActivityRescheduled,
-            onCommunityRecap: onCommunityRecap
-        )
     }
 
     @ViewBuilder
@@ -251,43 +253,6 @@ public struct ActivityRootView: View {
                     .sparkScreenListStyle()
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private func activityRow(for item: ActivityItem, at index: Int) -> some View {
-        let locked = isItemLocked(index)
-        if locked, let onLockedItemTap {
-            Button(action: onLockedItemTap) {
-                ActivityInboxListRow(item: item, isLocked: true)
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint(
-                String(
-                    localized: "activity.row.premium.hint",
-                    defaultValue: "订阅后可查看",
-                    comment: "Locked activity row"
-                )
-            )
-        } else {
-            NavigationLink(value: item) {
-                ActivityInboxListRow(item: item, isLocked: false)
-            }
-            .accessibilityHint(
-                String(
-                    localized: "activity.row.openDetail.hint",
-                    defaultValue: "查看活动邀请详情",
-                    comment: "Activity row opens detail"
-                )
-            )
-        }
-    }
-
-    private func openPendingActivity(activityID: String) async {
-        navigationPath.append(activityID)
-        pendingActivityID = nil
-        if viewModel.loadState == .idle {
-            await viewModel.load()
         }
     }
 }

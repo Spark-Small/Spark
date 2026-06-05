@@ -22,4 +22,13 @@ struct CommunityPostDetailViewModelTests {
             Issue.record("Expected failure state")
         }
     }
+
+    @Test func sendReplyAppendsToThread() async {
+        let viewModel = CommunityPostDetailViewModel(postID: "cp_1", repository: MockCommunityPostsRepository())
+        await viewModel.load()
+        viewModel.replyDraft = "Smoke reply"
+        await viewModel.sendReply()
+        #expect(viewModel.replyState == .idle)
+        #expect(viewModel.post?.replies.count == 2)
+    }
 }

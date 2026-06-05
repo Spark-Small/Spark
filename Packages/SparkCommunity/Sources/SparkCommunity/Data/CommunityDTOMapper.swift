@@ -19,7 +19,17 @@ enum CommunityDTOMapper {
             title: dto.title,
             body: dto.body,
             authorDisplayName: dto.authorDisplayName,
-            replyCount: dto.replyCount
+            replyCount: dto.replyCount,
+            replies: (dto.replies ?? []).map(reply)
+        )
+    }
+
+    static func reply(from dto: CommunityPostReplyDTO) -> CommunityPostReply {
+        CommunityPostReply(
+            id: dto.id,
+            body: dto.body,
+            authorDisplayName: dto.authorDisplayName,
+            createdAt: dto.createdAt.flatMap { ISO8601DateFormatter().date(from: $0) }
         )
     }
 }

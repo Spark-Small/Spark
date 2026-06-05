@@ -13,7 +13,7 @@ struct LikesPushPayloadTests {
     @Test func parseMatchPushWithThread() {
         let payload = LikesPushPayload.parse(userInfo: [
             "type": "likes.match",
-            "thread_id": "th_dm_u_like_2",
+            "thread_id": "th_dm_u_like_2"
         ])
         #expect(payload == LikesPushPayload(kind: .match(threadID: "th_dm_u_like_2")))
     }

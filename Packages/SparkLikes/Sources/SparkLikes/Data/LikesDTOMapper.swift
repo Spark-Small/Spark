@@ -23,7 +23,8 @@ enum LikesDTOMapper {
         return InboundLikeItem(
             userID: UserID(dto.userID),
             card: card,
-            likedAt: dto.likedAt.flatMap(parseISO8601)
+            likedAt: dto.likedAt.flatMap(parseISO8601),
+            isVisible: dto.isVisible ?? true
         )
     }
 
@@ -54,7 +55,11 @@ enum LikesDTOMapper {
     }
 
     static func viewerProfile(from dto: LikesViewerProfileDTO) -> LikesViewerProfile {
-        LikesViewerProfile(displayName: dto.displayName, hasPhoto: dto.hasPhoto)
+        LikesViewerProfile(
+            displayName: dto.displayName,
+            hasPhoto: dto.hasPhoto,
+            avatarURL: dto.avatarURL.flatMap(URL.init(string:))
+        )
     }
 
     static func likeResult(from dto: LikeActionResponseDTO) -> LikeActionResult {

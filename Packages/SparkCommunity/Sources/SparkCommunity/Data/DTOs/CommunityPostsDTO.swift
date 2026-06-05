@@ -6,6 +6,15 @@ struct CommunityPostsResponseDTO: Decodable, Sendable {
     let posts: [CommunityPostDTO]
 }
 
+struct CreateCommunityPostRequestDTO: Encodable, Sendable {
+    let title: String
+    let body: String
+}
+
+struct CreateCommunityPostResponseDTO: Decodable, Sendable {
+    let post: CommunityPostDTO
+}
+
 struct CommunityPostDTO: Decodable, Sendable {
     let id: String
     let title: String

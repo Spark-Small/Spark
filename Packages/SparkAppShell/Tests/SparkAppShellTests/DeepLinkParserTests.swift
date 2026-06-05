@@ -52,4 +52,22 @@ struct DeepLinkParserTests {
         let route = DeepLinkParser.parse(url: url)
         #expect(route == .likesInbound)
     }
+
+    @Test func parseUniversalActivitiesPath() {
+        let url = URL(string: "https://spark.app/activities/act_001")!
+        let route = DeepLinkParser.parse(url: url)
+        #expect(route == .activityDetail(activityID: "act_001"))
+    }
+
+    @Test func parseUniversalMatchConversation() {
+        let url = URL(string: "https://spark.app/matches/th_dm_001")!
+        let route = DeepLinkParser.parse(url: url)
+        #expect(route == .conversation(threadID: "th_dm_001"))
+    }
+
+    @Test func parseUniversalCommunityPost() {
+        let url = URL(string: "https://spark.app/community/posts/cp_001")!
+        let route = DeepLinkParser.parse(url: url)
+        #expect(route == .communityPost(postID: "cp_001"))
+    }
 }

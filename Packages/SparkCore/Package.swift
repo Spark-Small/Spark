@@ -7,20 +7,20 @@ let package = Package(
     name: "SparkCore",
     platforms: [.iOS(.v17)],
     products: [
-        .library(name: "SparkCore", targets: ["SparkCore"]),
+        .library(name: "SparkCore", targets: ["SparkCore"])
     ],
     targets: [
         .target(
             name: "SparkCore",
             swiftSettings: [
                 .swiftLanguageMode(.v6),
-                .enableExperimentalFeature("StrictConcurrency"),
+                .enableExperimentalFeature("StrictConcurrency")
             ]
         ),
         .testTarget(
             name: "SparkCoreTests",
             dependencies: ["SparkCore"],
             swiftSettings: [.swiftLanguageMode(.v6)]
-        ),
+        )
     ]
 )

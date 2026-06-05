@@ -13,7 +13,7 @@ enum MockLikesCatalog {
             card1,
             card2,
             card3,
-            card4,
+            card4
         ]
     }
 
@@ -49,7 +49,7 @@ enum MockLikesCatalog {
             ),
             mediaItems: [
                 DiscoverMedia(kind: .image, url: URL(string: "spark-likes://mock/u_like_1/a")!),
-                DiscoverMedia(kind: .image, url: URL(string: "spark-likes://mock/u_like_1/b")!),
+                DiscoverMedia(kind: .image, url: URL(string: "spark-likes://mock/u_like_1/b")!)
             ],
             interestTags: ["徒步", "摄影"],
             coarseLocation: String(
@@ -158,7 +158,7 @@ enum MockLikesCatalog {
             ),
             mediaItems: [
                 DiscoverMedia(kind: .image, url: URL(string: "spark-likes://mock/u_like_5/a")!),
-                DiscoverMedia(kind: .image, url: URL(string: "spark-likes://mock/u_like_5/b")!),
+                DiscoverMedia(kind: .image, url: URL(string: "spark-likes://mock/u_like_5/b")!)
             ],
             interestTags: ["活动", "社交"],
             sharedActivityTitle: String(

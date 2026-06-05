@@ -8,4 +8,8 @@ enum CommunityAPIPath {
     static func post(id: String) -> String {
         "\(posts)/\(id)"
     }
+
+    static func replies(postID: String) -> String {
+        "\(posts)/\(postID)/replies"
+    }
 }

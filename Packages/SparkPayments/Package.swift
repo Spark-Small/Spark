@@ -7,10 +7,10 @@ let package = Package(
     name: "SparkPayments",
     platforms: [.iOS(.v17)],
     products: [
-        .library(name: "SparkPayments", targets: ["SparkPayments"]),
+        .library(name: "SparkPayments", targets: ["SparkPayments"])
     ],
     dependencies: [
-        .package(path: "../SparkCore"),
+        .package(path: "../SparkCore")
     ],
     targets: [
         .target(
@@ -18,13 +18,13 @@ let package = Package(
             dependencies: ["SparkCore"],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
-                .enableExperimentalFeature("StrictConcurrency"),
+                .enableExperimentalFeature("StrictConcurrency")
             ]
         ),
         .testTarget(
             name: "SparkPaymentsTests",
             dependencies: ["SparkPayments"],
             swiftSettings: [.swiftLanguageMode(.v6)]
-        ),
+        )
     ]
 )

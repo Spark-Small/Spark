@@ -11,8 +11,7 @@ public enum AppleSignInCoordinatorError: Error, Sendable {
 
 @MainActor
 public final class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate,
-    ASAuthorizationControllerPresentationContextProviding
-{
+    ASAuthorizationControllerPresentationContextProviding {
     private var continuation: CheckedContinuation<AppleSignInCredential, Error>?
 
     public func signIn() async throws -> AppleSignInCredential {

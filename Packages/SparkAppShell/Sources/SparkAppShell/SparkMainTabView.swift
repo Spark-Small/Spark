@@ -15,6 +15,7 @@ public struct SparkMainTabView: View {
     @Bindable var entitlementManager: EntitlementManager
     let messagesRepository: any MessagesRepository
     let activityFeedRepository: any ActivityFeedRepository
+    let activityBrowseRepository: any ActivityBrowseRepository
     let likesFeedRepository: any LikesFeedRepository
     let searchRepository: any SearchRepository
     let communityPostsRepository: any CommunityPostsRepository
@@ -29,6 +30,7 @@ public struct SparkMainTabView: View {
         entitlementManager: EntitlementManager,
         messagesRepository: any MessagesRepository,
         activityFeedRepository: any ActivityFeedRepository,
+        activityBrowseRepository: any ActivityBrowseRepository,
         likesFeedRepository: any LikesFeedRepository,
         searchRepository: any SearchRepository,
         communityPostsRepository: any CommunityPostsRepository,
@@ -39,6 +41,7 @@ public struct SparkMainTabView: View {
         self.entitlementManager = entitlementManager
         self.messagesRepository = messagesRepository
         self.activityFeedRepository = activityFeedRepository
+        self.activityBrowseRepository = activityBrowseRepository
         self.likesFeedRepository = likesFeedRepository
         self.searchRepository = searchRepository
         self.communityPostsRepository = communityPostsRepository
@@ -108,6 +111,15 @@ public struct SparkMainTabView: View {
                 Task { @MainActor in
                     router.openActivityDetail(activityID: activityID)
                 }
+            },
+            isInboundItemBlurred: { item in
+                SparkFeatureFlags.isPremiumInboundBlurEnabled
+                    && SparkFeatureFlags.isPremiumPaywallEnabled
+                    && !entitlementManager.canAccess(.inboundLikes)
+                    && !item.isVisible
+            },
+            onInboundPaywall: {
+                paywallRouter.presentPaywall(placement: .likes)
             }
         )
         .tabItem { Label(SparkTab.likes.title, systemImage: SparkTab.likes.systemImage) }
@@ -133,6 +145,7 @@ public struct SparkMainTabView: View {
 
         ActivityRootView(
             repository: activityFeedRepository,
+            browseRepository: activityBrowseRepository,
             pendingActivityID: $router.pendingActivityID,
             onRSVPCompleted: { detail in
                 await activityGroupChatCoordinator.onRSVPCompleted(detail)

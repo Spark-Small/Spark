@@ -45,6 +45,14 @@ final class SparkAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
                     }
                 }
             }
+        } else if let communityPayload = CommunityPushPayload.parse(userInfo: response.notification.request.content.userInfo) {
+            Task { @MainActor in
+                router?.openCommunityPost(postID: communityPayload.postID)
+            }
+        } else if let messagesPayload = MessagesPushPayload.parse(userInfo: response.notification.request.content.userInfo) {
+            Task { @MainActor in
+                router?.openConversation(threadID: messagesPayload.threadID)
+            }
         }
         completionHandler()
     }
