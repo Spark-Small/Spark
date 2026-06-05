@@ -8,17 +8,20 @@ public struct ActivityBrowseListView: View {
     @Environment(\.dismiss) private var dismiss
 
     private let feedRepository: any ActivityFeedRepository
+    private let blockedHostsStore: BlockedActivityHostsStore
     private let onRSVPCompleted: ((ActivityDetail) async -> Void)?
     private let onOpenGroupChat: ((ActivityDetail) async -> Void)?
 
     public init(
         browseRepository: any ActivityBrowseRepository,
         feedRepository: any ActivityFeedRepository,
+        blockedHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
         onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
         onOpenGroupChat: ((ActivityDetail) async -> Void)? = nil
     ) {
         _viewModel = State(initialValue: ActivityBrowseViewModel(repository: browseRepository))
         self.feedRepository = feedRepository
+        self.blockedHostsStore = blockedHostsStore
         self.onRSVPCompleted = onRSVPCompleted
         self.onOpenGroupChat = onOpenGroupChat
     }
@@ -41,6 +44,7 @@ public struct ActivityBrowseListView: View {
                     activityID: item.id,
                     repository: feedRepository,
                     context: .externalEntry,
+                    blockedHostsStore: blockedHostsStore,
                     onRSVPCompleted: onRSVPCompleted,
                     onOpenGroupChat: onOpenGroupChat,
                     onActivityUpdated: nil

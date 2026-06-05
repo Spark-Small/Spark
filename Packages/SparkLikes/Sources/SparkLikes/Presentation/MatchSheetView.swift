@@ -125,7 +125,7 @@ struct MatchSheetView: View {
 
     private func matchAvatar(symbol: String) -> some View {
         Image(systemName: symbol)
-            .font(.system(size: 56))
+            .font(.largeTitle)
             .foregroundStyle(.secondary)
             .frame(width: 72, height: 72)
             .background(.thinMaterial, in: Circle())

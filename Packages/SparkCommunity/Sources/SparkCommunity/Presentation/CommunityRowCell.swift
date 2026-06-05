@@ -31,6 +31,24 @@ struct CommunityRowCell: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        var parts = [community.name, statsLine]
+        if community.hasNewPosts {
+            parts.append(
+                String(
+                    localized: "community.row.newPosts.a11y",
+                    defaultValue: "有新帖子",
+                    comment: "New posts indicator"
+                )
+            )
+        }
+        if !community.bio.isEmpty {
+            parts.append(community.bio)
+        }
+        return parts.joined(separator: ", ")
     }
 
     private var statsLine: String {

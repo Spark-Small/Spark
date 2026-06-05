@@ -4,6 +4,37 @@ import SparkDesignSystem
 import SwiftUI
 
 extension LikesRootView {
+    var likesDiscoverStack: some View {
+        ZStack {
+            feedLayer
+            if viewModel.loadState == .loading || viewModel.loadState == .idle {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .background(.black)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar { toolbarContent }
+        .safeAreaInset(edge: .bottom) {
+            actionBar
+        }
+        .task {
+            if viewModel.loadState == .idle {
+                await viewModel.load()
+            }
+        }
+        .refreshable {
+            await viewModel.load()
+        }
+        .onChange(of: pendingInbound) { _, _ in
+            consumePendingInboundIfNeeded()
+        }
+        .onAppear {
+            consumePendingInboundIfNeeded()
+            Task { await viewModel.refreshInboundIfLoaded() }
+        }
+    }
+
     @ViewBuilder
     var feedLayer: some View {
         switch viewModel.loadState {

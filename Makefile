@@ -4,12 +4,13 @@ SHELL := /bin/bash
 SPARK_DESTINATION ?= platform=iOS Simulator,name=iPhone 17,OS=26.5
 export SPARK_DESTINATION
 
-.PHONY: help check lint test test-packages build ci bootstrap
+.PHONY: help check lint lint-hig test test-packages build ci bootstrap
 
 help:
 	@echo "Spark Makefile targets:"
 	@echo "  make check         - secrets + UI + API contract guardrails"
 	@echo "  make lint          - SwiftLint (strict)"
+	@echo "  make lint-hig      - SwiftLint HIG rules (swiftlint_hig.yml)"
 	@echo "  make test-packages - swift test for all Packages/Spark*"
 	@echo "  make test          - SPM tests + Xcode SparkTests"
 	@echo "  make build         - xcodebuild Spark app"
@@ -21,6 +22,9 @@ check:
 
 lint:
 	./scripts/lint.sh
+
+lint-hig:
+	./scripts/lint-hig.sh
 
 test-packages:
 	./scripts/test-packages.sh

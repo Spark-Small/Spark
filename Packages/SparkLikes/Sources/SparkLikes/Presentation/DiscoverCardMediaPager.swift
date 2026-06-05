@@ -122,7 +122,7 @@ struct DiscoverSingleMediaView: View {
                 DiscoverVideoSurfaceView(url: media.url)
             } else {
                 Image(systemName: "play.circle.fill")
-                    .font(.system(size: 64))
+                    .font(.largeTitle)
                     .foregroundStyle(.white)
                     .symbolRenderingMode(.hierarchical)
             }
@@ -156,7 +156,7 @@ struct DiscoverMockZoomablePhoto: View {
 
                 VStack(spacing: 12) {
                     Image(systemName: systemImage)
-                        .font(.system(size: 56))
+                        .font(.largeTitle)
                         .foregroundStyle(.white)
                     Text(displayName)
                         .font(.title2.weight(.semibold))
@@ -168,9 +168,24 @@ struct DiscoverMockZoomablePhoto: View {
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .contentShape(Rectangle())
                 .gesture(zoomGestures(fitSize: fit, container: geometry.size))
+                // REASONING: Photos-style double-tap zoom; not a primary action — use gesture, not Button.
                 .onTapGesture(count: 2) {
                     zoomState.toggleDoubleTap(fitSize: fit, container: geometry.size)
                 }
+                .accessibilityLabel(
+                    String(
+                        localized: "likes.photo.foreground.a11y",
+                        defaultValue: "推荐照片",
+                        comment: "Photo foreground"
+                    )
+                )
+                .accessibilityHint(
+                    String(
+                        localized: "likes.photo.zoom.hint",
+                        defaultValue: "双指缩放查看细节，双击还原",
+                        comment: "Photo zoom hint"
+                    )
+                )
             }
             .clipped()
         }
@@ -213,6 +228,7 @@ struct DiscoverVideoSurfaceView: View {
         DiscoverVideoPlayerRepresentable(url: url, isPlaying: isPlaying)
             .ignoresSafeArea()
             .contentShape(Rectangle())
+            // REASONING: Full-bleed video — tap toggles playback like system players; not a labeled button.
             .onTapGesture {
                 isPlaying.toggle()
             }

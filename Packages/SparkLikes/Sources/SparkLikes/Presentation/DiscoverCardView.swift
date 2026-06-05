@@ -14,17 +14,19 @@ struct DiscoverCardView: View {
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             DiscoverCardMediaView(card: card, isActive: isActive, zoomState: zoomState)
-            cardInfoOverlay
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(cardAccessibilityLabel)
-        .accessibilityHint(
-            String(
-                localized: "likes.card.profile.a11y",
-                defaultValue: "点按查看完整资料",
-                comment: "Open profile a11y"
+            Button(action: onOpenProfile) {
+                cardInfoOverlay
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(cardAccessibilityLabel)
+            .accessibilityHint(
+                String(
+                    localized: "likes.card.profile.a11y",
+                    defaultValue: "点按查看完整资料",
+                    comment: "Open profile a11y"
+                )
             )
-        )
+        }
     }
 
     private var cardInfoOverlay: some View {
@@ -95,9 +97,6 @@ struct DiscoverCardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { cardInfoScrim }
         .contentShape(Rectangle())
-        .onTapGesture {
-            onOpenProfile()
-        }
     }
 
     private var cardInfoScrim: some View {

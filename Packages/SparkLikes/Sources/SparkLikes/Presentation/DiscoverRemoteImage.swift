@@ -14,6 +14,7 @@ struct DiscoverRemoteImage: View {
     let isInteractionEnabled: Bool
     var failureDisplayName: String = ""
     @Bindable var zoomState: DiscoverPhotoZoomState
+    @Environment(\.discoverMediaImageCache) private var imageCache
 
     @State private var phase: DiscoverRemoteImagePhase = .loading
     @State private var fitSize: CGSize = .zero
@@ -166,7 +167,7 @@ struct DiscoverRemoteImage: View {
             return
         }
         do {
-            let image = try await DiscoverMediaImageCache.shared.image(for: url)
+            let image = try await imageCache.image(for: url)
             guard !Task.isCancelled else { return }
             phase = .loaded(image)
         } catch is CancellationError {
@@ -177,6 +178,7 @@ struct DiscoverRemoteImage: View {
     }
 }
 
+// REASONING: Double-tap zoom is a media gesture (Photos pattern), not a primary action — keep onTapGesture(count: 2).
 private struct DiscoverPhotoInteractionModifier<G: Gesture>: ViewModifier {
     let isEnabled: Bool
     let gesture: G

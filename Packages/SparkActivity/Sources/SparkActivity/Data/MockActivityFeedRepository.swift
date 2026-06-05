@@ -5,13 +5,16 @@ import os
 
 public actor MockActivityFeedRepository: ActivityFeedRepository {
     private let logger = Logger(subsystem: "com.spark.activity", category: "MockActivityFeed")
+    private let blockedHostsStore: BlockedActivityHostsStore
 
     private var rsvpOverrides: [String: ActivityRSVPStatus] = [:]
     private var hostEdits: [String: ActivityDetail] = [:]
     private var cancelledIDs: Set<String> = []
     private var hostCreated: [ActivityDetail] = []
 
-    public init() {}
+    public init(blockedHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore()) {
+        self.blockedHostsStore = blockedHostsStore
+    }
 
     public func fetchActivities() async throws -> [ActivityItem] {
         mergedDetails().map { $0.asListItem() }
@@ -132,7 +135,7 @@ public actor MockActivityFeedRepository: ActivityFeedRepository {
         }
         logger.info("Activity reported id=\(activityID, privacy: .public) reason=\(reason.rawValue, privacy: .public)")
         if let hostID = detail.hostID {
-            await BlockedActivityHostsStore.shared.block(hostID: hostID)
+            await blockedHostsStore.block(hostID: hostID)
         }
         return ActivityReportResult(reportID: "rpt_\(UUID().uuidString.prefix(8))")
     }

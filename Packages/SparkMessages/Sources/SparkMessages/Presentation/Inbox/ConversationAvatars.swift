@@ -82,3 +82,30 @@ struct GroupChatAvatar: View {
             .foregroundStyle(Color.accentColor)
     }
 }
+
+#Preview("DM avatar") {
+    let inbox = MockMessagesInboxCatalog.inbox(unreadCount: 1)
+    HStack(spacing: 24) {
+        if let dm = inbox.dmConversations.first {
+            DMAvatar(
+                partner: dm.dmPartner,
+                displayName: dm.displayName,
+                isOnline: true
+            )
+            DMAvatar(
+                partner: dm.dmPartner,
+                displayName: dm.displayName,
+                isOnline: false
+            )
+        }
+    }
+    .padding()
+}
+
+#Preview("Group chat avatar") {
+    let inbox = MockMessagesInboxCatalog.inbox(unreadCount: 1)
+    if let group = inbox.activeGroupChats.first {
+        GroupChatAvatar(activity: group.activity, displayName: group.displayName)
+            .padding()
+    }
+}

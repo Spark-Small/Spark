@@ -7,8 +7,9 @@ public enum ActivityNotificationPreferences {
 
     public static var remindersEnabled: Bool {
         get {
+            // REASONING: HIG — request notification permission only after explicit user action.
             if UserDefaults.standard.object(forKey: remindersEnabledKey) == nil {
-                return true
+                return false
             }
             return UserDefaults.standard.bool(forKey: remindersEnabledKey)
         }

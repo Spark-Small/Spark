@@ -13,6 +13,8 @@ struct DiscoverCardStackView: View {
     var onRewind: () -> Void
     var onShowOpenerPicker: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var dragOffset: CGSize = .zero
     @State private var didTriggerOpenerPicker = false
 
@@ -46,7 +48,10 @@ struct DiscoverCardStackView: View {
             SparkBurstEmitterView(trigger: sparkBurstToken)
                 .allowsHitTesting(false)
         }
-        .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.7), value: dragOffset)
+        .animation(
+            reduceMotion ? nil : .interactiveSpring(response: 0.3, dampingFraction: 0.7),
+            value: dragOffset
+        )
     }
 
     private var dragGesture: some Gesture {
@@ -63,8 +68,12 @@ struct DiscoverCardStackView: View {
             .onEnded { value in
                 defer {
                     didTriggerOpenerPicker = false
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                    if reduceMotion {
                         dragOffset = .zero
+                    } else {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                            dragOffset = .zero
+                        }
                     }
                 }
                 let tx = value.translation.width
@@ -108,7 +117,7 @@ struct DiscoverCardStackView: View {
         alignment: Alignment
     ) -> some View {
         Image(systemName: symbol)
-            .font(.system(size: 56, weight: .bold))
+            .font(.largeTitle.weight(.bold))
             .foregroundStyle(color)
             .padding(24)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)

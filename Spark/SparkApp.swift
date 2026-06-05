@@ -3,7 +3,6 @@
 //  Spark
 //
 
-import SparkActivity
 import SwiftUI
 
 @main
@@ -12,7 +11,6 @@ struct SparkApp: App {
 
     init() {
         CompositionRoot.bootstrap()
-        ActivityNotificationRegistrar.registerIfNeeded() // Phase 16: no-op until user enables 活动提醒
     }
 
     var body: some Scene {

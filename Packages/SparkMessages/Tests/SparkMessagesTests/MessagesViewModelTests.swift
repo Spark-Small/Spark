@@ -20,6 +20,19 @@ struct MessagesViewModelTests {
         #expect(viewModel.totalUnreadCount > 0)
     }
 
+    @Test func markConversationReadClearsSingleThreadBadge() async throws {
+        let repository = MockMessagesRepository(unreadCount: 5)
+        let viewModel = MessagesViewModel(repository: repository)
+        await viewModel.load()
+        let conversation = try #require(viewModel.dmConversations.first)
+        let unreadBefore = viewModel.dmUnreadCount
+        #expect(conversation.hasUnread)
+        await viewModel.markConversationRead(conversation)
+        #expect(viewModel.dmUnreadCount == unreadBefore - conversation.unreadCount)
+        #expect(viewModel.conversation(for: conversation.threadID)?.hasUnread == false)
+        #expect(await repository.markThreadReadCallCount == 1)
+    }
+
     @Test func markMessagesReadClearsConversationBadgesButKeepsActionItems() async {
         let repository = MockMessagesRepository(unreadCount: 5)
         let viewModel = MessagesViewModel(repository: repository)
@@ -95,6 +108,7 @@ private struct FailingMessagesRepository: MessagesRepository, Sendable {
     }
     func sendMessage(threadID: MessageThreadID, body: String) async throws -> ChatMessage { throw TestError() }
     func markAllRead() async throws { throw TestError() }
+    func markThreadRead(threadID: MessageThreadID) async throws { throw TestError() }
     func respondToActivityInvite(activityID: String, invitationID: String, accept: Bool) async throws {
         throw TestError()
     }

@@ -24,6 +24,7 @@ public struct ActivityDetailView: View {
         activityID: String,
         repository: any ActivityFeedRepository,
         context: ActivityDetailContext = .inbox,
+        blockedHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
         onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
         onOpenGroupChat: ((ActivityDetail) async -> Void)? = nil,
         onActivityUpdated: ((ActivityDetail) async -> Void)? = nil,
@@ -37,6 +38,7 @@ public struct ActivityDetailView: View {
                 activityID: activityID,
                 repository: repository,
                 context: context,
+                blockedHostsStore: blockedHostsStore,
                 onRSVPCompleted: onRSVPCompleted,
                 onActivityUpdated: onActivityUpdated
             )

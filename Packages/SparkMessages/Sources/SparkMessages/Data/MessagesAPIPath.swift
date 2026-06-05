@@ -14,6 +14,10 @@ enum MessagesAPIPath {
         "\(threads)/\(threadID)/messages"
     }
 
+    static func markThreadRead(threadID: String) -> String {
+        "\(threads)/\(threadID)/read"
+    }
+
     static func conversationContext(threadID: String) -> String {
         "\(threads)/\(threadID)/context"
     }

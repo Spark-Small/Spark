@@ -22,6 +22,8 @@ public struct SparkRootView: View {
     let searchRepository: any SearchRepository
     let communityPostsRepository: any CommunityPostsRepository
     let paywallRouter: PaywallRouter
+    let blockedActivityHostsStore: BlockedActivityHostsStore
+    let discoverMediaImageCache: DiscoverMediaImageCache
 
     public init(
         authViewModel: AuthViewModel,
@@ -33,7 +35,9 @@ public struct SparkRootView: View {
         likesFeedRepository: any LikesFeedRepository,
         searchRepository: any SearchRepository,
         communityPostsRepository: any CommunityPostsRepository,
-        paywallRouter: PaywallRouter
+        paywallRouter: PaywallRouter,
+        blockedActivityHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
+        discoverMediaImageCache: DiscoverMediaImageCache = DiscoverMediaImageCache()
     ) {
         self.authViewModel = authViewModel
         self.router = router
@@ -45,6 +49,8 @@ public struct SparkRootView: View {
         self.searchRepository = searchRepository
         self.communityPostsRepository = communityPostsRepository
         self.paywallRouter = paywallRouter
+        self.blockedActivityHostsStore = blockedActivityHostsStore
+        self.discoverMediaImageCache = discoverMediaImageCache
     }
 
     public var body: some View {
@@ -68,7 +74,9 @@ public struct SparkRootView: View {
                     likesFeedRepository: likesFeedRepository,
                     searchRepository: searchRepository,
                     communityPostsRepository: communityPostsRepository,
-                    paywallRouter: paywallRouter
+                    paywallRouter: paywallRouter,
+                    blockedActivityHostsStore: blockedActivityHostsStore,
+                    discoverMediaImageCache: discoverMediaImageCache
                 )
             }
         }

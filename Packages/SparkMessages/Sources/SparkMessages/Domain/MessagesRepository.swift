@@ -25,6 +25,9 @@ public protocol MessagesRepository: Sendable {
     /// Clears unread counts for DM and group conversations (not action items).
     func markAllRead() async throws
 
+    /// Clears unread count for one thread.
+    func markThreadRead(threadID: MessageThreadID) async throws
+
     /// Accept or decline an activity invite from an action card.
     func respondToActivityInvite(activityID: String, invitationID: String, accept: Bool) async throws
 

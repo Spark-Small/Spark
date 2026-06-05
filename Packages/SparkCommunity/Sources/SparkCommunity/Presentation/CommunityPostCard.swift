@@ -9,6 +9,8 @@ struct CommunityPostCard: View {
     let onToggleLike: () -> Void
     let onOpen: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var isExpanded = false
     @State private var likeScale: CGFloat = 1
 
@@ -18,9 +20,14 @@ struct CommunityPostCard: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
 
-            mediaRegion
-                .contentShape(Rectangle())
-                .onTapGesture(perform: onOpen)
+            Button(action: onOpen) {
+                mediaRegion
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(
+                String(localized: "community.post.open.a11y", defaultValue: "查看帖子", comment: "Open post")
+            )
 
             actionRow
                 .padding(.horizontal, 16)
@@ -98,12 +105,16 @@ struct CommunityPostCard: View {
     private var actionRow: some View {
         HStack(spacing: 16) {
             Button {
-                withAnimation(.spring(response: 0.3)) {
-                    likeScale = 1.4
+                if reduceMotion {
                     onToggleLike()
-                }
-                withAnimation(.spring(response: 0.3).delay(0.12)) {
-                    likeScale = 1
+                } else {
+                    withAnimation(.spring(response: 0.3)) {
+                        likeScale = 1.4
+                        onToggleLike()
+                    }
+                    withAnimation(.spring(response: 0.3).delay(0.12)) {
+                        likeScale = 1
+                    }
                 }
             } label: {
                 Label("\(likeCount)", systemImage: isLiked ? "heart.fill" : "heart")

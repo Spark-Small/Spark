@@ -399,6 +399,13 @@ app.post("/v1/messages/read", requireAuth, (_req, res) => {
   res.status(204).send();
 });
 
+app.post("/v1/messages/threads/:threadId/read", requireAuth, (req, res) => {
+  const t = threads.get(req.params.threadId);
+  if (!t) return err(res, 404, "not_found", "Thread not found");
+  t.unread_count = 0;
+  res.status(204).send();
+});
+
 app.get("/v1/messages/inbox", requireAuth, (_req, res) => {
   res.json(buildInboxResponse(messagesState()));
 });

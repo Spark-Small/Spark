@@ -9,6 +9,7 @@ extension ActivityRootView {
             activityID: activityID,
             repository: repository,
             context: .inbox,
+            blockedHostsStore: blockedHostsStore,
             onRSVPCompleted: onRSVPCompleted,
             onOpenGroupChat: onOpenGroupChat,
             onActivityUpdated: { _ in await viewModel.load() },
@@ -23,6 +24,7 @@ extension ActivityRootView {
             activityID: activityID,
             repository: repository,
             context: .externalEntry,
+            blockedHostsStore: blockedHostsStore,
             onRSVPCompleted: onRSVPCompleted,
             onOpenGroupChat: onOpenGroupChat,
             onActivityUpdated: { _ in await viewModel.load() },
@@ -47,6 +49,15 @@ extension ActivityRootView {
                     comment: "Locked activity row"
                 )
             )
+        } else if usesSplitLayout {
+            ActivityInboxListRow(item: item, isLocked: false)
+                .accessibilityHint(
+                    String(
+                        localized: "activity.row.openDetail.hint",
+                        defaultValue: "查看活动邀请详情",
+                        comment: "Activity row opens detail"
+                    )
+                )
         } else {
             NavigationLink(value: item) {
                 ActivityInboxListRow(item: item, isLocked: false)
@@ -62,10 +73,18 @@ extension ActivityRootView {
     }
 
     func openPendingActivity(activityID: String) async {
-        navigationPath.append(activityID)
+        openActivity(activityID)
         pendingActivityID = nil
         if viewModel.loadState == .idle {
             await viewModel.load()
+        }
+    }
+
+    func openActivity(_ activityID: String) {
+        if usesSplitLayout {
+            selectedActivityID = activityID
+        } else {
+            navigationPath.append(activityID)
         }
     }
 }

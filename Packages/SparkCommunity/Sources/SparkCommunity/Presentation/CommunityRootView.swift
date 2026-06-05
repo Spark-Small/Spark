@@ -4,19 +4,23 @@ import SparkDesignSystem
 import SwiftUI
 
 public struct CommunityRootView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+
     @Binding private var pendingCommunityPostID: String?
     @Binding private var pendingRecapActivityID: String?
-    @State private var viewModel: CommunityViewModel
-    @State private var navigationPath = NavigationPath()
+    @State var viewModel: CommunityViewModel
+    @State var navigationPath = NavigationPath()
+    @State var splitDestination: CommunitySplitDestination?
     @State private var recapDraft: (title: String, scheduleLine: String)?
     @State private var profilePreview: CommunityProfilePreview?
 
-    private let repository: any CommunityPostsRepository
+    let repository: any CommunityPostsRepository
     private let fetchActivityRecap: ((String) async -> (title: String, scheduleLine: String)?)?
     private let onOpenSearch: () -> Void
     private let onOpenLikesDiscover: () -> Void
     private let onLikePerson: (String) -> Void
-    private let onOpenLinkedActivity: (String) -> Void
+    let onOpenLinkedActivity: (String) -> Void
 
     public init(
         repository: any CommunityPostsRepository,
@@ -62,46 +66,36 @@ public struct CommunityRootView: View {
     }
 
     public var body: some View {
-        NavigationStack(path: $navigationPath) {
-            SparkScreenContainer(
-                navigationTitle: String(localized: "screen.community", defaultValue: "社区", comment: "Community screen"),
-                embedding: .none
-            ) {
-                feedContent
-                    .task {
-                        if viewModel.loadState == .idle {
-                            await viewModel.load()
-                        }
-                    }
-            }
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: onOpenSearch) {
-                        Image(systemName: "magnifyingglass")
-                    }
-                    .accessibilityLabel(
-                        String(localized: "community.search.a11y", defaultValue: "搜索", comment: "Search")
-                    )
+        Group {
+            if usesSplitLayout {
+                NavigationSplitView {
+                    communityFeedShell
+                } detail: {
+                    splitDetail
                 }
-            }
-            .navigationDestination(for: CommunityFeedPost.self) { post in
-                postDetailView(postID: post.id)
-            }
-            .navigationDestination(for: CommunityPost.self) { post in
-                postDetailView(postID: post.id)
-            }
-            .navigationDestination(for: String.self) { postID in
-                postDetailView(postID: postID)
-            }
-            .navigationDestination(for: CommunitySummary.self) { community in
-                CommunityDetailView(
-                    communityID: community.id,
-                    repository: repository,
-                    likedPersonIDs: viewModel.likedPersonIDs,
-                    onOpenActivity: onOpenLinkedActivity,
-                    onOpenPost: { navigationPath.append($0) },
-                    onLikePerson: likePerson
-                )
+            } else {
+                NavigationStack(path: $navigationPath) {
+                    communityFeedShell
+                        .navigationDestination(for: CommunityFeedPost.self) { post in
+                            postDetailView(postID: post.id)
+                        }
+                        .navigationDestination(for: CommunityPost.self) { post in
+                            postDetailView(postID: post.id)
+                        }
+                        .navigationDestination(for: String.self) { postID in
+                            postDetailView(postID: postID)
+                        }
+                        .navigationDestination(for: CommunitySummary.self) { community in
+                            CommunityDetailView(
+                                communityID: community.id,
+                                repository: repository,
+                                likedPersonIDs: viewModel.likedPersonIDs,
+                                onOpenActivity: onOpenLinkedActivity,
+                                onOpenPost: { openFeedPost($0) },
+                                onLikePerson: likePerson
+                            )
+                        }
+                }
             }
         }
         .communityProfileSheet(
@@ -131,6 +125,30 @@ public struct CommunityRootView: View {
                 scheduleLine: draft.scheduleLine,
                 onDismiss: { recapDraft = nil }
             )
+        }
+    }
+
+    private var communityFeedShell: some View {
+        SparkScreenContainer(
+            navigationTitle: String(localized: "screen.community", defaultValue: "社区", comment: "Community screen"),
+            embedding: .none
+        ) {
+            feedContent
+                .task {
+                    if viewModel.loadState == .idle {
+                        await viewModel.load()
+                    }
+                }
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: onOpenSearch) {
+                    Image(systemName: "magnifyingglass")
+                }
+                .accessibilityLabel(
+                    String(localized: "community.search.a11y", defaultValue: "搜索", comment: "Search")
+                )
+            }
         }
     }
 
@@ -178,10 +196,14 @@ public struct CommunityRootView: View {
                             Section {
                                 MyCommunitiesCarousel(
                                     communities: viewModel.joinedCommunities,
-                                    onSelect: { navigationPath.append($0) },
+                                    onSelect: { openCommunity($0) },
                                     onExploreMore: {
-                                        withAnimation {
+                                        if reduceMotion {
                                             proxy.scrollTo(allCommunitiesSectionID, anchor: .top)
+                                        } else {
+                                            withAnimation {
+                                                proxy.scrollTo(allCommunitiesSectionID, anchor: .top)
+                                            }
                                         }
                                     }
                                 )
@@ -208,7 +230,7 @@ public struct CommunityRootView: View {
                             Section {
                                 ForEach(viewModel.allCommunities) { community in
                                     Button {
-                                        navigationPath.append(community)
+                                        openCommunity(community)
                                     } label: {
                                         CommunityRowCell(community: community)
                                     }
@@ -228,13 +250,16 @@ public struct CommunityRootView: View {
                         }
                     }
                 }
+                .refreshable {
+                    await viewModel.load()
+                }
             }
         }
     }
 
     private var allCommunitiesSectionID: String { "community-all-section" }
 
-    private func postDetailView(postID: String) -> some View {
+    func postDetailView(postID: String) -> some View {
         CommunityPostDetailView(
             postID: postID,
             repository: repository,
@@ -242,7 +267,7 @@ public struct CommunityRootView: View {
         )
     }
 
-    private func likePerson(_ userID: String) {
+    func likePerson(_ userID: String) {
         viewModel.markPersonLiked(userID)
         onLikePerson(userID)
     }
@@ -256,7 +281,7 @@ public struct CommunityRootView: View {
                 isLiked: viewModel.isPostLiked(post.id),
                 likeCount: viewModel.likeCount(for: post.id),
                 onToggleLike: { viewModel.toggleLike(postID: post.id) },
-                onOpen: { navigationPath.append(post) }
+                onOpen: { openFeedPost(post) }
             )
         case .peopleDiscovery(let users):
             PeopleDiscoveryCard(
@@ -269,8 +294,8 @@ public struct CommunityRootView: View {
         }
     }
 
-    private func openPendingPost(postID: String) async {
-        navigationPath.append(postID)
+    func openPendingPost(postID: String) async {
+        openPostID(postID)
         pendingCommunityPostID = nil
         if viewModel.loadState == .idle {
             await viewModel.load()

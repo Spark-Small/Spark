@@ -39,6 +39,7 @@ public final class ActivityDetailViewModel {
     private let announceActivity: AnnounceActivityUseCase
     private let submitHostFeedbackUseCase: SubmitHostFeedbackUseCase
     private let fetchHostActivities: FetchActivitiesByHostUseCase
+    private let blockedHostsStore: BlockedActivityHostsStore
     private let calendarExporter: any ActivityCalendarExporting
     private let onRSVPCompleted: ((ActivityDetail) async -> Void)?
     private let onActivityUpdated: ((ActivityDetail) async -> Void)?
@@ -49,12 +50,14 @@ public final class ActivityDetailViewModel {
         activityID: String,
         repository: any ActivityFeedRepository,
         context: ActivityDetailContext = .inbox,
+        blockedHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
         calendarExporter: (any ActivityCalendarExporting)? = nil,
         onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
         onActivityUpdated: ((ActivityDetail) async -> Void)? = nil
     ) {
         self.activityID = activityID
         self.context = context
+        self.blockedHostsStore = blockedHostsStore
         fetchDetail = FetchActivityDetailUseCase(repository: repository)
         updateRSVP = UpdateActivityRSVPUseCase(repository: repository)
         cancelActivity = CancelActivityUseCase(repository: repository)
@@ -168,7 +171,7 @@ public final class ActivityDetailViewModel {
         do {
             let result = try await reportActivity(activityID: activityID, reason: reason)
             if blockHost, let hostID = activity?.hostID {
-                await BlockedActivityHostsStore.shared.block(hostID: hostID)
+                await blockedHostsStore.block(hostID: hostID)
             }
             let format = String(
                 localized: "activity.report.submitted.withId",

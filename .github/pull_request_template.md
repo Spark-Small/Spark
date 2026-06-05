@@ -23,6 +23,15 @@
 - [ ] Accessibility (VoiceOver, Dynamic Type XL)
 - [ ] Dark mode (UI)
 
+## HIG compliance (Apple-only)
+
+- [ ] New controls prefer Apple native components (Button, List, Form, Search, ContentUnavailableView)
+- [ ] New colors use semantic system colors (supports Dark Mode)
+- [ ] New tappable elements meet 44×44pt minimum touch target
+- [ ] New animations respect Reduce Motion (`accessibilityReduceMotion`)
+- [ ] New icons/images have `accessibilityLabel` (or are hidden if decorative)
+- [ ] Verified on iPhone SE (smallest) and iPad (largest) layouts
+
 ## Spark guardrails
 
 - [ ] [DESIGN_PHILOSOPHY.md](../docs/DESIGN_PHILOSOPHY.md) — no decorative / stub UI

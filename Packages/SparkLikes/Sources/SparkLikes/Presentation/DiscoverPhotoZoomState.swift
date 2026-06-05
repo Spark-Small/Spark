@@ -1,6 +1,7 @@
 // Module: SparkLikes — Photos-style pinch / double-tap zoom state.
 
 import SwiftUI
+import UIKit
 
 @MainActor
 @Observable
@@ -78,7 +79,8 @@ final class DiscoverPhotoZoomState {
     }
 
     private func apply(scale: CGFloat, offset: CGSize, animated: Bool) {
-        if animated {
+        let shouldAnimate = animated && !UIAccessibility.isReduceMotionEnabled
+        if shouldAnimate {
             withAnimation(.spring(duration: 0.35, bounce: 0.15)) {
                 self.scale = scale
                 self.offset = offset

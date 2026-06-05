@@ -21,3 +21,15 @@ struct InboxSectionHeader: View {
         .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 4, trailing: 16))
     }
 }
+
+#Preview("Section header — with unread") {
+    List {
+        InboxSectionHeader(title: "私信", systemImage: "bubble.left.and.bubble.right", unreadCount: 3)
+    }
+}
+
+#Preview("Section header — no unread") {
+    List {
+        InboxSectionHeader(title: "活动群聊", systemImage: "person.3", unreadCount: 0)
+    }
+}

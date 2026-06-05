@@ -1,0 +1,27 @@
+# Spark — HIG-focused SwiftLint rules (Apple-only guidance)
+# Run: swiftlint lint --config swiftlint_hig.yml
+#
+# Decision sources:
+# - Apple HIG: https://developer.apple.com/design/human-interface-guidelines
+# - Apple SDK docs (SwiftUI / UIKit / Foundation / Accessibility)
+
+parent_config: .swiftlint.yml
+
+custom_rules:
+  hig_hardcoded_font_size:
+    name: "HIG: Avoid fixed font sizes without relativeTo"
+    regex: '\.font\(\s*\.system\(\s*size:\s*\d+'
+    message: "Use semantic text styles (.body, .headline) or Font.system(size:weight:relativeTo:) for Dynamic Type."
+    severity: warning
+
+  hig_color_hex:
+    name: "HIG: Avoid Color(hex:) hard-coded palettes"
+    regex: 'Color\(hex:'
+    message: "Use semantic system colors (.primary, .secondary) or Asset Catalog adaptive colors."
+    severity: warning
+
+  hig_uiimpact_on_background:
+    name: "HIG: UIImpactFeedbackGenerator should run on main thread"
+    regex: 'UIImpactFeedbackGenerator\(\)\.impactOccurred\(\)'
+    message: "Prefer .sensoryFeedback or ensure UIFeedbackGenerator is used on the main actor."
+    severity: warning

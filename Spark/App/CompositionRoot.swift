@@ -52,9 +52,11 @@ enum CompositionRoot {
             apiClient: apiClient,
             cache: messagesCache
         )
+        let blockedActivityHostsStore = BlockedActivityHostsStore()
         let activityFeedRepository = makeActivityFeedRepository(
             configuration: apiConfiguration,
-            apiClient: apiClient
+            apiClient: apiClient,
+            blockedHostsStore: blockedActivityHostsStore
         )
         let activityBrowseRepository = makeActivityBrowseRepository(
             configuration: apiConfiguration,
@@ -78,6 +80,7 @@ enum CompositionRoot {
             configuration: apiConfiguration,
             apiClient: apiClient
         )
+        let discoverMediaImageCache = DiscoverMediaImageCache()
 
         dependenciesStorage = AppDependencies(
             apiConfiguration: apiConfiguration,
@@ -94,7 +97,9 @@ enum CompositionRoot {
             communityPostsRepository: communityPostsRepository,
             storeKitService: storeKitService,
             entitlementManager: entitlementManager,
-            deviceTokenUploader: deviceTokenUploader
+            deviceTokenUploader: deviceTokenUploader,
+            blockedActivityHostsStore: blockedActivityHostsStore,
+            discoverMediaImageCache: discoverMediaImageCache
         )
     }
 
@@ -137,10 +142,11 @@ enum CompositionRoot {
 
     private static func makeActivityFeedRepository(
         configuration: APIConfiguration,
-        apiClient: APIClient
+        apiClient: APIClient,
+        blockedHostsStore: BlockedActivityHostsStore
     ) -> any ActivityFeedRepository {
         if configuration.usesMockBackend {
-            return MockActivityFeedRepository()
+            return MockActivityFeedRepository(blockedHostsStore: blockedHostsStore)
         }
         return LiveActivityFeedRepository(apiClient: apiClient)
     }

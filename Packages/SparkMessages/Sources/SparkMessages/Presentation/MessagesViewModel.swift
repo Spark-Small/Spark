@@ -47,6 +47,7 @@ public final class MessagesViewModel {
     private let repository: any MessagesRepository
     private let fetchInbox: FetchInboxUseCase
     private let markAllRead: MarkMessagesReadUseCase
+    private let markThreadRead: MarkThreadReadUseCase
     private let respondToInvite: RespondToActivityInviteUseCase
     private let dismissActionItemUseCase: DismissActionItemUseCase
     private let ensureDirectMessageThreadUseCase: EnsureDirectMessageThreadUseCase
@@ -55,6 +56,7 @@ public final class MessagesViewModel {
         self.repository = repository
         fetchInbox = FetchInboxUseCase(repository: repository)
         markAllRead = MarkMessagesReadUseCase(repository: repository)
+        markThreadRead = MarkThreadReadUseCase(repository: repository)
         respondToInvite = RespondToActivityInviteUseCase(repository: repository)
         dismissActionItemUseCase = DismissActionItemUseCase(repository: repository)
         ensureDirectMessageThreadUseCase = EnsureDirectMessageThreadUseCase(repository: repository)
@@ -87,6 +89,34 @@ public final class MessagesViewModel {
             Self.logger.error("load inbox failed: \(error.localizedDescription, privacy: .public)")
             loadState = .failure(error.localizedDescription)
         }
+    }
+
+    /// Clears unread badge for one conversation (optimistic UI, syncs via per-thread read API).
+    public func markConversationRead(_ conversation: ConversationPreview) async {
+        guard conversation.hasUnread else { return }
+        let threadID = conversation.threadID
+        let snapshot = conversationReadSnapshot()
+        applyConversationRead(threadID)
+        do {
+            try await markThreadRead(threadID: threadID)
+        } catch is CancellationError {
+            return
+        } catch {
+            restoreConversationRead(snapshot)
+            Self.logger.error(
+                "markConversationRead failed for \(threadID.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
+    public func conversation(for threadID: MessageThreadID) -> ConversationPreview? {
+        if let match = dmConversations.first(where: { $0.threadID == threadID }) {
+            return match
+        }
+        if let match = activeGroupChats.first(where: { $0.threadID == threadID }) {
+            return match
+        }
+        return archivedGroupChats.first { $0.threadID == threadID }
     }
 
     public func markMessagesRead() async {
@@ -168,6 +198,49 @@ public final class MessagesViewModel {
         activeGroupChats = MessagesInboxSorting.activeGroupChats(inbox.activeGroupChats)
         archivedGroupChats = inbox.archivedGroupChats
         threads = inbox.allThreads.sorted { $0.lastActivityAt > $1.lastActivityAt }
+        unreadMessageCount = totalUnreadCount
+    }
+
+    private struct ConversationReadSnapshot {
+        let dmConversations: [ConversationPreview]
+        let activeGroupChats: [ConversationPreview]
+        let archivedGroupChats: [ConversationPreview]
+        let threads: [MessageThread]
+        let unreadMessageCount: Int
+    }
+
+    private func conversationReadSnapshot() -> ConversationReadSnapshot {
+        ConversationReadSnapshot(
+            dmConversations: dmConversations,
+            activeGroupChats: activeGroupChats,
+            archivedGroupChats: archivedGroupChats,
+            threads: threads,
+            unreadMessageCount: unreadMessageCount
+        )
+    }
+
+    private func restoreConversationRead(_ snapshot: ConversationReadSnapshot) {
+        dmConversations = snapshot.dmConversations
+        activeGroupChats = snapshot.activeGroupChats
+        archivedGroupChats = snapshot.archivedGroupChats
+        threads = snapshot.threads
+        unreadMessageCount = snapshot.unreadMessageCount
+    }
+
+    private func applyConversationRead(_ threadID: MessageThreadID) {
+        dmConversations = dmConversations.map { $0.threadID == threadID ? clearUnread($0) : $0 }
+        activeGroupChats = activeGroupChats.map { $0.threadID == threadID ? clearUnread($0) : $0 }
+        archivedGroupChats = archivedGroupChats.map { $0.threadID == threadID ? clearUnread($0) : $0 }
+        threads = threads.map { thread in
+            guard thread.threadID == threadID else { return thread }
+            return MessageThread(
+                threadID: thread.threadID,
+                peerDisplayName: thread.peerDisplayName,
+                lastMessagePreview: thread.lastMessagePreview,
+                lastActivityAt: thread.lastActivityAt,
+                unreadCount: 0
+            )
+        }
         unreadMessageCount = totalUnreadCount
     }
 

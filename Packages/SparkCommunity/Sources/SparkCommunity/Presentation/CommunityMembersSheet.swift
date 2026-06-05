@@ -56,6 +56,7 @@ struct MemberRow: View {
             Spacer(minLength: 0)
         }
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(member.displayName)
     }
 
     @ViewBuilder

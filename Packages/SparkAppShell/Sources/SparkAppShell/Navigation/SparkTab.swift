@@ -26,7 +26,19 @@ public enum SparkTab: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// Unselected tab bar symbol (HIG: outline when inactive).
     public var systemImage: String {
+        switch self {
+        case .likes: "heart"
+        case .community: "person.2"
+        case .messages: "bubble.left.and.bubble.right"
+        case .activity: "calendar"
+        case .search: "magnifyingglass"
+        }
+    }
+
+    /// Selected tab bar symbol (HIG: filled when active).
+    public var selectedSystemImage: String {
         switch self {
         case .likes: "heart.fill"
         case .community: "person.2.fill"

@@ -3,11 +3,9 @@
 import Foundation
 
 public actor BlockedActivityHostsStore {
-    public static let shared = BlockedActivityHostsStore()
-
     private var hostIDs: Set<String> = []
 
-    private init() {}
+    public init() {}
 
     public func block(hostID: String) {
         let trimmed = hostID.trimmingCharacters(in: .whitespacesAndNewlines)

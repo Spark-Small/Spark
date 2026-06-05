@@ -4,6 +4,8 @@ import SparkDesignSystem
 import SwiftUI
 
 public struct ConversationDetailView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @Bindable public var viewModel: ConversationViewModel
     public var onOpenActivity: ((String) -> Void)?
 
@@ -130,7 +132,10 @@ public struct ConversationDetailView: View {
                 .padding(.vertical, 12)
             }
             .onChange(of: viewModel.messages.count) { _, _ in
-                if let last = viewModel.messages.last?.id {
+                guard let last = viewModel.messages.last?.id else { return }
+                if reduceMotion {
+                    proxy.scrollTo(last, anchor: .bottom)
+                } else {
                     withAnimation {
                         proxy.scrollTo(last, anchor: .bottom)
                     }
@@ -155,7 +160,9 @@ public struct ConversationDetailView: View {
                 Task { await viewModel.sendTapped() }
             } label: {
                 Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 32))
+                    .font(.title)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .disabled(viewModel.draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isSending)
             .accessibilityLabel(
@@ -165,6 +172,7 @@ public struct ConversationDetailView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .background(.ultraThinMaterial)
+        .scrollDismissesKeyboard(.interactively)
     }
 }
 
@@ -214,6 +222,7 @@ private struct PreviewFailingConversationRepository: MessagesRepository, Sendabl
     func fetchConversationContext(threadID: MessageThreadID) async throws -> ConversationContext { throw Failure() }
     func sendMessage(threadID: MessageThreadID, body: String) async throws -> ChatMessage { throw Failure() }
     func markAllRead() async throws {}
+    func markThreadRead(threadID: MessageThreadID) async throws {}
     func respondToActivityInvite(activityID: String, invitationID: String, accept: Bool) async throws {}
     func dismissInboxActionItem(id: String) async throws {}
     func ensureActivityGroupThread(threadID: MessageThreadID, displayName: String, welcomeMessage: String) async throws {}

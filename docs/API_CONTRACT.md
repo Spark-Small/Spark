@@ -112,6 +112,18 @@ Marks all threads read for the current user.
 
 ---
 
+### `POST /v1/messages/threads/{thread_id}/read`
+
+Marks one thread read for the current user (inbox swipe / open conversation).
+
+**Path:** `thread_id` — opaque thread identifier.
+
+**Response `204`:** Empty body.
+
+**Response `404`:** Thread not found.
+
+---
+
 ### `GET /v1/messages/inbox`
 
 Unified inbox for the messages tab (action items, new matches, DM and group conversations).
@@ -627,6 +639,7 @@ Documented for `MessagesAPIPath` in `SparkMessages`:
 | GET | `/v1/messages/threads` |
 | GET | `/v1/messages/threads/{thread_id}/context` |
 | POST | `/v1/messages/read` |
+| POST | `/v1/messages/threads/{thread_id}/read` |
 | POST | `/v1/messages/activity-threads` |
 | POST | `/v1/messages/direct-threads` |
 | GET/POST | `/v1/messages/threads/{thread_id}/messages` (built as `threads` + `/{id}/messages`) |

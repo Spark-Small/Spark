@@ -13,6 +13,7 @@ extension LikesRootView {
             .foregroundStyle(.white)
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
+            if !usesSplitLayout {
             Button {
                 showInbound = true
             } label: {
@@ -40,6 +41,7 @@ extension LikesRootView {
                 }
             }
             .accessibilityLabel(inboundToolbarAccessibilityLabel)
+            }
 
             Menu {
                 if viewModel.preferences.intent == .friends {

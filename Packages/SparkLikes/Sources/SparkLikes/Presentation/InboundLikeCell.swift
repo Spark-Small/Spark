@@ -10,37 +10,42 @@ struct InboundLikeCell: View {
     var onUnlock: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            media
-                .frame(height: 140)
-                .clipped()
-            infoBar
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay {
-            if item.intensity == .spark, !isBlurred {
-                RoundedRectangle(cornerRadius: 20)
-                    .strokeBorder(Color.yellow.gradient, lineWidth: 2)
-            }
-        }
-        .overlay(alignment: .topTrailing) {
-            if item.intensity == .spark, !isBlurred {
-                Image(systemName: "bolt.fill")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.yellow)
-                    .padding(6)
-                    .background(.ultraThinMaterial, in: Circle())
-                    .padding(8)
-            }
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
+        Button {
             if isBlurred {
                 onUnlock()
             } else {
                 onLikeBack()
             }
+        } label: {
+            VStack(spacing: 0) {
+                media
+                    .frame(height: 140)
+                    .clipped()
+                infoBar
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay {
+                if item.intensity == .spark, !isBlurred {
+                    RoundedRectangle(cornerRadius: 20)
+                        .strokeBorder(Color.yellow.gradient, lineWidth: 2)
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if item.intensity == .spark, !isBlurred {
+                    Image(systemName: "bolt.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.yellow)
+                        .padding(6)
+                        .background(.ultraThinMaterial, in: Circle())
+                        .padding(8)
+                        .accessibilityHidden(true)
+                }
+            }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(accessibilityHint)
     }
 
     @ViewBuilder
@@ -98,6 +103,53 @@ struct InboundLikeCell: View {
 
     private var blurredName: String {
         String(localized: "likes.inbound.blur.name", defaultValue: "••••", comment: "Blurred name")
+    }
+
+    private var accessibilityLabel: String {
+        if isBlurred {
+            return String(
+                localized: "likes.inbound.unlock.a11y",
+                defaultValue: "解锁查看喜欢你的人",
+                comment: "Unlock inbound like"
+            )
+        }
+        if let opener = item.opener, !opener.isEmpty {
+            let format = String(
+                localized: "likes.inbound.likeBack.opener.format",
+                defaultValue: "%@，开场白：%@",
+                comment: "Inbound like back; %1$@ name, %2$@ opener"
+            )
+            return String(format: format, locale: .current, item.card.displayName, opener)
+        }
+        if item.intensity == .spark {
+            let format = String(
+                localized: "likes.inbound.likeBack.spark.format",
+                defaultValue: "%@ 心动了你，回喜欢",
+                comment: "Inbound spark; %@ is name"
+            )
+            return String(format: format, locale: .current, item.card.displayName)
+        }
+        let format = String(
+            localized: "likes.inbound.likeBack.format",
+            defaultValue: "%@ 喜欢了你，回喜欢",
+            comment: "Inbound like; %@ is name"
+        )
+        return String(format: format, locale: .current, item.card.displayName)
+    }
+
+    private var accessibilityHint: String {
+        if isBlurred {
+            return String(
+                localized: "likes.inbound.unlock.hint",
+                defaultValue: "双击解锁并查看资料",
+                comment: "Unlock hint"
+            )
+        }
+        return String(
+            localized: "likes.inbound.likeBack.hint",
+            defaultValue: "双击回喜欢",
+            comment: "Like back hint"
+        )
     }
 }
 

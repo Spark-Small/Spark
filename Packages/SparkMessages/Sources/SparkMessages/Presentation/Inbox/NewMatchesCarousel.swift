@@ -90,3 +90,11 @@ private struct NewMatchAvatar: View {
             .foregroundStyle(Color.accentColor)
     }
 }
+
+#Preview("New matches carousel") {
+    let inbox = MockMessagesInboxCatalog.inbox(unreadCount: 0)
+    List {
+        NewMatchesCarousel(matches: inbox.unmessagedMatches, onSelect: { _ in })
+    }
+    .listStyle(.plain)
+}

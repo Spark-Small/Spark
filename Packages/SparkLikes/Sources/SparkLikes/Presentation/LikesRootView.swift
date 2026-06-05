@@ -4,6 +4,8 @@ import SparkDesignSystem
 import SwiftUI
 
 public struct LikesRootView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     @State var viewModel: LikesFeedViewModel
     @State var showPreferences = false
     @State var showReportSheet = false
@@ -17,9 +19,11 @@ public struct LikesRootView: View {
     let isInboundItemBlurred: (InboundLikeItem) -> Bool
     let onInboundPaywall: () -> Void
     let onSparkPaywall: () -> Void
+    let discoverMediaImageCache: DiscoverMediaImageCache
 
     public init(
         repository: any LikesFeedRepository,
+        discoverMediaImageCache: DiscoverMediaImageCache = DiscoverMediaImageCache(),
         pendingInbound: Binding<Bool> = .constant(false),
         onOpenMatchConversation: @escaping LikesOpenConversationHandler,
         onOpenSharedActivity: (@Sendable (String) -> Void)? = nil,
@@ -34,10 +38,12 @@ public struct LikesRootView: View {
         self.isInboundItemBlurred = isInboundItemBlurred
         self.onInboundPaywall = onInboundPaywall
         self.onSparkPaywall = onSparkPaywall
+        self.discoverMediaImageCache = discoverMediaImageCache
     }
 
     init(
         viewModel: LikesFeedViewModel,
+        discoverMediaImageCache: DiscoverMediaImageCache = DiscoverMediaImageCache(),
         pendingInbound: Binding<Bool> = .constant(false),
         onOpenMatchConversation: @escaping LikesOpenConversationHandler,
         onOpenSharedActivity: (@Sendable (String) -> Void)? = nil,
@@ -52,36 +58,34 @@ public struct LikesRootView: View {
         self.isInboundItemBlurred = isInboundItemBlurred
         self.onInboundPaywall = onInboundPaywall
         self.onSparkPaywall = onSparkPaywall
+        self.discoverMediaImageCache = discoverMediaImageCache
+    }
+
+    var usesSplitLayout: Bool {
+        horizontalSizeClass == .regular
     }
 
     public var body: some View {
-        NavigationStack {
-            ZStack {
-                feedLayer
-                if viewModel.loadState == .loading || viewModel.loadState == .idle {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        Group {
+            if usesSplitLayout {
+                NavigationSplitView {
+                    LikesInboundListView(
+                        viewModel: viewModel,
+                        presentation: .sidebar,
+                        isItemBlurred: isInboundItemBlurred,
+                        onBlurredItemTap: onInboundPaywall
+                    )
+                } detail: {
+                    likesDiscoverStack
+                }
+            } else {
+                NavigationStack {
+                    likesDiscoverStack
                 }
             }
-            .background(.black)
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .toolbar { toolbarContent }
-            .safeAreaInset(edge: .bottom) {
-                actionBar
-            }
-            .task {
-                if viewModel.loadState == .idle {
-                    await viewModel.load()
-                }
-            }
-            .onChange(of: pendingInbound) { _, _ in
-                consumePendingInboundIfNeeded()
-            }
-            .onAppear {
-                consumePendingInboundIfNeeded()
-                Task { await viewModel.refreshInboundIfLoaded() }
-            }
-            .sheet(isPresented: $viewModel.showOnboarding) {
+        }
+        .environment(\.discoverMediaImageCache, discoverMediaImageCache)
+        .sheet(isPresented: $viewModel.showOnboarding) {
                 LikesOnboardingSheet {
                     viewModel.markOnboardingSeen()
                 }
@@ -190,7 +194,6 @@ public struct LikesRootView: View {
                     )
                 )
             }
-        }
     }
 }
 

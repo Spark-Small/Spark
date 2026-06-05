@@ -94,3 +94,21 @@ struct ConversationRow: View {
         return "\(conversation.displayName)，\(conversation.lastMessagePreview)"
     }
 }
+
+#Preview("DM conversation row") {
+    let inbox = MockMessagesInboxCatalog.inbox(unreadCount: 3)
+    List {
+        if let dm = inbox.dmConversations.first {
+            ConversationRow(conversation: dm)
+        }
+    }
+}
+
+#Preview("Group conversation row") {
+    let inbox = MockMessagesInboxCatalog.inbox(unreadCount: 0)
+    List {
+        if let group = inbox.activeGroupChats.first {
+            ConversationRow(conversation: group)
+        }
+    }
+}

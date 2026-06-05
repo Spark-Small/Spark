@@ -26,8 +26,8 @@ while IFS= read -r path; do
 done <<< "$LIVE_PATHS"
 
 if [[ "$missing" -ne 0 ]]; then
-  echo "check-api-contract: update docs/API_CONTRACT.md (warnings only)"
-  exit 0
+  echo "error: undocumented Live API paths — update docs/API_CONTRACT.md"
+  exit 1
 fi
 
 echo "check-api-contract passed"

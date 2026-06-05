@@ -59,6 +59,7 @@ public struct SearchRootView: View {
                 guard !trimmed.isEmpty else { return }
                 await viewModel.submitSearch()
             }
+            .scrollDismissesKeyboard(.interactively)
         }
     }
 
@@ -116,6 +117,9 @@ public struct SearchRootView: View {
                 }
             }
             .sparkScreenListStyle()
+            .refreshable {
+                await viewModel.submitSearch()
+            }
         }
     }
 }

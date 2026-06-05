@@ -5,15 +5,22 @@ import SparkDesignSystem
 import SwiftUI
 
 public struct MessagesRootView: View {
-    private static let logger = SparkLog.logger(category: "Messages.RootView")
+    static let logger = SparkLog.logger(category: "Messages.RootView")
 
-    @Binding private var pendingConversationThreadID: String?
-    public var viewModel: MessagesViewModel
-    public var onOpenActivity: ((String) -> Void)?
-    public var onOpenLikes: (() -> Void)?
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
 
-    @State private var navigationPath = NavigationPath()
-    @State private var matchOpenErrorMessage: String?
+    @Binding var pendingConversationThreadID: String?
+    var viewModel: MessagesViewModel
+    var onOpenActivity: ((String) -> Void)?
+    var onOpenLikes: (() -> Void)?
+
+    @State var navigationPath = NavigationPath()
+    @State var selectedThreadID: MessageThreadID?
+    @State var matchOpenErrorMessage: String?
+
+    var usesSplitInbox: Bool {
+        horizontalSizeClass == .regular
+    }
 
     public init(
         viewModel: MessagesViewModel,
@@ -30,39 +37,12 @@ public struct MessagesRootView: View {
     public var body: some View {
         @Bindable var viewModel = viewModel
 
-        NavigationStack(path: $navigationPath) {
-            SparkScreenContainer(
-                navigationTitle: String(localized: "screen.messages", defaultValue: "消息", comment: "Messages screen"),
-                embedding: .none
-            ) {
-                inboxContent
+        Group {
+            if usesSplitInbox {
+                splitInbox
+            } else {
+                compactInbox
             }
-            .navigationDestination(for: MessageThread.self) { thread in
-                ConversationDetailView(
-                    viewModel: viewModel.conversationViewModel(for: thread),
-                    onOpenActivity: onOpenActivity
-                )
-            }
-            .task {
-                if viewModel.loadState == .idle {
-                    await viewModel.load()
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 16) {
-                        MessagesUnreadToolbarBadge(count: viewModel.totalUnreadCount)
-
-                        Button(
-                            String(localized: "messages.markRead", defaultValue: "全部已读", comment: "Messages action")
-                        ) {
-                            Task { await viewModel.markMessagesRead() }
-                        }
-                        .disabled(viewModel.dmUnreadCount + viewModel.groupUnreadCount == 0)
-                    }
-                }
-            }
-            .toolbarBackground(.automatic, for: .navigationBar)
         }
         .onChange(of: pendingConversationThreadID) { _, threadID in
             guard let threadID else { return }
@@ -86,6 +66,74 @@ public struct MessagesRootView: View {
         } message: {
             Text(matchOpenErrorMessage ?? "")
         }
+    }
+
+    private var compactInbox: some View {
+        NavigationStack(path: $navigationPath) {
+            inboxShell
+                .navigationDestination(for: MessageThread.self) { thread in
+                    conversationDetail(for: thread)
+                }
+        }
+    }
+
+    private var splitInbox: some View {
+        NavigationSplitView {
+            inboxShell
+        } detail: {
+            if let threadID = selectedThreadID,
+               let thread = viewModel.thread(for: threadID) {
+                conversationDetail(for: thread)
+            } else {
+                ContentUnavailableView {
+                    Label(
+                        String(
+                            localized: "messages.split.empty.title",
+                            defaultValue: "选择对话",
+                            comment: "Split inbox placeholder"
+                        ),
+                        systemImage: "bubble.left.and.bubble.right"
+                    )
+                } description: {
+                    Text(
+                        String(
+                            localized: "messages.split.empty.subtitle",
+                            defaultValue: "从左侧列表打开一条消息",
+                            comment: "Split inbox hint"
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    private var inboxShell: some View {
+        SparkScreenContainer(
+            navigationTitle: String(localized: "screen.messages", defaultValue: "消息", comment: "Messages screen"),
+            embedding: .none
+        ) {
+            inboxContent
+        }
+        .task {
+            if viewModel.loadState == .idle {
+                await viewModel.load()
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack(spacing: 16) {
+                    MessagesUnreadToolbarBadge(count: viewModel.totalUnreadCount)
+
+                    Button(
+                        String(localized: "messages.markRead", defaultValue: "全部已读", comment: "Messages action")
+                    ) {
+                        Task { await viewModel.markMessagesRead() }
+                    }
+                    .disabled(viewModel.dmUnreadCount + viewModel.groupUnreadCount == 0)
+                }
+            }
+        }
+        .toolbarBackground(.automatic, for: .navigationBar)
     }
 
     @ViewBuilder
@@ -129,103 +177,6 @@ public struct MessagesRootView: View {
         }
     }
 
-    private var inboxList: some View {
-        List {
-            Section {
-                ActionItemsSection(
-                    items: viewModel.actionItems,
-                    onInviteAccept: { invite in
-                        Task { await viewModel.handleInviteResponse(invite: invite, accept: true) }
-                    },
-                    onInviteDecline: { invite in
-                        Task { await viewModel.handleInviteResponse(invite: invite, accept: false) }
-                    },
-                    onOpenActivity: { activityID in
-                        onOpenActivity?(activityID)
-                    },
-                    onDismiss: { item in
-                        Task { await viewModel.dismissActionItem(id: item.id) }
-                    }
-                )
-            }
-
-            if !viewModel.unmessagedMatches.isEmpty || !viewModel.dmConversations.isEmpty {
-                Section {
-                    if !viewModel.unmessagedMatches.isEmpty {
-                        NewMatchesCarousel(matches: viewModel.unmessagedMatches) { match in
-                            Task { await openMatchConversation(match) }
-                        }
-                    }
-                    ForEach(viewModel.dmConversations) { conversation in
-                        NavigationLink(value: conversation.asMessageThread()) {
-                            ConversationRow(conversation: conversation)
-                        }
-                    }
-                } header: {
-                    InboxSectionHeader(
-                        title: String(localized: "messages.section.dm", defaultValue: "配对消息", comment: "DM section"),
-                        systemImage: "heart.fill",
-                        unreadCount: viewModel.dmUnreadCount
-                    )
-                }
-            }
-
-            if !viewModel.activeGroupChats.isEmpty || !viewModel.archivedGroupChats.isEmpty {
-                Section {
-                    ForEach(viewModel.activeGroupChats) { conversation in
-                        NavigationLink(value: conversation.asMessageThread()) {
-                            ConversationRow(conversation: conversation)
-                        }
-                    }
-                    if !viewModel.archivedGroupChats.isEmpty {
-                        ArchivedChatsDisclosure(chats: viewModel.archivedGroupChats)
-                    }
-                } header: {
-                    InboxSectionHeader(
-                        title: String(localized: "messages.section.group", defaultValue: "活动群聊", comment: "Group section"),
-                        systemImage: "figure.hiking",
-                        unreadCount: viewModel.groupUnreadCount
-                    )
-                }
-            }
-        }
-        .sparkScreenListStyle()
-    }
-
-    @MainActor
-    private func openMatchConversation(_ match: MatchPreview) async {
-        do {
-            let threadID = try await viewModel.ensureDirectMessageThread(for: match)
-            await viewModel.load()
-            if let thread = viewModel.thread(for: threadID) {
-                navigationPath.append(thread)
-            }
-        } catch {
-            Self.logger.error(
-                "ensureDirectMessageThread failed: \(error.localizedDescription, privacy: .public)"
-            )
-            matchOpenErrorMessage = (error as? MessagesError)?.errorDescription ?? error.localizedDescription
-        }
-    }
-
-    @MainActor
-    private func openPendingConversation(threadID: String) async {
-        if viewModel.loadState != .loaded {
-            await viewModel.load()
-        }
-        if let thread = viewModel.thread(for: MessageThreadID(threadID)) {
-            navigationPath.append(thread)
-            pendingConversationThreadID = nil
-            return
-        }
-        await viewModel.load()
-        guard let thread = viewModel.thread(for: MessageThreadID(threadID)) else {
-            pendingConversationThreadID = nil
-            return
-        }
-        navigationPath.append(thread)
-        pendingConversationThreadID = nil
-    }
 }
 
 #Preview {
@@ -252,6 +203,7 @@ private struct PreviewFailingInboxRepository: MessagesRepository, Sendable {
     func fetchConversationContext(threadID: MessageThreadID) async throws -> ConversationContext { throw Failure() }
     func sendMessage(threadID: MessageThreadID, body: String) async throws -> ChatMessage { throw Failure() }
     func markAllRead() async throws { throw Failure() }
+    func markThreadRead(threadID: MessageThreadID) async throws { throw Failure() }
     func respondToActivityInvite(activityID: String, invitationID: String, accept: Bool) async throws { throw Failure() }
     func dismissInboxActionItem(id: String) async throws { throw Failure() }
     func ensureActivityGroupThread(threadID: MessageThreadID, displayName: String, welcomeMessage: String) async throws {

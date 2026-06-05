@@ -76,6 +76,7 @@ private struct FailingSendMessagesRepository: MessagesRepository, Sendable {
     }
     func sendMessage(threadID: MessageThreadID, body: String) async throws -> ChatMessage { throw SendFailure() }
     func markAllRead() async throws {}
+    func markThreadRead(threadID: MessageThreadID) async throws {}
     func respondToActivityInvite(activityID: String, invitationID: String, accept: Bool) async throws {}
     func dismissInboxActionItem(id: String) async throws {}
     func ensureActivityGroupThread(threadID: MessageThreadID, displayName: String, welcomeMessage: String) async throws {}

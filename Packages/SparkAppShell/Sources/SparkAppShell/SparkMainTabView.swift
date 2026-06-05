@@ -21,6 +21,8 @@ public struct SparkMainTabView: View {
     let searchRepository: any SearchRepository
     let communityPostsRepository: any CommunityPostsRepository
     let paywallRouter: PaywallRouter
+    let blockedActivityHostsStore: BlockedActivityHostsStore
+    let discoverMediaImageCache: DiscoverMediaImageCache
 
     @State private var messagesViewModel: MessagesViewModel?
     @State private var searchQuery: String = ""
@@ -35,7 +37,9 @@ public struct SparkMainTabView: View {
         likesFeedRepository: any LikesFeedRepository,
         searchRepository: any SearchRepository,
         communityPostsRepository: any CommunityPostsRepository,
-        paywallRouter: PaywallRouter
+        paywallRouter: PaywallRouter,
+        blockedActivityHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
+        discoverMediaImageCache: DiscoverMediaImageCache = DiscoverMediaImageCache()
     ) {
         self.router = router
         self.authViewModel = authViewModel
@@ -47,6 +51,8 @@ public struct SparkMainTabView: View {
         self.searchRepository = searchRepository
         self.communityPostsRepository = communityPostsRepository
         self.paywallRouter = paywallRouter
+        self.blockedActivityHostsStore = blockedActivityHostsStore
+        self.discoverMediaImageCache = discoverMediaImageCache
     }
 
     public var body: some View {
@@ -106,24 +112,25 @@ public struct SparkMainTabView: View {
     private var tabContent: some View {
         LikesRootView(
             repository: likesFeedRepository,
+            discoverMediaImageCache: discoverMediaImageCache,
             pendingInbound: $router.pendingLikesInbound,
             onOpenMatchConversation: { threadID, peerDisplayName, initialMessage in
-            let peerUserID = Self.peerUserID(fromDirectThreadID: threadID)
-            let resolvedThread = try? await messagesRepository.ensureDirectMessageThread(
-                peerUserID: peerUserID,
-                peerDisplayName: peerDisplayName
-            )
-            let thread = (resolvedThread ?? MessageThreadID(threadID)).rawValue
-            if let initialMessage, !initialMessage.isEmpty {
-                _ = try? await messagesRepository.sendMessage(
-                    threadID: MessageThreadID(thread),
-                    body: initialMessage
+                let peerUserID = SparkMainTabRouting.peerUserID(fromDirectThreadID: threadID)
+                let resolvedThread = try? await messagesRepository.ensureDirectMessageThread(
+                    peerUserID: peerUserID,
+                    peerDisplayName: peerDisplayName
                 )
-            }
-            await MainActor.run {
-                router.openConversation(threadID: thread)
-            }
-        },
+                let thread = (resolvedThread ?? MessageThreadID(threadID)).rawValue
+                if let initialMessage, !initialMessage.isEmpty {
+                    _ = try? await messagesRepository.sendMessage(
+                        threadID: MessageThreadID(thread),
+                        body: initialMessage
+                    )
+                }
+                await MainActor.run {
+                    router.openConversation(threadID: thread)
+                }
+            },
             onOpenSharedActivity: { activityID in
                 Task { @MainActor in
                     router.openActivityDetail(activityID: activityID)
@@ -142,7 +149,7 @@ public struct SparkMainTabView: View {
                 paywallRouter.presentPaywall(placement: .likes)
             }
         )
-        .tabItem { Label(SparkTab.likes.title, systemImage: SparkTab.likes.systemImage) }
+        .tabItem { tabLabel(for: .likes) }
         .tag(SparkTab.likes)
 
         CommunityRootView(
@@ -172,15 +179,16 @@ public struct SparkMainTabView: View {
                 router.openActivityDetail(activityID: activityID)
             }
         )
-        .tabItem { Label(SparkTab.community.title, systemImage: SparkTab.community.systemImage) }
+        .tabItem { tabLabel(for: .community) }
         .tag(SparkTab.community)
 
         messagesTabWithBadge
-            .tabItem { Label(SparkTab.messages.title, systemImage: SparkTab.messages.systemImage) }
+            .tabItem { tabLabel(for: .messages) }
             .tag(SparkTab.messages)
 
         ActivityRootView(
             repository: activityFeedRepository,
+            blockedHostsStore: blockedActivityHostsStore,
             browseRepository: activityBrowseRepository,
             pendingActivityID: $router.pendingActivityID,
             onRSVPCompleted: { detail in
@@ -212,8 +220,15 @@ public struct SparkMainTabView: View {
                 router.openCommunityRecap(activityID: detail.id)
             }
         )
-        .toolbar { accountToolbarIfNeeded }
-        .tabItem { Label(SparkTab.activity.title, systemImage: SparkTab.activity.systemImage) }
+        .toolbar {
+            SparkMainTabAccountToolbar(
+                authViewModel: authViewModel,
+                router: router,
+                entitlementManager: entitlementManager,
+                paywallRouter: paywallRouter
+            )
+        }
+        .tabItem { tabLabel(for: .activity) }
         .tag(SparkTab.activity)
 
         SearchRootView(
@@ -222,7 +237,7 @@ public struct SparkMainTabView: View {
             onSelectResult: handleSearchResult
         )
         .id(searchQuery)
-        .tabItem { Label(SparkTab.search.title, systemImage: SparkTab.search.systemImage) }
+        .tabItem { tabLabel(for: .search) }
         .tag(SparkTab.search)
     }
 
@@ -248,23 +263,14 @@ public struct SparkMainTabView: View {
         }
     }
 
-    @ViewBuilder
     private var messagesTab: some View {
-        if let messagesViewModel {
-            MessagesRootView(
-                viewModel: messagesViewModel,
-                pendingConversationThreadID: $router.pendingConversationThreadID,
-                onOpenActivity: { activityID in
-                    router.openActivityDetail(activityID: activityID)
-                },
-                onOpenLikes: {
-                    router.selectedTab = .likes
-                }
-            )
-        } else {
-            ProgressView()
-                .task { ensureMessagesViewModel() }
-        }
+        SparkMainTabMessagesSection(
+            messagesViewModel: messagesViewModel,
+            pendingConversationThreadID: $router.pendingConversationThreadID,
+            onOpenActivity: { router.openActivityDetail(activityID: $0) },
+            onOpenLikes: { router.selectedTab = .likes },
+            ensureMessagesViewModel: ensureMessagesViewModel
+        )
     }
 
     private var tabSelection: Binding<SparkTab> {
@@ -286,46 +292,14 @@ public struct SparkMainTabView: View {
     }
 
     private func handleSearchResult(_ item: SearchResultItem) {
-        switch item.resultKind {
-        case .community:
-            router.openCommunityPost(postID: item.id)
-        case .activity:
-            router.openActivityDetail(activityID: item.id)
-        case .person, .none:
-            break
-        }
+        SparkMainTabRouting.handleSearchResult(item, router: router)
     }
 
-    private nonisolated static func peerUserID(fromDirectThreadID threadID: String) -> String {
-        let prefix = "th_dm_"
-        if threadID.hasPrefix(prefix) {
-            return String(threadID.dropFirst(prefix.count))
-        }
-        return threadID
-    }
-
-    @ToolbarContentBuilder
-    private var accountToolbarIfNeeded: some ToolbarContent {
-        ToolbarItemGroup(placement: .topBarTrailing) {
-            if SparkFeatureFlags.isPremiumPaywallEnabled, !entitlementManager.hasPremium {
-                Button(
-                    String(localized: "paywall.cta", defaultValue: "Premium", comment: "Premium CTA")
-                ) {
-                    paywallRouter.presentPaywall(placement: .activity)
-                }
-                .accessibilityLabel(
-                    String(localized: "paywall.cta.a11y", defaultValue: "查看订阅", comment: "Premium a11y")
-                )
-            }
-
-            Button(
-                String(localized: "auth.signOut", defaultValue: "退出登录", comment: "Sign out")
-            ) {
-                Task {
-                    await authViewModel.signOutTapped()
-                    router.resetAfterSignOut()
-                }
-            }
-        }
+    private func tabLabel(for tab: SparkTab) -> some View {
+        let isSelected = router.selectedTab == tab
+        return Label(
+            tab.title,
+            systemImage: isSelected ? tab.selectedSystemImage : tab.systemImage
+        )
     }
 }

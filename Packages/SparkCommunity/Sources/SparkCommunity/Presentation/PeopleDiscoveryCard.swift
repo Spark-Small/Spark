@@ -60,6 +60,8 @@ private struct PeopleMiniCard: View {
                 Image(systemName: isLiked ? "checkmark.circle.fill" : "plus.circle.fill")
                     .font(.title3)
                     .foregroundStyle(isLiked ? .green : .accentColor)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(isLiked)

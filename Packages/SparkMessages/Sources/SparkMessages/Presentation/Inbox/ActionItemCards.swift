@@ -43,14 +43,30 @@ struct ActivityInviteActionCard: View {
                         action: onAccept
                     )
                     .buttonStyle(.borderedProminent)
+                    .accessibilityHint(
+                        String(
+                            localized: "messages.action.accept.hint",
+                            defaultValue: "确认参加此活动",
+                            comment: "Accept invite hint"
+                        )
+                    )
 
                     Button(
                         String(localized: "messages.action.decline", defaultValue: "暂时不了", comment: "Decline invite"),
                         action: onDecline
                     )
                     .buttonStyle(.bordered)
+                    .accessibilityHint(
+                        String(
+                            localized: "messages.action.decline.hint",
+                            defaultValue: "拒绝活动邀请",
+                            comment: "Decline invite hint"
+                        )
+                    )
                 }
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(inviteAccessibilityLabel)
         }
     }
 
@@ -74,6 +90,21 @@ struct ActivityInviteActionCard: View {
             comment: "Inviter; %@ is name"
         )
         return String(format: format, locale: .current, invite.inviter.displayName)
+    }
+
+    private var inviteAccessibilityLabel: String {
+        let format = String(
+            localized: "messages.action.invite.a11y.format",
+            defaultValue: "活动邀请，%@，%@，%@",
+            comment: "Invite card; title, meta, inviter"
+        )
+        return String(
+            format: format,
+            locale: .current,
+            invite.activity.title,
+            activityMeta,
+            invite.inviter.displayName
+        )
     }
 }
 
@@ -104,14 +135,30 @@ struct ActivityChangeAlertCard: View {
                         action: onViewActivity
                     )
                     .buttonStyle(.borderedProminent)
+                    .accessibilityHint(
+                        String(
+                            localized: "messages.action.viewSchedule.hint",
+                            defaultValue: "打开活动详情查看更新后的安排",
+                            comment: "View schedule hint"
+                        )
+                    )
 
                     Button(
                         String(localized: "messages.action.dismiss", defaultValue: "知道了", comment: "Dismiss"),
                         action: onDismiss
                     )
                     .buttonStyle(.bordered)
+                    .accessibilityHint(
+                        String(
+                            localized: "messages.action.dismiss.hint",
+                            defaultValue: "关闭此提醒",
+                            comment: "Dismiss action hint"
+                        )
+                    )
                 }
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(changeAccessibilityLabel)
         }
     }
 
@@ -141,6 +188,10 @@ struct ActivityChangeAlertCard: View {
             comment: "Host line; %1$@ host, %2$@ previous"
         )
         return String(format: format, locale: .current, change.hostName, change.previousScheduleLine)
+    }
+
+    private var changeAccessibilityLabel: String {
+        "\(changeTitle)，\(hostLine)"
     }
 }
 
@@ -179,14 +230,63 @@ struct WaitlistPromotedCard: View {
                         action: onViewActivity
                     )
                     .buttonStyle(.borderedProminent)
+                    .accessibilityHint(
+                        String(
+                            localized: "messages.action.viewDetail.hint",
+                            defaultValue: "打开活动详情",
+                            comment: "View activity detail hint"
+                        )
+                    )
 
                     Button(
                         String(localized: "messages.action.dismiss", defaultValue: "知道了", comment: "Dismiss"),
                         action: onDismiss
                     )
                     .buttonStyle(.bordered)
+                    .accessibilityHint(
+                        String(
+                            localized: "messages.action.dismiss.hint",
+                            defaultValue: "关闭此提醒",
+                            comment: "Dismiss action hint"
+                        )
+                    )
                 }
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(waitlistAccessibilityLabel)
         }
+    }
+
+    private var waitlistAccessibilityLabel: String {
+        let promoted = String(
+            localized: "messages.action.waitlist.title",
+            defaultValue: "你已获得名额",
+            comment: "Waitlist promoted title"
+        )
+        return "\(promoted)，\(activity.title)，\(activity.formattedDateShort)"
+    }
+}
+
+#Preview("Activity invite card") {
+    let inbox = MockMessagesInboxCatalog.inbox(unreadCount: 1)
+    if case .activityInvite(let invite) = inbox.actionItems.last?.kind {
+        ActivityInviteActionCard(invite: invite, onAccept: {}, onDecline: {})
+            .padding()
+    }
+}
+
+#Preview("Activity change card") {
+    let inbox = MockMessagesInboxCatalog.inbox(unreadCount: 1)
+    if case .activityChanged(let change) = inbox.actionItems.dropFirst().first?.kind {
+        ActivityChangeAlertCard(change: change, onViewActivity: {}, onDismiss: {})
+            .padding()
+    }
+}
+
+#Preview("Waitlist promoted card") {
+    let inbox = MockMessagesInboxCatalog.inbox(unreadCount: 1)
+    if case .waitlistPromoted(let activity) = inbox.actionItems.first?.kind {
+        WaitlistPromotedCard(activity: activity, onViewActivity: {}, onDismiss: {})
+            .padding()
     }
 }

@@ -37,7 +37,9 @@ struct ContentView: View {
             likesFeedRepository: CompositionRoot.dependencies.likesFeedRepository,
             searchRepository: CompositionRoot.dependencies.searchRepository,
             communityPostsRepository: CompositionRoot.dependencies.communityPostsRepository,
-            paywallRouter: paywallRouter
+            paywallRouter: paywallRouter,
+            blockedActivityHostsStore: CompositionRoot.dependencies.blockedActivityHostsStore,
+            discoverMediaImageCache: CompositionRoot.dependencies.discoverMediaImageCache
         )
         .environment(router)
         .environment(CompositionRoot.dependencies.entitlementManager)

@@ -6,10 +6,10 @@ enum DiscoverMediaImageError: Error {
     case invalidData
 }
 
-actor DiscoverMediaImageCache {
-    static let shared = DiscoverMediaImageCache()
-
+public actor DiscoverMediaImageCache {
     private var storage: [URL: UIImage] = [:]
+
+    public init() {}
 
     func image(for url: URL) async throws -> UIImage {
         if let cached = storage[url] {

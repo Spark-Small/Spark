@@ -8,6 +8,7 @@ public actor MockMessagesRepository: MessagesRepository {
     private var messagesByThread: [String: [ChatMessage]]
     private var dismissedActionItemIDs: Set<String> = []
     public private(set) var markReadCallCount = 0
+    public private(set) var markThreadReadCallCount = 0
     public private(set) var dismissActionItemCallCount = 0
 
     public init(unreadCount: Int = 3) {
@@ -71,6 +72,25 @@ public actor MockMessagesRepository: MessagesRepository {
             activeGroupChats: inbox.activeGroupChats.map(clearUnread),
             archivedGroupChats: inbox.archivedGroupChats.map(clearUnread)
         )
+    }
+
+    public func markThreadRead(threadID: MessageThreadID) async throws {
+        markThreadReadCallCount += 1
+        inbox = MessagesInbox(
+            actionItems: inbox.actionItems,
+            unmessagedMatches: inbox.unmessagedMatches,
+            dmConversations: inbox.dmConversations.map { clearUnreadIfNeeded($0, threadID: threadID) },
+            activeGroupChats: inbox.activeGroupChats.map { clearUnreadIfNeeded($0, threadID: threadID) },
+            archivedGroupChats: inbox.archivedGroupChats.map { clearUnreadIfNeeded($0, threadID: threadID) }
+        )
+    }
+
+    private func clearUnreadIfNeeded(
+        _ conversation: ConversationPreview,
+        threadID: MessageThreadID
+    ) -> ConversationPreview {
+        guard conversation.threadID == threadID else { return conversation }
+        return clearUnread(conversation)
     }
 
     public func dismissInboxActionItem(id: String) async throws {

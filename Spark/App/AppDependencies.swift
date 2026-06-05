@@ -30,6 +30,8 @@ public struct AppDependencies {
     // REASONING: EntitlementManager is MainActor-isolated; held by App and passed into views.
     public let entitlementManager: EntitlementManager
     public let deviceTokenUploader: any DeviceTokenUploading
+    public let blockedActivityHostsStore: BlockedActivityHostsStore
+    public let discoverMediaImageCache: DiscoverMediaImageCache
 
     public init(
         apiConfiguration: APIConfiguration,
@@ -46,7 +48,9 @@ public struct AppDependencies {
         communityPostsRepository: any CommunityPostsRepository,
         storeKitService: any StoreKitServing,
         entitlementManager: EntitlementManager,
-        deviceTokenUploader: any DeviceTokenUploading
+        deviceTokenUploader: any DeviceTokenUploading,
+        blockedActivityHostsStore: BlockedActivityHostsStore,
+        discoverMediaImageCache: DiscoverMediaImageCache
     ) {
         self.apiConfiguration = apiConfiguration
         self.tokenProvider = tokenProvider
@@ -63,5 +67,7 @@ public struct AppDependencies {
         self.storeKitService = storeKitService
         self.entitlementManager = entitlementManager
         self.deviceTokenUploader = deviceTokenUploader
+        self.blockedActivityHostsStore = blockedActivityHostsStore
+        self.discoverMediaImageCache = discoverMediaImageCache
     }
 }

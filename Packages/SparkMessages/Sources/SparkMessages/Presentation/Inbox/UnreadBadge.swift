@@ -31,3 +31,12 @@ struct UnreadBadge: View {
         return String(format: format, locale: .current, count)
     }
 }
+
+#Preview("Unread badge") {
+    HStack(spacing: 16) {
+        UnreadBadge(count: 1)
+        UnreadBadge(count: 12)
+        UnreadBadge(count: 120)
+    }
+    .padding()
+}

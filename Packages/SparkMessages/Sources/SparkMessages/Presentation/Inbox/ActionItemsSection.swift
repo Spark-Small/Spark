@@ -86,3 +86,30 @@ struct ActionItemsSection: View {
         }
     }
 }
+
+#Preview("Action items — populated") {
+    let inbox = MockMessagesInboxCatalog.inbox(unreadCount: 2)
+    List {
+        ActionItemsSection(
+            items: inbox.actionItems,
+            onInviteAccept: { _ in },
+            onInviteDecline: { _ in },
+            onOpenActivity: { _ in },
+            onDismiss: { _ in }
+        )
+    }
+    .listStyle(.plain)
+}
+
+#Preview("Action items — empty") {
+    List {
+        ActionItemsSection(
+            items: [],
+            onInviteAccept: { _ in },
+            onInviteDecline: { _ in },
+            onOpenActivity: { _ in },
+            onDismiss: { _ in }
+        )
+    }
+    .listStyle(.plain)
+}

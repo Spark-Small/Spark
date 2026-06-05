@@ -19,7 +19,7 @@ struct DiscoverMediaPlaceholder: View {
 
                 VStack(spacing: 12) {
                     Image(systemName: systemImage)
-                        .font(.system(size: 56))
+                        .font(.largeTitle)
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(.white)
                     if !displayName.isEmpty {
