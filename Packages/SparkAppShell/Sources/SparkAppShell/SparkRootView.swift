@@ -95,6 +95,7 @@ public struct SparkRootView: View {
         entitlementManager: EntitlementManager(storeKit: MockStoreKitService()),
         messagesRepository: MockMessagesRepository(),
         activityFeedRepository: MockActivityFeedRepository(),
+        activityBrowseRepository: MockActivityBrowseRepository(),
         likesFeedRepository: MockLikesFeedRepository(),
         searchRepository: MockSearchRepository(),
         communityPostsRepository: MockCommunityPostsRepository(),

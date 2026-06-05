@@ -15,7 +15,7 @@ enum MockActivityCatalog {
         let tomorrowMorning = tomorrow(hour: 7, minute: 0)
         let lastWeek = daysAgo(5, hour: 14, minute: 0)
 
-        seededDetails(
+        return seededDetails(
             saturday: saturday,
             tonight: tonight,
             tomorrowMorning: tomorrowMorning,

@@ -1,6 +1,7 @@
 // Module: SparkLikesTests
 
 @testable import SparkLikes
+import Foundation
 import SparkCore
 import Testing
 
