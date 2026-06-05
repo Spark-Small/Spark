@@ -24,6 +24,13 @@ final class ActivityBrowseViewModel {
         }
     }
 
+    var selectedTimeWindow: ActivityBrowseTimeWindow = .all {
+        didSet {
+            guard selectedTimeWindow != oldValue else { return }
+            Task { await reload() }
+        }
+    }
+
     static let categoryOptions: [String?] = [
         nil,
         String(localized: "activity.category.event", defaultValue: "活动", comment: "Activity category"),
@@ -46,7 +53,7 @@ final class ActivityBrowseViewModel {
         loadState = .loading
         nextCursor = nil
         do {
-            let query = ActivityBrowseQuery(category: selectedCategory)
+            let query = browseQuery(cursor: nil)
             let page = try await repository.fetchBrowse(query: query)
             items = page.items
             nextCursor = page.nextCursor
@@ -64,12 +71,21 @@ final class ActivityBrowseViewModel {
         isLoadingMore = true
         defer { isLoadingMore = false }
         do {
-            let query = ActivityBrowseQuery(category: selectedCategory, cursor: cursor)
+            let query = browseQuery(cursor: cursor)
             let page = try await repository.fetchBrowse(query: query)
             items.append(contentsOf: page.items)
             nextCursor = page.nextCursor
         } catch {
             // REASONING: Pagination failure is non-fatal; user can pull to reload later.
         }
+    }
+
+    private func browseQuery(cursor: String?) -> ActivityBrowseQuery {
+        ActivityBrowseQuery(
+            category: selectedCategory,
+            startsAfter: selectedTimeWindow.startsAfter,
+            startsBefore: selectedTimeWindow.startsBefore,
+            cursor: cursor
+        )
     }
 }

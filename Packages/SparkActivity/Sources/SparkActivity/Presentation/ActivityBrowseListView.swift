@@ -59,9 +59,12 @@ public struct ActivityBrowseListView: View {
     @ViewBuilder
     private var content: some View {
         VStack(spacing: 0) {
-            categoryPicker
-                .padding(.horizontal)
-                .padding(.vertical, 8)
+            VStack(spacing: 8) {
+                categoryPicker
+                timeWindowPicker
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
 
             switch viewModel.loadState {
             case .idle, .loading:
@@ -120,6 +123,21 @@ public struct ActivityBrowseListView: View {
                 .tag(String?.none)
             ForEach(ActivityBrowseViewModel.categoryOptions.compactMap { $0 }, id: \.self) { category in
                 Text(category).tag(Optional(category))
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var timeWindowPicker: some View {
+        Picker(
+            String(localized: "activity.browse.time", defaultValue: "时间", comment: "Time filter"),
+            selection: Binding(
+                get: { viewModel.selectedTimeWindow },
+                set: { viewModel.selectedTimeWindow = $0 }
+            )
+        ) {
+            ForEach(ActivityBrowseTimeWindow.allCases, id: \.self) { window in
+                Text(window.localizedTitle).tag(window)
             }
         }
         .pickerStyle(.segmented)

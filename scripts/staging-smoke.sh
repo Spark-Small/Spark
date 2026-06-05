@@ -24,6 +24,19 @@ BROWSE_COUNT=$(curl -sf -H "$AUTH" "$BASE_URL/v1/activities/browse" \
   | python3 -c 'import sys,json; print(len(json.load(sys.stdin).get("items",[])))')
 [[ "$BROWSE_COUNT" -ge 2 ]] && pass "browse count=$BROWSE_COUNT" || fail "browse count=$BROWSE_COUNT"
 
+echo "== browse time filter =="
+read -r WEEK_START WEEK_END < <(python3 -c 'from datetime import datetime, timezone, timedelta
+now = datetime.now(timezone.utc)
+start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+end = start + timedelta(days=7)
+print(start.strftime("%Y-%m-%dT%H:%M:%SZ"), end.strftime("%Y-%m-%dT%H:%M:%SZ"))')
+FILTERED_COUNT=$(curl -sf -H "$AUTH" \
+  "$BASE_URL/v1/activities/browse?starts_after=$WEEK_START&starts_before=$WEEK_END" \
+  | python3 -c 'import sys,json; print(len(json.load(sys.stdin).get("items",[])))')
+[[ "$FILTERED_COUNT" -ge 1 && "$FILTERED_COUNT" -le "$BROWSE_COUNT" ]] \
+  && pass "browse week filter count=$FILTERED_COUNT (total=$BROWSE_COUNT)" \
+  || fail "browse week filter count=$FILTERED_COUNT (total=$BROWSE_COUNT)"
+
 echo "== inbound is_visible =="
 curl -sf -H "$AUTH" "$BASE_URL/v1/likes/inbound" \
   | python3 -c 'import sys,json; d=json.load(sys.stdin); items=d.get("items",[]); assert len(items)>0; assert items[0].get("is_visible") is False; print("is_visible=false ok")'
