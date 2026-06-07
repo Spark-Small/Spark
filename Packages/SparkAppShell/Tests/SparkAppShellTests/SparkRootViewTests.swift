@@ -34,7 +34,10 @@ struct SparkRootViewTests {
             searchRepository: MockSearchRepository(),
             communityPostsRepository: MockCommunityPostsRepository(),
             trustRepository: MockTrustRepository(),
-            paywallRouter: PaywallRouter(appRouter: router)
+            paywallRouter: PaywallRouter(appRouter: router),
+            discoverMediaImageCache: DiscoverMediaImageCache(),
+            likesPreferencesStore: InMemoryLikesPreferencesStore(),
+            likesOnboardingPreferences: InMemoryLikesOnboardingPreferences()
         )
     }
 }

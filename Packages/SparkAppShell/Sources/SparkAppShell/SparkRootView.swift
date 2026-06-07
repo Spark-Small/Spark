@@ -27,6 +27,8 @@ public struct SparkRootView: View {
     let paywallRouter: PaywallRouter
     let blockedActivityHostsStore: BlockedActivityHostsStore
     let discoverMediaImageCache: DiscoverMediaImageCache
+    let likesPreferencesStore: any LikesPreferencesStoring
+    let likesOnboardingPreferences: any LikesOnboardingPreferences
 
     public init(
         authViewModel: AuthViewModel,
@@ -41,7 +43,9 @@ public struct SparkRootView: View {
         trustRepository: any TrustRepository,
         paywallRouter: PaywallRouter,
         blockedActivityHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
-        discoverMediaImageCache: DiscoverMediaImageCache = DiscoverMediaImageCache()
+        discoverMediaImageCache: DiscoverMediaImageCache,
+        likesPreferencesStore: any LikesPreferencesStoring,
+        likesOnboardingPreferences: any LikesOnboardingPreferences
     ) {
         self.authViewModel = authViewModel
         self.router = router
@@ -56,6 +60,8 @@ public struct SparkRootView: View {
         self.paywallRouter = paywallRouter
         self.blockedActivityHostsStore = blockedActivityHostsStore
         self.discoverMediaImageCache = discoverMediaImageCache
+        self.likesPreferencesStore = likesPreferencesStore
+        self.likesOnboardingPreferences = likesOnboardingPreferences
     }
 
     public var body: some View {
@@ -82,7 +88,9 @@ public struct SparkRootView: View {
                     trustRepository: trustRepository,
                     paywallRouter: paywallRouter,
                     blockedActivityHostsStore: blockedActivityHostsStore,
-                    discoverMediaImageCache: discoverMediaImageCache
+                    discoverMediaImageCache: discoverMediaImageCache,
+                    likesPreferencesStore: likesPreferencesStore,
+                    likesOnboardingPreferences: likesOnboardingPreferences
                 )
             }
         }
@@ -114,6 +122,9 @@ public struct SparkRootView: View {
         searchRepository: MockSearchRepository(),
         communityPostsRepository: MockCommunityPostsRepository(),
         trustRepository: MockTrustRepository(),
-        paywallRouter: PaywallRouter(appRouter: router)
+        paywallRouter: PaywallRouter(appRouter: router),
+        discoverMediaImageCache: DiscoverMediaImageCache(),
+        likesPreferencesStore: InMemoryLikesPreferencesStore(),
+        likesOnboardingPreferences: InMemoryLikesOnboardingPreferences()
     )
 }

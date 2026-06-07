@@ -130,11 +130,11 @@ struct LikesViewerProfileGateSheet: View {
 }
 
 #Preview {
-    LikesViewerProfileGateSheet(viewModel: LikesFeedViewModel(repository: MockLikesFeedRepository()))
+    LikesViewerProfileGateSheet(viewModel: LikesPreviewSupport.feedViewModel())
 }
 
 #Preview("Profile gate — dark") {
     LikesPreviewSupport.darkMode {
-        LikesViewerProfileGateSheet(viewModel: LikesFeedViewModel(repository: MockLikesFeedRepository()))
+        LikesViewerProfileGateSheet(viewModel: LikesPreviewSupport.feedViewModel())
     }
 }

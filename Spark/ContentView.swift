@@ -40,7 +40,9 @@ struct ContentView: View {
             trustRepository: CompositionRoot.dependencies.trustRepository,
             paywallRouter: paywallRouter,
             blockedActivityHostsStore: CompositionRoot.dependencies.blockedActivityHostsStore,
-            discoverMediaImageCache: CompositionRoot.dependencies.discoverMediaImageCache
+            discoverMediaImageCache: CompositionRoot.dependencies.discoverMediaImageCache,
+            likesPreferencesStore: CompositionRoot.dependencies.likesPreferencesStore,
+            likesOnboardingPreferences: CompositionRoot.dependencies.likesOnboardingPreferences
         )
         .environment(router)
         .environment(CompositionRoot.dependencies.entitlementManager)

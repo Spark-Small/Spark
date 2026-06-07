@@ -7,12 +7,23 @@ import Testing
 
 @MainActor
 struct LikesFeedViewModelTests {
+    private func makeViewModel(
+        repository: any LikesFeedRepository,
+        onboardingSeen: Bool = true
+    ) -> LikesFeedViewModel {
+        LikesFeedViewModel(
+            repository: repository,
+            preferencesStore: InMemoryLikesPreferencesStore(),
+            onboardingPreferences: InMemoryLikesOnboardingPreferences(hasSeenOnboarding: onboardingSeen)
+        )
+    }
+
     private func completeViewerProfile(_ viewModel: LikesFeedViewModel) async {
         _ = await viewModel.saveViewerProfile(LikesViewerProfile(displayName: "Tester", hasPhoto: true))
     }
 
     @Test func loadPopulatesCards() async {
-        let viewModel = LikesFeedViewModel(repository: MockLikesFeedRepository())
+        let viewModel = makeViewModel(repository: MockLikesFeedRepository())
         await viewModel.load()
         #expect(viewModel.loadState == .loaded)
         #expect(viewModel.cards.count == 2)
@@ -20,7 +31,7 @@ struct LikesFeedViewModelTests {
     }
 
     @Test func loadFailureSurfacesRecovery() async {
-        let viewModel = LikesFeedViewModel(repository: FailingLikesFeedRepository())
+        let viewModel = makeViewModel(repository: FailingLikesFeedRepository())
         await viewModel.load()
         guard case .failure(let error) = viewModel.loadState else {
             Issue.record("Expected failure state")
@@ -30,7 +41,7 @@ struct LikesFeedViewModelTests {
     }
 
     @Test func loadMoreAppendsCards() async {
-        let viewModel = LikesFeedViewModel(repository: MockLikesFeedRepository())
+        let viewModel = makeViewModel(repository: MockLikesFeedRepository())
         await viewModel.load()
         await viewModel.loadMoreIfNeeded(currentCardID: viewModel.cards.last?.id)
         #expect(viewModel.cards.count == 4)
@@ -39,7 +50,7 @@ struct LikesFeedViewModelTests {
 
     @Test func likeMutualMatchSetsPendingMatch() async {
         let repository = MockLikesFeedRepository()
-        let viewModel = LikesFeedViewModel(repository: repository)
+        let viewModel = makeViewModel(repository: repository)
         await viewModel.load()
         await completeViewerProfile(viewModel)
         viewModel.currentIndex = 1
@@ -51,14 +62,14 @@ struct LikesFeedViewModelTests {
     }
 
     @Test func inboundLoadsFirstPageOnly() async {
-        let viewModel = LikesFeedViewModel(repository: MockLikesFeedRepository())
+        let viewModel = makeViewModel(repository: MockLikesFeedRepository())
         await viewModel.load()
         #expect(viewModel.inboundCount == 1)
         #expect(viewModel.inboundNextCursor != nil)
     }
 
     @Test func loadMoreInboundAppendsItems() async {
-        let viewModel = LikesFeedViewModel(repository: MockLikesFeedRepository())
+        let viewModel = makeViewModel(repository: MockLikesFeedRepository())
         await viewModel.load()
         await viewModel.loadMoreInboundIfNeeded(currentItemID: viewModel.inboundItems.last?.id)
         #expect(viewModel.inboundCount == 2)
@@ -66,14 +77,14 @@ struct LikesFeedViewModelTests {
     }
 
     @Test func icebreakersGeneratedForMatchCard() async {
-        let viewModel = LikesFeedViewModel(repository: MockLikesFeedRepository())
+        let viewModel = makeViewModel(repository: MockLikesFeedRepository())
         await viewModel.load()
         viewModel.pendingMatchCard = viewModel.cards.first
         #expect(!viewModel.icebreakersForPendingMatch.isEmpty)
     }
 
     @Test func passAdvancesQueue() async {
-        let viewModel = LikesFeedViewModel(repository: MockLikesFeedRepository())
+        let viewModel = makeViewModel(repository: MockLikesFeedRepository())
         await viewModel.load()
         let firstID = viewModel.cards.first?.id
         await viewModel.passCurrentCard()
@@ -82,13 +93,13 @@ struct LikesFeedViewModelTests {
     }
 
     @Test func loadEmptySetsEmptyState() async {
-        let viewModel = LikesFeedViewModel(repository: EmptyLikesFeedRepository())
+        let viewModel = makeViewModel(repository: EmptyLikesFeedRepository())
         await viewModel.load()
         #expect(viewModel.loadState == .empty)
     }
 
     @Test func rewindRestoresPassedCard() async {
-        let viewModel = LikesFeedViewModel(repository: MockLikesFeedRepository())
+        let viewModel = makeViewModel(repository: MockLikesFeedRepository())
         await viewModel.load()
         let firstID = viewModel.cards.first?.id
         await viewModel.passCurrentCard()
@@ -97,7 +108,7 @@ struct LikesFeedViewModelTests {
     }
 
     @Test func saveViewerProfileUpdatesGate() async {
-        let viewModel = LikesFeedViewModel(repository: MockLikesFeedRepository())
+        let viewModel = makeViewModel(repository: MockLikesFeedRepository())
         let saved = await viewModel.saveViewerProfile(LikesViewerProfile(displayName: "测试", hasPhoto: true))
         #expect(saved)
         #expect(viewModel.viewerProfile.isComplete)
@@ -105,14 +116,14 @@ struct LikesFeedViewModelTests {
     }
 
     @Test func saveViewerProfileFailureSetsGateError() async {
-        let viewModel = LikesFeedViewModel(repository: FailingLikesFeedRepository())
+        let viewModel = makeViewModel(repository: FailingLikesFeedRepository())
         let saved = await viewModel.saveViewerProfile(LikesViewerProfile(displayName: "测试", hasPhoto: true))
         #expect(!saved)
         #expect(viewModel.profileGateSaveError != nil)
     }
 
     @Test func inboundLikeBackSetsPendingMatch() async {
-        let viewModel = LikesFeedViewModel(repository: MockLikesFeedRepository())
+        let viewModel = makeViewModel(repository: MockLikesFeedRepository())
         await viewModel.load()
         await completeViewerProfile(viewModel)
         guard let inboundItem = viewModel.inboundItems.first else {
@@ -126,7 +137,7 @@ struct LikesFeedViewModelTests {
     }
 
     @Test func friendRequestAdvancesQueue() async {
-        let viewModel = LikesFeedViewModel(repository: MockLikesFeedRepository())
+        let viewModel = makeViewModel(repository: MockLikesFeedRepository())
         await viewModel.load()
         await completeViewerProfile(viewModel)
         let countBefore = viewModel.cards.count
@@ -135,7 +146,7 @@ struct LikesFeedViewModelTests {
     }
 
     @Test func reportAndBlockAdvancesQueue() async {
-        let viewModel = LikesFeedViewModel(repository: MockLikesFeedRepository())
+        let viewModel = makeViewModel(repository: MockLikesFeedRepository())
         await viewModel.load()
         let countBefore = viewModel.cards.count
         await viewModel.reportAndBlockCurrentCard(reason: .spam, detail: nil)

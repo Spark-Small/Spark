@@ -176,3 +176,21 @@ struct CommunityDetailHeaderView: View {
         return "\(membersCount) · \(activities) · \(active)"
     }
 }
+
+#Preview {
+    CommunityDetailHeaderView(
+        detail: CommunityDetail(
+            summary: CommunitySummary(
+                id: "cm_hike",
+                name: "徒步爱好者",
+                coverURL: nil,
+                memberCount: 128,
+                activityCount: 12,
+                bio: "周末一起爬山"
+            ),
+            isJoined: true
+        ),
+        members: [],
+        onShowMembers: {}
+    )
+}

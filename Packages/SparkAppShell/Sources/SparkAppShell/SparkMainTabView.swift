@@ -26,6 +26,8 @@ public struct SparkMainTabView: View {
     let paywallRouter: PaywallRouter
     let blockedActivityHostsStore: BlockedActivityHostsStore
     let discoverMediaImageCache: DiscoverMediaImageCache
+    let likesPreferencesStore: any LikesPreferencesStoring
+    let likesOnboardingPreferences: any LikesOnboardingPreferences
 
     @State private var messagesViewModel: MessagesViewModel?
     @State private var profileViewModel: ProfileViewModel?
@@ -44,7 +46,9 @@ public struct SparkMainTabView: View {
         trustRepository: any TrustRepository,
         paywallRouter: PaywallRouter,
         blockedActivityHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
-        discoverMediaImageCache: DiscoverMediaImageCache = DiscoverMediaImageCache()
+        discoverMediaImageCache: DiscoverMediaImageCache,
+        likesPreferencesStore: any LikesPreferencesStoring,
+        likesOnboardingPreferences: any LikesOnboardingPreferences
     ) {
         self.router = router
         self.authViewModel = authViewModel
@@ -59,6 +63,8 @@ public struct SparkMainTabView: View {
         self.paywallRouter = paywallRouter
         self.blockedActivityHostsStore = blockedActivityHostsStore
         self.discoverMediaImageCache = discoverMediaImageCache
+        self.likesPreferencesStore = likesPreferencesStore
+        self.likesOnboardingPreferences = likesOnboardingPreferences
     }
 
     public var body: some View {

@@ -38,11 +38,11 @@ final class ActivityBrowseViewModel {
         String(localized: "activity.category.social", defaultValue: "社交", comment: "Social category")
     ]
 
-    private let repository: any ActivityBrowseRepository
+    private let fetchBrowsePage: FetchActivityBrowsePageUseCase
     private var nextCursor: String?
 
     init(repository: any ActivityBrowseRepository) {
-        self.repository = repository
+        fetchBrowsePage = FetchActivityBrowsePageUseCase(repository: repository)
     }
 
     func loadIfNeeded() async {
@@ -55,7 +55,7 @@ final class ActivityBrowseViewModel {
         nextCursor = nil
         do {
             let query = browseQuery(cursor: nil)
-            let page = try await repository.fetchBrowse(query: query)
+            let page = try await fetchBrowsePage(query: query)
             items = page.items
             nextCursor = page.nextCursor
             loadState = page.items.isEmpty ? .empty : .loaded
@@ -74,7 +74,7 @@ final class ActivityBrowseViewModel {
         defer { isLoadingMore = false }
         do {
             let query = browseQuery(cursor: cursor)
-            let page = try await repository.fetchBrowse(query: query)
+            let page = try await fetchBrowsePage(query: query)
             items.append(contentsOf: page.items)
             nextCursor = page.nextCursor
         } catch {

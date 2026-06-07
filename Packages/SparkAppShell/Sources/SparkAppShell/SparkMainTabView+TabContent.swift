@@ -15,6 +15,8 @@ extension SparkMainTabView {
         LikesRootView(
             repository: likesFeedRepository,
             discoverMediaImageCache: discoverMediaImageCache,
+            preferencesStore: likesPreferencesStore,
+            onboardingPreferences: likesOnboardingPreferences,
             pendingInbound: $router.pendingLikesInbound,
             onOpenMatchConversation: { threadID, peerDisplayName, initialMessage in
                 let peerUserID = SparkMainTabRouting.peerUserID(fromDirectThreadID: threadID)

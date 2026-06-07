@@ -23,10 +23,14 @@ public struct LikesRootView: View {
     let onInboundPaywall: () -> Void
     let onSparkPaywall: () -> Void
     let discoverMediaImageCache: DiscoverMediaImageCache
+    let preferencesStore: any LikesPreferencesStoring
+    let onboardingPreferences: any LikesOnboardingPreferences
 
     public init(
         repository: any LikesFeedRepository,
-        discoverMediaImageCache: DiscoverMediaImageCache = DiscoverMediaImageCache(),
+        discoverMediaImageCache: DiscoverMediaImageCache,
+        preferencesStore: any LikesPreferencesStoring,
+        onboardingPreferences: any LikesOnboardingPreferences,
         pendingInbound: Binding<Bool> = .constant(false),
         onOpenMatchConversation: @escaping LikesOpenConversationHandler,
         onOpenSharedActivity: (@Sendable (String) -> Void)? = nil,
@@ -36,7 +40,13 @@ public struct LikesRootView: View {
         onInboundPaywall: @escaping () -> Void = {},
         onSparkPaywall: @escaping () -> Void = {}
     ) {
-        _viewModel = State(initialValue: LikesFeedViewModel(repository: repository))
+        _viewModel = State(
+            initialValue: LikesFeedViewModel(
+                repository: repository,
+                preferencesStore: preferencesStore,
+                onboardingPreferences: onboardingPreferences
+            )
+        )
         _pendingInbound = pendingInbound
         self.onOpenMatchConversation = onOpenMatchConversation
         self.onOpenSharedActivity = onOpenSharedActivity
@@ -46,11 +56,15 @@ public struct LikesRootView: View {
         self.onInboundPaywall = onInboundPaywall
         self.onSparkPaywall = onSparkPaywall
         self.discoverMediaImageCache = discoverMediaImageCache
+        self.preferencesStore = preferencesStore
+        self.onboardingPreferences = onboardingPreferences
     }
 
     init(
         viewModel: LikesFeedViewModel,
-        discoverMediaImageCache: DiscoverMediaImageCache = DiscoverMediaImageCache(),
+        discoverMediaImageCache: DiscoverMediaImageCache,
+        preferencesStore: any LikesPreferencesStoring,
+        onboardingPreferences: any LikesOnboardingPreferences,
         pendingInbound: Binding<Bool> = .constant(false),
         onOpenMatchConversation: @escaping LikesOpenConversationHandler,
         onOpenSharedActivity: (@Sendable (String) -> Void)? = nil,
@@ -70,6 +84,8 @@ public struct LikesRootView: View {
         self.onInboundPaywall = onInboundPaywall
         self.onSparkPaywall = onSparkPaywall
         self.discoverMediaImageCache = discoverMediaImageCache
+        self.preferencesStore = preferencesStore
+        self.onboardingPreferences = onboardingPreferences
     }
 
     var usesSplitLayout: Bool {
@@ -227,30 +243,37 @@ public struct LikesRootView: View {
 }
 
 #Preview {
-    LikesRootView(repository: MockLikesFeedRepository()) { _, _, _ in }
+    LikesPreviewSupport.previewRoot()
 }
 
 #Preview("Likes — empty") {
     LikesRootView(
-        viewModel: LikesFeedViewModel(repository: EmptyLikesFeedRepository()),
+        viewModel: LikesFeedViewModel(
+            repository: EmptyLikesFeedRepository(),
+            preferencesStore: LikesPreviewSupport.preferencesStore,
+            onboardingPreferences: LikesPreviewSupport.onboardingPreferences
+        ),
+        discoverMediaImageCache: DiscoverMediaImageCache(),
+        preferencesStore: LikesPreviewSupport.preferencesStore,
+        onboardingPreferences: LikesPreviewSupport.onboardingPreferences,
         onOpenMatchConversation: { _, _, _ in }
     )
 }
 
 #Preview("Likes — dark") {
     LikesPreviewSupport.darkMode {
-        LikesRootView(repository: MockLikesFeedRepository()) { _, _, _ in }
+        LikesPreviewSupport.previewRoot()
     }
 }
 
 #Preview("Likes — accessibility XL") {
     LikesPreviewSupport.accessibilityXL {
-        LikesRootView(repository: MockLikesFeedRepository()) { _, _, _ in }
+        LikesPreviewSupport.previewRoot()
     }
 }
 
 #Preview("Likes — iPad regular") {
     LikesPreviewSupport.iPadRegular {
-        LikesRootView(repository: MockLikesFeedRepository()) { _, _, _ in }
+        LikesPreviewSupport.previewRoot()
     }
 }

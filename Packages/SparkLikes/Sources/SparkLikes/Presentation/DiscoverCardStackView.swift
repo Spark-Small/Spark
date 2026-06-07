@@ -1,5 +1,6 @@
 // Module: SparkLikes — Swipeable card stack with pass/like/profile/rewind gestures.
 
+import SparkCore
 import SwiftUI
 
 struct DiscoverCardStackView: View {
@@ -123,4 +124,26 @@ struct DiscoverCardStackView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
             .accessibilityHidden(true)
     }
+}
+
+#Preview {
+    DiscoverCardStackView(
+        currentCard: DiscoverCard(
+            userID: UserID("preview"),
+            displayName: "Preview",
+            bio: "Bio",
+            gender: .female,
+            media: DiscoverMedia(kind: .image, url: URL(string: "https://example.com/a.jpg")!),
+            interestTags: ["咖啡"]
+        ),
+        nextCard: nil,
+        intent: .match,
+        sparkBurstToken: 0,
+        onPass: {},
+        onLike: {},
+        onOpenProfile: {},
+        onRewind: {},
+        onShowOpenerPicker: {}
+    )
+    .environment(\.discoverMediaImageCache, DiscoverMediaImageCache())
 }

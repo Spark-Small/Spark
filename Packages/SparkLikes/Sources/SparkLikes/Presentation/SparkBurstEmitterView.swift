@@ -65,3 +65,8 @@ final class SparkBurstUIView: UIView {
         return cell
     }
 }
+
+#Preview {
+    SparkBurstEmitterView(trigger: 1)
+        .frame(width: 200, height: 200)
+}

@@ -59,10 +59,18 @@ public final class LikesFeedViewModel {
     let submitPass: SubmitPassUseCase
     let submitFriendRequest: SubmitFriendRequestUseCase
     let reportAndBlockUser: ReportAndBlockUserUseCase
+    private let preferencesStore: any LikesPreferencesStoring
+    private let onboardingPreferences: any LikesOnboardingPreferences
     private var loadGeneration = 0
 
-    public init(repository: any LikesFeedRepository, preferences: LikesPreferences = LikesPreferencesStore.load()) {
-        self.preferences = preferences
+    public init(
+        repository: any LikesFeedRepository,
+        preferencesStore: any LikesPreferencesStoring,
+        onboardingPreferences: any LikesOnboardingPreferences
+    ) {
+        preferences = preferencesStore.load()
+        self.preferencesStore = preferencesStore
+        self.onboardingPreferences = onboardingPreferences
         fetchFeed = FetchLikesFeedUseCase(repository: repository)
         fetchInbound = FetchInboundLikesUseCase(repository: repository)
         fetchViewerProfile = FetchViewerProfileUseCase(repository: repository)
@@ -123,7 +131,7 @@ public final class LikesFeedViewModel {
             cardsBrowsedThisSession = 0
             showPreferencesHint = false
             loadState = cards.isEmpty ? .empty : .loaded
-            if !LikesOnboardingStore.hasSeenOnboarding {
+            if !onboardingPreferences.hasSeenOnboarding {
                 showOnboarding = true
             }
         } catch is CancellationError {
@@ -135,7 +143,7 @@ public final class LikesFeedViewModel {
     }
 
     public func reloadWithPreferences() async {
-        LikesPreferencesStore.save(preferences)
+        preferencesStore.save(preferences)
         await load()
     }
 
@@ -220,7 +228,7 @@ public final class LikesFeedViewModel {
     }
 
     public func markOnboardingSeen() {
-        LikesOnboardingStore.markOnboardingSeen()
+        onboardingPreferences.markOnboardingSeen()
         showOnboarding = false
     }
 

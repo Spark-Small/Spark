@@ -73,11 +73,11 @@ struct LikesInboundListView: View {
 }
 
 #Preview {
-    LikesInboundListView(viewModel: LikesFeedViewModel(repository: MockLikesFeedRepository()))
+    LikesInboundListView(viewModel: LikesPreviewSupport.feedViewModel())
 }
 
 #Preview("Inbound — accessibility XL") {
     LikesPreviewSupport.accessibilityXL {
-        LikesInboundListView(viewModel: LikesFeedViewModel(repository: MockLikesFeedRepository()))
+        LikesInboundListView(viewModel: LikesPreviewSupport.feedViewModel())
     }
 }

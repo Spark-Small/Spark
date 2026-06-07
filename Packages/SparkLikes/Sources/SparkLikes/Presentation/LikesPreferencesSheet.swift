@@ -53,11 +53,11 @@ struct LikesPreferencesSheet: View {
 }
 
 #Preview {
-    LikesPreferencesSheet(viewModel: LikesFeedViewModel(repository: MockLikesFeedRepository()))
+    LikesPreferencesSheet(viewModel: LikesPreviewSupport.feedViewModel())
 }
 
 #Preview("Preferences — dark") {
     LikesPreviewSupport.darkMode {
-        LikesPreferencesSheet(viewModel: LikesFeedViewModel(repository: MockLikesFeedRepository()))
+        LikesPreferencesSheet(viewModel: LikesPreviewSupport.feedViewModel())
     }
 }

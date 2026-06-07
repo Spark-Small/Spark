@@ -34,6 +34,8 @@ public struct AppDependencies {
     public let deviceTokenUploader: any DeviceTokenUploading
     public let blockedActivityHostsStore: BlockedActivityHostsStore
     public let discoverMediaImageCache: DiscoverMediaImageCache
+    public let likesPreferencesStore: any LikesPreferencesStoring
+    public let likesOnboardingPreferences: any LikesOnboardingPreferences
 
     public init(
         apiConfiguration: APIConfiguration,
@@ -53,7 +55,9 @@ public struct AppDependencies {
         entitlementManager: EntitlementManager,
         deviceTokenUploader: any DeviceTokenUploading,
         blockedActivityHostsStore: BlockedActivityHostsStore,
-        discoverMediaImageCache: DiscoverMediaImageCache
+        discoverMediaImageCache: DiscoverMediaImageCache,
+        likesPreferencesStore: any LikesPreferencesStoring,
+        likesOnboardingPreferences: any LikesOnboardingPreferences
     ) {
         self.apiConfiguration = apiConfiguration
         self.tokenProvider = tokenProvider
@@ -73,5 +77,7 @@ public struct AppDependencies {
         self.deviceTokenUploader = deviceTokenUploader
         self.blockedActivityHostsStore = blockedActivityHostsStore
         self.discoverMediaImageCache = discoverMediaImageCache
+        self.likesPreferencesStore = likesPreferencesStore
+        self.likesOnboardingPreferences = likesOnboardingPreferences
     }
 }

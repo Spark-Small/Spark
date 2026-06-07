@@ -26,26 +26,21 @@ public final class CommunityDetailViewModel {
     public var selectedSegment: Segment = .posts
 
     private let communityID: String
-    private let repository: any CommunityPostsRepository
+    private let fetchDetailBundle: FetchCommunityDetailBundleUseCase
 
     public init(communityID: String, repository: any CommunityPostsRepository) {
         self.communityID = communityID
-        self.repository = repository
+        fetchDetailBundle = FetchCommunityDetailBundleUseCase(repository: repository)
     }
 
     public func load() async {
         loadState = .loading
         do {
-            async let detailTask = repository.fetchCommunityDetail(id: communityID)
-            async let activitiesTask = repository.fetchCommunityActivities(communityID: communityID)
-            async let membersTask = repository.fetchCommunityMembers(communityID: communityID)
-            async let postsTask = repository.fetchCommunityPosts(communityID: communityID)
-
-            let loadedDetail = try await detailTask
-            detail = loadedDetail
-            activities = try await activitiesTask
-            members = try await membersTask
-            posts = try await postsTask
+            let bundle = try await fetchDetailBundle(communityID: communityID)
+            detail = bundle.detail
+            activities = bundle.activities
+            members = bundle.members
+            posts = bundle.posts
             loadState = .loaded
         } catch {
             loadState = .failure(error.localizedDescription)

@@ -3,11 +3,11 @@
 import SwiftUI
 
 private struct DiscoverMediaImageCacheKey: EnvironmentKey {
-    static let defaultValue = DiscoverMediaImageCache()
+    static let defaultValue: DiscoverMediaImageCache? = nil
 }
 
 extension EnvironmentValues {
-    var discoverMediaImageCache: DiscoverMediaImageCache {
+    var discoverMediaImageCache: DiscoverMediaImageCache? {
         get { self[DiscoverMediaImageCacheKey.self] }
         set { self[DiscoverMediaImageCacheKey.self] = newValue }
     }

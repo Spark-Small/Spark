@@ -43,3 +43,11 @@ public struct SparkRetryUnavailableView: View {
         }
     }
 }
+
+#Preview {
+    SparkRetryUnavailableView(
+        title: "无法加载",
+        description: "请检查网络后重试",
+        onRetry: {}
+    )
+}

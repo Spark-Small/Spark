@@ -4,23 +4,28 @@ import SparkDesignSystem
 import SwiftUI
 
 public struct TrustVerificationWizardView: View {
-    public var repository: any TrustRepository
+    @State private var viewModel: TrustVerificationViewModel
     public var onCompleted: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
-    @State private var profile: TrustProfile?
-    @State private var isLoading = false
-    @State private var errorMessage: String?
 
     public init(repository: any TrustRepository, onCompleted: (() -> Void)? = nil) {
-        self.repository = repository
+        let model = TrustVerificationViewModel(repository: repository)
+        model.onCompleted = onCompleted
+        _viewModel = State(initialValue: model)
+        self.onCompleted = onCompleted
+    }
+
+    public init(viewModel: TrustVerificationViewModel, onCompleted: (() -> Void)? = nil) {
+        viewModel.onCompleted = onCompleted
+        _viewModel = State(initialValue: viewModel)
         self.onCompleted = onCompleted
     }
 
     public var body: some View {
         NavigationStack {
             Group {
-                if let profile {
+                if let profile = viewModel.profile {
                     List {
                         Section {
                             TrustScoreRingView(profile: profile)
@@ -49,17 +54,17 @@ public struct TrustVerificationWizardView: View {
                                                 comment: "Verify CTA"
                                             )
                                         ) {
-                                            Task { await verify(level) }
+                                            Task { await viewModel.verify(level) }
                                         }
-                                        .disabled(isLoading)
+                                        .disabled(viewModel.isLoading)
                                     }
                                 }
                             }
                         }
                     }
-                } else if isLoading {
+                } else if viewModel.isLoading {
                     ProgressView()
-                } else if let errorMessage {
+                } else if let errorMessage = viewModel.errorMessage {
                     SparkRetryUnavailableView(
                         title: String(
                             localized: "trust.wizard.error.title",
@@ -68,7 +73,7 @@ public struct TrustVerificationWizardView: View {
                         ),
                         description: errorMessage
                     ) {
-                        Task { await load() }
+                        Task { await viewModel.load() }
                     }
                 }
             }
@@ -83,40 +88,7 @@ public struct TrustVerificationWizardView: View {
                     }
                 }
             }
-            .task { await load() }
-        }
-    }
-
-    private func load() async {
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
-        do {
-            profile = try await repository.fetchProfile()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func verify(_ level: TrustLevel) async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            switch level {
-            case .phone:
-                profile = try await repository.verifyPhone()
-            case .realName:
-                profile = try await repository.verifyRealName()
-            case .liveness:
-                profile = try await repository.verifyLiveness()
-            default:
-                break
-            }
-            if profile?.nextMVPPendingLevel == nil {
-                onCompleted?()
-            }
-        } catch {
-            errorMessage = error.localizedDescription
+            .task { await viewModel.load() }
         }
     }
 }

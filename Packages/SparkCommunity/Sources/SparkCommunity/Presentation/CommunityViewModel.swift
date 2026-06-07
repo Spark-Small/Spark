@@ -26,8 +26,8 @@ public final class CommunityViewModel {
     public private(set) var selectedFilter: CommunityFeedFilter = .all
 
     private let fetchPosts: FetchCommunityPostsUseCase
+    private let fetchTabExperience: FetchCommunityTabExperienceUseCase
     private let createRecap: CreateCommunityRecapUseCase
-    private let repository: any CommunityPostsRepository
 
     public var filteredPosts: [CommunityPost] {
         switch selectedFilter {
@@ -39,8 +39,8 @@ public final class CommunityViewModel {
     }
 
     public init(repository: any CommunityPostsRepository) {
-        self.repository = repository
         fetchPosts = FetchCommunityPostsUseCase(repository: repository)
+        fetchTabExperience = FetchCommunityTabExperienceUseCase(repository: repository)
         createRecap = CreateCommunityRecapUseCase(repository: repository)
     }
 
@@ -48,7 +48,7 @@ public final class CommunityViewModel {
         loadState = .loading
         do {
             async let postsTask = fetchPosts()
-            async let tabTask = repository.fetchTabExperience()
+            async let tabTask = fetchTabExperience()
             let (fetchedPosts, tab) = try await (postsTask, tabTask)
             posts = fetchedPosts
             joinedCommunities = tab.joinedCommunities

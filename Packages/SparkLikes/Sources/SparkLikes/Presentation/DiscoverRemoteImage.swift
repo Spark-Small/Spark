@@ -166,6 +166,10 @@ struct DiscoverRemoteImage: View {
             phase = .failed
             return
         }
+        guard let imageCache else {
+            phase = .failed
+            return
+        }
         do {
             let image = try await imageCache.image(for: url)
             guard !Task.isCancelled else { return }

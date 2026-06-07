@@ -85,6 +85,8 @@ enum CompositionRoot {
             apiClient: apiClient
         )
         let discoverMediaImageCache = DiscoverMediaImageCache()
+        let likesPreferencesStore = UserDefaultsLikesPreferencesStore()
+        let likesOnboardingPreferences = UserDefaultsLikesOnboardingPreferences()
 
         dependenciesStorage = AppDependencies(
             apiConfiguration: apiConfiguration,
@@ -104,7 +106,9 @@ enum CompositionRoot {
             entitlementManager: entitlementManager,
             deviceTokenUploader: deviceTokenUploader,
             blockedActivityHostsStore: blockedActivityHostsStore,
-            discoverMediaImageCache: discoverMediaImageCache
+            discoverMediaImageCache: discoverMediaImageCache,
+            likesPreferencesStore: likesPreferencesStore,
+            likesOnboardingPreferences: likesOnboardingPreferences
         )
     }
 
