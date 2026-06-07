@@ -93,6 +93,52 @@ Pre-inbox staging DBs may still have legacy thread `th_001` or missing `inbox_ac
 
 Remove or comment out `SPARK_API_BASE_URL` in `Secrets.xcconfig`, or set it back to `https://mock.spark.local`, then rebuild.
 
+## CloudBase deployment
+
+**Canonical source:** `cloudfunctions/spark-api/` (HTTP 云函数). **Optional Docker mirror:** `cloudrun/spark-api/` (in-memory only; keep trust/recap routes in sync manually).
+
+| Item | Value |
+|------|--------|
+| Env ID | `ais-d1gab0emob99361a0` |
+| Public URL | `https://ais-d1gab0emob99361a0.service.tcloudbase.com` |
+| Function | `spark-api` (Node 18, handler `index.main`) |
+| Persistence | CloudBase NoSQL write-through (`persistence: cloudbase` in `/health`) |
+| Config | [`cloudbaserc.json`](../cloudbaserc.json) |
+
+**Last verified (2026-06-07):** `/health` returns `ok`; `./scripts/staging-smoke.sh` passes incl. `GET /v1/trust/profile` and `POST /v1/community/posts` with `kind: activity_recap`.
+
+### Local redeploy
+
+```bash
+# Device login (first time): tcb login
+./scripts/deploy-spark-api.sh
+```
+
+Uses `tcb fn code update` (or `cloudbase` / `npx @cloudbase/cli`). Waits ~30s, hits `/health`, then runs full smoke unless `SKIP_SMOKE=1`.
+
+### GitHub Actions deploy
+
+Workflow: [`.github/workflows/deploy-spark-api.yml`](../.github/workflows/deploy-spark-api.yml) — **manual** (`workflow_dispatch`).
+
+**One-time repo secrets** (Settings → Secrets and variables → Actions):
+
+| Secret | Source |
+|--------|--------|
+| `TCB_SECRET_ID` | [腾讯云 CAM](https://console.cloud.tencent.com/cam/capi) → 新建密钥 → SecretId |
+| `TCB_SECRET_KEY` | Same key pair → SecretKey |
+
+Grant the sub-account **CloudBase 云开发** permissions on env `ais-d1gab0emob99361a0` (云函数更新 + HTTP 访问).
+
+```bash
+# After secrets are set (requires gh CLI + repo admin)
+gh secret set TCB_SECRET_ID --body "<SecretId>"
+gh secret set TCB_SECRET_KEY --body "<SecretKey>"
+```
+
+Run: GitHub → Actions → **Deploy spark-api** → Run workflow. Optional: check **Skip staging-smoke** for code-only pushes.
+
+If secrets are missing, the workflow fails at **Require CloudBase API keys** with a link to this section.
+
 ## Production
 
 Same mechanism: set `SPARK_API_BASE_URL = https://api.spark.app` in a Release-specific secrets file or CI-injected xcconfig. Never commit real secrets to git.

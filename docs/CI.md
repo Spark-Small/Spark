@@ -1,12 +1,13 @@
 # Continuous Integration
 
-**Canonical workflow:** [`.github/workflows/ios.yml`](../.github/workflows/ios.yml)
+**Canonical workflows:** [`.github/workflows/ios.yml`](../.github/workflows/ios.yml) · [`.github/workflows/deploy-spark-api.yml`](../.github/workflows/deploy-spark-api.yml)
 
 | Job | What it runs |
 |-----|----------------|
 | `swiftlint` | `check-guardrails.sh` + `lint.sh` |
 | `spm-tests` | `./scripts/test-packages.sh` (iOS Simulator) |
 | `app-build-test` | `./scripts/build-app.sh` + `./scripts/test-app.sh` |
+| **Deploy spark-api** (manual) | `./scripts/deploy-spark-api.sh` → CloudBase + smoke — needs `TCB_SECRET_ID` / `TCB_SECRET_KEY` ([STAGING.md](STAGING.md#github-actions-deploy)) |
 
 ## Local
 

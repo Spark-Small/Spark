@@ -13,13 +13,11 @@
 
 See [cloudfunctions/spark-api/README.md](../../cloudfunctions/spark-api/README.md#apns-env-module-b3).
 
-Configure via:
+Configure via CloudBase console (云函数 → spark-api → 环境变量) or CLI:
 
 ```bash
-npx mcporter call cloudbase.manageFunctions \
-  action=updateFunctionConfig \
-  functionName=spark-api \
-  envVariables='{"APNS_KEY_ID":"...","APNS_TEAM_ID":"...","APNS_PRIVATE_KEY":"-----BEGIN PRIVATE KEY-----\\n...","APNS_BUNDLE_ID":"com.spark.app","APNS_USE_SANDBOX":"true"}'
+tcb fn config update spark-api -e ais-d1gab0emob99361a0 \
+  --envVariables '{"APNS_KEY_ID":"...","APNS_TEAM_ID":"...","APNS_PRIVATE_KEY":"-----BEGIN PRIVATE KEY-----\\n...","APNS_BUNDLE_ID":"com.spark.app","APNS_USE_SANDBOX":"true"}'
 ```
 
 Replace `\\n` with literal newlines in PEM when using CloudBase console UI.

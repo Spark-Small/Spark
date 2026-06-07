@@ -12,7 +12,7 @@ public struct CommunityRootView: View {
     @State var viewModel: CommunityViewModel
     @State var navigationPath = NavigationPath()
     @State var splitDestination: CommunitySplitDestination?
-    @State private var recapDraft: (activityID: String, title: String, scheduleLine: String)?
+    @State private var recapDraft: RecapSheetItem?
     @State var profilePreview: CommunityProfilePreview?
 
     let repository: any CommunityPostsRepository
@@ -119,7 +119,7 @@ public struct CommunityRootView: View {
                 Task { await openPendingRecap(activityID: activityID) }
             }
         }
-        .sheet(item: recapSheetBinding) { draft in
+        .sheet(item: $recapDraft) { draft in
             CommunityRecapDraftSheet(
                 activityID: draft.activityID,
                 activityTitle: draft.title,
@@ -157,19 +157,6 @@ public struct CommunityRootView: View {
                 )
             }
         }
-    }
-
-    private var recapSheetBinding: Binding<RecapSheetItem?> {
-        Binding(
-            get: {
-                recapDraft.map {
-                    RecapSheetItem(activityID: $0.activityID, title: $0.title, scheduleLine: $0.scheduleLine)
-                }
-            },
-            set: { newValue in
-                if newValue == nil { recapDraft = nil }
-            }
-        )
     }
 
     private var feedFilterBinding: Binding<CommunityFeedFilter> {
@@ -260,16 +247,21 @@ public struct CommunityRootView: View {
         pendingRecapActivityID = nil
         guard let fetchActivityRecap else { return }
         if let recap = await fetchActivityRecap(activityID) {
-            recapDraft = (activityID: activityID, title: recap.title, scheduleLine: recap.scheduleLine)
+            recapDraft = RecapSheetItem(
+                activityID: activityID,
+                title: recap.title,
+                scheduleLine: recap.scheduleLine
+            )
         }
     }
 }
 
 private struct RecapSheetItem: Identifiable {
-    let id = UUID()
     let activityID: String
     let title: String
     let scheduleLine: String
+
+    var id: String { activityID }
 }
 
 #Preview {

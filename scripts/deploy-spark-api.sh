@@ -41,8 +41,12 @@ echo "==> Health check: ${BASE_URL}/health"
 curl -sf "${BASE_URL}/health" | tee /tmp/spark-health.json
 echo
 
-echo "==> Staging smoke (trust + recap)"
-cd "$ROOT"
-SPARK_API_BASE_URL="$BASE_URL" ./scripts/staging-smoke.sh
+if [[ "${SKIP_SMOKE:-}" == "1" ]]; then
+  echo "==> Skipping staging smoke (SKIP_SMOKE=1)"
+else
+  echo "==> Staging smoke (trust + recap)"
+  cd "$ROOT"
+  SPARK_API_BASE_URL="$BASE_URL" ./scripts/staging-smoke.sh
+fi
 
-echo "Deploy and smoke checks passed."
+echo "Deploy checks passed."

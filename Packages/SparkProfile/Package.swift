@@ -7,14 +7,14 @@ let package = Package(
     name: "SparkProfile",
     platforms: [.iOS(.v17)],
     products: [
-        .library(name: "SparkProfile", targets: ["SparkProfile"]),
+        .library(name: "SparkProfile", targets: ["SparkProfile"])
     ],
     dependencies: [
         .package(path: "../SparkCore"),
         .package(path: "../SparkDesignSystem"),
         .package(path: "../SparkTrust"),
         .package(path: "../SparkSearch"),
-        .package(path: "../SparkPayments"),
+        .package(path: "../SparkPayments")
     ],
     targets: [
         .target(
@@ -24,17 +24,17 @@ let package = Package(
                 "SparkDesignSystem",
                 "SparkTrust",
                 "SparkSearch",
-                "SparkPayments",
+                "SparkPayments"
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
-                .enableExperimentalFeature("StrictConcurrency"),
+                .enableExperimentalFeature("StrictConcurrency")
             ]
         ),
         .testTarget(
             name: "SparkProfileTests",
             dependencies: ["SparkProfile"],
             swiftSettings: [.swiftLanguageMode(.v6)]
-        ),
+        )
     ]
 )

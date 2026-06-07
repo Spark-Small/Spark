@@ -2,6 +2,11 @@ name: Deploy spark-api
 
 on:
   workflow_dispatch:
+    inputs:
+      skip_smoke:
+        description: Skip staging-smoke after deploy
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-spark-api-${{ github.ref }}
@@ -11,9 +16,18 @@ jobs:
   deploy:
     name: cloudbase-spark-api
     runs-on: ubuntu-latest
-    if: ${{ secrets.TCB_SECRET_ID != '' && secrets.TCB_SECRET_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Require CloudBase API keys
+        env:
+          TCB_SECRET_ID: ${{ secrets.TCB_SECRET_ID }}
+          TCB_SECRET_KEY: ${{ secrets.TCB_SECRET_KEY }}
+        run: |
+          if [[ -z "$TCB_SECRET_ID" || -z "$TCB_SECRET_KEY" ]]; then
+            echo "::error title=Missing CloudBase secrets::Add TCB_SECRET_ID and TCB_SECRET_KEY in GitHub → Settings → Secrets and variables → Actions. See docs/STAGING.md#github-actions-deploy."
+            exit 1
+          fi
 
       - uses: actions/setup-node@v4
         with:
@@ -29,4 +43,6 @@ jobs:
         run: cloudbase login --apiKeyId "$TCB_SECRET_ID" --apiKey "$TCB_SECRET_KEY"
 
       - name: Deploy spark-api
+        env:
+          SKIP_SMOKE: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_smoke && '1' || '' }}
         run: ./scripts/deploy-spark-api.sh

@@ -9,13 +9,15 @@ Staging REST MVP aligned with [docs/API_CONTRACT.md](../../docs/API_CONTRACT.md)
 | Public base URL | `https://ais-d1gab0emob99361a0.service.tcloudbase.com` |
 | Gateway path | `/` |
 | Test login | `staging@test.com` / `staging123` |
+| Persistence | CloudBase NoSQL (`/health` → `"persistence":"cloudbase"`) |
+| Last smoke | 2026-06-07 — trust + activity_recap incl. |
 
 ## iOS Live endpoints (all implemented)
 
 - **Auth:** session, email, apple, sign-out
-- **Messages:** unread-count, threads, messages, read, activity-threads, direct-threads
-- **Activities:** feed (`host_id`), **browse** (`category`, `starts_after`, `starts_before`, `cursor`), create, detail, patch, rsvp, waitlist, promote, cancel, report, announce, feedback
-- **Search, Community** (posts + replies), **Likes** (full path table in API contract), **devices**, **notifications/send** (APNs when `APNS_*` env set)
+- **Messages:** inbox, unread-count, threads, messages, read, activity-threads, direct-threads
+- **Activities:** feed, **browse**, create, detail, patch, rsvp, waitlist, promote, cancel, report, announce, feedback
+- **Search, Community** (posts + replies + `activity_recap`), **Likes**, **Trust** (`/v1/trust/*`), **devices**, **notifications/send**
 
 **iOS wired:** Activity browse ([ADR-0003](../../docs/adr/0003-activities-browse-placement.md)), Community compose + reply thread, inbound blur, avatar upload-url.
 
@@ -54,16 +56,14 @@ HTTP 云函数 listens on **9000** by default (`scf_bootstrap`).
 
 ## Redeploy
 
+From repo root:
+
 ```bash
-npm install --omit=dev
-npx mcporter call cloudbase.manageFunctions \
-  action=updateFunctionCode \
-  functionName=spark-api \
-  functionRootPath="$(cd .. && pwd)"
+./scripts/deploy-spark-api.sh
 ```
 
-MCP may require code under `.cursor/projects/.../cloudfunctions` — copy this folder there if deploy fails on path.
+CI: GitHub Actions → **Deploy spark-api** (secrets `TCB_SECRET_ID`, `TCB_SECRET_KEY` — [docs/STAGING.md](../../docs/STAGING.md#github-actions-deploy)).
 
 ## Cloud Run (optional)
 
-`cloudrun/spark-api/` — Docker image for 云托管 when the env has CloudRun enabled.
+`cloudrun/spark-api/` — Docker in-memory mirror for local/云托管 experiments. **Staging uses this HTTP 云函数 only.** When adding routes (e.g. trust, recap), update both `index.js` files or prefer extending `cloudfunctions/spark-api` first.

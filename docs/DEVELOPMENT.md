@@ -36,19 +36,23 @@ If Xcode still reports missing `aps-environment` / `associated-domains`: Product
 
 ### CloudBase backend (`spark-api`)
 
-Source: `cloudfunctions/spark-api/` (HTTP 云函数). Docker variant: `cloudrun/spark-api/` (requires 云托管).
+**Staging (shipped):** `cloudfunctions/spark-api/` → HTTP 云函数 on env `ais-d1gab0emob99361a0`.  
+**Local Docker (optional):** `cloudrun/spark-api/` — in-memory mirror for `docker build`; not deployed to Staging. When adding API routes, sync both trees (see [`STAGING.md`](STAGING.md#cloudbase-deployment)).
 
 Redeploy after API changes:
 
 ```bash
-cd cloudfunctions/spark-api && npm install --omit=dev
-npx mcporter call cloudbase.manageFunctions \
-  action=updateFunctionCode \
-  functionName=spark-api \
-  functionRootPath="$(pwd)/.."
+./scripts/deploy-spark-api.sh
 ```
 
-Wait ~30s for gateway propagation, then `curl https://ais-d1gab0emob99361a0.service.tcloudbase.com/health`.
+Or GitHub Actions → **Deploy spark-api** (requires `TCB_SECRET_ID` / `TCB_SECRET_KEY` — see [`STAGING.md`](STAGING.md#github-actions-deploy)).
+
+Wait ~30s for gateway propagation, then:
+
+```bash
+curl https://ais-d1gab0emob99361a0.service.tcloudbase.com/health
+SPARK_API_BASE_URL=https://ais-d1gab0emob99361a0.service.tcloudbase.com ./scripts/staging-smoke.sh
+```
 
 ### Activity Staging smoke (Phase 15 — client ready)
 

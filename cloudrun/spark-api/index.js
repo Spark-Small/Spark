@@ -120,14 +120,22 @@ const communityPosts = new Map([
     "cp_003",
     {
       id: "cp_003",
-      title: "运动打卡",
-      excerpt: "晨跑小组招募",
-      body: "每周三次晨跑，欢迎加入。",
+      title: "咖啡聊天局复盘",
+      excerpt: "上次聊天局氛围很好，下次想试试早场。",
+      body: "上次聊天局氛围很好，下次想试试早场，人少更专注。",
       author_display_name: "阿乐",
-      reply_count: 8,
+      author_id: "u_host_1",
+      reply_count: 0,
+      replies: [],
+      kind: "activity_recap",
+      activity_id: "act_001",
+      linked_activity: { id: "act_001", name: "周末徒步" },
     },
   ],
 ]);
+
+let postCounter = 3;
+let replyCounter = 0;
 
 const threads = new Map([
   [
@@ -760,18 +768,109 @@ app.get("/v1/community/posts", requireAuth, (_req, res) => {
   res.json({ posts });
 });
 
+function serializePostDetail(post) {
+  const detail = {
+    id: post.id,
+    title: post.title,
+    body: post.body,
+    author_display_name: post.author_display_name,
+    reply_count: post.reply_count,
+    replies: Array.isArray(post.replies) ? post.replies : [],
+    kind: post.kind || "discussion",
+  };
+  if (post.linked_activity) {
+    detail.linked_activity = post.linked_activity;
+  }
+  return detail;
+}
+
 app.get("/v1/community/posts/:postId", requireAuth, (req, res) => {
   const p = communityPosts.get(req.params.postId);
   if (!p) return err(res, 404, "not_found", "Post not found");
+  res.json({ post: serializePostDetail(p) });
+});
+
+app.post("/v1/community/posts", requireAuth, (req, res) => {
+  const title = (req.body?.title || "").trim();
+  const body = (req.body?.body || "").trim();
+  const kind = (req.body?.kind || "discussion").trim();
+  const activityID = (req.body?.activity_id || "").trim();
+  if (!title) return err(res, 400, "invalid_request", "title required");
+  if (kind === "activity_recap" && !activityID) {
+    return err(res, 400, "invalid_request", "activity_id required for activity_recap");
+  }
+  postCounter += 1;
+  const id = `cp_${String(postCounter).padStart(3, "0")}`;
+  const post = {
+    id,
+    title,
+    excerpt: (body || title).slice(0, 80),
+    body: body || title,
+    author_display_name: displayNameFor(req.userId),
+    author_id: req.userId,
+    reply_count: 0,
+    replies: [],
+    kind,
+    activity_id: activityID || null,
+  };
+  if (kind === "activity_recap" && activityID) {
+    const activity = activities.get(activityID);
+    post.linked_activity = {
+      id: activityID,
+      name: activity?.title || title,
+    };
+  }
+  communityPosts.set(id, post);
+  res.status(201).json({ post: serializePostDetail(post) });
+});
+
+app.post("/v1/community/posts/:postId/replies", requireAuth, (req, res) => {
+  const post = communityPosts.get(req.params.postId);
+  if (!post) return err(res, 404, "not_found", "Post not found");
+  const body = (req.body?.body || "").trim();
+  if (!body) return err(res, 400, "invalid_request", "body required");
+  replyCounter += 1;
+  const reply = {
+    id: `cpr_${String(replyCounter).padStart(3, "0")}`,
+    body,
+    author_display_name: displayNameFor(req.userId),
+    author_id: req.userId,
+    created_at: new Date().toISOString(),
+  };
+  if (!Array.isArray(post.replies)) post.replies = [];
+  post.replies.push(reply);
+  post.reply_count = post.replies.length;
+  res.status(201).json({ reply });
+});
+
+// --- Trust (Nexus W4 staging MVP; keep in sync with cloudfunctions/spark-api) ---
+
+app.get("/v1/trust/profile", requireAuth, (_req, res) => {
   res.json({
-    post: {
-      id: p.id,
-      title: p.title,
-      body: p.body,
-      author_display_name: p.author_display_name,
-      reply_count: p.reply_count,
+    profile: {
+      trust_score: 42,
+      activity_attendance_count: 2,
+      completed_levels: ["phone"],
+      has_liveness_verification: false,
     },
   });
+});
+
+app.post("/v1/trust/phone/verify", requireAuth, (req, res) => {
+  const code = (req.body?.code || "").trim();
+  if (!code) return err(res, 400, "invalid_request", "code required");
+  res.json({ outcome: "verified" });
+});
+
+app.post("/v1/trust/real-name", requireAuth, (req, res) => {
+  const name = (req.body?.legal_name || "").trim();
+  const idNumber = (req.body?.id_number || "").trim();
+  if (!name || !idNumber) return err(res, 400, "invalid_request", "legal_name and id_number required");
+  res.json({ outcome: "verified" });
+});
+
+app.post("/v1/trust/liveness/verify", requireAuth, (_req, res) => {
+  res.json({ outcome: "verified", has_liveness_verification: true });
 });
 
 // --- Likes ---
