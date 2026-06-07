@@ -1,6 +1,6 @@
 # Spark 产品整合方案与投资人审视
 
-**Status:** Shipped on `main` (Nexus W0–W6, 2026-06-07)  
+**Status:** Shipped on `main` · Staging verified 2026-06-07 (`staging-smoke.sh` incl. trust + recap)  
 **Last updated:** 2026-06-07  
 **Audience:** 产品、工程、融资讨论  
 **Prerequisites:** [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) · [ACTIVITY_UPGRADE_PLAN.md](ACTIVITY_UPGRADE_PLAN.md) · [LIKES_DEVELOPMENT_PLAN.md](LIKES_DEVELOPMENT_PLAN.md) · [adr/0001-likes-tab-social-discovery.md](adr/0001-likes-tab-social-discovery.md)  
