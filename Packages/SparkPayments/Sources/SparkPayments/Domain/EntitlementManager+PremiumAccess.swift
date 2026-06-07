@@ -12,7 +12,7 @@ public extension EntitlementManager {
     /// Whether the user may use a premium capability without seeing the paywall.
     func canAccess(_ feature: PremiumFeature) -> Bool {
         switch feature {
-        case .fullActivityFeed, .inboundLikes:
+        case .fullActivityFeed:
             effectiveHasPremium
         }
     }

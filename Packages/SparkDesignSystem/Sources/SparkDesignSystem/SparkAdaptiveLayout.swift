@@ -6,7 +6,7 @@ import SwiftUI
 public enum SparkAdaptiveLayout {
     public static let sidebarIdealWidth: CGFloat = 320
     public static let contentReadableMaxWidth: CGFloat = 640
-    public static let discoverCardMaxWidth: CGFloat = 480
+    public static let discoverCardMaxWidth: CGFloat = 480 // HIG readable card width on regular width
 
     /// HIG: use `NavigationSplitView` when horizontal size class is regular (iPad landscape / regular width).
     public static func usesSplit(horizontalSizeClass: UserInterfaceSizeClass?) -> Bool {

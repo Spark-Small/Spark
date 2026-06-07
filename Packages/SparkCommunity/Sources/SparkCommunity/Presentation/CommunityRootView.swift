@@ -1,10 +1,35 @@
 // Module: SparkCommunity — Community tab root presentation.
 
+import SparkCore
 import SparkDesignSystem
+import SparkPayments
 import SwiftUI
 
+enum CommunityHomeSegment: String, CaseIterable, Identifiable, Sendable {
+    case feed
+    case groups
+
+    var id: String { rawValue }
+
+    var localizedTitle: String {
+        switch self {
+        case .feed:
+            String(
+                localized: "community.home.segment.feed",
+                defaultValue: "动态",
+                comment: "Community home feed segment"
+            )
+        case .groups:
+            String(
+                localized: "community.home.segment.groups",
+                defaultValue: "我的社区",
+                comment: "Community home groups segment"
+            )
+        }
+    }
+}
+
 public struct CommunityRootView: View {
-    @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
 
     @Binding private var pendingCommunityPostID: String?
@@ -12,13 +37,16 @@ public struct CommunityRootView: View {
     @State var viewModel: CommunityViewModel
     @State var navigationPath = NavigationPath()
     @State var splitDestination: CommunitySplitDestination?
-    @State private var recapDraft: RecapSheetItem?
+    @State private var activityShareDraft: ActivityShareSheetItem?
     @State var profilePreview: CommunityProfilePreview?
+    @State private var showComposePost = false
+    @State private var composeViewModel: CreateCommunityPostViewModel?
+    @State var selectedSegment: CommunityHomeSegment = CommunityHomeSegment.feed
+    @State var hasAppliedInitialHomeSegment = false
+    @State var pendingGroupsScrollTarget: String?
 
     let coordinator: CommunityCoordinator
-    private let fetchActivityRecap: ((String) async -> (title: String, scheduleLine: String)?)?
-    let onOpenSearch: () -> Void
-    let onOpenLikesDiscover: () -> Void
+    private let fetchActivityShareContext: ((String) async -> ActivityShareContext?)?
     let onLikePerson: (String) -> Void
     let onOpenLinkedActivity: (String) -> Void
 
@@ -26,9 +54,7 @@ public struct CommunityRootView: View {
         coordinator: CommunityCoordinator,
         pendingCommunityPostID: Binding<String?> = .constant(nil),
         pendingRecapActivityID: Binding<String?> = .constant(nil),
-        fetchActivityRecap: ((String) async -> (title: String, scheduleLine: String)?)? = nil,
-        onOpenSearch: @escaping () -> Void = {},
-        onOpenLikesDiscover: @escaping () -> Void = {},
+        fetchActivityShareContext: ((String) async -> ActivityShareContext?)? = nil,
         onLikePerson: @escaping (String) -> Void = { _ in },
         onOpenLinkedActivity: @escaping (String) -> Void = { _ in }
     ) {
@@ -36,9 +62,7 @@ public struct CommunityRootView: View {
         _pendingCommunityPostID = pendingCommunityPostID
         _pendingRecapActivityID = pendingRecapActivityID
         _viewModel = State(initialValue: coordinator.makeTabViewModel())
-        self.fetchActivityRecap = fetchActivityRecap
-        self.onOpenSearch = onOpenSearch
-        self.onOpenLikesDiscover = onOpenLikesDiscover
+        self.fetchActivityShareContext = fetchActivityShareContext
         self.onLikePerson = onLikePerson
         self.onOpenLinkedActivity = onOpenLinkedActivity
     }
@@ -48,9 +72,7 @@ public struct CommunityRootView: View {
         coordinator: CommunityCoordinator,
         pendingCommunityPostID: Binding<String?> = .constant(nil),
         pendingRecapActivityID: Binding<String?> = .constant(nil),
-        fetchActivityRecap: ((String) async -> (title: String, scheduleLine: String)?)? = nil,
-        onOpenSearch: @escaping () -> Void = {},
-        onOpenLikesDiscover: @escaping () -> Void = {},
+        fetchActivityShareContext: ((String) async -> ActivityShareContext?)? = nil,
         onLikePerson: @escaping (String) -> Void = { _ in },
         onOpenLinkedActivity: @escaping (String) -> Void = { _ in }
     ) {
@@ -58,9 +80,7 @@ public struct CommunityRootView: View {
         _pendingCommunityPostID = pendingCommunityPostID
         _pendingRecapActivityID = pendingRecapActivityID
         _viewModel = State(initialValue: viewModel)
-        self.fetchActivityRecap = fetchActivityRecap
-        self.onOpenSearch = onOpenSearch
-        self.onOpenLikesDiscover = onOpenLikesDiscover
+        self.fetchActivityShareContext = fetchActivityShareContext
         self.onLikePerson = onLikePerson
         self.onOpenLinkedActivity = onOpenLinkedActivity
     }
@@ -70,9 +90,15 @@ public struct CommunityRootView: View {
             if usesSplitLayout {
                 NavigationSplitView {
                     communityFeedShell
+                        .navigationSplitViewColumnWidth(
+                            min: 280,
+                            ideal: SparkLayoutMetrics.navigationSplitSidebarIdealWidth,
+                            max: 400
+                        )
                 } detail: {
                     splitDetail
                 }
+                .navigationSplitViewStyle(.balanced)
             } else {
                 NavigationStack(path: $navigationPath) {
                     communityFeedShell
@@ -91,7 +117,8 @@ public struct CommunityRootView: View {
                                 likedPersonIDs: viewModel.likedPersonIDs,
                                 onOpenActivity: onOpenLinkedActivity,
                                 onOpenPost: { openFeedPost($0) },
-                                onLikePerson: likePerson
+                                onLikePerson: likePerson,
+                                onCommunityJoined: { Task { await viewModel.load() } }
                             )
                         }
                 }
@@ -108,63 +135,96 @@ public struct CommunityRootView: View {
         }
         .onChange(of: pendingRecapActivityID) { _, activityID in
             guard let activityID else { return }
-            Task { await openPendingRecap(activityID: activityID) }
+            Task { await openPendingActivityShare(activityID: activityID) }
         }
         .onAppear {
             if let postID = pendingCommunityPostID {
                 Task { await openPendingPost(postID: postID) }
             }
             if let activityID = pendingRecapActivityID {
-                Task { await openPendingRecap(activityID: activityID) }
+                Task { await openPendingActivityShare(activityID: activityID) }
             }
         }
-        .sheet(item: $recapDraft) { draft in
+        .sheet(item: $activityShareDraft) { draft in
             CommunityRecapDraftSheet(
-                activityID: draft.activityID,
-                activityTitle: draft.title,
-                scheduleLine: draft.scheduleLine,
-                onPublish: { try await viewModel.publishRecap($0) },
-                onDismiss: { recapDraft = nil }
+                context: draft.context,
+                onPublish: { draft in
+                    let detail = try await viewModel.publishRecap(draft)
+                    selectedSegment = CommunityHomeSegment.feed
+                    return detail
+                },
+                onDismiss: { activityShareDraft = nil }
             )
         }
     }
 
     private var communityFeedShell: some View {
         SparkScreenContainer(
-            navigationTitle: String(localized: "screen.community", defaultValue: "社区", comment: "Community screen"),
+            navigationTitle: "",
+            titleDisplayMode: .inline,
             embedding: .none
         ) {
-            VStack(spacing: 0) {
-                CommunityFeedFilterBar(selectedFilter: feedFilterBinding)
-                feedContent
-            }
+            feedContent
                 .task {
                     if viewModel.loadState == .idle {
                         await viewModel.load()
                     }
                 }
         }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button(action: onOpenSearch) {
-                    Image(systemName: "magnifyingglass")
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Rectangle())
+        .sheet(isPresented: $showComposePost) {
+            NavigationStack {
+                if let composeViewModel {
+                    CreateCommunityPostView(
+                        viewModel: composeViewModel,
+                        onCancel: { showComposePost = false },
+                        onPublished: { result in
+                            viewModel.insertPublishedPost(result)
+                            showComposePost = false
+                        }
+                    )
+                } else {
+                    ProgressView().sparkLoadingAccessibilityLabel()
                 }
-                .accessibilityLabel(
-                    String(localized: "community.search.a11y", defaultValue: "搜索", comment: "Search")
-                )
+            }
+            .presentationDetents([.medium, .large])
+        }
+        .onChange(of: showComposePost) { _, isPresented in
+            if isPresented, composeViewModel == nil {
+                composeViewModel = coordinator.makeCreatePostViewModel()
             }
         }
+        .onChange(of: viewModel.loadState) { _, _ in
+            applyInitialHomeSegmentIfNeeded()
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                if showsHomeSegmentPicker {
+                    homeSegmentToolbarPicker
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                if SparkFeatureFlags.isCommunityPostingEnabled {
+                    Button {
+                        showComposePost = true
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                    }
+                    .accessibilityLabel(
+                        String(localized: "community.compose.a11y", defaultValue: "发帖", comment: "Compose post")
+                    )
+                }
+            }
+        }
+        .sparkPhoneStyleNavigationBar()
     }
 
-    private var feedFilterBinding: Binding<CommunityFeedFilter> {
-        Binding(
-            get: { viewModel.selectedFilter },
-            set: { newValue in
-                Task { await viewModel.applyFilter(newValue) }
-            }
-        )
+    private var showsHomeSegmentPicker: Bool {
+        switch viewModel.loadState {
+        case .failure:
+            false
+        case .idle, .loading, .empty, .loaded:
+            true
+        }
     }
 
     @ViewBuilder
@@ -181,17 +241,10 @@ public struct CommunityRootView: View {
                     )
                 )
         case .empty:
-            ContentUnavailableView(
-                String(localized: "community.empty.title", defaultValue: "暂无讨论", comment: "Empty community"),
-                systemImage: "person.2",
-                description: Text(
-                    String(
-                        localized: "community.empty.subtitle",
-                        defaultValue: "发现附近的活动社区",
-                        comment: "Empty community hint"
-                    )
-                )
-            )
+            loadedFeedContent
+                .onAppear {
+                    selectedSegment = CommunityHomeSegment.groups
+                }
         case .failure(let message):
             SparkRetryUnavailableView(
                 title: String(localized: "community.error.title", defaultValue: "无法加载", comment: "Community error"),
@@ -201,10 +254,11 @@ public struct CommunityRootView: View {
             }
         case .loaded:
             loadedFeedContent
+                .onAppear {
+                    applyInitialHomeSegmentIfNeeded()
+                }
         }
     }
-
-    var allCommunitiesSectionID: String { "community-all-section" }
 
     func postDetailView(postID: String) -> some View {
         CommunityPostDetailView(
@@ -218,28 +272,6 @@ public struct CommunityRootView: View {
         onLikePerson(userID)
     }
 
-    @ViewBuilder
-    func feedRow(_ item: CommunityFeedItem) -> some View {
-        switch item {
-        case .post(let post):
-            CommunityPostCard(
-                post: post,
-                isLiked: viewModel.isPostLiked(post.id),
-                likeCount: viewModel.likeCount(for: post.id),
-                onToggleLike: { viewModel.toggleLike(postID: post.id) },
-                onOpen: { openFeedPost(post) }
-            )
-        case .peopleDiscovery(let users):
-            PeopleDiscoveryCard(
-                users: users,
-                likedUserIDs: viewModel.likedPersonIDs,
-                onLike: likePerson,
-                onViewProfile: { profilePreview = CommunityProfilePreview(person: $0) },
-                onViewMore: onOpenLikesDiscover
-            )
-        }
-    }
-
     func openPendingPost(postID: String) async {
         openPostID(postID)
         pendingCommunityPostID = nil
@@ -248,25 +280,20 @@ public struct CommunityRootView: View {
         }
     }
 
-    private func openPendingRecap(activityID: String) async {
+    private func openPendingActivityShare(activityID: String) async {
         pendingRecapActivityID = nil
-        guard let fetchActivityRecap else { return }
-        if let recap = await fetchActivityRecap(activityID) {
-            recapDraft = RecapSheetItem(
-                activityID: activityID,
-                title: recap.title,
-                scheduleLine: recap.scheduleLine
-            )
+        guard let fetchActivityShareContext else { return }
+        if let context = await fetchActivityShareContext(activityID) {
+            activityShareDraft = ActivityShareSheetItem(context: context)
         }
     }
+
 }
 
-private struct RecapSheetItem: Identifiable {
-    let activityID: String
-    let title: String
-    let scheduleLine: String
+private struct ActivityShareSheetItem: Identifiable {
+    let context: ActivityShareContext
 
-    var id: String { activityID }
+    var id: String { context.activityID }
 }
 
 #Preview {

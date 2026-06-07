@@ -2,22 +2,18 @@
 
 import SparkActivity
 import SparkCore
-import SparkLikes
 import SparkMessages
 
 public struct SparkTabOrchestrator: Sendable {
     private let messagesCoordinator: MessagesCoordinator
     private let activityCoordinator: ActivityCoordinator
-    private let likesCoordinator: LikesCoordinator
 
     public init(
         messagesCoordinator: MessagesCoordinator,
-        activityCoordinator: ActivityCoordinator,
-        likesCoordinator: LikesCoordinator
+        activityCoordinator: ActivityCoordinator
     ) {
         self.messagesCoordinator = messagesCoordinator
         self.activityCoordinator = activityCoordinator
-        self.likesCoordinator = likesCoordinator
     }
 
     public func openMatchConversation(
@@ -38,18 +34,8 @@ public struct SparkTabOrchestrator: Sendable {
         await activityCoordinator.fetchRecommendedActivity()
     }
 
-    public func fetchActivityRecap(activityID: String) async -> (title: String, scheduleLine: String)? {
-        await activityCoordinator.fetchActivityRecap(activityID: activityID)
-    }
-
-    public func submitCommunityLike(userID: String) async {
-        _ = try? await likesCoordinator.submitLike(
-            SendLikeRequest(userID: UserID(userID), intensity: .like)
-        )
-    }
-
-    public func syncPremiumEntitlement(isActive: Bool) async {
-        try? await likesCoordinator.syncPremiumEntitlement(isActive: isActive)
+    public func fetchActivityShareContext(activityID: String) async -> ActivityShareContext? {
+        await activityCoordinator.fetchActivityShareContext(activityID: activityID)
     }
 
     public func syncActivityReminders(for detail: ActivityDetail) async {

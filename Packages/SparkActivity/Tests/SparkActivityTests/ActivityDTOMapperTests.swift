@@ -65,6 +65,45 @@ struct ActivityDTOMapperTests {
         #expect(detail?.attendees.first?.isVerified == true)
     }
 
+    @Test func detailMapsScheduleExtensions() throws {
+        let json = """
+        {
+          "id": "act_3",
+          "title": "Friday Coffee",
+          "summary": "Tonight",
+          "category": "social",
+          "description": "Chat",
+          "starts_at": "2026-06-06T19:00:00Z",
+          "ends_at": "2026-06-06T21:00:00Z",
+          "recurrence": {
+            "frequency": "weekly",
+            "weekday": "friday",
+            "until": "2027-06-06T21:00:00Z"
+          },
+          "location_name": "Cafe",
+          "host_display_name": "Sam",
+          "host_tier": "super_organizer",
+          "attendee_count": 2,
+          "rsvp_status": "invited",
+          "lifecycle_status": "scheduled"
+        }
+        """
+        let dto = try JSONDecoder().decode(ActivityDetailDTO.self, from: Data(json.utf8))
+        let detail = try #require(ActivityDTOMapper.detail(from: dto))
+        #expect(detail.endsAt != nil)
+        #expect(detail.recurrence?.frequency == .weekly)
+        #expect(detail.recurrence?.weekday == .friday)
+        #expect(detail.hostTier == .superOrganizer)
+        let schedule = ActivityFormatting.detailMeetupScheduleLine(
+            startsAt: detail.startsAt,
+            endsAt: detail.endsAt
+        )
+        #expect(schedule.contains("to"))
+        let recurrence = try #require(detail.recurrence)
+        let recurrenceLine = ActivityFormatting.detailRecurrenceLine(recurrence)
+        #expect(recurrenceLine.localizedCaseInsensitiveContains("Friday"))
+    }
+
     @Test func detailReturnsNilForInvalidRSVP() throws {
         let json = """
         {

@@ -12,7 +12,7 @@ Candidates: CloudBase NoSQL (CN, zero-ops), PostgreSQL on CloudRun (not enabled 
 ## Decision
 
 1. **Primary store:** CloudBase **document database** (`@cloudbase/node-sdk`) in the same env `ais-d1gab0emob99361a0`.
-2. **Collections:** `spark_users`, `spark_activities`, `spark_threads`, `spark_community_posts`, `spark_likes_state`, `spark_meta` (counters).
+2. **Collections:** `spark_users`, `spark_activities`, `spark_threads`, `spark_community_posts`, `spark_inbox_state` (mutual matches + inbox action items; legacy `spark_likes_state` migrated on hydrate), `spark_meta` (counters).
 3. **Runtime pattern:** Load collections into Maps on cold start; **write-through** on response `finish` for dirty entity IDs (keeps route handlers unchanged).
 4. **Fallback:** `SPARK_PERSISTENCE=memory` for local dev without CloudBase credentials.
 5. **Seed:** If `spark_activities` is empty after load, run `lib/seed-data.js` and persist seed set once.

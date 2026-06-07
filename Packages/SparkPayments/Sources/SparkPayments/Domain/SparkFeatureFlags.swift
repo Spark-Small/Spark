@@ -4,7 +4,6 @@ import Foundation
 
 public enum SparkFeatureFlags: Sendable {
     private static let premiumPaywallEnabledKey = "SPARKPremiumPaywallEnabled"
-    private static let premiumInboundBlurEnabledKey = "SPARKPremiumInboundBlurEnabled"
 
     /// When `false`, paywall UI is hidden and `EntitlementManager.canAccess` treats everyone as premium.
     public static var isPremiumPaywallEnabled: Bool {
@@ -23,9 +22,9 @@ public enum SparkFeatureFlags: Sendable {
         return true
     }
 
-    /// When `false`, inbound likes are never blurred regardless of subscription.
-    public static var isPremiumInboundBlurEnabled: Bool {
-        guard let value = Bundle.main.object(forInfoDictionaryKey: premiumInboundBlurEnabledKey) else {
+    /// When `false`, community post composer FAB is hidden (MODULE-E compliance).
+    public static var isCommunityPostingEnabled: Bool {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: "SPARKCommunityPostingEnabled") else {
             return true
         }
         if let bool = value as? Bool { return bool }

@@ -20,21 +20,21 @@ struct RelationshipBadge: View {
                 ),
                 systemImage: "figure.hiking"
             )
-            .font(.caption2)
-            .foregroundStyle(.orange)
+            .font(.footnote)
+            .foregroundStyle(Color.accentColor)
         case .matched:
             Label(
                 String(localized: "community.relationship.matched", defaultValue: "已配对", comment: "Matched"),
                 systemImage: "heart.fill"
             )
-            .font(.caption2)
+            .font(.footnote)
             .foregroundStyle(.pink)
         case .liked:
             Label(
                 String(localized: "community.relationship.liked", defaultValue: "你喜欢过 TA", comment: "Liked"),
                 systemImage: "heart"
             )
-            .font(.caption2)
+            .font(.footnote)
             .foregroundStyle(.secondary)
         case .none:
             EmptyView()
@@ -44,10 +44,16 @@ struct RelationshipBadge: View {
 }
 
 #Preview {
-    VStack(spacing: 8) {
-        RelationshipBadge(context: .matched)
-        RelationshipBadge(context: .liked)
-        RelationshipBadge(context: .sharedActivity("北山徒步"))
+    CommunityPreviewTraits.matrix("Relationship badge") {
+        VStack(spacing: 8) {
+            RelationshipBadge(context: .matched)
+            RelationshipBadge(context: .liked)
+            RelationshipBadge(
+                context: .sharedActivity(
+                    String(localized: "community.mock.activity.hike", defaultValue: "周末爬香山", comment: "Activity")
+                )
+            )
+        }
+        .padding()
     }
-    .padding()
 }

@@ -3,7 +3,7 @@
 **Status:** Shipped on `main` · Staging verified 2026-06-07 (`staging-smoke.sh` incl. trust + recap)  
 **Last updated:** 2026-06-07  
 **Audience:** 产品、工程、融资讨论  
-**Prerequisites:** [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) · [ACTIVITY_UPGRADE_PLAN.md](ACTIVITY_UPGRADE_PLAN.md) · [LIKES_DEVELOPMENT_PLAN.md](LIKES_DEVELOPMENT_PLAN.md) · [adr/0001-likes-tab-social-discovery.md](adr/0001-likes-tab-social-discovery.md)  
+**Prerequisites:** [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) · [ACTIVITY_UPGRADE_PLAN.md](ACTIVITY_UPGRADE_PLAN.md)  
 **Principles:** [DESIGN_PHILOSOPHY.md](DESIGN_PHILOSOPHY.md) · [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ---

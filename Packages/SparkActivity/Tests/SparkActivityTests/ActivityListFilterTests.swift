@@ -48,6 +48,40 @@ struct ActivityListFilterTests {
         #expect(detail.canSelectGoing == false)
     }
 
+    @Test func actionItemsVisibleOnlyForActivityRequestsSegment() {
+        #expect(!ActivityListFilter.all.showsInboxActionItems)
+        #expect(ActivityListFilter.pendingReply.showsInboxActionItems)
+        #expect(!ActivityListFilter.upcoming.showsInboxActionItems)
+        #expect(!ActivityListFilter.hosting.showsInboxActionItems)
+        #expect(!ActivityListFilter.past.showsInboxActionItems)
+    }
+
+    @Test func listPresentationHidesFeedRowsCoveredByRequestCards() {
+        let item = ActivityItem(
+            id: "act_invite",
+            title: "Hike",
+            summary: "S",
+            category: "Outdoor",
+            rsvpStatus: .invited,
+            lifecycleStatus: .scheduled
+        )
+        let other = ActivityItem(
+            id: "act_other",
+            title: "Coffee",
+            summary: "S",
+            category: "Social",
+            rsvpStatus: .invited,
+            lifecycleStatus: .scheduled
+        )
+        let presented = ActivityInboxListPresentation.listItems(
+            from: [item, other],
+            filter: .pendingReply,
+            requestActivityIDs: ["act_invite"]
+        )
+        #expect(presented.count == 1)
+        #expect(presented.first?.id == "act_other")
+    }
+
     @Test func pastMatchesEndedParticipant() {
         let item = ActivityItem(
             id: "a",

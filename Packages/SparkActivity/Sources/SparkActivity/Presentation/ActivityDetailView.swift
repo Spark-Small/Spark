@@ -19,11 +19,13 @@ public struct ActivityDetailView: View {
     private let onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)?
     private let onActivityRescheduled: ((ActivityDetail) async -> Void)?
     private let onCommunityRecap: ((ActivityDetail) -> Void)?
+    private let inviteCandidates: () -> [ActivityInviteCandidate]
 
     public init(
         activityID: String,
         coordinator: ActivityCoordinator,
         context: ActivityDetailContext = .inbox,
+        inviteCandidates: @escaping () -> [ActivityInviteCandidate] = { [] },
         onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
         onOpenGroupChat: ((ActivityDetail) async -> Void)? = nil,
         onActivityUpdated: ((ActivityDetail) async -> Void)? = nil,
@@ -44,11 +46,13 @@ public struct ActivityDetailView: View {
         self.onHostAnnouncePosted = onHostAnnouncePosted
         self.onActivityRescheduled = onActivityRescheduled
         self.onCommunityRecap = onCommunityRecap
+        self.inviteCandidates = inviteCandidates
     }
 
     public init(
         viewModel: ActivityDetailViewModel,
         coordinator: ActivityCoordinator,
+        inviteCandidates: @escaping () -> [ActivityInviteCandidate] = { [] },
         onOpenGroupChat: ((ActivityDetail) async -> Void)? = nil,
         onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)? = nil,
         onActivityRescheduled: ((ActivityDetail) async -> Void)? = nil,
@@ -60,6 +64,7 @@ public struct ActivityDetailView: View {
         self.onHostAnnouncePosted = onHostAnnouncePosted
         self.onActivityRescheduled = onActivityRescheduled
         self.onCommunityRecap = onCommunityRecap
+        self.inviteCandidates = inviteCandidates
     }
 
     public var body: some View {
@@ -91,6 +96,7 @@ public struct ActivityDetailView: View {
                     ActivityDetailLoadedList(
                         viewModel: viewModel,
                         activity: activity,
+                        inviteCandidates: inviteCandidates(),
                         onOpenGroupChat: onOpenGroupChat,
                         onCommunityRecap: onCommunityRecap,
                         showEditActivity: $showEditActivity,
@@ -98,6 +104,11 @@ public struct ActivityDetailView: View {
                         showHostAgainCreate: $showHostAgainCreate,
                         showCancelActivityConfirm: $showCancelActivityConfirm
                     )
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        if activity.canChangeRSVP, activity.rsvpStatus == .invited {
+                            ActivityDetailRSVPBar(viewModel: viewModel, activity: activity)
+                        }
+                    }
                 } else {
                     ProgressView()
                         .sparkLoadingAccessibilityLabel(
@@ -110,7 +121,7 @@ public struct ActivityDetailView: View {
                 }
             }
         }
-        .navigationTitle(viewModel.activity?.title ?? "")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if let activity = viewModel.activity {
@@ -326,6 +337,7 @@ public struct ActivityDetailView: View {
             activityID: "act_3",
             coordinator: ActivityCoordinator(feedRepository: MockActivityFeedRepository())
         )
+        .environment(ActivityFavoriteStore())
     }
 }
 
@@ -336,5 +348,6 @@ public struct ActivityDetailView: View {
             coordinator: ActivityCoordinator(feedRepository: MockActivityFeedRepository()),
             context: .externalEntry
         )
+        .environment(ActivityFavoriteStore())
     }
 }

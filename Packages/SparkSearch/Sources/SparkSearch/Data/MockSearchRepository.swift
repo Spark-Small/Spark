@@ -24,6 +24,20 @@ public struct MockSearchRepository: SearchRepository, Sendable {
                 kind: SearchResultKind.activity.rawValue
             ),
             SearchResultItem(
+                id: "u_demo",
+                title: String(
+                    localized: "search.mock.result.person.title",
+                    defaultValue: "Alex",
+                    comment: "Search person"
+                ),
+                subtitle: String(
+                    localized: "search.mock.result.person.subtitle",
+                    defaultValue: "上海 · 徒步",
+                    comment: "Search person subtitle"
+                ),
+                kind: SearchResultKind.person.rawValue
+            ),
+            SearchResultItem(
                 id: "cp_2",
                 title: trimmed,
                 subtitle: String(

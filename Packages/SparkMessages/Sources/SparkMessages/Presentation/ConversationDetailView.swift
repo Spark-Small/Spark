@@ -1,5 +1,6 @@
 // Module: SparkMessages — Thread detail with rich message kinds.
 
+import PhotosUI
 import SparkDesignSystem
 import SwiftUI
 
@@ -8,10 +9,19 @@ public struct ConversationDetailView: View {
 
     @Bindable public var viewModel: ConversationViewModel
     public var onOpenActivity: ((String) -> Void)?
+    public var onProposeMeetup: ((String) -> Void)?
 
-    public init(viewModel: ConversationViewModel, onOpenActivity: ((String) -> Void)? = nil) {
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var showPeerProfile = false
+
+    public init(
+        viewModel: ConversationViewModel,
+        onOpenActivity: ((String) -> Void)? = nil,
+        onProposeMeetup: ((String) -> Void)? = nil
+    ) {
         self.viewModel = viewModel
         self.onOpenActivity = onOpenActivity
+        self.onProposeMeetup = onProposeMeetup
     }
 
     public var body: some View {
@@ -43,13 +53,24 @@ public struct ConversationDetailView: View {
             }
         }
         .background(.background)
-        .navigationTitle(viewModel.thread.peerDisplayName)
         .navigationBarTitleDisplayMode(.inline)
-        .safeAreaInset(edge: .top) {
-            if viewModel.isGroupChat {
-                groupActivityBanner
-            } else if viewModel.isDirectMessage {
-                dmContextHeader
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                conversationNavHeader
+            }
+        }
+        .navigationDestination(isPresented: $showPeerProfile) {
+            if let peerUserID = viewModel.peerUserID {
+                ConversationPeerProfileView(
+                    peerUserID: peerUserID,
+                    peerDisplayName: viewModel.dmPartner?.displayName ?? viewModel.thread.peerDisplayName,
+                    context: viewModel.context,
+                    onOpenActivity: onOpenActivity,
+                    onProposeMeetup: {
+                        let peerName = viewModel.dmPartner?.displayName ?? viewModel.thread.peerDisplayName
+                        onProposeMeetup?(peerName)
+                    }
+                )
             }
         }
         .safeAreaInset(edge: .bottom) {
@@ -59,10 +80,27 @@ public struct ConversationDetailView: View {
                         .font(.caption)
                         .foregroundStyle(.red)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
                         .accessibilityLabel(sendError)
                 }
-                composerBar
+                MessagesComposerBar(
+                    draft: $viewModel.draftText,
+                    selectedPhotoItem: $selectedPhotoItem,
+                    isSending: viewModel.isSending,
+                    sendSuccessToken: viewModel.sendSuccessToken,
+                    onSend: {
+                        Task { await viewModel.sendTapped() }
+                    }
+                )
+            }
+        }
+        .onChange(of: selectedPhotoItem) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self) {
+                    await viewModel.sendImage(data)
+                }
+                selectedPhotoItem = nil
             }
         }
         .task {
@@ -73,70 +111,57 @@ public struct ConversationDetailView: View {
     }
 
     @ViewBuilder
-    private var groupActivityBanner: some View {
-        if let activity = viewModel.groupBannerActivity {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(activity.title)
-                    .font(.subheadline.weight(.semibold))
-                Text(activity.countdownText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+    private var conversationNavHeader: some View {
+        Button {
+            if viewModel.isDirectMessage {
+                showPeerProfile = true
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(.bar)
-        }
-    }
-
-    @ViewBuilder
-    private var dmContextHeader: some View {
-        if let activities = viewModel.context?.sharedActivities, !activities.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(activities) { activity in
-                        Button {
-                            onOpenActivity?(activity.id)
-                        } label: {
-                            dmSharedActivityChip(activity: activity)
-                        }
-                        .buttonStyle(.sparkPressable)
-                    }
+        } label: {
+            HStack(spacing: 8) {
+                if viewModel.isDirectMessage {
+                    ConversationHeaderAvatar(
+                        imageURL: viewModel.dmPartner?.avatarURL,
+                        displayName: viewModel.resolvedDisplayName,
+                        placeholderSystemImage: "person.circle.fill"
+                    )
+                } else {
+                    ConversationHeaderAvatar(
+                        imageURL: viewModel.groupActivity?.coverURL,
+                        displayName: viewModel.resolvedDisplayName,
+                        placeholderSystemImage: "person.3.fill"
+                    )
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                Text(viewModel.resolvedDisplayName)
+                    .font(.headline)
+                    .lineLimit(1)
             }
-            .background(.bar)
         }
-    }
-
-    private func dmSharedActivityChip(activity: InboxActivitySummary) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(
-                String(localized: "messages.dm.sharedActivity", defaultValue: "共同活动", comment: "Shared activity")
-            )
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-            Text(activity.title)
-                .font(.caption.weight(.semibold))
-                .lineLimit(1)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .sparkGlassSurface(RoundedRectangle.sparkCard)
+        .buttonStyle(.plain)
+        .disabled(!viewModel.isDirectMessage)
+        .accessibilityLabel(viewModel.resolvedDisplayName)
+        .accessibilityHint(
+            viewModel.isDirectMessage
+                ? String(
+                    localized: "messages.peer.profile.a11y",
+                    defaultValue: "查看资料",
+                    comment: "Peer profile"
+                )
+                : ""
+        )
     }
 
     private var messageList: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
+                    sharedActivityContextCards
                     ForEach(viewModel.messages) { message in
                         ConversationMessageView(message: message, onOpenActivity: onOpenActivity)
                             .id(message.id)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
+                .padding(.vertical, SparkLayoutMetrics.sectionVerticalPadding)
             }
             .onChange(of: viewModel.messages.count) { _, _ in
                 guard let last = viewModel.messages.last?.id else { return }
@@ -151,36 +176,32 @@ public struct ConversationDetailView: View {
         }
     }
 
-    private var composerBar: some View {
-        HStack(spacing: 12) {
-            TextField(
-                String(localized: "messages.composer.placeholder", defaultValue: "输入消息…", comment: "Composer"),
-                text: $viewModel.draftText,
-                axis: .vertical
-            )
-            .lineLimit(1 ... 4)
-            .textFieldStyle(.plain)
-            .padding(12)
-            .sparkGlassSurface(RoundedRectangle(cornerRadius: 20))
-
-            Button {
-                Task { await viewModel.sendTapped() }
-            } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.title)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
+    @ViewBuilder
+    private var sharedActivityContextCards: some View {
+        if viewModel.isDirectMessage, let activities = viewModel.context?.sharedActivities, !activities.isEmpty {
+            ForEach(activities) { activity in
+                SharedActivityContextCard(
+                    activity: activity,
+                    contextLabel: String(
+                        localized: "messages.dm.sharedActivity",
+                        defaultValue: "共同活动",
+                        comment: "Shared activity"
+                    ),
+                    showsCountdown: true,
+                    onOpen: onOpenActivity
+                )
             }
-            .disabled(viewModel.draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isSending)
-            .sensoryFeedback(.success, trigger: viewModel.sendSuccessToken)
-            .accessibilityLabel(
-                String(localized: "messages.composer.send", defaultValue: "发送", comment: "Send message")
+        } else if viewModel.isGroupChat, let activity = viewModel.groupBannerActivity {
+            SharedActivityContextCard(
+                activity: activity,
+                contextLabel: String(
+                    localized: "messages.group.activityContext",
+                    defaultValue: "活动群聊",
+                    comment: "Group activity context"
+                ),
+                onOpen: onOpenActivity
             )
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .sparkGlassSurface(Rectangle())
-        .scrollDismissesKeyboard(.interactively)
     }
 }
 
@@ -195,9 +216,11 @@ public struct ConversationDetailView: View {
                         lastMessagePreview: "周六 9:30 北门集合",
                         lastActivityAt: .now,
                         unreadCount: 1
-                    )
+                    ),
+                    peerDisplayNameStore: PeerDisplayNameStore(storage: InMemoryPeerDisplayNameStore())
                 )
         )
+        .environment(PeerDisplayNameStore(storage: InMemoryPeerDisplayNameStore()))
     }
 }
 
@@ -215,6 +238,7 @@ public struct ConversationDetailView: View {
                 )
             )
         )
+        .environment(PeerDisplayNameStore(storage: InMemoryPeerDisplayNameStore()))
     }
 }
 
@@ -233,6 +257,7 @@ public struct ConversationDetailView: View {
                     )
                 )
             )
+            .environment(PeerDisplayNameStore(storage: InMemoryPeerDisplayNameStore()))
         }
     }
 }
@@ -252,6 +277,7 @@ public struct ConversationDetailView: View {
                     )
                 )
             )
+            .environment(PeerDisplayNameStore(storage: InMemoryPeerDisplayNameStore()))
         }
     }
 }
@@ -266,9 +292,11 @@ private struct PreviewFailingConversationRepository: MessagesRepository, Sendabl
     func fetchInbox() async throws -> MessagesInbox { MessagesInbox() }
     func fetchMessages(threadID: MessageThreadID) async throws -> [ChatMessage] { throw Failure() }
     func fetchConversationContext(threadID: MessageThreadID) async throws -> ConversationContext { throw Failure() }
-    func sendMessage(threadID: MessageThreadID, body: String) async throws -> ChatMessage { throw Failure() }
+    func sendMessage(threadID: MessageThreadID, body: String, kind: ChatMessageKind = .text) async throws -> ChatMessage { throw Failure() }
     func markAllRead() async throws {}
     func markThreadRead(threadID: MessageThreadID) async throws {}
+    func hideThread(threadID: MessageThreadID) async throws {}
+    func deleteThread(threadID: MessageThreadID) async throws {}
     func respondToActivityInvite(activityID: String, invitationID: String, accept: Bool) async throws {}
     func dismissInboxActionItem(id: String) async throws {}
     func ensureActivityGroupThread(threadID: MessageThreadID, displayName: String, welcomeMessage: String) async throws {}

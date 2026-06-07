@@ -14,6 +14,8 @@ public protocol ActivityFeedRepository: Sendable {
     func reportActivity(activityID: String, reason: ActivityReportReason) async throws -> ActivityReportResult
     func joinWaitlist(activityID: String) async throws -> ActivityDetail
     func promoteFromWaitlist(activityID: String, attendeeID: String) async throws -> ActivityDetail
+    func reviewAttendeeRSVP(activityID: String, attendeeID: String, approve: Bool) async throws -> ActivityDetail
+    func setAttendeeCoHost(activityID: String, attendeeID: String, isCoHost: Bool) async throws -> ActivityDetail
     func announceActivity(activityID: String, message: String) async throws
     func submitHostFeedback(activityID: String, feedback: ActivityHostFeedback) async throws
 }

@@ -7,23 +7,29 @@ public struct SearchRootView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var viewModel: SearchViewModel
+    @State private var selectedPerson: SearchResultItem?
     private let onSelectResult: ((SearchResultItem) -> Void)?
+    private let onOpenPersonMessages: ((String) -> Void)?
 
     public init(
         coordinator: SearchCoordinator,
         initialQuery: String = "",
-        onSelectResult: ((SearchResultItem) -> Void)? = nil
+        onSelectResult: ((SearchResultItem) -> Void)? = nil,
+        onOpenPersonMessages: ((String) -> Void)? = nil
     ) {
         _viewModel = State(initialValue: coordinator.makeViewModel(initialQuery: initialQuery))
         self.onSelectResult = onSelectResult
+        self.onOpenPersonMessages = onOpenPersonMessages
     }
 
     public init(
         viewModel: SearchViewModel,
-        onSelectResult: ((SearchResultItem) -> Void)? = nil
+        onSelectResult: ((SearchResultItem) -> Void)? = nil,
+        onOpenPersonMessages: ((String) -> Void)? = nil
     ) {
         _viewModel = State(initialValue: viewModel)
         self.onSelectResult = onSelectResult
+        self.onOpenPersonMessages = onOpenPersonMessages
     }
 
     public var body: some View {
@@ -61,11 +67,46 @@ public struct SearchRootView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .modifier(SearchReadableWidthModifier(horizontalSizeClass: horizontalSizeClass))
+            .navigationDestination(item: $selectedPerson) { person in
+                SearchPersonProfileView(item: person, onOpenMessages: onOpenPersonMessages)
+            }
         }
     }
 
     private var suggestionsList: some View {
         List {
+            if !viewModel.searchHistory.isEmpty {
+                Section {
+                    ForEach(viewModel.searchHistory, id: \.self) { historyItem in
+                    Button {
+                        viewModel.query = historyItem
+                    } label: {
+                        Label(historyItem, systemImage: "clock")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.sparkPressable)
+                    .sparkSemanticListRow()
+                    }
+                } header: {
+                    HStack {
+                        Text(
+                            String(
+                                localized: "search.history.title",
+                                defaultValue: "最近搜索",
+                                comment: "Search history"
+                            )
+                        )
+                        Spacer()
+                        Button(
+                            String(localized: "search.history.clear", defaultValue: "清除", comment: "Clear history")
+                        ) {
+                            viewModel.clearSearchHistory()
+                        }
+                        .font(.caption)
+                    }
+                }
+            }
+
             Section {
                 ForEach(Array(SearchViewModel.defaultSuggestions.enumerated()), id: \.offset) { _, suggestion in
                     Button {
@@ -74,7 +115,8 @@ public struct SearchRootView: View {
                         Label(suggestion, systemImage: "clock.arrow.circlepath")
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(minHeight: 44)
+                    .buttonStyle(.sparkPressable)
+                    .sparkSemanticListRow()
                 }
             } header: {
                 Text(
@@ -82,7 +124,7 @@ public struct SearchRootView: View {
                 )
             }
         }
-        .sparkScreenListStyle()
+        .sparkSemanticListChrome()
     }
 
     @ViewBuilder
@@ -91,6 +133,7 @@ public struct SearchRootView: View {
         case .idle, .loading:
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .sparkFeedModuleScroll()
                 .sparkLoadingAccessibilityLabel(
                     String(
                         localized: "search.loading.a11y",
@@ -106,6 +149,8 @@ public struct SearchRootView: View {
                     String(localized: "search.empty.subtitle", defaultValue: "换个关键词试试", comment: "Empty search hint")
                 )
             )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .sparkFeedModuleScroll()
         case .failure(let message):
             SparkRetryUnavailableView(
                 title: String(localized: "search.error.title", defaultValue: "搜索失败", comment: "Search error"),
@@ -115,18 +160,28 @@ public struct SearchRootView: View {
             }
         case .loaded:
             List(viewModel.results) { item in
-                if let onSelectResult, item.isNavigable {
+                if item.resultKind == .person {
+                    Button {
+                        selectedPerson = item
+                    } label: {
+                        SearchResultRow(item: item, showsChevron: true)
+                    }
+                    .buttonStyle(.sparkPressable)
+                    .sparkSemanticListRow()
+                } else if let onSelectResult, item.isNavigable {
                     Button {
                         onSelectResult(item)
                     } label: {
                         SearchResultRow(item: item, showsChevron: true)
                     }
                     .buttonStyle(.sparkPressable)
+                    .sparkSemanticListRow()
                 } else {
                     SearchResultRow(item: item, showsChevron: false)
+                        .sparkSemanticListRow()
                 }
             }
-            .sparkScreenListStyle()
+            .sparkSemanticListChrome()
             .refreshable {
                 await viewModel.submitSearch()
             }
@@ -177,7 +232,6 @@ private struct SearchResultRow: View {
                     .accessibilityHidden(true)
             }
         }
-        .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(item.title), \(item.subtitle)")
         .accessibilityHint(item.navigationAccessibilityHint)

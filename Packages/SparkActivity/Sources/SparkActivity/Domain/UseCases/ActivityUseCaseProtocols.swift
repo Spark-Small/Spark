@@ -30,6 +30,14 @@ public protocol PromoteFromWaitlistUseCaseProtocol: Sendable {
     func callAsFunction(activityID: String, attendeeID: String) async throws -> ActivityDetail
 }
 
+public protocol ReviewAttendeeRSVPUseCaseProtocol: Sendable {
+    func callAsFunction(activityID: String, attendeeID: String, approve: Bool) async throws -> ActivityDetail
+}
+
+public protocol SetAttendeeCoHostUseCaseProtocol: Sendable {
+    func callAsFunction(activityID: String, attendeeID: String, isCoHost: Bool) async throws -> ActivityDetail
+}
+
 public protocol AnnounceActivityUseCaseProtocol: Sendable {
     func callAsFunction(activityID: String, message: String) async throws
 }
@@ -61,6 +69,8 @@ extension CancelActivityUseCase: CancelActivityUseCaseProtocol {}
 extension ReportActivityUseCase: ReportActivityUseCaseProtocol {}
 extension JoinActivityWaitlistUseCase: JoinActivityWaitlistUseCaseProtocol {}
 extension PromoteFromWaitlistUseCase: PromoteFromWaitlistUseCaseProtocol {}
+extension ReviewAttendeeRSVPUseCase: ReviewAttendeeRSVPUseCaseProtocol {}
+extension SetAttendeeCoHostUseCase: SetAttendeeCoHostUseCaseProtocol {}
 extension AnnounceActivityUseCase: AnnounceActivityUseCaseProtocol {}
 extension SubmitHostFeedbackUseCase: SubmitHostFeedbackUseCaseProtocol {}
 extension FetchActivitiesByHostUseCase: FetchActivitiesByHostUseCaseProtocol {}

@@ -79,6 +79,14 @@ extension MockActivityCatalog {
             defaultValue: "小雨",
             comment: "Activity host"
         )
+        let endsAt = startsAt.addingTimeInterval(2 * 60 * 60)
+        let recurrenceWeekday = ActivityRecurrenceRule.Weekday(from: startsAt)
+        let recurrenceUntil = Calendar.current.date(byAdding: .year, value: 1, to: startsAt)
+        let recurrence = ActivityRecurrenceRule(
+            frequency: .weekly,
+            weekday: recurrenceWeekday,
+            until: recurrenceUntil
+        )
 
         return ActivityDetail(
                 id: "act_2",
@@ -103,6 +111,8 @@ extension MockActivityCatalog {
                     comment: "Activity description"
                 ),
                 startsAt: startsAt,
+                endsAt: endsAt,
+                recurrence: recurrence,
                 locationName: String(
                     localized: "activity.item.2.location",
                     defaultValue: "静安寺咖啡馆",
@@ -115,6 +125,7 @@ extension MockActivityCatalog {
                     defaultValue: "喜欢小局聊天，每周一晚。",
                     comment: "Host bio"
                 ),
+                hostTier: .superOrganizer,
                 attendeeCount: 4,
                 capacity: 4,
                 rsvpStatus: .invited,

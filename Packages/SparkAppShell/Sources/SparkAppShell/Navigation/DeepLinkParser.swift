@@ -39,7 +39,7 @@ public enum DeepLinkParser: Sendable {
         case "activity":
             return parseActivityRoute(path: url.path, query: url)
         case "likes":
-            return parseLikesRoute(path: url.path, query: url)
+            return .tab(.community, query: url.queryValue(for: "q"))
         default:
             guard let tab = SparkTab(rawValue: host) else { return nil }
             return .tab(tab, query: url.queryValue(for: "q"))
@@ -54,8 +54,8 @@ public enum DeepLinkParser: Sendable {
         if path == "paywall" || path.hasPrefix("paywall/") {
             return parsePaywallRoute(path: path, query: url)
         }
-        if path == "likes/inbound" || path.hasPrefix("likes/inbound") {
-            return .likesInbound
+        if path == "likes" || path == "likes/inbound" || path.hasPrefix("likes/") {
+            return .tab(.community, query: url.queryValue(for: "q"))
         }
         guard !path.isEmpty, let tab = SparkTab(rawValue: path) else { return nil }
         return .tab(tab, query: url.queryValue(for: "q"))
@@ -105,8 +105,8 @@ public enum DeepLinkParser: Sendable {
     private static func parseUniversalTabRoute(_ components: [String], query: URL) -> DeepLinkRoute? {
         guard components.first == "tab", components.count >= 2 else { return nil }
         let tabName = components[1]
-        if tabName == "likes", components.count >= 3, components[2] == "inbound" {
-            return .likesInbound
+        if tabName == "likes" {
+            return .tab(.community, query: query.queryValue(for: "q"))
         }
         guard let tab = SparkTab(rawValue: tabName) else { return nil }
         return .tab(tab, query: query.queryValue(for: "q"))
@@ -155,17 +155,6 @@ public enum DeepLinkParser: Sendable {
             return .conversation(threadID: threadID)
         }
         return .tab(.messages, query: query.queryValue(for: "q"))
-    }
-
-    private static func parseLikesRoute(path: String, query: URL) -> DeepLinkRoute? {
-        var segments = path.split(separator: "/").map(String.init).filter { !$0.isEmpty }
-        if segments.first == "likes" {
-            segments.removeFirst()
-        }
-        if segments.first == "inbound" {
-            return .likesInbound
-        }
-        return .tab(.likes, query: query.queryValue(for: "q"))
     }
 
     private static func parsePaywallRoute(path: String, query: URL) -> DeepLinkRoute {

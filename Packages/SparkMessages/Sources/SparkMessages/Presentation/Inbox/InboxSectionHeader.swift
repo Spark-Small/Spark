@@ -1,5 +1,6 @@
 // Module: SparkMessages — Section divider with optional unread count.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct InboxSectionHeader: View {
@@ -8,17 +9,24 @@ struct InboxSectionHeader: View {
     let unreadCount: Int
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SparkLayoutMetrics.compactVerticalPadding) {
             Label(title, systemImage: systemImage)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(.secondary)
             Spacer()
             if unreadCount > 0 {
                 UnreadBadge(count: unreadCount)
             }
         }
         .textCase(nil)
-        .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 4, trailing: 16))
+        .listRowInsets(
+            EdgeInsets(
+                top: SparkLayoutMetrics.inboxSectionHeaderTopPadding,
+                leading: SparkLayoutMetrics.standardHorizontalPadding,
+                bottom: SparkLayoutMetrics.inboxSectionHeaderBottomPadding,
+                trailing: SparkLayoutMetrics.standardHorizontalPadding
+            )
+        )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(sectionAccessibilityLabel)
     }
@@ -44,6 +52,6 @@ struct InboxSectionHeader: View {
 
 #Preview("Section header — no unread") {
     List {
-        InboxSectionHeader(title: "活动群聊", systemImage: "person.3", unreadCount: 0)
+        InboxSectionHeader(title: "群聊", systemImage: "person.3", unreadCount: 0)
     }
 }

@@ -5,7 +5,6 @@ import SparkAuth
 import SparkCore
 import SparkActivity
 import SparkCommunity
-import SparkLikes
 import SparkMessages
 import SparkNetworking
 import SparkPayments
@@ -61,10 +60,6 @@ enum CompositionRoot {
             configuration: apiConfiguration,
             apiClient: apiClient
         )
-        let likesFeedRepository = makeLikesFeedRepository(
-            configuration: apiConfiguration,
-            apiClient: apiClient
-        )
         let searchRepository = makeSearchRepository(
             configuration: apiConfiguration,
             apiClient: apiClient
@@ -83,23 +78,21 @@ enum CompositionRoot {
             configuration: apiConfiguration,
             apiClient: apiClient
         )
-        let discoverMediaImageCache = DiscoverMediaImageCache(httpClient: httpClient)
         let remoteImageCache = RemoteImageCache(httpClient: httpClient, configuration: .thumbnail)
-        let likesPreferencesStore = UserDefaultsLikesPreferencesStore()
-        let likesOnboardingPreferences = UserDefaultsLikesOnboardingPreferences()
         let authCoordinator = AuthCoordinator(authService: authService)
+        let prepareCommunityMediaUpload: any PrepareCommunityMediaUploadUseCaseProtocol =
+            apiConfiguration.usesMockBackend
+                ? PrepareCommunityMediaUploadUseCase()
+                : LivePrepareCommunityMediaUploadUseCase(apiClient: apiClient)
         let tabDependencies = SparkTabDependencies(
             messagesRepository: messagesRepository,
             activityFeedRepository: activityFeedRepository,
             activityBrowseRepository: activityBrowseRepository,
-            likesFeedRepository: likesFeedRepository,
             searchRepository: searchRepository,
             communityPostsRepository: communityPostsRepository,
+            prepareCommunityMediaUpload: prepareCommunityMediaUpload,
             trustRepository: trustRepository,
-            blockedActivityHostsStore: blockedActivityHostsStore,
-            discoverMediaImageCache: discoverMediaImageCache,
-            likesPreferencesStore: likesPreferencesStore,
-            likesOnboardingPreferences: likesOnboardingPreferences
+            blockedActivityHostsStore: blockedActivityHostsStore
         )
 
         return AppDependencies(
@@ -114,7 +107,6 @@ enum CompositionRoot {
             messagesRepository: messagesRepository,
             activityFeedRepository: activityFeedRepository,
             activityBrowseRepository: activityBrowseRepository,
-            likesFeedRepository: likesFeedRepository,
             searchRepository: searchRepository,
             communityPostsRepository: communityPostsRepository,
             trustRepository: trustRepository,
@@ -122,10 +114,7 @@ enum CompositionRoot {
             entitlementManager: entitlementManager,
             deviceTokenUploader: deviceTokenUploader,
             blockedActivityHostsStore: blockedActivityHostsStore,
-            discoverMediaImageCache: discoverMediaImageCache,
-            remoteImageCache: remoteImageCache,
-            likesPreferencesStore: likesPreferencesStore,
-            likesOnboardingPreferences: likesOnboardingPreferences
+            remoteImageCache: remoteImageCache
         )
     }
 
@@ -185,16 +174,6 @@ enum CompositionRoot {
             return MockActivityBrowseRepository()
         }
         return LiveActivityBrowseRepository(apiClient: apiClient)
-    }
-
-    private static func makeLikesFeedRepository(
-        configuration: APIConfiguration,
-        apiClient: APIClient
-    ) -> any LikesFeedRepository {
-        if configuration.usesMockBackend {
-            return MockLikesFeedRepository()
-        }
-        return LiveLikesFeedRepository(apiClient: apiClient)
     }
 
     private static func makeSearchRepository(

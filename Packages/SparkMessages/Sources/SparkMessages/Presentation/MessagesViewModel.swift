@@ -1,4 +1,4 @@
-// Module: SparkMessages — Unified inbox state with three sections.
+// Module: SparkMessages — Unified inbox state (DM + group chats; action items on Activity tab).
 
 import Foundation
 import Observation
@@ -35,7 +35,7 @@ public final class MessagesViewModel {
     }
 
     public var totalUnreadCount: Int {
-        actionItems.count + dmUnreadCount + groupUnreadCount
+        dmUnreadCount + groupUnreadCount
     }
 
     /// Tab badge hides at zero per HIG.
@@ -44,46 +44,93 @@ public final class MessagesViewModel {
         return count > 0 ? count : nil
     }
 
-    private let makeConversationViewModel: @MainActor (MessageThread) -> ConversationViewModel
+    private let peerDisplayNameStore: PeerDisplayNameStore
+    private let makeConversationViewModel: @MainActor (
+        MessageThread,
+        InboxUserProfile?,
+        InboxActivitySummary?
+    ) -> ConversationViewModel
     private let fetchInbox: any FetchInboxUseCaseProtocol
     private let markAllRead: any MarkMessagesReadUseCaseProtocol
     private let markThreadRead: any MarkThreadReadUseCaseProtocol
+    private let hideThread: any HideThreadUseCaseProtocol
+    private let deleteThread: any DeleteThreadUseCaseProtocol
     private let respondToInvite: any RespondToActivityInviteUseCaseProtocol
     private let dismissActionItemUseCase: any DismissActionItemUseCaseProtocol
     private let ensureDirectMessageThreadUseCase: any EnsureDirectMessageThreadUseCaseProtocol
 
     public init(
         useCases: MessagesInboxUseCases,
-        makeConversationViewModel: @escaping @MainActor (MessageThread) -> ConversationViewModel
+        peerDisplayNameStore: PeerDisplayNameStore,
+        makeConversationViewModel: @escaping @MainActor (
+            MessageThread,
+            InboxUserProfile?,
+            InboxActivitySummary?
+        ) -> ConversationViewModel
     ) {
+        self.peerDisplayNameStore = peerDisplayNameStore
         self.makeConversationViewModel = makeConversationViewModel
         fetchInbox = useCases.fetchInbox
         markAllRead = useCases.markAllRead
         markThreadRead = useCases.markThreadRead
+        hideThread = useCases.hideThread
+        deleteThread = useCases.deleteThread
         respondToInvite = useCases.respondToInvite
         dismissActionItemUseCase = useCases.dismissActionItem
         ensureDirectMessageThreadUseCase = useCases.ensureDirectMessageThread
     }
 
-    public convenience init(coordinator: MessagesCoordinator) {
+    public convenience init(
+        coordinator: MessagesCoordinator,
+        peerDisplayNameStore: PeerDisplayNameStore
+    ) {
         self.init(
             useCases: coordinator.makeInboxUseCases(),
-            makeConversationViewModel: { thread in
-                coordinator.makeConversationViewModel(thread: thread)
+            peerDisplayNameStore: peerDisplayNameStore,
+            makeConversationViewModel: { thread, dmPartner, groupActivity in
+                coordinator.makeConversationViewModel(
+                    thread: thread,
+                    dmPartner: dmPartner,
+                    groupActivity: groupActivity,
+                    peerDisplayNameStore: peerDisplayNameStore
+                )
             }
         )
     }
 
-    public convenience init(repository: any MessagesRepository) {
-        self.init(coordinator: MessagesCoordinator(repository: repository))
+    public convenience init(
+        repository: any MessagesRepository,
+        peerDisplayNameStore: PeerDisplayNameStore = PeerDisplayNameStore(storage: InMemoryPeerDisplayNameStore())
+    ) {
+        self.init(
+            coordinator: MessagesCoordinator(repository: repository),
+            peerDisplayNameStore: peerDisplayNameStore
+        )
     }
 
     public func conversationViewModel(for thread: MessageThread) -> ConversationViewModel {
-        makeConversationViewModel(thread)
+        let conversation = conversation(for: thread.threadID)
+        return makeConversationViewModel(
+            thread,
+            conversation?.dmPartner,
+            conversation?.activity
+        )
     }
 
     public func conversationViewModel(for conversation: ConversationPreview) -> ConversationViewModel {
-        makeConversationViewModel(conversation.asMessageThread())
+        makeConversationViewModel(
+            conversation.asMessageThread(),
+            conversation.dmPartner,
+            conversation.activity
+        )
+    }
+
+    /// Re-applies local peer remarks to inbox rows after alias edits.
+    public func refreshDisplayNames() {
+        dmConversations = dmConversations.map { applyAlias(to: $0) }
+        threads = (dmConversations + activeGroupChats)
+            .map { $0.asMessageThread() }
+            .sorted { $0.lastActivityAt > $1.lastActivityAt }
     }
 
     public func thread(for threadID: MessageThreadID) -> MessageThread? {
@@ -95,7 +142,7 @@ public final class MessagesViewModel {
         do {
             let inbox = try await fetchInbox()
             apply(inbox)
-            loadState = inbox.isCompletelyEmpty ? .empty : .loaded
+            loadState = isInboxEmpty ? .empty : .loaded
         } catch is CancellationError {
             return
         } catch let error as MessagesError {
@@ -125,6 +172,40 @@ public final class MessagesViewModel {
         }
     }
 
+    /// Hides a conversation from the inbox without deleting history.
+    public func hideConversation(_ conversation: ConversationPreview) async {
+        let threadID = conversation.threadID
+        let snapshot = inboxSnapshot()
+        removeConversation(threadID)
+        do {
+            try await hideThread(threadID: threadID)
+        } catch is CancellationError {
+            return
+        } catch {
+            restoreInbox(snapshot)
+            Self.logger.error(
+                "hideConversation failed for \(threadID.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
+    /// Permanently deletes a conversation thread for the current user.
+    public func deleteConversation(_ conversation: ConversationPreview) async {
+        let threadID = conversation.threadID
+        let snapshot = inboxSnapshot()
+        removeConversation(threadID)
+        do {
+            try await deleteThread(threadID: threadID)
+        } catch is CancellationError {
+            return
+        } catch {
+            restoreInbox(snapshot)
+            Self.logger.error(
+                "deleteConversation failed for \(threadID.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
     public func conversation(for threadID: MessageThreadID) -> ConversationPreview? {
         if let match = dmConversations.first(where: { $0.threadID == threadID }) {
             return match
@@ -132,7 +213,7 @@ public final class MessagesViewModel {
         if let match = activeGroupChats.first(where: { $0.threadID == threadID }) {
             return match
         }
-        return archivedGroupChats.first { $0.threadID == threadID }
+        return nil
     }
 
     public func markMessagesRead() async {
@@ -150,7 +231,7 @@ public final class MessagesViewModel {
                     unreadCount: 0
                 )
             }
-            unreadMessageCount = actionItems.count
+            unreadMessageCount = 0
         } catch is CancellationError {
             return
         } catch {
@@ -201,20 +282,172 @@ public final class MessagesViewModel {
     }
 
     public func ensureDirectMessageThread(for match: MatchPreview) async throws -> MessageThreadID {
-        try await ensureDirectMessageThreadUseCase(
+        try await ensureDirectMessageThread(
             peerUserID: match.user.id,
             peerDisplayName: match.user.displayName
         )
     }
 
+    public func ensureDirectMessageThread(peerUserID: String, peerDisplayName: String) async throws -> MessageThreadID {
+        try await ensureDirectMessageThreadUseCase(
+            peerUserID: peerUserID,
+            peerDisplayName: peerDisplayName
+        )
+    }
+
+    /// Replaces the synthetic new-match row with a real DM thread after the first open.
+    public func graduateMatch(_ match: MatchPreview, to threadID: MessageThreadID) {
+        graduateMatch(peerUserID: match.user.id, partner: match.user, to: threadID)
+    }
+
+    /// Graduates a peer to a real DM thread when only the user id is known (e.g. new-chat picker).
+    public func graduateMatch(peerUserID: String, to threadID: MessageThreadID) {
+        let partner = unmessagedMatches.first(where: { $0.user.id == peerUserID })?.user
+            ?? InboxUserProfile(id: peerUserID, displayName: "", avatarURL: nil)
+        graduateMatch(peerUserID: peerUserID, partner: partner, to: threadID)
+    }
+
+    /// Peers available when starting a new chat (unmessaged matches + existing DM partners).
+    public func newChatCandidates() -> [MessagesChatCandidate] {
+        var seen = Set<String>()
+        var results: [MessagesChatCandidate] = []
+
+        for match in unmessagedMatches {
+            guard seen.insert(match.user.id).inserted else { continue }
+            results.append(
+                MessagesChatCandidate(
+                    id: match.user.id,
+                    displayName: match.user.displayName,
+                    avatarURL: match.user.avatarURL,
+                    isNewMatch: true
+                )
+            )
+        }
+
+        for conversation in dmConversations where conversation.kind == .dm {
+            if let partner = conversation.dmPartner, seen.insert(partner.id).inserted {
+                results.append(
+                    MessagesChatCandidate(
+                        id: partner.id,
+                        displayName: partner.displayName,
+                        avatarURL: partner.avatarURL,
+                        isNewMatch: false
+                    )
+                )
+            }
+        }
+
+        return results.sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+    }
+
+    public func matchPreview(for conversation: ConversationPreview) -> MatchPreview? {
+        unmessagedMatches.first {
+            MessagesInboxSorting.pendingMatchThreadID(for: $0) == conversation.threadID
+        }
+    }
+
+    private var isInboxEmpty: Bool {
+        dmConversations.isEmpty && activeGroupChats.isEmpty
+    }
+
+    private func graduateMatch(peerUserID: String, partner: InboxUserProfile, to threadID: MessageThreadID) {
+        unmessagedMatches.removeAll { $0.user.id == peerUserID }
+
+        let welcomePreview = String(
+            localized: "likes.dm.welcome",
+            defaultValue: "你们互相喜欢，打个招呼吧",
+            comment: "DM welcome"
+        )
+        var persistedDMs = dmConversations.filter {
+            !MessagesInboxSorting.isPendingMatchThreadID($0.threadID)
+        }
+
+        let nameFallback = partner.displayName.isEmpty
+            ? (persistedDMs.first(where: { $0.threadID == threadID })?.displayName ?? partner.id)
+            : partner.displayName
+        let resolvedName = peerDisplayNameStore.resolvedDisplayName(
+            userID: partner.id,
+            fallback: nameFallback
+        )
+
+        if let index = persistedDMs.firstIndex(where: { $0.threadID == threadID }) {
+            let existing = persistedDMs[index]
+            persistedDMs[index] = ConversationPreview(
+                threadID: threadID,
+                kind: .dm,
+                displayName: resolvedName,
+                lastMessagePreview: existing.lastMessagePreview,
+                lastMessageAt: existing.lastMessageAt,
+                unreadCount: existing.unreadCount,
+                dmPartner: partner,
+                isPartnerOnline: existing.isPartnerOnline,
+                activity: existing.activity,
+                memberCount: existing.memberCount,
+                isArchived: existing.isArchived
+            )
+        } else {
+            persistedDMs.insert(
+                ConversationPreview(
+                    threadID: threadID,
+                    kind: .dm,
+                    displayName: resolvedName,
+                    lastMessagePreview: welcomePreview,
+                    lastMessageAt: Date(),
+                    unreadCount: 0,
+                    dmPartner: partner,
+                    isPartnerOnline: false
+                ),
+                at: 0
+            )
+        }
+
+        dmConversations = MessagesInboxSorting.unifiedDMConversations(
+            matches: unmessagedMatches,
+            conversations: persistedDMs
+        ).map { applyAlias(to: $0) }
+        threads = (dmConversations + activeGroupChats)
+            .map { $0.asMessageThread() }
+            .sorted { $0.lastActivityAt > $1.lastActivityAt }
+        unreadMessageCount = totalUnreadCount
+    }
+
     private func apply(_ inbox: MessagesInbox) {
         actionItems = inbox.actionItems
         unmessagedMatches = inbox.unmessagedMatches
-        dmConversations = MessagesInboxSorting.dmConversations(inbox.dmConversations)
-        activeGroupChats = MessagesInboxSorting.activeGroupChats(inbox.activeGroupChats)
-        archivedGroupChats = inbox.archivedGroupChats
-        threads = inbox.allThreads.sorted { $0.lastActivityAt > $1.lastActivityAt }
+        dmConversations = MessagesInboxSorting.unifiedDMConversations(
+            matches: inbox.unmessagedMatches,
+            conversations: inbox.dmConversations
+        ).map { applyAlias(to: $0) }
+        activeGroupChats = MessagesInboxSorting.visibleGroupChats(
+            inbox.activeGroupChats + inbox.archivedGroupChats
+        )
+        archivedGroupChats = []
+        threads = (dmConversations + activeGroupChats)
+            .map { $0.asMessageThread() }
+            .sorted { $0.lastActivityAt > $1.lastActivityAt }
         unreadMessageCount = totalUnreadCount
+    }
+
+    private func applyAlias(to conversation: ConversationPreview) -> ConversationPreview {
+        guard conversation.kind == .dm, let partner = conversation.dmPartner else { return conversation }
+        let resolved = peerDisplayNameStore.resolvedDisplayName(
+            userID: partner.id,
+            fallback: partner.displayName
+        )
+        guard resolved != conversation.displayName else { return conversation }
+        return ConversationPreview(
+            threadID: conversation.threadID,
+            kind: conversation.kind,
+            displayName: resolved,
+            lastMessagePreview: conversation.lastMessagePreview,
+            lastMessageAt: conversation.lastMessageAt,
+            unreadCount: conversation.unreadCount,
+            dmPartner: conversation.dmPartner,
+            isPartnerOnline: conversation.isPartnerOnline,
+            activity: conversation.activity,
+            memberCount: conversation.memberCount,
+            isArchived: conversation.isArchived
+        )
     }
 
     private struct ConversationReadSnapshot {
@@ -223,6 +456,17 @@ public final class MessagesViewModel {
         let archivedGroupChats: [ConversationPreview]
         let threads: [MessageThread]
         let unreadMessageCount: Int
+    }
+
+    private struct InboxSnapshot {
+        let actionItems: [ActionItem]
+        let unmessagedMatches: [MatchPreview]
+        let dmConversations: [ConversationPreview]
+        let activeGroupChats: [ConversationPreview]
+        let archivedGroupChats: [ConversationPreview]
+        let threads: [MessageThread]
+        let unreadMessageCount: Int
+        let loadState: LoadState
     }
 
     private func conversationReadSnapshot() -> ConversationReadSnapshot {
@@ -241,6 +485,44 @@ public final class MessagesViewModel {
         archivedGroupChats = snapshot.archivedGroupChats
         threads = snapshot.threads
         unreadMessageCount = snapshot.unreadMessageCount
+    }
+
+    private func inboxSnapshot() -> InboxSnapshot {
+        InboxSnapshot(
+            actionItems: actionItems,
+            unmessagedMatches: unmessagedMatches,
+            dmConversations: dmConversations,
+            activeGroupChats: activeGroupChats,
+            archivedGroupChats: archivedGroupChats,
+            threads: threads,
+            unreadMessageCount: unreadMessageCount,
+            loadState: loadState
+        )
+    }
+
+    private func restoreInbox(_ snapshot: InboxSnapshot) {
+        actionItems = snapshot.actionItems
+        unmessagedMatches = snapshot.unmessagedMatches
+        dmConversations = snapshot.dmConversations
+        activeGroupChats = snapshot.activeGroupChats
+        archivedGroupChats = snapshot.archivedGroupChats
+        threads = snapshot.threads
+        unreadMessageCount = snapshot.unreadMessageCount
+        loadState = snapshot.loadState
+    }
+
+    private func removeConversation(_ threadID: MessageThreadID) {
+        dmConversations.removeAll { $0.threadID == threadID }
+        activeGroupChats.removeAll { $0.threadID == threadID }
+        archivedGroupChats.removeAll { $0.threadID == threadID }
+        unmessagedMatches.removeAll {
+            MessagesInboxSorting.pendingMatchThreadID(for: $0) == threadID
+        }
+        threads.removeAll { $0.threadID == threadID }
+        unreadMessageCount = totalUnreadCount
+        if isInboxEmpty {
+            loadState = .empty
+        }
     }
 
     private func applyConversationRead(_ threadID: MessageThreadID) {

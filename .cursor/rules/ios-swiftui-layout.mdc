@@ -1,0 +1,74 @@
+---
+description: SwiftUI layout engineer — Presentation layer, design system, Tab/split navigation
+globs: "**/Presentation/**/*.swift,**/*View*.swift"
+alwaysApply: false
+---
+
+# SwiftUI layout engineer (Spark)
+
+**Role:** Presentation-layer layout only. Product scope: `ios-product-philosophy.mdc`. Glass: `ios-liquid-glass.mdc`. HIG/a11y: `ios-design-system.mdc`.
+
+## Architecture boundary
+
+- Views live in **Presentation**; state from `@MainActor @Observable` ViewModel or injected Coordinator.
+- **Never** call Repository, `URLSession`, `HTTPClient`, or UseCases directly from a View — only ViewModel actions / Coordinator callbacks.
+- Minimum UI states: idle, loading, success, empty, failure (retry when appropriate).
+
+## Design system (SparkDesignSystem)
+
+| Need | Use |
+|------|-----|
+| Card / panel glass | `.sparkGlassSurface(_:)` |
+| Chip / compact control | `.sparkGlassControl(_:)` |
+| Remote image | `SparkCachedRemoteImage` — not raw `AsyncImage` |
+| Photo text legibility | `.sparkPhotoTextScrim()` — not `.black.opacity` gradients |
+| Tappable control | `.buttonStyle(.sparkPressable)` |
+| Tab root screen | `SparkScreenContainer(navigationTitle:embedding:)` |
+| Loading a11y | `.sparkLoadingAccessibilityLabel(_:)` |
+| Layout tokens | `SparkLayoutMetrics` · `.sparkMinimumTouchTarget()` |
+
+Do not hand-roll glass (opacity fills, manual blur, shadow depth). See `ios-liquid-glass.mdc`.
+
+## Platform adaptation (iOS 17+ / Swift 6)
+
+- **compact width:** `NavigationStack` + `.navigationDestination` / sheets.
+- **regular width (iPad):** `NavigationSplitView` for list–detail (Community, Messages, Activity patterns).
+- Gate split vs compact with `@Environment(\.horizontalSizeClass)` — do not duplicate business logic between layouts.
+
+## Tabs & cross-tab flow
+
+Four tabs: **社区 / 活动 / 消息 / 我的** (`SparkTab`).
+
+- Cross-tab actions (match → DM, activity → group chat, premium sync) go through **`SparkTabOrchestrator`** / router callbacks — not direct TabView mutation from feature Views.
+- Tabs that require auth: community, messages, activity. Unauthenticated access → **`GlobalPresentation.authRequired`** (app shell); do not embed one-off login sheets in feature Views.
+
+## Navigation rules
+
+- One `NavigationStack` per tab root unless `SparkScreenContainer(..., embedding: .none)` documents otherwise.
+- Do not nest two stacks without `embedding: .none`.
+- Deep links: consume `AppRouter` pending state in root View `.onAppear` / `.onChange` — do not parse URLs in leaf Views.
+
+## File output
+
+- Complete Swift file with imports and `#Preview` (light + dark when meaningful).
+- Localized user strings via `String(localized:defaultValue:comment:)`.
+
+```swift
+// ❌ BAD — Repository in View
+struct FooView: View {
+    let repo: FooRepository
+    var body: some View {
+        Button("Load") { Task { _ = try? await repo.fetch() } }
+    }
+}
+
+// ✅ GOOD — ViewModel boundary
+struct FooView: View {
+    var viewModel: FooViewModel
+    var body: some View {
+        Button("Load") { Task { await viewModel.load() } }
+    }
+}
+```
+
+Reference: `docs/FEATURE_INVENTORY.md`, `docs/ARCHITECTURE.md`.

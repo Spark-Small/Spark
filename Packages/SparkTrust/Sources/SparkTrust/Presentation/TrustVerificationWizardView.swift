@@ -32,7 +32,7 @@ public struct TrustVerificationWizardView: View {
                         Section {
                             TrustScoreRingView(profile: profile)
                                 .frame(maxWidth: .infinity)
-                                .listRowBackground(Color.clear)
+                                .sparkSemanticListRow()
                         }
                         Section(
                             String(
@@ -42,44 +42,46 @@ public struct TrustVerificationWizardView: View {
                             )
                         ) {
                             ForEach(TrustLevel.mvpLevels) { level in
-                                HStack {
-                                    Text(level.localizedTitle)
-                                    Spacer()
-                                    if profile.completedLevels.contains(level) {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(Color(.systemGreen))
-                                            .accessibilityHidden(true)
-                                    } else {
-                                        Button(
-                                            String(
-                                                localized: "trust.wizard.verify",
-                                                defaultValue: "去认证",
-                                                comment: "Verify CTA"
-                                            )
+                                if profile.completedLevels.contains(level) {
+                                    NavigationLink {
+                                        TrustLevelDetailView(
+                                            level: level,
+                                            isCompleted: true,
+                                            lastErrorMessage: viewModel.errorMessage,
+                                            onVerify: { Task { await viewModel.verify(level) } },
+                                            isLoading: viewModel.isLoading
+                                        )
+                                    } label: {
+                                        trustLevelRowLabel(level: level, profile: profile)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                    }
+                                    .sparkSemanticListRow()
+                                    .disabled(viewModel.isLoading)
+                                    .accessibilityElement(children: .combine)
+                                    .accessibilityLabel(level.localizedTitle)
+                                    .accessibilityValue(trustLevelAccessibilityValue(level: level, profile: profile))
+                                } else {
+                                    NavigationLink {
+                                        TrustVerificationFlowView(
+                                            level: level,
+                                            isLoading: viewModel.isLoading
                                         ) {
                                             Task { await viewModel.verify(level) }
                                         }
-                                        .disabled(viewModel.isLoading)
+                                    } label: {
+                                        trustLevelRowLabel(level: level, profile: profile)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
                                     }
+                                    .sparkSemanticListRow()
+                                    .disabled(viewModel.isLoading)
+                                    .accessibilityElement(children: .combine)
+                                    .accessibilityLabel(level.localizedTitle)
+                                    .accessibilityValue(trustLevelAccessibilityValue(level: level, profile: profile))
                                 }
-                                .accessibilityElement(children: .combine)
-                                .accessibilityLabel(level.localizedTitle)
-                                .accessibilityValue(
-                                    profile.completedLevels.contains(level)
-                                        ? String(
-                                            localized: "trust.wizard.level.completed",
-                                            defaultValue: "已完成",
-                                            comment: "Level completed"
-                                        )
-                                        : String(
-                                            localized: "trust.wizard.level.pending",
-                                            defaultValue: "未完成",
-                                            comment: "Level pending"
-                                        )
-                                )
                             }
                         }
                     }
+                    .sparkSemanticListChrome()
                 } else if viewModel.isLoading {
                     ProgressView()
                         .sparkLoadingAccessibilityLabel(
@@ -115,6 +117,43 @@ public struct TrustVerificationWizardView: View {
             }
             .task { await viewModel.load() }
         }
+    }
+
+    private func trustLevelRowLabel(level: TrustLevel, profile: TrustProfile) -> some View {
+        HStack {
+            Text(level.localizedTitle)
+            Spacer()
+            if profile.completedLevels.contains(level) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color(.systemGreen))
+                    .accessibilityHidden(true)
+            } else {
+                Text(
+                    String(
+                        localized: "trust.wizard.verify",
+                        defaultValue: "去认证",
+                        comment: "Verify CTA"
+                    )
+                )
+                .font(.subheadline)
+                .foregroundStyle(Color.accentColor)
+            }
+        }
+    }
+
+    private func trustLevelAccessibilityValue(level: TrustLevel, profile: TrustProfile) -> String {
+        if profile.completedLevels.contains(level) {
+            return String(
+                localized: "trust.wizard.level.completed",
+                defaultValue: "已完成",
+                comment: "Level completed"
+            )
+        }
+        return String(
+            localized: "trust.wizard.level.pending",
+            defaultValue: "未完成",
+            comment: "Level pending"
+        )
     }
 }
 

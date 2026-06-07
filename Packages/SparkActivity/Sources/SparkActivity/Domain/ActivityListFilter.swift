@@ -16,7 +16,7 @@ public enum ActivityListFilter: String, Sendable, CaseIterable, Identifiable {
         case .all:
             String(localized: "activity.filter.all", defaultValue: "全部", comment: "Feed filter")
         case .pendingReply:
-            String(localized: "activity.filter.pending", defaultValue: "待回复", comment: "Feed filter")
+            String(localized: "activity.filter.requests", defaultValue: "活动请求", comment: "Feed filter")
         case .upcoming:
             String(localized: "activity.filter.upcoming", defaultValue: "即将参加", comment: "Feed filter")
         case .hosting:
@@ -24,6 +24,23 @@ public enum ActivityListFilter: String, Sendable, CaseIterable, Identifiable {
         case .past:
             String(localized: "activity.filter.past", defaultValue: "往期参加", comment: "Feed filter")
         }
+    }
+
+    /// Whether the Activity inbox should surface inbox request cards (invites / changes / waitlist).
+    public var showsInboxActionItems: Bool {
+        self == .pendingReply
+    }
+}
+
+public enum ActivityInboxListPresentation {
+    /// Hides feed rows already represented by inbox request cards on the 活动请求 segment.
+    public static func listItems(
+        from feedItems: [ActivityItem],
+        filter: ActivityListFilter,
+        requestActivityIDs: Set<String>
+    ) -> [ActivityItem] {
+        guard filter == .pendingReply, !requestActivityIDs.isEmpty else { return feedItems }
+        return feedItems.filter { !requestActivityIDs.contains($0.id) }
     }
 }
 

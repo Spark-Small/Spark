@@ -22,17 +22,24 @@ public final class AppRouter {
     public var pendingActivityID: String?
     /// Pre-filled create form after match → coffee activity (Nexus W3).
     public var pendingCreateActivityDraft: CreateActivityDraft?
-    public var pendingLikesInbound = false
+    public var pendingUnrecognizedURL: URL?
     public var globalSheet: GlobalPresentation?
     public var globalFullScreenCover: GlobalPresentation?
 
-    public init(selectedTab: SparkTab = .community) {
+    public init(selectedTab: SparkTab = .activity) {
         self.selectedTab = selectedTab
     }
 
     public func handle(url: URL, isAuthenticated: Bool) {
-        guard let route = DeepLinkParser.parse(url: url) else { return }
+        guard let route = DeepLinkParser.parse(url: url) else {
+            pendingUnrecognizedURL = url
+            return
+        }
         handle(route: route, isAuthenticated: isAuthenticated)
+    }
+
+    public func clearPendingUnrecognizedURL() {
+        pendingUnrecognizedURL = nil
     }
 
     public func handle(route: DeepLinkRoute, isAuthenticated: Bool) {
@@ -43,7 +50,7 @@ public final class AppRouter {
                 presentAuthRequired()
                 return
             }
-        case .paywall, .conversation, .communityPost, .communityRecap, .activityDetail, .likesInbound:
+        case .paywall, .conversation, .communityPost, .communityRecap, .activityDetail:
             if !isAuthenticated {
                 pendingDeepLinkAfterAuth = route
                 presentAuthRequired()
@@ -71,14 +78,7 @@ public final class AppRouter {
         case let .activityDetail(activityID):
             IntegrationTelemetry.inviteLinkOpened(activityID: activityID)
             openActivityDetail(activityID: activityID)
-        case .likesInbound:
-            openLikesInbound()
         }
-    }
-
-    public func openLikesInbound() {
-        selectedTab = .likes
-        pendingLikesInbound = true
     }
 
     /// Opens activity detail on the Activity tab (universal links, search, inbox).
@@ -153,14 +153,14 @@ public final class AppRouter {
     }
 
     public func resetAfterSignOut() {
-        selectedTab = .community
+        selectedTab = .activity
         pendingSearchQuery = nil
         pendingConversationThreadID = nil
         pendingCommunityPostID = nil
         pendingCommunityRecapActivityID = nil
         pendingActivityID = nil
         pendingCreateActivityDraft = nil
-        pendingLikesInbound = false
+        pendingUnrecognizedURL = nil
         dismissGlobalPresentation()
     }
 }

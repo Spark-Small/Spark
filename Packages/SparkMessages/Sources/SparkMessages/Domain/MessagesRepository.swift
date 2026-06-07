@@ -20,13 +20,19 @@ public protocol MessagesRepository: Sendable {
     func fetchConversationContext(threadID: MessageThreadID) async throws -> ConversationContext
 
     /// Send a user-authored text message.
-    func sendMessage(threadID: MessageThreadID, body: String) async throws -> ChatMessage
+    func sendMessage(threadID: MessageThreadID, body: String, kind: ChatMessageKind) async throws -> ChatMessage
 
     /// Clears unread counts for DM and group conversations (not action items).
     func markAllRead() async throws
 
     /// Clears unread count for one thread.
     func markThreadRead(threadID: MessageThreadID) async throws
+
+    /// Hides a thread from the inbox without deleting message history.
+    func hideThread(threadID: MessageThreadID) async throws
+
+    /// Permanently deletes a thread and its messages for the current user.
+    func deleteThread(threadID: MessageThreadID) async throws
 
     /// Accept or decline an activity invite from an action card.
     func respondToActivityInvite(activityID: String, invitationID: String, accept: Bool) async throws

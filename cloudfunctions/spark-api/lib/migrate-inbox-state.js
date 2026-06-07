@@ -1,10 +1,11 @@
 /**
  * One-shot staging migrations for messages inbox (ADR-0002).
- * REASONING: CloudBase may retain pre-inbox threads/likes_state; merge seed gaps on hydrate.
+ * REASONING: CloudBase may retain pre-inbox threads/inbox_state; merge seed gaps on hydrate.
  */
 
 const { buildSeed } = require("./seed-data");
 const { defaultInboxActionItems } = require("./messages-helpers");
+const { INBOX_DOC_ID } = require("./inbox-state");
 
 const LEGACY_THREAD_IDS = ["th_001"];
 
@@ -13,12 +14,12 @@ function migrateMessagesInboxState(state) {
   const changes = {
     threads: new Set(),
     threadDeletes: [],
-    likes: false,
+    inbox: false,
   };
 
   if (!state.inboxActionItems?.length) {
     state.inboxActionItems = defaultInboxActionItems(state.activities);
-    changes.likes = true;
+    changes.inbox = true;
   }
   if (!state.dismissedInboxActionIds) {
     state.dismissedInboxActionIds = new Set();
@@ -37,10 +38,10 @@ function migrateMessagesInboxState(state) {
     }
   }
 
-  for (const [peerId, threadId] of Object.entries(seed.likesState.mutual_matches)) {
+  for (const [peerId, threadId] of Object.entries(seed.inboxState.mutual_matches)) {
     if (!state.mutualMatches.has(peerId)) {
       state.mutualMatches.set(peerId, threadId);
-      changes.likes = true;
+      changes.inbox = true;
     }
   }
 
@@ -48,10 +49,10 @@ function migrateMessagesInboxState(state) {
 }
 
 function hasInboxMigrationWork(changes) {
-  return changes.threads.size > 0 || changes.threadDeletes.length > 0 || changes.likes;
+  return changes.threads.size > 0 || changes.threadDeletes.length > 0 || changes.inbox;
 }
 
-async function applyInboxMigration(state, database, { serializeLikesState, collection }) {
+async function applyInboxMigration(state, database, { serializeInboxState, collection }) {
   const changes = migrateMessagesInboxState(state);
   if (!hasInboxMigrationWork(changes)) {
     return false;
@@ -72,8 +73,11 @@ async function applyInboxMigration(state, database, { serializeLikesState, colle
     }
   }
 
-  if (changes.likes) {
-    await database.collection(collection.likes_state).doc("global").set(serializeLikesState(state));
+  if (changes.inbox) {
+    await database
+      .collection(collection.inbox_state)
+      .doc(INBOX_DOC_ID)
+      .set(serializeInboxState(state));
   }
 
   console.info(
@@ -81,7 +85,7 @@ async function applyInboxMigration(state, database, { serializeLikesState, colle
     JSON.stringify({
       threadsAdded: [...changes.threads],
       threadsRemoved: changes.threadDeletes,
-      likesUpdated: changes.likes,
+      inboxUpdated: changes.inbox,
     })
   );
   return true;

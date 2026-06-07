@@ -22,6 +22,18 @@ struct AuthUseCaseTests {
         #expect(session == nil)
     }
 
+    @Test func signUpWithEmailUseCasePersistsSession() async throws {
+        let service = makeService()
+        let useCase = SignUpWithEmailUseCase(authService: service)
+        let session = try await useCase(email: "new@spark.app", password: "secret1", displayName: "Nova")
+        #expect(session.userID.rawValue == "new")
+    }
+
+    @Test func requestPasswordResetUseCaseSucceedsForValidEmail() async throws {
+        let service = makeService()
+        try await RequestPasswordResetUseCase(authService: service)(email: "reset@spark.app")
+    }
+
     @Test func signInWithEmailUseCasePersistsSession() async throws {
         let service = makeService()
         let useCase = SignInWithEmailUseCase(authService: service)

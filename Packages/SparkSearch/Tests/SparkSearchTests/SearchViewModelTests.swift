@@ -11,7 +11,7 @@ struct SearchViewModelTests {
         viewModel.query = "徒步"
         await viewModel.submitSearch()
         #expect(viewModel.loadState == .loaded)
-        #expect(viewModel.results.count == 2)
+        #expect(viewModel.results.count == 3)
     }
 
     @Test func emptyQueryClearsResults() async {

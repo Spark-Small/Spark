@@ -10,16 +10,17 @@ Staging REST MVP aligned with [docs/API_CONTRACT.md](../../docs/API_CONTRACT.md)
 | Gateway path | `/` |
 | Test login | `staging@test.com` / `staging123` |
 | Persistence | CloudBase NoSQL (`/health` → `"persistence":"cloudbase"`) |
-| Last smoke | 2026-06-07 — trust + activity_recap incl. |
+| Last smoke | 2026-06-08 — likes API removed; inbox state in `spark_inbox_state` |
 
 ## iOS Live endpoints (all implemented)
 
-- **Auth:** session, email, apple, sign-out
+- **Auth:** session, email, register, password-reset, apple, sign-out, account/delete
+- **Community:** feed, posts, **media/stage**, replies, report
 - **Messages:** inbox, unread-count, threads, messages, read, activity-threads, direct-threads
 - **Activities:** feed, **browse**, create, detail, patch, rsvp, waitlist, promote, cancel, report, announce, feedback
-- **Search, Community** (posts + replies + `activity_recap`), **Likes**, **Trust** (`/v1/trust/*`), **devices**, **notifications/send**
+- **Search, Community** (posts + replies + `activity_recap`), **Users** (avatar upload-url, profile), **Trust** (`/v1/trust/*`), **devices**, **notifications/send**
 
-**iOS wired:** Activity browse ([ADR-0003](../../docs/adr/0003-activities-browse-placement.md)), Community compose + reply thread, inbound blur, avatar upload-url.
+**iOS wired:** Activity browse ([ADR-0003](../../docs/adr/0003-activities-browse-placement.md)), Community compose + reply thread, avatar upload-url.
 
 ### APNs env (MODULE-B.3)
 
@@ -33,9 +34,11 @@ Staging REST MVP aligned with [docs/API_CONTRACT.md](../../docs/API_CONTRACT.md)
 
 ### Persistence collections
 
-`spark_users` · `spark_activities` · `spark_threads` · `spark_community_posts` · `spark_community_reports` · `spark_likes_state` · `spark_devices` · `spark_meta`
+`spark_users` · `spark_activities` · `spark_threads` · `spark_community_posts` · `spark_community_reports` · `spark_inbox_state` · `spark_devices` · `spark_meta`
 
-**MODULE-B.4:** Business events auto-call APNs (`likes.*`, `messages.new`, `activity.*`, `community.reply`) via `lib/push-triggers.js`.
+Legacy `spark_likes_state` is read once on hydrate for migration, then superseded by `spark_inbox_state`.
+
+**MODULE-B.4:** Business events auto-call APNs (`messages.new`, `activity.*`, `community.reply`) via `lib/push-triggers.js`.
 
 ## Seed highlights
 

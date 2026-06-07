@@ -5,6 +5,7 @@
 
 import SparkAppShell
 import SparkAuth
+import SparkDesignSystem
 import SwiftUI
 
 /// Application root view — auth guard and tab shell via `SparkAppShell`.

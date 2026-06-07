@@ -19,6 +19,8 @@
 	<string>将活动开始时间加入系统日历，方便你准时参加。</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>用于选择头像照片，展示在你的个人资料中。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>用于扫描二维码，加入活动或打开会话。</string>
 	<key>SPARKLegalPrivacyURL</key>
 	<string>https://spark.app/legal/privacy</string>
 	<key>SPARKLegalTermsURL</key>

@@ -65,4 +65,10 @@ struct MessagesSystemPayloadDTO: Decodable, Sendable {
 
 struct SendMessageRequestDTO: Encodable, Sendable {
     let body: String
+    let kind: String?
+
+    init(body: String, kind: String? = nil) {
+        self.body = body
+        self.kind = kind
+    }
 }

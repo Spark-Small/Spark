@@ -3,7 +3,7 @@
 import Foundation
 
 /// In-process secrets storage; use in tests when `KeychainManager` returns `errSecMissingEntitlement`.
-// REASONING: NSLock serializes all reads/writes; safe across test threads.
+/// REASONING: NSLock serializes all reads/writes; safe across test threads.
 public final class InMemoryKeychainManager: @unchecked Sendable, KeychainStoring {
     private let lock = NSLock()
     private var storage: [String: Data] = [:]

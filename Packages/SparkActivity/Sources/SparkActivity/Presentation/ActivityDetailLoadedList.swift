@@ -1,4 +1,4 @@
-// Module: SparkActivity — Loaded activity detail list sections.
+// Module: SparkActivity — Loaded activity detail (Meetup-style scroll layout).
 
 import SparkDesignSystem
 import SwiftUI
@@ -7,6 +7,7 @@ struct ActivityDetailLoadedList: View {
     @Environment(\.openURL) var openURL
     @Bindable var viewModel: ActivityDetailViewModel
     let activity: ActivityDetail
+    let inviteCandidates: [ActivityInviteCandidate]
     let onOpenGroupChat: ((ActivityDetail) async -> Void)?
     let onCommunityRecap: ((ActivityDetail) -> Void)?
     @Binding var showEditActivity: Bool
@@ -14,126 +15,53 @@ struct ActivityDetailLoadedList: View {
     @Binding var showHostAgainCreate: Bool
     @Binding var showCancelActivityConfirm: Bool
 
+    private var usesBottomRSVPBar: Bool {
+        activity.canChangeRSVP && activity.rsvpStatus == .invited
+    }
+
     var body: some View {
-        List {
-            if activity.lifecycleStatus != .scheduled {
-                Section {
-                    Text(activity.lifecycleStatus.localizedLabel)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                meetupCoverSection(activity: activity)
+                meetupTitleSection(activity: activity)
+                meetupHostSection(activity: activity)
+                meetupGroupSection(activity: activity)
+                meetupScheduleLocationSection(activity: activity)
+                meetupAttendeesPreviewSection(activity: activity)
+                meetupDetailsSection(activity: activity)
+                meetupRelatedTopicsSection(activity: activity)
+                meetupHostOtherEventsSection()
+
+                if !activity.attendees.isEmpty {
+                    meetupFullAttendeesSection(activity: activity)
+                }
+
+                if showsInviteFriendsSection(for: activity) {
+                    meetupInviteFriendsSection(activity: activity)
+                }
+
+                postEventScrollSection(activity: activity)
+
+                if activity.showsHostManagement {
+                    hostManagementScrollSection(activity: activity)
+                } else if activity.canChangeRSVP, !usesBottomRSVPBar {
+                    registrationScrollSection(activity: activity, showsRSVPButtons: true)
+                } else if activity.rsvpStatus == .waitlisted {
+                    registrationScrollSection(activity: activity, showsRSVPButtons: false)
+                } else if let blocked = activity.registrationBlockedMessage {
+                    meetupNoticeBlock(blocked)
+                }
+
+                registrantActionsScrollSection(activity: activity)
+                groupChatScrollSection(activity: activity)
+
+                if let hostMessage = viewModel.hostFeedbackMessage {
+                    meetupNoticeBlock(hostMessage)
                 }
             }
-
-            Section {
-                Label(activity.hostDisplayName, systemImage: "person.crop.circle")
-                if let bio = activity.hostBio, !bio.isEmpty {
-                    Text(bio)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                Label(activity.scheduleLine, systemImage: "calendar")
-                locationRow(activity: activity)
-                Label(activity.attendeeLine, systemImage: "person.2")
-            } header: {
-                Text(
-                    String(localized: "activity.detail.info.section", defaultValue: "邀请信息", comment: "Activity section")
-                )
-            }
-
-            if !viewModel.hostOtherActivities.isEmpty {
-                Section {
-                    ForEach(viewModel.hostOtherActivities) { item in
-                        NavigationLink(value: item) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(item.title)
-                                    .font(.subheadline.weight(.medium))
-                                Text(item.scheduleLine)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                } header: {
-                    Text(
-                        String(
-                            localized: "activity.host.more.section",
-                            defaultValue: "主办的其他活动",
-                            comment: "More from host"
-                        )
-                    )
-                }
-            } else if viewModel.hostOtherActivitiesLoadFailed {
-                Section {
-                    Text(
-                        String(
-                            localized: "activity.host.more.failed",
-                            defaultValue: "暂时无法加载主办的其他活动",
-                            comment: "Host more load failed"
-                        )
-                    )
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                }
-            }
-
-            if !activity.attendees.isEmpty {
-                attendeesSection(activity: activity, isHostView: activity.rsvpStatus == .host)
-            }
-
-            Section {
-                Text(activity.description)
-                    .font(.body)
-            } header: {
-                Text(
-                    String(localized: "activity.detail.about.section", defaultValue: "活动说明", comment: "Activity section")
-                )
-            }
-
-            if showsInviteFriendsSection(for: activity) {
-                ActivityInviteFriendsSection(activity: activity) {
-                    viewModel.notifyInviteCopied()
-                }
-                if viewModel.shouldPromptInviteFriends {
-                    Section {
-                        Text(
-                            String(
-                                localized: "activity.inviteFriends.afterRSVP",
-                                defaultValue: "已报名！把活动发给好友，约好一起参加。",
-                                comment: "Post-RSVP invite hint"
-                            )
-                        )
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            postEventSection(activity: activity)
-
-            if activity.showsHostManagement {
-                hostManagementSection(activity: activity)
-            } else if activity.canChangeRSVP {
-                registrationSection(activity: activity)
-            } else if let blocked = activity.registrationBlockedMessage {
-                Section {
-                    Text(blocked)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            registrantActionsSection(activity: activity)
-            groupChatSection(activity: activity)
-
-            if let hostMessage = viewModel.hostFeedbackMessage {
-                Section {
-                    Text(hostMessage)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            .padding(.bottom, usesBottomRSVPBar ? 120 : SparkLayoutMetrics.sectionVerticalPadding)
         }
-        .sparkScreenListStyle()
+        .background(.background)
         .disabled(viewModel.isUpdatingRSVP || viewModel.isPerformingHostAction)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(
@@ -144,6 +72,121 @@ struct ActivityDetailLoadedList: View {
             )
         )
     }
+
+    @ViewBuilder
+    private func meetupFullAttendeesSection(activity: ActivityDetail) -> some View {
+        let isHostView = activity.rsvpStatus == .host
+        VStack(alignment: .leading, spacing: SparkLayoutMetrics.compactVerticalPadding) {
+            meetupDetailSubsectionHeader(
+                isHostView
+                    ? String(
+                        localized: "activity.host.roster.section",
+                        defaultValue: "报名名单",
+                        comment: "Host roster"
+                    )
+                    : String(
+                        localized: "activity.detail.attendees.section",
+                        defaultValue: "参加者",
+                        comment: "Attendees section"
+                    )
+            )
+
+            meetupInsetActionsGroup {
+                ForEach(activity.attendees) { attendee in
+                    attendeeRow(attendee: attendee, isHostView: isHostView)
+                    if attendee.id != activity.attendees.last?.id {
+                        meetupActionDivider()
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func attendeeRow(attendee: ActivityAttendee, isHostView: Bool) -> some View {
+        HStack(spacing: 10) {
+            Text(String(attendee.displayName.prefix(1)))
+                .font(.caption.weight(.semibold))
+                .frame(width: 32, height: 32)
+                .background(.quaternary, in: Circle())
+
+            Text(attendee.displayName)
+                .font(.body)
+            Spacer(minLength: 0)
+            if attendee.isHost {
+                Text(
+                    String(localized: "activity.attendee.host", defaultValue: "主办", comment: "Host badge")
+                )
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            } else if attendee.isVerified {
+                Text(
+                    String(localized: "activity.attendee.verified", defaultValue: "已实名", comment: "Verified badge")
+                )
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            } else if attendee.isCoHost {
+                Text(
+                    String(localized: "activity.host.cohost.badge", defaultValue: "协办", comment: "Co-host badge")
+                )
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            } else if isHostView, let status = attendee.rsvpStatus {
+                Text(status.localizedLabel)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                if status == .waitlisted {
+                    Button(
+                        String(
+                            localized: "activity.host.promote",
+                            defaultValue: "提升",
+                            comment: "Promote waitlist"
+                        )
+                    ) {
+                        Task { await viewModel.promoteWaitlistedAttendee(attendee.id) }
+                    }
+                    .font(.caption)
+                }
+            }
+        }
+        .padding(.horizontal, ActivityDetailMeetupLayout.horizontalPadding)
+        .padding(.vertical, SparkLayoutMetrics.compactVerticalPadding)
+    }
+
+    @ViewBuilder
+    private func meetupInviteFriendsSection(activity: ActivityDetail) -> some View {
+        VStack(alignment: .leading, spacing: SparkLayoutMetrics.compactVerticalPadding) {
+            meetupDetailSubsectionHeader(
+                String(
+                    localized: "activity.inviteFriends.section",
+                    defaultValue: "邀请好友",
+                    comment: "Invite friends section"
+                )
+            )
+            ActivityInviteFriendsSection(
+                activity: activity,
+                inviteCandidates: inviteCandidates
+            ) {
+                viewModel.notifyInviteCopied()
+            }
+            .padding(.horizontal, ActivityDetailMeetupLayout.horizontalPadding)
+            .padding(.top, ActivityDetailMeetupLayout.blockSpacing)
+
+            if viewModel.shouldPromptInviteFriends {
+                Text(
+                    String(
+                        localized: "activity.inviteFriends.afterRSVP",
+                        defaultValue: "已报名！把活动发给好友，约好一起参加。",
+                        comment: "Post-RSVP invite hint"
+                    )
+                )
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, ActivityDetailMeetupLayout.horizontalPadding)
+            }
+        }
+    }
+
 }
 
 #Preview {
@@ -155,6 +198,7 @@ struct ActivityDetailLoadedList: View {
                     repository: MockActivityFeedRepository()
                 ),
                 activity: activity,
+                inviteCandidates: [],
                 onOpenGroupChat: nil,
                 onCommunityRecap: nil,
                 showEditActivity: .constant(false),
@@ -162,6 +206,7 @@ struct ActivityDetailLoadedList: View {
                 showHostAgainCreate: .constant(false),
                 showCancelActivityConfirm: .constant(false)
             )
+            .environment(ActivityFavoriteStore())
         }
     }
 }

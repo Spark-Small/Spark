@@ -79,15 +79,18 @@ public final class CommunityPostDetailViewModel {
             if var current = post {
                 var replies = current.replies
                 replies.append(reply)
+                let nextCount = max(current.replyCount, replies.count)
                 post = CommunityPostDetail(
                     id: current.id,
                     title: current.title,
                     body: current.body,
                     authorDisplayName: current.authorDisplayName,
                     authorUserID: current.authorUserID,
-                    replyCount: replies.count,
+                    replyCount: nextCount,
                     replies: replies,
-                    linkedActivity: current.linkedActivity
+                    linkedActivity: current.linkedActivity,
+                    mediaItems: current.mediaItems,
+                    tags: current.tags
                 )
             }
             replyDraft = ""

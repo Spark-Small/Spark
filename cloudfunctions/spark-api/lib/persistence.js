@@ -4,19 +4,18 @@
  */
 
 const { buildSeed } = require("./seed-data");
+const { INBOX_DOC_ID, serializeInboxState, applyInboxDoc } = require("./inbox-state");
 
 const COLLECTION = {
   users: "spark_users",
   activities: "spark_activities",
   threads: "spark_threads",
   community_posts: "spark_community_posts",
-  likes_state: "spark_likes_state",
+  inbox_state: "spark_inbox_state",
   devices: "spark_devices",
   community_reports: "spark_community_reports",
   meta: "spark_meta",
 };
-
-const LIKES_DOC_ID = "global";
 
 function persistenceMode() {
   if (process.env.SPARK_PERSISTENCE === "memory") return "memory";
@@ -43,7 +42,7 @@ function createDirtyTracker() {
     threads: new Set(),
     community_posts: new Set(),
     devices: new Set(),
-    likes: false,
+    inbox: false,
     meta: false,
   };
 }
@@ -54,31 +53,12 @@ function applySeed(state) {
   state.activities = seed.activities;
   state.communityPosts = seed.communityPosts;
   state.threads = seed.threads;
-  state.likesCards = seed.likesState.cards;
-  state.inboundLikes = seed.likesState.inbound;
-  state.viewerProfiles = new Map(Object.entries(seed.likesState.viewer_profiles));
-  state.passedUsers = new Set(seed.likesState.passed_users);
-  state.likedByMe = new Set(seed.likesState.liked_by_me);
-  state.mutualMatches = new Map(Object.entries(seed.likesState.mutual_matches));
-  state.lastPassUserId = seed.likesState.last_pass_user_id;
-  state.rewindUsedToday = seed.likesState.rewind_used_today;
-  state.inboundByUser = new Map(
-    Object.entries(seed.likesState.inbound_by_user || {})
-  );
-  state.passedByUser = require("./likes-helpers").mapsFromObjectSets(
-    seed.likesState.passed_by_user
-  );
-  state.likedByMeByUser = require("./likes-helpers").mapsFromObjectSets(
-    seed.likesState.liked_by_user
-  );
-  state.dailyByUser = require("./likes-helpers").mapsFromObjectPlain(
-    seed.likesState.daily_by_user
-  );
-  state.rewindByUser = new Map(Object.entries(seed.likesState.rewind_by_user || {}));
+  state.viewerProfiles = new Map(Object.entries(seed.inboxState.viewer_profiles || {}));
+  state.mutualMatches = new Map(Object.entries(seed.inboxState.mutual_matches || {}));
   const { defaultInboxActionItems } = require("./messages-helpers");
   state.inboxActionItems =
-    seed.likesState.inbox_action_items || defaultInboxActionItems(state.activities);
-  state.dismissedInboxActionIds = new Set(seed.likesState.dismissed_inbox_action_ids || []);
+    seed.inboxState.inbox_action_items || defaultInboxActionItems(state.activities);
+  state.dismissedInboxActionIds = new Set(seed.inboxState.dismissed_inbox_action_ids || []);
   Object.assign(state.counters, seed.meta);
 }
 
@@ -110,58 +90,22 @@ async function loadDevices(database, intoMap) {
   }
 }
 
-function serializeLikesState(state) {
-  const { mapsToObject } = require("./likes-helpers");
-  return {
-    _id: LIKES_DOC_ID,
-    cards: state.likesCards,
-    inbound: state.inboundLikes,
-    inbound_by_user: Object.fromEntries(state.inboundByUser || new Map()),
-    viewer_profiles: Object.fromEntries(state.viewerProfiles),
-    passed_users: [...state.passedUsers],
-    passed_by_user: mapsToObject(state.passedByUser || new Map()),
-    liked_by_me: [...state.likedByMe],
-    liked_by_user: mapsToObject(state.likedByMeByUser || new Map()),
-    daily_by_user: mapsToObject(state.dailyByUser || new Map()),
-    mutual_matches: Object.fromEntries(state.mutualMatches),
-    last_pass_user_id: state.lastPassUserId,
-    rewind_used_today: state.rewindUsedToday,
-    rewind_by_user: Object.fromEntries(state.rewindByUser || new Map()),
-    inbox_action_items: state.inboxActionItems || [],
-    dismissed_inbox_action_ids: [...(state.dismissedInboxActionIds || new Set())],
-  };
-}
-
-function applyLikesDoc(state, doc) {
-  if (!doc) return;
-  const { mapsFromObjectSets, mapsFromObjectPlain } = require("./likes-helpers");
-  state.likesCards = doc.cards || state.likesCards;
-  state.inboundLikes = doc.inbound || state.inboundLikes;
-  if (doc.inbound_by_user) {
-    state.inboundByUser = new Map(Object.entries(doc.inbound_by_user));
-  } else if (doc.inbound?.length) {
-    state.inboundByUser = new Map([["u_staging_1", doc.inbound]]);
-  } else {
-    state.inboundByUser = state.inboundByUser || new Map();
+async function loadInboxState(database, state) {
+  const inboxSnap = await database.collection(COLLECTION.inbox_state).doc(INBOX_DOC_ID).get();
+  let doc = inboxSnap.data?.[0];
+  if (!doc) {
+    const legacySnap = await database.collection("spark_likes_state").doc(INBOX_DOC_ID).get();
+    const legacyDoc = legacySnap.data?.[0];
+    if (legacyDoc) {
+      doc = {
+        viewer_profiles: legacyDoc.viewer_profiles,
+        mutual_matches: legacyDoc.mutual_matches,
+        inbox_action_items: legacyDoc.inbox_action_items,
+        dismissed_inbox_action_ids: legacyDoc.dismissed_inbox_action_ids,
+      };
+    }
   }
-  state.viewerProfiles = new Map(Object.entries(doc.viewer_profiles || {}));
-  state.passedUsers = new Set(doc.passed_users || []);
-  state.passedByUser = mapsFromObjectSets(doc.passed_by_user);
-  state.likedByMe = new Set(doc.liked_by_me || []);
-  state.likedByMeByUser = mapsFromObjectSets(doc.liked_by_user);
-  state.dailyByUser = mapsFromObjectPlain(doc.daily_by_user);
-  state.mutualMatches = new Map(Object.entries(doc.mutual_matches || {}));
-  state.lastPassUserId = doc.last_pass_user_id ?? null;
-  state.rewindUsedToday = Boolean(doc.rewind_used_today);
-  state.rewindByUser = new Map(Object.entries(doc.rewind_by_user || {}));
-  if (Array.isArray(doc.inbox_action_items)) {
-    state.inboxActionItems = doc.inbox_action_items;
-  }
-  if (Array.isArray(doc.dismissed_inbox_action_ids)) {
-    state.dismissedInboxActionIds = new Set(doc.dismissed_inbox_action_ids);
-  } else if (!state.dismissedInboxActionIds) {
-    state.dismissedInboxActionIds = new Set();
-  }
+  applyInboxDoc(state, doc);
 }
 
 async function hydrate(state) {
@@ -180,8 +124,7 @@ async function hydrate(state) {
       await loadDevices(database, state.devices);
     }
 
-    const likesSnap = await database.collection(COLLECTION.likes_state).doc(LIKES_DOC_ID).get();
-    applyLikesDoc(state, likesSnap.data?.[0]);
+    await loadInboxState(database, state);
 
     const metaSnap = await database.collection(COLLECTION.meta).doc("counters").get();
     const metaDoc = metaSnap.data?.[0];
@@ -195,7 +138,7 @@ async function hydrate(state) {
 
     const { applyInboxMigration } = require("./migrate-inbox-state");
     const migrated = await applyInboxMigration(state, database, {
-      serializeLikesState,
+      serializeInboxState,
       collection: COLLECTION,
     });
     return { mode: "cloudbase", seeded: false, migrated };
@@ -222,7 +165,7 @@ async function persistAll(state) {
   for (const post of state.communityPosts.values()) {
     await database.collection(COLLECTION.community_posts).doc(post.id).set(post);
   }
-  await database.collection(COLLECTION.likes_state).doc(LIKES_DOC_ID).set(serializeLikesState(state));
+  await database.collection(COLLECTION.inbox_state).doc(INBOX_DOC_ID).set(serializeInboxState(state));
   if (state.devices) {
     for (const [token, device] of state.devices.entries()) {
       await database.collection(COLLECTION.devices).doc(token).set({ ...device, token });
@@ -251,8 +194,11 @@ async function flush(state, dirty) {
       const post = state.communityPosts.get(id);
       if (post) await database.collection(COLLECTION.community_posts).doc(id).set(post);
     }
-    if (dirty.likes) {
-      await database.collection(COLLECTION.likes_state).doc(LIKES_DOC_ID).set(serializeLikesState(state));
+    if (dirty.inbox) {
+      await database
+        .collection(COLLECTION.inbox_state)
+        .doc(INBOX_DOC_ID)
+        .set(serializeInboxState(state));
     }
     if (dirty.meta) {
       await database.collection(COLLECTION.meta).doc("counters").set(state.counters);

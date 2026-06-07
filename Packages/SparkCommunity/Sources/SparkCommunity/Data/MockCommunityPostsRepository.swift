@@ -5,13 +5,16 @@ import Foundation
 public actor MockCommunityPostsRepository: CommunityPostsRepository {
     private var replyStore: [String: [CommunityPostReply]]
     private var userCreatedPosts: [CommunityPostDetail] = []
+    private var joinedCommunityIDs: Set<String>
 
     public init() {
         replyStore = MockCommunityPostCatalog.defaultReplies()
+        joinedCommunityIDs = Set(MockCommunityTabCatalog.joinedCommunities().map(\.id))
     }
 
     public init(replyStore: [String: [CommunityPostReply]]) {
         self.replyStore = replyStore
+        joinedCommunityIDs = Set(MockCommunityTabCatalog.joinedCommunities().map(\.id))
     }
 
     public func resetUserCreatedPosts() {
@@ -27,11 +30,22 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
     }
 
     public func fetchTabExperience() async throws -> CommunityTabExperience {
-        MockCommunityTabCatalog.tabExperience()
+        MockCommunityTabCatalog.tabExperience(joinedIDs: joinedCommunityIDs)
     }
 
     public func fetchCommunityDetail(id: String) async throws -> CommunityDetail {
-        guard let detail = MockCommunityDetailCatalog.detail(id: id) else {
+        guard let detail = MockCommunityDetailCatalog.detail(id: id, joinedIDs: joinedCommunityIDs) else {
+            throw CommunityError.underlying(.server(statusCode: 404, message: nil))
+        }
+        return detail
+    }
+
+    public func joinCommunity(id: String) async throws -> CommunityDetail {
+        guard MockCommunityTabCatalog.allCommunities().contains(where: { $0.id == id }) else {
+            throw CommunityError.underlying(.server(statusCode: 404, message: nil))
+        }
+        joinedCommunityIDs.insert(id)
+        guard let detail = MockCommunityDetailCatalog.detail(id: id, joinedIDs: joinedCommunityIDs) else {
             throw CommunityError.underlying(.server(statusCode: 404, message: nil))
         }
         return detail
@@ -50,18 +64,44 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
     }
 
     public func fetchPost(id: String) async throws -> CommunityPostDetail {
-        guard let post = allPostDetails().first(where: { $0.id == id }) else {
-            throw CommunityError.underlying(.server(statusCode: 404, message: nil))
+        if let post = allPostDetails().first(where: { $0.id == id }) {
+            return post
         }
-        return post
+        if let feedPost = MockCommunityTabCatalog.feedPosts().first(where: { $0.id == id }) {
+            let replies = replyStore[id, default: []]
+            return MockCommunityTabCatalog.postDetail(for: feedPost, replies: replies)
+        }
+        throw CommunityError.underlying(.server(statusCode: 404, message: nil))
     }
 
     public func createPost(_ draft: CreateCommunityPostDraft) async throws -> CommunityPost {
-        CommunityPost(
-            id: "cp_mock_new",
+        var body = draft.body
+        if !draft.mediaItems.isEmpty {
+            let note = String(
+                localized: "community.compose.mediaAttached",
+                defaultValue: "[媒体]",
+                comment: "Media attached marker"
+            )
+            body = body.isEmpty ? note : "\(body)\n\n\(note)"
+        }
+        let detail = CommunityPostDetail(
+            id: "cp_mock_new_\(userCreatedPosts.count + 1)",
             title: draft.title,
-            excerpt: String(draft.body.prefix(80)),
-            authorDisplayName: "你",
+            body: body,
+            authorDisplayName: String(
+                localized: "community.reply.author.you",
+                defaultValue: "你",
+                comment: "Reply author"
+            ),
+            replyCount: 0,
+            mediaItems: draft.mediaItems
+        )
+        userCreatedPosts.insert(detail, at: 0)
+        return CommunityPost(
+            id: detail.id,
+            title: draft.title,
+            excerpt: String(body.prefix(80)),
+            authorDisplayName: detail.authorDisplayName,
             replyCount: 0
         )
     }
@@ -78,7 +118,8 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
                 comment: "Reply author"
             ),
             replyCount: 0,
-            linkedActivity: LinkedActivityContext(id: draft.activityID, name: draft.activityTitle)
+            linkedActivity: LinkedActivityContext(id: draft.activityID, name: draft.activityTitle),
+            mediaItems: draft.publishedMedia
         )
         userCreatedPosts.insert(detail, at: 0)
         return detail

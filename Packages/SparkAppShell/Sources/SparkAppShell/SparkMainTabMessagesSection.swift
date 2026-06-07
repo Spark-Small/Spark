@@ -4,23 +4,23 @@ import SparkMessages
 import SwiftUI
 
 struct SparkMainTabMessagesSection: View {
-    let messagesViewModel: MessagesViewModel?
+    let peerDisplayNameStore: PeerDisplayNameStore
+    let messagesViewModel: MessagesViewModel
     @Binding var pendingConversationThreadID: String?
     let onOpenActivity: (String) -> Void
-    let onOpenLikes: () -> Void
-    let ensureMessagesViewModel: () -> Void
+    let onProposeMeetup: (String) -> Void
+    let onOpenActivityTab: () -> Void
+    let onScannedPayload: (String) -> Void
 
     var body: some View {
-        if let messagesViewModel {
-            MessagesRootView(
-                viewModel: messagesViewModel,
-                pendingConversationThreadID: $pendingConversationThreadID,
-                onOpenActivity: onOpenActivity,
-                onOpenLikes: onOpenLikes
-            )
-        } else {
-            ProgressView()
-                .task { ensureMessagesViewModel() }
-        }
+        MessagesRootView(
+            viewModel: messagesViewModel,
+            pendingConversationThreadID: $pendingConversationThreadID,
+            onOpenActivity: onOpenActivity,
+            onProposeMeetup: onProposeMeetup,
+            onOpenActivityTab: onOpenActivityTab,
+            onScannedPayload: onScannedPayload
+        )
+        .environment(peerDisplayNameStore)
     }
 }

@@ -36,7 +36,9 @@ public struct SparkCachedRemoteImage<Content: View, Placeholder: View>: View {
         .task(id: url) {
             loadedImage = nil
             guard let url, let cache else { return }
-            loadedImage = try? await cache.image(for: url, maxPixelSize: maxPixelSize)
+            guard let image = try? await cache.image(for: url, maxPixelSize: maxPixelSize) else { return }
+            guard !Task.isCancelled else { return }
+            loadedImage = image
         }
     }
 }

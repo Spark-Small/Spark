@@ -5,7 +5,6 @@ import SparkAuth
 import SparkCore
 import SparkActivity
 import SparkCommunity
-import SparkLikes
 import SparkMessages
 import SparkNetworking
 import SparkPayments
@@ -28,7 +27,6 @@ public struct AppDependencies {
     public let messagesRepository: any MessagesRepository
     public let activityFeedRepository: any ActivityFeedRepository
     public let activityBrowseRepository: any ActivityBrowseRepository
-    public let likesFeedRepository: any LikesFeedRepository
     public let searchRepository: any SearchRepository
     public let communityPostsRepository: any CommunityPostsRepository
     public let trustRepository: any TrustRepository
@@ -37,10 +35,7 @@ public struct AppDependencies {
     public let entitlementManager: EntitlementManager
     public let deviceTokenUploader: any DeviceTokenUploading
     public let blockedActivityHostsStore: BlockedActivityHostsStore
-    public let discoverMediaImageCache: DiscoverMediaImageCache
     public let remoteImageCache: RemoteImageCache
-    public let likesPreferencesStore: any LikesPreferencesStoring
-    public let likesOnboardingPreferences: any LikesOnboardingPreferences
 
     public init(
         apiConfiguration: APIConfiguration,
@@ -54,7 +49,6 @@ public struct AppDependencies {
         messagesRepository: any MessagesRepository,
         activityFeedRepository: any ActivityFeedRepository,
         activityBrowseRepository: any ActivityBrowseRepository,
-        likesFeedRepository: any LikesFeedRepository,
         searchRepository: any SearchRepository,
         communityPostsRepository: any CommunityPostsRepository,
         trustRepository: any TrustRepository,
@@ -62,10 +56,7 @@ public struct AppDependencies {
         entitlementManager: EntitlementManager,
         deviceTokenUploader: any DeviceTokenUploading,
         blockedActivityHostsStore: BlockedActivityHostsStore,
-        discoverMediaImageCache: DiscoverMediaImageCache,
-        remoteImageCache: RemoteImageCache,
-        likesPreferencesStore: any LikesPreferencesStoring,
-        likesOnboardingPreferences: any LikesOnboardingPreferences
+        remoteImageCache: RemoteImageCache
     ) {
         self.apiConfiguration = apiConfiguration
         self.tokenProvider = tokenProvider
@@ -78,7 +69,6 @@ public struct AppDependencies {
         self.messagesRepository = messagesRepository
         self.activityFeedRepository = activityFeedRepository
         self.activityBrowseRepository = activityBrowseRepository
-        self.likesFeedRepository = likesFeedRepository
         self.searchRepository = searchRepository
         self.communityPostsRepository = communityPostsRepository
         self.trustRepository = trustRepository
@@ -86,9 +76,6 @@ public struct AppDependencies {
         self.entitlementManager = entitlementManager
         self.deviceTokenUploader = deviceTokenUploader
         self.blockedActivityHostsStore = blockedActivityHostsStore
-        self.discoverMediaImageCache = discoverMediaImageCache
         self.remoteImageCache = remoteImageCache
-        self.likesPreferencesStore = likesPreferencesStore
-        self.likesOnboardingPreferences = likesOnboardingPreferences
     }
 }

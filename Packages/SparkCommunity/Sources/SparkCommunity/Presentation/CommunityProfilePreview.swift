@@ -24,4 +24,12 @@ struct CommunityProfilePreview: Identifiable, Equatable {
         bio = member.bio
         relationship = member.relationship
     }
+
+    init(feedPost: CommunityFeedPost) {
+        id = feedPost.authorUserID
+        displayName = feedPost.authorDisplayName
+        avatarURL = feedPost.authorAvatarURL
+        bio = feedPost.communityName
+        relationship = feedPost.relationshipToViewer
+    }
 }

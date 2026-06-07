@@ -11,6 +11,7 @@ public struct CommunityDetailView: View {
     private let onOpenActivity: (String) -> Void
     private let onOpenPost: (CommunityFeedPost) -> Void
     private let onLikePerson: (String) -> Void
+    private let onCommunityJoined: (() -> Void)?
     private let likedPersonIDs: Set<String>
 
     public init(
@@ -19,14 +20,16 @@ public struct CommunityDetailView: View {
         likedPersonIDs: Set<String> = [],
         onOpenActivity: @escaping (String) -> Void = { _ in },
         onOpenPost: @escaping (CommunityFeedPost) -> Void = { _ in },
-        onLikePerson: @escaping (String) -> Void = { _ in }
+        onLikePerson: @escaping (String) -> Void = { _ in },
+        onCommunityJoined: (() -> Void)? = nil
     ) {
         self.init(
             viewModel: coordinator.makeDetailViewModel(communityID: communityID),
             likedPersonIDs: likedPersonIDs,
             onOpenActivity: onOpenActivity,
             onOpenPost: onOpenPost,
-            onLikePerson: onLikePerson
+            onLikePerson: onLikePerson,
+            onCommunityJoined: onCommunityJoined
         )
     }
 
@@ -35,13 +38,15 @@ public struct CommunityDetailView: View {
         likedPersonIDs: Set<String> = [],
         onOpenActivity: @escaping (String) -> Void = { _ in },
         onOpenPost: @escaping (CommunityFeedPost) -> Void = { _ in },
-        onLikePerson: @escaping (String) -> Void = { _ in }
+        onLikePerson: @escaping (String) -> Void = { _ in },
+        onCommunityJoined: (() -> Void)? = nil
     ) {
         _viewModel = State(initialValue: viewModel)
         self.likedPersonIDs = likedPersonIDs
         self.onOpenActivity = onOpenActivity
         self.onOpenPost = onOpenPost
         self.onLikePerson = onLikePerson
+        self.onCommunityJoined = onCommunityJoined
     }
 
     public var body: some View {
@@ -50,7 +55,7 @@ public struct CommunityDetailView: View {
             case .idle, .loading:
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .accessibilityLabel(
+                    .sparkLoadingAccessibilityLabel(
                         String(
                             localized: "community.detail.loading.a11y",
                             defaultValue: "正在加载社区",
@@ -100,6 +105,37 @@ public struct CommunityDetailView: View {
             likedPersonIDs: likedPersonIDs,
             onLike: onLikePerson
         )
+        .alert(
+            String(
+                localized: "community.detail.join.error.title",
+                defaultValue: "无法加入社区",
+                comment: "Join community error title"
+            ),
+            isPresented: joinFailureBinding
+        ) {
+            Button(String(localized: "action.ok", defaultValue: "好", comment: "OK")) {
+                viewModel.dismissJoinError()
+            }
+        } message: {
+            if case let .failure(message) = viewModel.joinState {
+                Text(message)
+            }
+        }
+        .onChange(of: viewModel.detail?.isJoined) { _, isJoined in
+            if isJoined == true {
+                onCommunityJoined?()
+            }
+        }
+    }
+
+    private var joinFailureBinding: Binding<Bool> {
+        Binding(
+            get: {
+                if case .failure = viewModel.joinState { return true }
+                return false
+            },
+            set: { if !$0 { viewModel.dismissJoinError() } }
+        )
     }
 
     private func detailContent(detail: CommunityDetail) -> some View {
@@ -108,6 +144,8 @@ public struct CommunityDetailView: View {
                 CommunityDetailHeaderView(
                     detail: detail,
                     members: viewModel.members,
+                    isJoining: viewModel.isJoining,
+                    onJoin: { Task { await viewModel.join() } },
                     onShowMembers: { showsMembersSheet = true }
                 )
                 segmentPicker
@@ -128,8 +166,9 @@ public struct CommunityDetailView: View {
             .tag(CommunityDetailViewModel.Segment.posts)
         }
         .pickerStyle(.segmented)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .frame(maxWidth: 280)
+        .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
+        .padding(.vertical, SparkLayoutMetrics.compactVerticalPadding)
     }
 
     @ViewBuilder
@@ -153,7 +192,7 @@ public struct CommunityDetailView: View {
                     ),
                     systemImage: "calendar"
                 )
-                .padding(.vertical, 32)
+                .padding(.vertical, SparkLayoutMetrics.communityDetailEmptyTabPadding)
             } else {
                 ForEach(viewModel.activities) { activity in
                     CommunityLinkedActivityRow(activity: activity) {
@@ -176,7 +215,7 @@ public struct CommunityDetailView: View {
                     ),
                     systemImage: "text.bubble"
                 )
-                .padding(.vertical, 32)
+                .padding(.vertical, SparkLayoutMetrics.communityDetailEmptyTabPadding)
             } else {
                 ForEach(viewModel.posts) { post in
                     Button {
@@ -194,10 +233,12 @@ public struct CommunityDetailView: View {
 }
 
 #Preview {
-    NavigationStack {
-        CommunityDetailView(
-            communityID: "cm_hike",
-            coordinator: CommunityCoordinator(repository: MockCommunityPostsRepository())
-        )
+    CommunityPreviewTraits.matrix("Community detail") {
+        NavigationStack {
+            CommunityDetailView(
+                communityID: "cm_run",
+                coordinator: CommunityCoordinator(repository: MockCommunityPostsRepository())
+            )
+        }
     }
 }

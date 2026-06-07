@@ -30,7 +30,6 @@ Use Staging when the backend team has deployed endpoints in [API_CONTRACT.md](AP
 | Auth | `MockAuthService` | `LiveAuthService` |
 | Messages | `MockMessagesRepository` | `LiveMessagesRepository` |
 | Activity feed | `MockActivityFeedRepository` | `LiveActivityFeedRepository` |
-| Likes discover | `MockLikesFeedRepository` | `LiveLikesFeedRepository` |
 | Search | `MockSearchRepository` | `LiveSearchRepository` |
 | Community | `MockCommunityPostsRepository` | `LiveCommunityPostsRepository` |
 | StoreKit | `MockStoreKitService` | `LiveStoreKitService` |
@@ -49,26 +48,21 @@ After login on a Staging build:
 | 4 | Search tab (type query, submit) | `GET /v1/search?q=...` |
 | 5 | Community tab list | `GET /v1/community/posts` |
 | 6 | Community post detail (tap row) | `GET /v1/community/posts/{post_id}` |
-| 7 | Likes tab vertical feed | `GET /v1/likes/feed` |
-| 8 | Like user → match → DM | `POST /v1/likes/{user_id}/like`, `POST /v1/messages/direct-threads` |
-| 9 | Inbound likes list | `GET /v1/likes/inbound` |
-| 10 | Rewind pass | `POST /v1/likes/rewind` |
-| 11 | Viewer profile gate | `GET` / `PATCH /v1/likes/viewer-profile` |
-| 12 | Host: create activity | `POST /v1/activities` |
-| 13 | Host: edit / cancel | `PATCH /v1/activities/{id}` · `POST .../cancel` |
-| 14 | Waitlist (use `act_002`, at capacity) | `POST .../waitlist` · host `.../waitlist/{id}/promote` |
-| 15 | Host announce + feedback | `POST .../announce` · `POST .../feedback` |
-| 16 | Report activity | `POST .../report` → `report_id` |
-| 17 | Browse public activities (Activity Tab → 逛局) | `GET /v1/activities/browse` |
-| 18 | Persistence: create activity → wait ~1 min (cold start) → feed still lists it | `POST /v1/activities` then `GET /v1/activities/feed` |
-| 19 | Community reply thread | `POST /v1/community/posts/{id}/replies` then `GET .../{id}` includes `replies` |
-| 20 | Inbound blur (`is_visible: false` for non-premium) | `GET /v1/likes/inbound` |
-| 21 | Device token + push stub | `POST /v1/devices` · `POST /v1/notifications/send` (`202` without `APNS_*`) |
-| 22 | Community post report | `POST /v1/community/posts/{id}/report` → `report_id` |
-| 23 | Trust profile (我的 Tab) | `GET /v1/trust/profile` |
-| 24 | Activity recap post | `POST /v1/community/posts` with `kind: activity_recap`, `activity_id` |
+| 7 | User profile patch | `PATCH /v1/users/profile` |
+| 8 | Host: create activity | `POST /v1/activities` |
+| 9 | Host: edit / cancel | `PATCH /v1/activities/{id}` · `POST .../cancel` |
+| 10 | Waitlist (use `act_002`, at capacity) | `POST .../waitlist` · host `.../waitlist/{id}/promote` |
+| 11 | Host announce + feedback | `POST .../announce` · `POST .../feedback` |
+| 12 | Report activity | `POST .../report` → `report_id` |
+| 13 | Browse public activities (Activity Tab → 逛局) | `GET /v1/activities/browse` |
+| 14 | Persistence: create activity → wait ~1 min (cold start) → feed still lists it | `POST /v1/activities` then `GET /v1/activities/feed` |
+| 15 | Community reply thread | `POST /v1/community/posts/{id}/replies` then `GET .../{id}` includes `replies` |
+| 16 | Device token + push stub | `POST /v1/devices` · `POST /v1/notifications/send` (`202` without `APNS_*`) |
+| 17 | Community post report | `POST /v1/community/posts/{id}/report` → `report_id` |
+| 18 | Trust profile (我的 Tab) | `GET /v1/trust/profile` |
+| 19 | Activity recap post | `POST /v1/community/posts` with `kind: activity_recap`, `activity_id` |
 
-APNs 真机：云函数配置 `APNS_*` 后 like/match/消息/活动/回复会自动触发 Push（MODULE-B.4）。见 [ADR-0005](adr/0005-apns-http2-delivery.md)。
+APNs 真机：云函数配置 `APNS_*` 后消息/活动/回复会自动触发 Push（MODULE-B.4）。见 [ADR-0005](adr/0005-apns-http2-delivery.md)。
 
 ```bash
 # Deploy latest spark-api, then full HTTP smoke (auth + browse + trust + recap + …)

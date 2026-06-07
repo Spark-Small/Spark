@@ -1,4 +1,4 @@
-// Module: SparkCommunity — Post classification for feed filters.
+// Module: SparkCommunity — Post classification for community feed.
 
 import Foundation
 

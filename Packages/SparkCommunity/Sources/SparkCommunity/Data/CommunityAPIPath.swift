@@ -5,6 +5,7 @@ import Foundation
 enum CommunityAPIPath {
     static let posts = "/v1/community/posts"
     static let feed = "/v1/community/feed"
+    static let mediaStage = "/v1/community/media/stage"
     private static let communities = "/v1/community/communities"
 
     static func post(id: String) -> String {
@@ -29,5 +30,9 @@ enum CommunityAPIPath {
 
     static func communityMembers(id: String) -> String {
         "\(communities)/\(id)/members"
+    }
+
+    static func joinCommunity(id: String) -> String {
+        "\(communities)/\(id)/join"
     }
 }

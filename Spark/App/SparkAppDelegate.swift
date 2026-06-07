@@ -33,19 +33,6 @@ final class SparkAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
             Task { @MainActor in
                 router?.openActivityDetail(activityID: payload.activityID)
             }
-        } else if let likesPayload = LikesPushPayload.parse(userInfo: response.notification.request.content.userInfo) {
-            Task { @MainActor in
-                switch likesPayload.kind {
-                case .inbound:
-                    router?.openLikesInbound()
-                case .match(let threadID):
-                    if let threadID {
-                        router?.openConversation(threadID: threadID)
-                    } else {
-                        router?.openLikesInbound()
-                    }
-                }
-            }
         } else if let communityPayload = CommunityPushPayload.parse(userInfo: response.notification.request.content.userInfo) {
             Task { @MainActor in
                 router?.openCommunityPost(postID: communityPayload.postID)
@@ -54,7 +41,16 @@ final class SparkAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
             Task { @MainActor in
                 router?.openConversation(threadID: messagesPayload.threadID)
             }
+        } else if let matchThreadID = Self.matchPushThreadID(from: response.notification.request.content.userInfo) {
+            Task { @MainActor in
+                router?.openConversation(threadID: matchThreadID)
+            }
         }
         completionHandler()
+    }
+
+    private static func matchPushThreadID(from userInfo: [AnyHashable: Any]) -> String? {
+        guard let type = userInfo["type"] as? String, type == "likes.match" else { return nil }
+        return userInfo["thread_id"] as? String
     }
 }

@@ -5,11 +5,16 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-DESTINATION="${SPARK_DESTINATION:-platform=iOS Simulator,name=iPhone 17,OS=26.4.1}"
+DESTINATION="$("$ROOT/scripts/resolve-spark-destination.sh")"
+echo "==> Using destination: ${DESTINATION}"
 
 for package_dir in Packages/Spark*/; do
   [[ -f "${package_dir}Package.swift" ]] || continue
   name="$(basename "$package_dir")"
+  if [[ "$name" == "SparkLikes" ]]; then
+    echo "==> skip archived package: ${name} (see docs/adr/0004-sparklikes-archived.md)"
+    continue
+  fi
   echo "==> xcodebuild test: ${name}"
   (
     cd "$package_dir"

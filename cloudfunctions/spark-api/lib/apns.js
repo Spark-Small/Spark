@@ -57,29 +57,6 @@ function apnsJwt() {
 function buildNotificationBody(type, payload = {}) {
   const data = { type, ...payload };
   switch (type) {
-    case "likes.inbound":
-      return {
-        aps: {
-          alert: {
-            title: "有人喜欢了你",
-            body: "打开看看谁对你感兴趣",
-          },
-          sound: "default",
-          badge: 1,
-        },
-        ...data,
-      };
-    case "likes.match":
-      return {
-        aps: {
-          alert: {
-            title: "匹配成功",
-            body: "你们互相喜欢，去打个招呼吧",
-          },
-          sound: "default",
-        },
-        ...data,
-      };
     case "activity.reminder":
     case "activity.cancelled":
     case "activity.updated":

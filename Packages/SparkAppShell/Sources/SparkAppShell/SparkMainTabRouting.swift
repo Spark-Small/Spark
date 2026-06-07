@@ -10,9 +10,15 @@ enum SparkMainTabRouting {
             router.openCommunityPost(postID: item.id)
         case .activity:
             router.openActivityDetail(activityID: item.id)
-        case .person, .none:
+        case .person:
+            router.openConversation(threadID: directThreadID(for: item.id))
+        case .none:
             break
         }
+    }
+
+    static func directThreadID(for userID: String) -> String {
+        "th_dm_\(userID)"
     }
 
     static func peerUserID(fromDirectThreadID threadID: String) -> String {

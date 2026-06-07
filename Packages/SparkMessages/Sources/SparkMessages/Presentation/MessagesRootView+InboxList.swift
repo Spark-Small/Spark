@@ -1,118 +1,178 @@
-// Module: SparkMessages — Inbox list sections and row chrome.
+// Module: SparkMessages — Unified inbox list and navigation.
 
+import SparkDesignSystem
 import SwiftUI
 
 extension MessagesRootView {
     @ViewBuilder
-    var inboxList: some View {
+    func inboxConversationList<Rows: View>(
+        segment: MessagesInboxSegment,
+        @ViewBuilder rows: () -> Rows
+    ) -> some View {
         if usesSplitInbox {
             List(selection: $selectedThreadID) {
-                inboxListSections
+                MessagesInboxSearchBar(text: $inboxSearchText, segment: segment)
+                    .sparkInboxSearchListRow()
+                rows()
             }
-            .sparkScreenListStyle()
+            .sparkFlatTabListStyle()
             .refreshable {
                 await viewModel.load()
             }
         } else {
             List {
-                inboxListSections
+                MessagesInboxSearchBar(text: $inboxSearchText, segment: segment)
+                    .sparkInboxSearchListRow()
+                rows()
             }
-            .sparkScreenListStyle()
+            .sparkFlatTabListStyle()
             .refreshable {
                 await viewModel.load()
             }
         }
     }
 
+    var inboxActionsMenu: some View {
+        Menu {
+            Button {
+                showNewChatPicker = true
+            } label: {
+                Label(
+                    String(
+                        localized: "messages.action.startChat",
+                        defaultValue: "发起聊天",
+                        comment: "Start new direct message"
+                    ),
+                    systemImage: "bubble.left.and.bubble.right"
+                )
+            }
+            Button {
+                showQRScanner = true
+            } label: {
+                Label(
+                    String(localized: "messages.action.scan", defaultValue: "扫一扫", comment: "Scan QR code"),
+                    systemImage: "qrcode.viewfinder"
+                )
+            }
+            if viewModel.totalUnreadCount > 0 {
+                Button {
+                    Task { await viewModel.markMessagesRead() }
+                } label: {
+                    Label(
+                        String(localized: "messages.markRead", defaultValue: "全部已读", comment: "Messages action"),
+                        systemImage: "envelope.open"
+                    )
+                }
+            }
+        } label: {
+            Image(systemName: "plus.circle")
+        }
+        .accessibilityLabel(
+            String(localized: "messages.actions.menu.a11y", defaultValue: "消息操作", comment: "Messages actions menu")
+        )
+    }
+
     @ViewBuilder
-    var inboxListSections: some View {
-        Section {
-            ActionItemsSection(
-                items: viewModel.actionItems,
-                onInviteAccept: { invite in
-                    Task { await viewModel.handleInviteResponse(invite: invite, accept: true) }
-                },
-                onInviteDecline: { invite in
-                    Task { await viewModel.handleInviteResponse(invite: invite, accept: false) }
-                },
-                onOpenActivity: { activityID in
-                    onOpenActivity?(activityID)
-                },
-                onDismiss: { item in
-                    Task { await viewModel.dismissActionItem(id: item.id) }
-                }
+    func inboxConversationRow(_ conversation: ConversationPreview) -> some View {
+        if conversation.kind == .dm, let match = viewModel.matchPreview(for: conversation) {
+            matchConversationRow(conversation: conversation, match: match)
+        } else {
+            conversationRow(conversation)
+        }
+    }
+
+    @ViewBuilder
+    func matchConversationRow(conversation: ConversationPreview, match: MatchPreview) -> some View {
+        let row = Button {
+            Task { await openMatchConversation(match) }
+        } label: {
+            ConversationRow(conversation: conversation, isNewMatch: true)
+        }
+        .buttonStyle(.sparkPressable)
+        .sparkFlatTabListRow()
+        .messagesConversationSwipeActions(
+            conversation: conversation,
+            onMarkRead: { Task { await viewModel.markConversationRead(conversation) } },
+            onHide: { Task { await hideConversation(conversation) } },
+            onDelete: { Task { await deleteConversation(conversation) } }
+        )
+        .accessibilityHint(
+            String(
+                localized: "messages.match.open.hint",
+                defaultValue: "打开与新配对的对话",
+                comment: "Open new match conversation hint"
             )
-        }
+        )
 
-        if !viewModel.unmessagedMatches.isEmpty || !viewModel.dmConversations.isEmpty {
-            Section {
-                if !viewModel.unmessagedMatches.isEmpty {
-                    NewMatchesCarousel(matches: viewModel.unmessagedMatches) { match in
-                        Task { await openMatchConversation(match) }
-                    }
-                }
-                ForEach(viewModel.dmConversations) { conversation in
-                    conversationRow(conversation)
-                }
-            } header: {
-                InboxSectionHeader(
-                    title: String(localized: "messages.section.dm", defaultValue: "配对消息", comment: "DM section"),
-                    systemImage: "heart.fill",
-                    unreadCount: viewModel.dmUnreadCount
-                )
-            }
-        }
-
-        if !viewModel.activeGroupChats.isEmpty || !viewModel.archivedGroupChats.isEmpty {
-            Section {
-                ForEach(viewModel.activeGroupChats) { conversation in
-                    conversationRow(conversation)
-                }
-                if !viewModel.archivedGroupChats.isEmpty {
-                    ArchivedChatsDisclosure(chats: viewModel.archivedGroupChats) { conversation in
-                        conversationRow(conversation)
-                    }
-                }
-            } header: {
-                InboxSectionHeader(
-                    title: String(localized: "messages.section.group", defaultValue: "活动群聊", comment: "Group section"),
-                    systemImage: "figure.hiking",
-                    unreadCount: viewModel.groupUnreadCount
-                )
-            }
+        if usesSplitInbox {
+            row.tag(conversation.threadID)
+        } else {
+            row
         }
     }
 
     @ViewBuilder
     func conversationRow(_ conversation: ConversationPreview) -> some View {
-        let row = ConversationRow(conversation: conversation)
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                if conversation.hasUnread {
-                    Button {
-                        Task { await viewModel.markConversationRead(conversation) }
-                    } label: {
-                        Label(
-                            String(localized: "messages.row.markRead", defaultValue: "标为已读", comment: "Mark read swipe"),
-                            systemImage: "envelope.open"
-                        )
-                    }
-                    .tint(.blue)
-                }
-            }
-
         if usesSplitInbox {
-            row.tag(conversation.threadID)
+            conversationRowContent(conversation)
+                .tag(conversation.threadID)
         } else {
             NavigationLink(value: conversation.asMessageThread()) {
-                row
+                ConversationRow(conversation: conversation)
             }
+            .sparkFlatTabListRow()
+            .messagesConversationSwipeActions(
+                conversation: conversation,
+                onMarkRead: { Task { await viewModel.markConversationRead(conversation) } },
+                onHide: { Task { await hideConversation(conversation) } },
+                onDelete: { Task { await deleteConversation(conversation) } }
+            )
+        }
+    }
+
+    func conversationRowContent(_ conversation: ConversationPreview) -> some View {
+        ConversationRow(
+            conversation: conversation,
+            isNewMatch: viewModel.matchPreview(for: conversation) != nil
+        )
+            .sparkFlatTabListRow()
+            .messagesConversationSwipeActions(
+                conversation: conversation,
+                onMarkRead: { Task { await viewModel.markConversationRead(conversation) } },
+                onHide: { Task { await hideConversation(conversation) } },
+                onDelete: { Task { await deleteConversation(conversation) } }
+            )
+    }
+
+    @ViewBuilder
+    func archivedGroupChatRow(_ conversation: ConversationPreview) -> some View {
+        conversationRow(conversation)
+    }
+
+    @MainActor
+    func hideConversation(_ conversation: ConversationPreview) async {
+        await viewModel.hideConversation(conversation)
+        clearSelectionIfNeeded(for: conversation.threadID)
+    }
+
+    @MainActor
+    func deleteConversation(_ conversation: ConversationPreview) async {
+        await viewModel.deleteConversation(conversation)
+        clearSelectionIfNeeded(for: conversation.threadID)
+    }
+
+    @MainActor
+    func clearSelectionIfNeeded(for threadID: MessageThreadID) {
+        if selectedThreadID == threadID {
+            selectedThreadID = nil
         }
     }
 
     func conversationDetail(for thread: MessageThread) -> some View {
         ConversationDetailView(
             viewModel: viewModel.conversationViewModel(for: thread),
-            onOpenActivity: onOpenActivity
+            onOpenActivity: onOpenActivity,
+            onProposeMeetup: onProposeMeetup
         )
         .task(id: thread.threadID) {
             guard let conversation = viewModel.conversation(for: thread.threadID),
@@ -125,6 +185,7 @@ extension MessagesRootView {
     func openMatchConversation(_ match: MatchPreview) async {
         do {
             let threadID = try await viewModel.ensureDirectMessageThread(for: match)
+            viewModel.graduateMatch(match, to: threadID)
             await viewModel.load()
             if let thread = viewModel.thread(for: threadID) {
                 openThread(thread)
@@ -158,6 +219,9 @@ extension MessagesRootView {
 
     @MainActor
     func openThread(_ thread: MessageThread) {
+        if let conversation = viewModel.conversation(for: thread.threadID) {
+            selectedInboxSegment = conversation.kind == .dm ? .dm : .groupChats
+        }
         if usesSplitInbox {
             selectedThreadID = thread.threadID
         } else {

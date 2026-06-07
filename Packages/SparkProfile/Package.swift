@@ -14,7 +14,8 @@ let package = Package(
         .package(path: "../SparkDesignSystem"),
         .package(path: "../SparkTrust"),
         .package(path: "../SparkSearch"),
-        .package(path: "../SparkPayments")
+        .package(path: "../SparkPayments"),
+        .package(path: "../SparkNotifications")
     ],
     targets: [
         .target(
@@ -24,7 +25,8 @@ let package = Package(
                 "SparkDesignSystem",
                 "SparkTrust",
                 "SparkSearch",
-                "SparkPayments"
+                "SparkPayments",
+                "SparkNotifications"
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6),

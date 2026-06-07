@@ -34,6 +34,14 @@ public struct MessagesInbox: Sendable, Equatable {
             && activeGroupChats.isEmpty
             && archivedGroupChats.isEmpty
     }
+
+    /// True when the Messages tab has no conversations (action items live on Activity tab).
+    public var isMessagingEmpty: Bool {
+        unmessagedMatches.isEmpty
+            && dmConversations.isEmpty
+            && activeGroupChats.isEmpty
+            && archivedGroupChats.isEmpty
+    }
 }
 
 public struct ConversationContext: Sendable, Equatable {

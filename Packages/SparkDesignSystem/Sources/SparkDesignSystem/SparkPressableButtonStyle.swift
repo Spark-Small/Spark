@@ -33,6 +33,6 @@ public extension View {
 public extension RoundedRectangle {
     /// Standard continuous card shape (≥16pt corner, HIG-aligned).
     static var sparkCard: RoundedRectangle {
-        RoundedRectangle(cornerRadius: 20, style: .continuous)
+        RoundedRectangle(cornerRadius: SparkLayoutMetrics.sparkCardCornerRadius, style: .continuous)
     }
 }

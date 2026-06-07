@@ -12,10 +12,9 @@
 2. `Config/Spark.entitlements` declares `applinks:spark.app` and `aps-environment` (not under `Spark/` — avoids Xcode auto-signing on personal teams).
 3. Share/copy uses `https://spark.app/a/{activity_id}` (`ActivityInviteURL.shareLink`).
 4. `DeepLinkParser` maps `/a/{id}`, `/activity/{id}`, `/activities/{id}` → `activityDetail`; `AppRouter` opens the **活动** tab and queues `pendingActivityID` (`ActivityRootView`).
-5. Likes tab: `spark://likes` or `https://spark.app/tab/likes` → `AppRouter.selectedTab = .likes` (`LikesRootView`).
-6. Inbound likes: `spark://likes/inbound` or `https://spark.app/tab/likes/inbound` → `likesInbound`.
-7. Messages: `https://spark.app/matches/{thread_id}` or `https://spark.app/messages/thread/{thread_id}` → `conversation`.
-8. Community post: `https://spark.app/community/posts/{post_id}` → `communityPost`.
+5. Legacy likes URLs (`spark://likes`, `/tab/likes`, `/tab/likes/inbound`) redirect to **社区** tab (`SparkTab.community`).
+6. Messages: `https://spark.app/matches/{thread_id}` or `https://spark.app/messages/thread/{thread_id}` → `conversation`.
+7. Community post: `https://spark.app/community/posts/{post_id}` → `communityPost`.
 
 ## Web
 
@@ -26,4 +25,4 @@ Host `web/.well-known/apple-app-site-association` at:
 
 Replace `TEAMID` in `appIDs` with your Apple Team ID + bundle id (see `Config/BundleID.xcconfig.example`).
 
-Optional H5 preview at `/a/{id}` is out of scope for the iOS repo; App Store / TestFlight handles install.
+Optional H5 preview at `/a/{id}` lives in `web/public/a/index.html` (static fallback + App Store link). Deploy with your web host alongside AASA.

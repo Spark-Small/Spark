@@ -9,6 +9,7 @@ public struct ActivityItem: Identifiable, Hashable, Sendable, Equatable {
     public let summary: String
     public let category: String
     public let startsAt: Date?
+    public let endsAt: Date?
     public let locationName: String
     public let hostDisplayName: String
     public let hostID: String?
@@ -25,6 +26,7 @@ public struct ActivityItem: Identifiable, Hashable, Sendable, Equatable {
         summary: String,
         category: String,
         startsAt: Date? = nil,
+        endsAt: Date? = nil,
         locationName: String = "",
         hostDisplayName: String = "",
         hostID: String? = nil,
@@ -39,6 +41,7 @@ public struct ActivityItem: Identifiable, Hashable, Sendable, Equatable {
         self.summary = summary
         self.category = category
         self.startsAt = startsAt
+        self.endsAt = endsAt
         self.locationName = locationName
         self.hostDisplayName = hostDisplayName
         self.hostID = hostID

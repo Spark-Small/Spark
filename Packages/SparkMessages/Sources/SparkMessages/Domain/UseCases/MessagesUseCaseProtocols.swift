@@ -14,6 +14,14 @@ public protocol MarkThreadReadUseCaseProtocol: Sendable {
     func callAsFunction(threadID: MessageThreadID) async throws
 }
 
+public protocol HideThreadUseCaseProtocol: Sendable {
+    func callAsFunction(threadID: MessageThreadID) async throws
+}
+
+public protocol DeleteThreadUseCaseProtocol: Sendable {
+    func callAsFunction(threadID: MessageThreadID) async throws
+}
+
 public protocol RespondToActivityInviteUseCaseProtocol: Sendable {
     func callAsFunction(activityID: String, invitationID: String, accept: Bool) async throws
 }
@@ -35,12 +43,14 @@ public protocol FetchConversationContextUseCaseProtocol: Sendable {
 }
 
 public protocol SendThreadMessageUseCaseProtocol: Sendable {
-    func callAsFunction(threadID: MessageThreadID, body: String) async throws -> ChatMessage
+    func callAsFunction(threadID: MessageThreadID, body: String, kind: ChatMessageKind) async throws -> ChatMessage
 }
 
 extension FetchInboxUseCase: FetchInboxUseCaseProtocol {}
 extension MarkMessagesReadUseCase: MarkMessagesReadUseCaseProtocol {}
 extension MarkThreadReadUseCase: MarkThreadReadUseCaseProtocol {}
+extension HideThreadUseCase: HideThreadUseCaseProtocol {}
+extension DeleteThreadUseCase: DeleteThreadUseCaseProtocol {}
 extension RespondToActivityInviteUseCase: RespondToActivityInviteUseCaseProtocol {}
 extension DismissActionItemUseCase: DismissActionItemUseCaseProtocol {}
 extension EnsureDirectMessageThreadUseCase: EnsureDirectMessageThreadUseCaseProtocol {}

@@ -47,7 +47,8 @@ extension CommunityRootView {
                 likedPersonIDs: viewModel.likedPersonIDs,
                 onOpenActivity: onOpenLinkedActivity,
                 onOpenPost: { openFeedPost($0) },
-                onLikePerson: likePerson
+                onLikePerson: likePerson,
+                onCommunityJoined: { Task { await viewModel.load() } }
             )
         case nil:
             ContentUnavailableView {

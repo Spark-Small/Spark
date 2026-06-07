@@ -10,6 +10,7 @@ public protocol CommunityPostsRepository: Sendable {
     func fetchCommunityActivities(communityID: String) async throws -> [CommunityLinkedActivity]
     func fetchCommunityMembers(communityID: String) async throws -> [CommunityMember]
     func fetchCommunityPosts(communityID: String) async throws -> [CommunityFeedPost]
+    func joinCommunity(id: String) async throws -> CommunityDetail
     func createPost(_ draft: CreateCommunityPostDraft) async throws -> CommunityPost
     func createRecapPost(_ draft: CommunityRecapDraft) async throws -> CommunityPostDetail
     func createReply(postID: String, body: String) async throws -> CommunityPostReply

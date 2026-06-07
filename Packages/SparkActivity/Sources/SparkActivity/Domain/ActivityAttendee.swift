@@ -10,18 +10,21 @@ public struct ActivityAttendee: Identifiable, Hashable, Sendable, Equatable {
     public let rsvpStatus: ActivityRSVPStatus?
     /// Backend `attendees[].verified` (e.g. real-name verified).
     public let isVerified: Bool
+    public let isCoHost: Bool
 
     public init(
         id: String,
         displayName: String,
         isHost: Bool = false,
         rsvpStatus: ActivityRSVPStatus? = nil,
-        isVerified: Bool = false
+        isVerified: Bool = false,
+        isCoHost: Bool = false
     ) {
         self.id = id
         self.displayName = displayName
         self.isHost = isHost
         self.rsvpStatus = rsvpStatus
         self.isVerified = isVerified
+        self.isCoHost = isCoHost
     }
 }

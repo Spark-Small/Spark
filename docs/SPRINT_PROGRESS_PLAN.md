@@ -175,4 +175,4 @@ SPARK_API_BASE_URL=https://<team-host> ./scripts/staging-smoke.sh
 | 缺失模块 | [MISSING_MODULES_PLAN.md](MISSING_MODULES_PLAN.md) |
 | HTTP 契约 | [API_CONTRACT.md](API_CONTRACT.md) |
 | Staging | [STAGING.md](STAGING.md) |
-| 喜欢升级 | [LIKES_UPGRADE_PLAN.md](LIKES_UPGRADE_PLAN.md) |
+| ~~喜欢升级~~ | SparkLikes 模块已移除（2026-06-08） |

@@ -11,24 +11,26 @@ struct CommunityLinkedActivityRow: View {
         Button(action: onTap) {
             HStack(spacing: 12) {
                 Image(systemName: "calendar")
-                    .font(.title3)
-                    .foregroundStyle(.orange)
-                    .frame(width: 32)
-                VStack(alignment: .leading, spacing: 4) {
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
                     Text(activity.title)
-                        .font(.body.weight(.medium))
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(.primary)
                     Text(activity.scheduleLine)
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
+            .padding(.vertical, SparkLayoutMetrics.sectionVerticalPadding)
         }
         .buttonStyle(.sparkPressable)
         .accessibilityElement(children: .combine)
@@ -53,16 +55,22 @@ struct CommunityFeedPostRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(post.authorDisplayName)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
             Text(post.content)
-                .font(.subheadline)
+                .font(.body)
+                .foregroundStyle(.primary)
                 .lineLimit(3)
                 .multilineTextAlignment(.leading)
+            if post.commentCount > 0 || post.likeCount > 0 {
+                Text(engagementLine)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
+        .padding(.vertical, SparkLayoutMetrics.sectionVerticalPadding)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             String(
@@ -77,35 +85,75 @@ struct CommunityFeedPostRow: View {
             )
         )
     }
+
+    private var engagementLine: String {
+        var parts: [String] = []
+        if post.likeCount > 0 {
+            parts.append(
+                String(
+                    format: String(
+                        localized: "community.feedPost.likes.format",
+                        defaultValue: "%lld 赞",
+                        comment: "Like count; %lld is count"
+                    ),
+                    locale: .current,
+                    post.likeCount
+                )
+            )
+        }
+        if post.commentCount > 0 {
+            parts.append(
+                String(
+                    format: String(
+                        localized: "community.feedPost.comments.format",
+                        defaultValue: "%lld 回复",
+                        comment: "Comment count; %lld is count"
+                    ),
+                    locale: .current,
+                    post.commentCount
+                )
+            )
+        }
+        return parts.joined(separator: " · ")
+    }
 }
 
-#Preview("Community linked activity row") {
-    CommunityLinkedActivityRow(
-        activity: CommunityLinkedActivity(
-            id: "act_preview",
-            title: "Weekend hike",
-            scheduleLine: "Sat 9:30 · North gate"
-        ),
-        onTap: {}
-    )
-}
-
-#Preview("Community feed post row") {
-    CommunityFeedPostRow(
-        post: CommunityFeedPost(
-            id: "post_preview",
-            authorDisplayName: "Alex",
-            authorUserID: "u_1",
-            communityName: "Runners",
-            content: "Anyone up for a 5K this evening?",
-            imageURL: nil,
-            likeCount: 3,
-            commentCount: 1,
-            tags: ["running"],
-            createdAt: .now,
-            sharedActivityWithViewer: nil,
-            relationshipToViewer: .none,
-            linkedActivity: nil
+#Preview {
+    CommunityPreviewTraits.matrix("Linked activity row") {
+        CommunityLinkedActivityRow(
+            activity: CommunityLinkedActivity(
+                id: "act_preview",
+                title: String(localized: "community.mock.activity.hike", defaultValue: "周末爬香山", comment: "Activity"),
+                scheduleLine: String(
+                    localized: "community.mock.activity.schedule",
+                    defaultValue: "周六 9:30",
+                    comment: "Schedule"
+                )
+            ),
+            onTap: {}
         )
-    )
+    }
+}
+
+#Preview {
+    CommunityPreviewTraits.matrix("Feed post row") {
+        CommunityFeedPostRow(
+            post: CommunityFeedPost(
+                id: "post_preview",
+                authorDisplayName: String(localized: "community.mock.2.author", defaultValue: "小雨", comment: "Author"),
+                authorUserID: "u_host_2",
+                authorAvatarURL: MockCommunityAvatarCatalog.authorAvatarURL(userID: "u_host_2"),
+                communityName: String(localized: "community.mock.run", defaultValue: "晨跑打卡", comment: "Community"),
+                content: String(localized: "community.mock.feed.2", defaultValue: "滨江 5km", comment: "Feed post"),
+                imageURL: nil,
+                likeCount: 3,
+                commentCount: 1,
+                tags: [String(localized: "community.mock.tag.run", defaultValue: "跑步", comment: "Tag")],
+                createdAt: .now,
+                sharedActivityWithViewer: nil,
+                relationshipToViewer: .none,
+                linkedActivity: nil
+            )
+        )
+    }
 }

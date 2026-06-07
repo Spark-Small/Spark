@@ -39,10 +39,14 @@ This memo exists to make UI/interaction changes reviewable and repeatable.
 
 ### 2) Hard-coded fonts that break Dynamic Type
 
-- **Forbidden**: `Font.system(size:)` without `relativeTo:`
+Spark typography canonical spec: **[TYPOGRAPHY.md](TYPOGRAPHY.md)** (system semantic text styles only).
+
+- **Forbidden**: `Font.system(size:)` without `relativeTo:` for user-visible body text
+- **Forbidden**: custom font families; hex grays for text hierarchy
 - **Use instead**:
-  - Semantic text styles: `.font(.body)`, `.font(.headline)`, etc.
-  - If a specific size is needed: `.font(.system(size: X, weight: ..., relativeTo: .body))`
+  - Semantic text styles: `.font(.body)`, `.font(.subheadline.weight(.semibold))`, `.font(.caption)`, etc.
+  - Foreground: `.primary`, `.secondary`, `Color.accentColor`
+  - If a specific size is needed (decorative symbols only): `.font(.system(size: X, relativeTo: .body))` with `// REASONING:`
 
 ### 3) Tap gestures used as buttons
 

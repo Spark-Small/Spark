@@ -45,12 +45,13 @@ struct MemberRow: View {
             memberAvatar
             VStack(alignment: .leading, spacing: 4) {
                 Text(member.displayName)
-                    .font(.body.weight(.medium))
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.primary)
                 if !member.bio.isEmpty {
                     Text(member.bio)
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
                 }
                 RelationshipBadge(context: member.relationship)
             }
@@ -83,11 +84,20 @@ struct MemberRow: View {
 }
 
 #Preview {
-    CommunityMembersSheet(
-        members: [
-            CommunityMember(id: "m1", displayName: "Alex", bio: "Runner"),
-            CommunityMember(id: "m2", displayName: "Nova")
-        ],
-        onSelectMember: { _ in }
-    )
+    CommunityPreviewTraits.matrix("Members sheet") {
+        CommunityMembersSheet(
+            members: [
+                CommunityMember(
+                    id: "m1",
+                    displayName: String(localized: "community.mock.1.author", defaultValue: "阿乐", comment: "Author"),
+                    bio: String(localized: "community.mock.member.bio.1", defaultValue: "周末爬山", comment: "Bio")
+                ),
+                CommunityMember(
+                    id: "m2",
+                    displayName: String(localized: "community.mock.3.author", defaultValue: "Nova", comment: "Author")
+                )
+            ],
+            onSelectMember: { _ in }
+        )
+    }
 }

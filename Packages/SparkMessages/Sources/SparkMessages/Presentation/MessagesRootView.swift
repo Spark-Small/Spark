@@ -1,4 +1,4 @@
-// Module: SparkMessages — Three-section unified inbox.
+// Module: SparkMessages — DM and activity group chat inbox.
 
 import SparkCore
 import SparkDesignSystem
@@ -12,11 +12,20 @@ public struct MessagesRootView: View {
     @Binding var pendingConversationThreadID: String?
     var viewModel: MessagesViewModel
     var onOpenActivity: ((String) -> Void)?
-    var onOpenLikes: (() -> Void)?
+    var onProposeMeetup: ((String) -> Void)?
+    var onOpenActivityTab: (() -> Void)?
+    var onScannedPayload: ((String) -> Void)?
 
     @State var navigationPath = NavigationPath()
     @State var selectedThreadID: MessageThreadID?
     @State var matchOpenErrorMessage: String?
+    @State var showQRScanner = false
+    @State var showNewChatPicker = false
+    @State var selectedInboxSegment: MessagesInboxSegment = .dm
+    @State var hasAppliedInitialInboxSegment = false
+    @State var inboxSearchText = ""
+
+    @Environment(PeerDisplayNameStore.self) var peerDisplayNameStore
 
     var usesSplitInbox: Bool {
         horizontalSizeClass == .regular
@@ -26,12 +35,16 @@ public struct MessagesRootView: View {
         viewModel: MessagesViewModel,
         pendingConversationThreadID: Binding<String?> = .constant(nil),
         onOpenActivity: ((String) -> Void)? = nil,
-        onOpenLikes: (() -> Void)? = nil
+        onProposeMeetup: ((String) -> Void)? = nil,
+        onOpenActivityTab: (() -> Void)? = nil,
+        onScannedPayload: ((String) -> Void)? = nil
     ) {
         self.viewModel = viewModel
         _pendingConversationThreadID = pendingConversationThreadID
         self.onOpenActivity = onOpenActivity
-        self.onOpenLikes = onOpenLikes
+        self.onProposeMeetup = onProposeMeetup
+        self.onOpenActivityTab = onOpenActivityTab
+        self.onScannedPayload = onScannedPayload
     }
 
     public var body: some View {
@@ -80,6 +93,11 @@ public struct MessagesRootView: View {
     private var splitInbox: some View {
         NavigationSplitView {
             inboxShell
+                .navigationSplitViewColumnWidth(
+                    min: 280,
+                    ideal: SparkLayoutMetrics.navigationSplitSidebarIdealWidth,
+                    max: 400
+                )
         } detail: {
             if let threadID = selectedThreadID,
                let thread = viewModel.thread(for: threadID) {
@@ -109,7 +127,8 @@ public struct MessagesRootView: View {
 
     private var inboxShell: some View {
         SparkScreenContainer(
-            navigationTitle: String(localized: "screen.messages", defaultValue: "消息", comment: "Messages screen"),
+            navigationTitle: "",
+            titleDisplayMode: .inline,
             embedding: .none
         ) {
             inboxContent
@@ -120,20 +139,30 @@ public struct MessagesRootView: View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: 16) {
-                    MessagesUnreadToolbarBadge(count: viewModel.totalUnreadCount)
-
-                    Button(
-                        String(localized: "messages.markRead", defaultValue: "全部已读", comment: "Messages action")
-                    ) {
-                        Task { await viewModel.markMessagesRead() }
-                    }
-                    .disabled(viewModel.dmUnreadCount + viewModel.groupUnreadCount == 0)
+            ToolbarItem(placement: .principal) {
+                if showsInboxSegmentPicker {
+                    inboxSegmentToolbarPicker
                 }
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                inboxActionsMenu
+            }
         }
-        .toolbarBackground(.automatic, for: .navigationBar)
+        .sparkPhoneStyleNavigationBar()
+        .onChange(of: peerDisplayNameStore.changeToken) { _, _ in
+            viewModel.refreshDisplayNames()
+        }
+        .onChange(of: viewModel.loadState) { _, _ in
+            applyInitialInboxSegmentIfNeeded()
+        }
+        .sheet(isPresented: $showQRScanner) {
+            MessagesQRScanSheet { payload in
+                onScannedPayload?(payload)
+            }
+        }
+        .sheet(isPresented: $showNewChatPicker) {
+            newChatPickerSheet
+        }
     }
 
     @ViewBuilder
@@ -142,7 +171,7 @@ public struct MessagesRootView: View {
         case .idle, .loading:
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .accessibilityLabel(
+                .sparkLoadingAccessibilityLabel(
                     String(
                         localized: "messages.loading.a11y",
                         defaultValue: "正在加载消息",
@@ -150,7 +179,10 @@ public struct MessagesRootView: View {
                     )
                 )
         case .empty:
-            emptyInboxView
+            loadedInboxSegmentContent
+                .onAppear {
+                    selectedInboxSegment = .dm
+                }
         case .failure(let message):
             SparkRetryUnavailableView(
                 title: String(localized: "messages.error.title", defaultValue: "加载失败", comment: "Inbox error"),
@@ -159,8 +191,20 @@ public struct MessagesRootView: View {
                 Task { await viewModel.load() }
             }
         case .loaded:
-            inboxList
+            loadedInboxSegmentContent
                 .accessibilityLabel(inboxLoadedAccessibilityLabel)
+                .onAppear {
+                    applyInitialInboxSegmentIfNeeded()
+                }
+        }
+    }
+
+    private var showsInboxSegmentPicker: Bool {
+        switch viewModel.loadState {
+        case .failure:
+            false
+        case .idle, .loading, .empty, .loaded:
+            true
         }
     }
 
@@ -180,75 +224,41 @@ public struct MessagesRootView: View {
             comment: "Inbox loaded"
         )
     }
-
-    private var emptyInboxView: some View {
-        ContentUnavailableView {
-            Label(
-                String(localized: "messages.empty.title", defaultValue: "暂无消息", comment: "Empty inbox"),
-                systemImage: "tray"
-            )
-        } description: {
-            Text(
-                String(localized: "messages.empty.subtitle", defaultValue: "开始和好友聊天吧", comment: "Empty inbox hint")
-            )
-        } actions: {
-            if let onOpenLikes {
-                Button(
-                    String(localized: "messages.empty.cta.likes", defaultValue: "去看看喜欢", comment: "Open likes"),
-                    action: onOpenLikes
-                )
-                .buttonStyle(.borderedProminent)
-            }
-        }
-    }
-
 }
 
 #Preview {
     MessagesRootView(viewModel: MessagesViewModel(repository: MockMessagesRepository(unreadCount: 3)))
+        .environment(PeerDisplayNameStore(storage: InMemoryPeerDisplayNameStore()))
 }
 
 #Preview("Messages — no unread") {
     MessagesRootView(viewModel: MessagesViewModel(repository: MockMessagesRepository(unreadCount: 0)))
+        .environment(PeerDisplayNameStore(storage: InMemoryPeerDisplayNameStore()))
 }
 
 #Preview("Messages — failure") {
     MessagesRootView(viewModel: MessagesViewModel(repository: PreviewFailingInboxRepository()))
+        .environment(PeerDisplayNameStore(storage: InMemoryPeerDisplayNameStore()))
 }
 
 #Preview("Messages — dark") {
     SparkPreviewSupport.darkMode {
         MessagesRootView(viewModel: MessagesViewModel(repository: MockMessagesRepository(unreadCount: 3)))
+            .environment(PeerDisplayNameStore(storage: InMemoryPeerDisplayNameStore()))
     }
 }
 
 #Preview("Messages — accessibility XL") {
     SparkPreviewSupport.accessibilityXL {
         MessagesRootView(viewModel: MessagesViewModel(repository: MockMessagesRepository(unreadCount: 3)))
+            .environment(PeerDisplayNameStore(storage: InMemoryPeerDisplayNameStore()))
     }
 }
 
 #Preview("Messages — iPad split") {
     SparkPreviewSupport.iPadRegular {
         MessagesRootView(viewModel: MessagesViewModel(repository: MockMessagesRepository(unreadCount: 3)))
-    }
-}
-
-#Preview("Messages — dark") {
-    SparkPreviewSupport.darkMode {
-        MessagesRootView(viewModel: MessagesViewModel(repository: MockMessagesRepository(unreadCount: 3)))
-    }
-}
-
-#Preview("Messages — accessibility XL") {
-    SparkPreviewSupport.accessibilityXL {
-        MessagesRootView(viewModel: MessagesViewModel(repository: MockMessagesRepository(unreadCount: 3)))
-    }
-}
-
-#Preview("Messages — iPad split") {
-    SparkPreviewSupport.iPadRegular {
-        MessagesRootView(viewModel: MessagesViewModel(repository: MockMessagesRepository(unreadCount: 3)))
+            .environment(PeerDisplayNameStore(storage: InMemoryPeerDisplayNameStore()))
     }
 }
 
@@ -262,9 +272,11 @@ private struct PreviewFailingInboxRepository: MessagesRepository, Sendable {
     func fetchInbox() async throws -> MessagesInbox { throw Failure() }
     func fetchMessages(threadID: MessageThreadID) async throws -> [ChatMessage] { throw Failure() }
     func fetchConversationContext(threadID: MessageThreadID) async throws -> ConversationContext { throw Failure() }
-    func sendMessage(threadID: MessageThreadID, body: String) async throws -> ChatMessage { throw Failure() }
+    func sendMessage(threadID: MessageThreadID, body: String, kind: ChatMessageKind = .text) async throws -> ChatMessage { throw Failure() }
     func markAllRead() async throws { throw Failure() }
     func markThreadRead(threadID: MessageThreadID) async throws { throw Failure() }
+    func hideThread(threadID: MessageThreadID) async throws { throw Failure() }
+    func deleteThread(threadID: MessageThreadID) async throws { throw Failure() }
     func respondToActivityInvite(activityID: String, invitationID: String, accept: Bool) async throws { throw Failure() }
     func dismissInboxActionItem(id: String) async throws { throw Failure() }
     func ensureActivityGroupThread(threadID: MessageThreadID, displayName: String, welcomeMessage: String) async throws {

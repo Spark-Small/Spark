@@ -30,6 +30,31 @@ struct CommunityPostDetailViewModelTests {
         await viewModel.sendReply()
         #expect(viewModel.replyState == .idle)
         #expect(viewModel.post?.replies.count == 2)
+        #expect(viewModel.post?.replyCount == 2)
+    }
+
+    @Test func loadFeedOnlyPostSucceeds() async {
+        let viewModel = CommunityPostDetailViewModel(
+            postID: "cp_recap_mock",
+            repository: MockCommunityPostsRepository()
+        )
+        await viewModel.load()
+        #expect(viewModel.loadState == .loaded)
+        #expect(viewModel.post?.id == "cp_recap_mock")
+        #expect(viewModel.post?.mediaItems.isEmpty == false)
+    }
+
+    @Test func sendReplyIncrementsDisplayedCount() async {
+        let viewModel = CommunityPostDetailViewModel(
+            postID: "cp_recap_mock",
+            repository: MockCommunityPostsRepository()
+        )
+        await viewModel.load()
+        let initialCount = viewModel.post?.replyCount ?? 0
+        viewModel.replyDraft = "Looks great"
+        await viewModel.sendReply()
+        #expect(viewModel.post?.replyCount == initialCount + 1)
+        #expect(viewModel.post?.replies.count == initialCount + 1)
     }
 
     @Test func submitReportSetsSubmitted() async {

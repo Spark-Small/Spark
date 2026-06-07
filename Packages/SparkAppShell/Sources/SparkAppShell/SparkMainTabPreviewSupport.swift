@@ -4,7 +4,6 @@ import SparkActivity
 import SparkAuth
 import SparkCommunity
 import SparkDesignSystem
-import SparkLikes
 import SparkMessages
 import SparkNetworking
 import SparkPayments
@@ -32,14 +31,10 @@ enum SparkMainTabPreviewSupport {
             messagesRepository: MockMessagesRepository(),
             activityFeedRepository: MockActivityFeedRepository(),
             activityBrowseRepository: MockActivityBrowseRepository(),
-            likesFeedRepository: MockLikesFeedRepository(),
             searchRepository: MockSearchRepository(),
             communityPostsRepository: MockCommunityPostsRepository(),
             trustRepository: MockTrustRepository(),
-            blockedActivityHostsStore: BlockedActivityHostsStore(),
-            discoverMediaImageCache: DiscoverMediaImageCache.previewInstance(),
-            likesPreferencesStore: InMemoryLikesPreferencesStore(),
-            likesOnboardingPreferences: InMemoryLikesOnboardingPreferences()
+            blockedActivityHostsStore: BlockedActivityHostsStore()
         )
     }
 

@@ -4,7 +4,6 @@ import Foundation
 
 public enum PaywallPlacement: String, Sendable, CaseIterable {
     case activity
-    case likes
     case messages
     case community
     case settings

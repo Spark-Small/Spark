@@ -4,25 +4,6 @@ import Foundation
 import SparkNotifications
 import Testing
 
-struct LikesPushPayloadTests {
-    @Test func parse_inbound_returnsKind() {
-        let payload = LikesPushPayload.parse(userInfo: ["type": "likes.inbound"])
-        #expect(payload == LikesPushPayload(kind: .inbound))
-    }
-
-    @Test func parse_match_returnsThreadID() {
-        let payload = LikesPushPayload.parse(userInfo: [
-            "type": "likes.match",
-            "thread_id": "th_dm_u_like_2"
-        ])
-        #expect(payload == LikesPushPayload(kind: .match(threadID: "th_dm_u_like_2")))
-    }
-
-    @Test func parse_unrelatedType_returnsNil() {
-        #expect(LikesPushPayload.parse(userInfo: ["type": "messages.new"]) == nil)
-    }
-}
-
 struct MessagesPushPayloadTests {
     @Test func parse_newMessage_returnsThreadID() {
         let payload = MessagesPushPayload.parse(userInfo: [

@@ -1,5 +1,6 @@
 // Module: SparkMessages — Collapsed ended activity group chats.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct ArchivedChatsDisclosure<Row: View>: View {
@@ -70,8 +71,10 @@ struct ArchivedChatsDisclosure<Row: View>: View {
                 NavigationLink(value: chat.asMessageThread()) {
                     ConversationRow(conversation: chat)
                 }
+                .sparkFlatTabListRow()
             }
         }
+        .sparkFlatTabListStyle()
     }
 }
 
@@ -83,8 +86,10 @@ struct ArchivedChatsDisclosure<Row: View>: View {
                 NavigationLink(value: chat.asMessageThread()) {
                     ConversationRow(conversation: chat)
                 }
+                .sparkFlatTabListRow()
             }
         }
+        .sparkFlatTabListStyle()
     }
     .environment(\.horizontalSizeClass, .regular)
 }

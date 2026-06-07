@@ -40,6 +40,14 @@ struct EmptyActivityFeedRepository: ActivityFeedRepository, Sendable {
         throw StubError.notFound
     }
 
+    func reviewAttendeeRSVP(activityID: String, attendeeID: String, approve: Bool) async throws -> ActivityDetail {
+        throw StubError.notFound
+    }
+
+    func setAttendeeCoHost(activityID: String, attendeeID: String, isCoHost: Bool) async throws -> ActivityDetail {
+        throw StubError.notFound
+    }
+
     func announceActivity(activityID: String, message: String) async throws {
         throw StubError.notFound
     }
@@ -98,6 +106,14 @@ struct FailingActivityFeedRepository: ActivityFeedRepository, Sendable {
     }
 
     func promoteFromWaitlist(activityID: String, attendeeID: String) async throws -> ActivityDetail {
+        throw StubError.unavailable
+    }
+
+    func reviewAttendeeRSVP(activityID: String, attendeeID: String, approve: Bool) async throws -> ActivityDetail {
+        throw StubError.unavailable
+    }
+
+    func setAttendeeCoHost(activityID: String, attendeeID: String, isCoHost: Bool) async throws -> ActivityDetail {
         throw StubError.unavailable
     }
 

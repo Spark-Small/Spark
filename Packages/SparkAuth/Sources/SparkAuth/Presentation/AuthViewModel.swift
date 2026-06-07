@@ -10,10 +10,18 @@ public final class AuthViewModel {
     public private(set) var authState: AuthState = .idle
     public var email: String = ""
     public var password: String = ""
+    public var signUpEmail: String = ""
+    public var signUpPassword: String = ""
+    public var signUpDisplayName: String = ""
+    public var passwordResetEmail: String = ""
+    public private(set) var passwordResetSent = false
+    public private(set) var isRequestingPasswordReset = false
 
     private let restoreSessionUseCase: any RestoreSessionUseCaseProtocol
     private let signInWithAppleUseCase: any SignInWithAppleUseCaseProtocol
     private let signInWithEmailUseCase: any SignInWithEmailUseCaseProtocol
+    private let signUpWithEmailUseCase: any SignUpWithEmailUseCaseProtocol
+    private let requestPasswordResetUseCase: any RequestPasswordResetUseCaseProtocol
     private let signOutUseCase: any SignOutUseCaseProtocol
     private let deleteAccountUseCase: any DeleteAccountUseCaseProtocol
     private let appleSignInCoordinator: AppleSignInCoordinator
@@ -24,12 +32,17 @@ public final class AuthViewModel {
         restoreSessionUseCase: (any RestoreSessionUseCaseProtocol)? = nil,
         signInWithAppleUseCase: (any SignInWithAppleUseCaseProtocol)? = nil,
         signInWithEmailUseCase: (any SignInWithEmailUseCaseProtocol)? = nil,
+        signUpWithEmailUseCase: (any SignUpWithEmailUseCaseProtocol)? = nil,
+        requestPasswordResetUseCase: (any RequestPasswordResetUseCaseProtocol)? = nil,
         signOutUseCase: (any SignOutUseCaseProtocol)? = nil,
         deleteAccountUseCase: (any DeleteAccountUseCaseProtocol)? = nil
     ) {
         self.restoreSessionUseCase = restoreSessionUseCase ?? RestoreSessionUseCase(authService: authService)
         self.signInWithAppleUseCase = signInWithAppleUseCase ?? SignInWithAppleUseCase(authService: authService)
         self.signInWithEmailUseCase = signInWithEmailUseCase ?? SignInWithEmailUseCase(authService: authService)
+        self.signUpWithEmailUseCase = signUpWithEmailUseCase ?? SignUpWithEmailUseCase(authService: authService)
+        self.requestPasswordResetUseCase = requestPasswordResetUseCase
+            ?? RequestPasswordResetUseCase(authService: authService)
         self.signOutUseCase = signOutUseCase ?? SignOutUseCase(authService: authService)
         self.deleteAccountUseCase = deleteAccountUseCase ?? DeleteAccountUseCase(authService: authService)
         self.appleSignInCoordinator = appleSignInCoordinator
@@ -112,6 +125,51 @@ public final class AuthViewModel {
     private func applyAppleCredential(_ credential: AppleSignInCredential) async throws {
         let session = try await signInWithAppleUseCase(credential)
         authState = .authenticated(session)
+    }
+
+    public var canSignUp: Bool {
+        signUpEmail.contains("@")
+            && signUpPassword.count >= 6
+            && !signUpDisplayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    public var canRequestPasswordReset: Bool {
+        passwordResetEmail.contains("@")
+    }
+
+    public func signUpWithEmailTapped() async {
+        authState = .loading
+        do {
+            let session = try await signUpWithEmailUseCase(
+                email: signUpEmail,
+                password: signUpPassword,
+                displayName: signUpDisplayName
+            )
+            email = signUpEmail
+            authState = .authenticated(session)
+        } catch is CancellationError {
+            return
+        } catch let error as AuthError {
+            authState = .failure(message: error.errorDescription ?? "")
+        } catch {
+            authState = .failure(message: error.localizedDescription)
+        }
+    }
+
+    public func requestPasswordResetTapped() async {
+        isRequestingPasswordReset = true
+        passwordResetSent = false
+        defer { isRequestingPasswordReset = false }
+        do {
+            try await requestPasswordResetUseCase(email: passwordResetEmail)
+            passwordResetSent = true
+        } catch is CancellationError {
+            return
+        } catch let error as AuthError {
+            authState = .failure(message: error.errorDescription ?? "")
+        } catch {
+            authState = .failure(message: error.localizedDescription)
+        }
     }
 
     public func signInWithEmailTapped() async {

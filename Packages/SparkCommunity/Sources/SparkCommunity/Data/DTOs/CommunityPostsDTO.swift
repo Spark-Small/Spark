@@ -9,6 +9,7 @@ struct CommunityPostsResponseDTO: Decodable, Sendable {
 struct CreateCommunityPostRequestDTO: Encodable, Sendable {
     let title: String
     let body: String
+    let media: [CommunityPostMediaRequestDTO]?
 }
 
 struct CreateCommunityPostResponseDTO: Decodable, Sendable {

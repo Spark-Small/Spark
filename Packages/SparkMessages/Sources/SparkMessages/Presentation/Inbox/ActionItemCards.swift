@@ -1,4 +1,4 @@
-// Module: SparkMessages — Action item card components.
+// Module: SparkMessages — Compact activity request cards (Activity inbox 活动请求 segment).
 
 import SparkDesignSystem
 import SwiftUI
@@ -7,11 +7,14 @@ struct ActionCardContainer<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        content
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .sparkGlassSurface(RoundedRectangle.sparkCard)
-            .padding(.horizontal, 16)
+        VStack(spacing: 0) {
+            content
+                .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
+                .padding(.vertical, SparkLayoutMetrics.compactVerticalPadding)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Divider()
+        }
+        .background(.background)
     }
 }
 
@@ -22,49 +25,40 @@ struct ActivityInviteActionCard: View {
 
     var body: some View {
         ActionCardContainer {
-            VStack(alignment: .leading, spacing: 10) {
-                Label(
-                    String(localized: "messages.action.invite", defaultValue: "活动邀请", comment: "Invite"),
-                    systemImage: "figure.hiking"
+            VStack(alignment: .leading, spacing: 8) {
+                requestKindLabel(
+                    title: String(localized: "messages.action.invite", defaultValue: "活动邀请", comment: "Invite"),
+                    systemImage: "envelope.badge"
                 )
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Color.accentColor)
 
                 Text(invite.activity.title)
-                    .font(.headline)
-                Text(activityMeta)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.body.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+
                 Text(inviterLine)
                     .font(.subheadline)
+                    .foregroundStyle(.secondary)
 
-                HStack(spacing: 12) {
+                Text(activityMeta)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+
+                HStack(spacing: 10) {
                     Button(
                         String(localized: "messages.action.accept", defaultValue: "报名参加", comment: "Accept invite"),
                         action: onAccept
                     )
                     .buttonStyle(.borderedProminent)
-                    .accessibilityHint(
-                        String(
-                            localized: "messages.action.accept.hint",
-                            defaultValue: "确认参加此活动",
-                            comment: "Accept invite hint"
-                        )
-                    )
+                    .controlSize(.small)
 
                     Button(
                         String(localized: "messages.action.decline", defaultValue: "暂时不了", comment: "Decline invite"),
                         action: onDecline
                     )
                     .buttonStyle(.bordered)
-                    .accessibilityHint(
-                        String(
-                            localized: "messages.action.decline.hint",
-                            defaultValue: "拒绝活动邀请",
-                            comment: "Decline invite hint"
-                        )
-                    )
+                    .controlSize(.small)
                 }
+                .padding(.top, 2)
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel(inviteAccessibilityLabel)
@@ -116,47 +110,36 @@ struct ActivityChangeAlertCard: View {
 
     var body: some View {
         ActionCardContainer {
-            VStack(alignment: .leading, spacing: 10) {
-                Label(
-                    String(localized: "messages.action.change", defaultValue: "活动变更", comment: "Change alert"),
-                    systemImage: "exclamationmark.triangle.fill"
+            VStack(alignment: .leading, spacing: 8) {
+                requestKindLabel(
+                    title: String(localized: "messages.action.change", defaultValue: "活动变更", comment: "Change alert"),
+                    systemImage: "exclamationmark.triangle"
                 )
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.orange)
 
                 Text(changeTitle)
-                    .font(.headline)
+                    .font(.body.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+
                 Text(hostLine)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     Button(
                         String(localized: "messages.action.viewSchedule", defaultValue: "查看新安排", comment: "View schedule"),
                         action: onViewActivity
                     )
                     .buttonStyle(.borderedProminent)
-                    .accessibilityHint(
-                        String(
-                            localized: "messages.action.viewSchedule.hint",
-                            defaultValue: "打开活动详情查看更新后的安排",
-                            comment: "View schedule hint"
-                        )
-                    )
+                    .controlSize(.small)
 
                     Button(
                         String(localized: "messages.action.dismiss", defaultValue: "知道了", comment: "Dismiss"),
                         action: onDismiss
                     )
                     .buttonStyle(.bordered)
-                    .accessibilityHint(
-                        String(
-                            localized: "messages.action.dismiss.hint",
-                            defaultValue: "关闭此提醒",
-                            comment: "Dismiss action hint"
-                        )
-                    )
+                    .controlSize(.small)
                 }
+                .padding(.top, 2)
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel(changeAccessibilityLabel)
@@ -203,13 +186,11 @@ struct WaitlistPromotedCard: View {
 
     var body: some View {
         ActionCardContainer {
-            VStack(alignment: .leading, spacing: 10) {
-                Label(
-                    String(localized: "messages.action.waitlist", defaultValue: "候补提升", comment: "Waitlist promoted"),
-                    systemImage: "arrow.up.circle.fill"
+            VStack(alignment: .leading, spacing: 8) {
+                requestKindLabel(
+                    title: String(localized: "messages.action.waitlist", defaultValue: "候补提升", comment: "Waitlist promoted"),
+                    systemImage: "arrow.up.circle"
                 )
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Color.accentColor)
 
                 Text(
                     String(
@@ -218,40 +199,32 @@ struct WaitlistPromotedCard: View {
                         comment: "Waitlist promoted title"
                     )
                 )
-                .font(.headline)
+                .font(.body.weight(.semibold))
+
                 Text(activity.title)
-                    .font(.subheadline)
-                Text(activity.formattedDateShort)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                HStack(spacing: 12) {
+                Text(activity.formattedDateShort)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+
+                HStack(spacing: 10) {
                     Button(
                         String(localized: "messages.activity.viewDetail", defaultValue: "查看详情", comment: "View detail"),
                         action: onViewActivity
                     )
                     .buttonStyle(.borderedProminent)
-                    .accessibilityHint(
-                        String(
-                            localized: "messages.action.viewDetail.hint",
-                            defaultValue: "打开活动详情",
-                            comment: "View activity detail hint"
-                        )
-                    )
+                    .controlSize(.small)
 
                     Button(
                         String(localized: "messages.action.dismiss", defaultValue: "知道了", comment: "Dismiss"),
                         action: onDismiss
                     )
                     .buttonStyle(.bordered)
-                    .accessibilityHint(
-                        String(
-                            localized: "messages.action.dismiss.hint",
-                            defaultValue: "关闭此提醒",
-                            comment: "Dismiss action hint"
-                        )
-                    )
+                    .controlSize(.small)
                 }
+                .padding(.top, 2)
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel(waitlistAccessibilityLabel)
@@ -266,6 +239,14 @@ struct WaitlistPromotedCard: View {
         )
         return "\(promoted)，\(activity.title)，\(activity.formattedDateShort)"
     }
+}
+
+@ViewBuilder
+private func requestKindLabel(title: String, systemImage: String) -> some View {
+    Label(title, systemImage: systemImage)
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(.secondary)
+        .labelStyle(.titleAndIcon)
 }
 
 #Preview("Activity invite card") {

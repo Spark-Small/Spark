@@ -3,7 +3,6 @@
 import SparkAuth
 import SparkActivity
 import SparkCommunity
-import SparkLikes
 import SparkMessages
 import SparkPayments
 import SparkPersistence
@@ -12,7 +11,7 @@ import SparkSearch
 import SparkTrust
 import SwiftUI
 
-/// Routes between login and the five-tab shell based on `AuthViewModel.authState`.
+/// Routes between login and the four-tab shell based on `AuthViewModel.authState`.
 public struct SparkRootView: View {
     @Bindable var authViewModel: AuthViewModel
     @Bindable var router: AppRouter
@@ -79,14 +78,10 @@ public struct SparkRootView: View {
             messagesRepository: MockMessagesRepository(),
             activityFeedRepository: MockActivityFeedRepository(),
             activityBrowseRepository: MockActivityBrowseRepository(),
-            likesFeedRepository: MockLikesFeedRepository(),
             searchRepository: MockSearchRepository(),
             communityPostsRepository: MockCommunityPostsRepository(),
             trustRepository: MockTrustRepository(),
-            blockedActivityHostsStore: BlockedActivityHostsStore(),
-            discoverMediaImageCache: DiscoverMediaImageCache.previewInstance(),
-            likesPreferencesStore: InMemoryLikesPreferencesStore(),
-            likesOnboardingPreferences: InMemoryLikesOnboardingPreferences()
+            blockedActivityHostsStore: BlockedActivityHostsStore()
         ),
         paywallRouter: PaywallRouter(appRouter: router)
     )

@@ -10,12 +10,13 @@ let package = Package(
         .library(name: "SparkNotifications", targets: ["SparkNotifications"])
     ],
     dependencies: [
-        .package(path: "../SparkNetworking")
+        .package(path: "../SparkNetworking"),
+        .package(path: "../SparkDesignSystem")
     ],
     targets: [
         .target(
             name: "SparkNotifications",
-            dependencies: ["SparkNetworking"],
+            dependencies: ["SparkNetworking", "SparkDesignSystem"],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
                 .enableExperimentalFeature("StrictConcurrency")

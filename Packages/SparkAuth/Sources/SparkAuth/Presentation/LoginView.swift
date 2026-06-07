@@ -21,6 +21,7 @@ public struct LoginView: View {
                     signInButton
                     divider
                     appleButton
+                    authLinks
                 }
                 .padding(24)
             }
@@ -122,6 +123,38 @@ public struct LoginView: View {
         .accessibilityLabel(
             String(localized: "auth.login.apple", defaultValue: "通过 Apple 登录", comment: "Apple sign in")
         )
+    }
+
+    private var authLinks: some View {
+        VStack(spacing: 12) {
+            NavigationLink {
+                SignUpView(viewModel: viewModel)
+            } label: {
+                Text(
+                    String(
+                        localized: "auth.login.signUpLink",
+                        defaultValue: "没有账号？注册",
+                        comment: "Sign up link"
+                    )
+                )
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+
+            NavigationLink {
+                ForgotPasswordView(viewModel: viewModel)
+            } label: {
+                Text(
+                    String(
+                        localized: "auth.login.forgotPasswordLink",
+                        defaultValue: "忘记密码",
+                        comment: "Forgot password link"
+                    )
+                )
+                .font(.subheadline)
+            }
+            .buttonStyle(.borderless)
+        }
     }
 
     private var failureBinding: Binding<Bool> {

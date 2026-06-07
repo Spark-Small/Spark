@@ -9,10 +9,14 @@
 | [ERRORS.md](ERRORS.md) | Error mapping and user copy |
 | [NAMING.md](NAMING.md) | Packages, Swift, git, l10n keys |
 | [PACKAGES.md](PACKAGES.md) | SPM layout and modules |
+| [FEATURE_INVENTORY.md](FEATURE_INVENTORY.md) | Shipped features and system modules (living doc) |
+| [MISSING_UI_SCREENS.md](MISSING_UI_SCREENS.md) | Missing or incomplete frontend UI vs Domain/API |
+| [.cursor/skills/spark-ui-spec/SKILL.md](../.cursor/skills/spark-ui-spec/SKILL.md) | Agent skill: SwiftUI page spec + compliance checklist |
+| [.cursor/skills/ios-product-design/SKILL.md](../.cursor/skills/ios-product-design/SKILL.md) | Agent skill: iOS product design, PRD, HIG, UX flows |
+| [TAB_SCREENS.md](TAB_SCREENS.md) | Four-tab L1/L2 screen layout reference |
 | [API_CONTRACT.md](API_CONTRACT.md) | REST contract (iOS ↔ backend) |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Mock vs Staging, secrets |
 | [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) | Phased roadmap and acceptance criteria |
-| [LIKES_DEVELOPMENT_PLAN.md](LIKES_DEVELOPMENT_PLAN.md) | 喜欢 tab — social discover / match |
 | [ACTIVITY_UPGRADE_PLAN.md](ACTIVITY_UPGRADE_PLAN.md) | Activity full vision (Phase 15+) |
 | [PRODUCT_INTEGRATION_PLAN.md](PRODUCT_INTEGRATION_PLAN.md) | Product integration roadmap + investor review |
 | [UNIVERSAL_LINKS.md](UNIVERSAL_LINKS.md) | Associated Domains setup |

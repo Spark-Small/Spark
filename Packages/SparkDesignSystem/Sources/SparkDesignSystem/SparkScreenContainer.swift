@@ -11,15 +11,18 @@ public struct SparkScreenContainer<Content: View>: View {
     }
 
     let navigationTitle: String
+    let titleDisplayMode: NavigationBarItem.TitleDisplayMode
     let embedding: NavigationEmbedding
     @ViewBuilder var content: () -> Content
 
     public init(
         navigationTitle: String,
+        titleDisplayMode: NavigationBarItem.TitleDisplayMode = .large,
         embedding: NavigationEmbedding = .navigationStack,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.navigationTitle = navigationTitle
+        self.titleDisplayMode = titleDisplayMode
         self.embedding = embedding
         self.content = content
     }
@@ -39,18 +42,19 @@ public struct SparkScreenContainer<Content: View>: View {
     private var styledContent: some View {
         content()
             .navigationTitle(navigationTitle)
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(titleDisplayMode)
     }
 }
 
 // MARK: - Root list styling
 
 extension View {
-    /// Applies to `List` directly for consistent plain list presentation.
+    /// Grouped list chrome for secondary screens (settings, browse-adjacent).
+    /// Primary tabs use `sparkFlatTabListStyle()` instead.
     public func sparkScreenListStyle() -> some View {
         listStyle(.plain)
-            .listRowSeparator(.visible)
-            .scrollContentBackground(.visible)
+            .scrollContentBackground(.hidden)
+            .sparkScreenCanvasBackground()
             .listRowBackground(Color.clear)
     }
 }

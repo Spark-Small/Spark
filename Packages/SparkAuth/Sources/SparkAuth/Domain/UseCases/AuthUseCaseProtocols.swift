@@ -14,6 +14,14 @@ public protocol SignInWithEmailUseCaseProtocol: Sendable {
     func callAsFunction(email: String, password: String) async throws -> AuthSession
 }
 
+public protocol SignUpWithEmailUseCaseProtocol: Sendable {
+    func callAsFunction(email: String, password: String, displayName: String) async throws -> AuthSession
+}
+
+public protocol RequestPasswordResetUseCaseProtocol: Sendable {
+    func callAsFunction(email: String) async throws
+}
+
 public protocol SignOutUseCaseProtocol: Sendable {
     func callAsFunction() async throws
 }
@@ -25,5 +33,7 @@ public protocol DeleteAccountUseCaseProtocol: Sendable {
 extension RestoreSessionUseCase: RestoreSessionUseCaseProtocol {}
 extension SignInWithAppleUseCase: SignInWithAppleUseCaseProtocol {}
 extension SignInWithEmailUseCase: SignInWithEmailUseCaseProtocol {}
+extension SignUpWithEmailUseCase: SignUpWithEmailUseCaseProtocol {}
+extension RequestPasswordResetUseCase: RequestPasswordResetUseCaseProtocol {}
 extension SignOutUseCase: SignOutUseCaseProtocol {}
 extension DeleteAccountUseCase: DeleteAccountUseCaseProtocol {}

@@ -1,6 +1,7 @@
 // Module: SparkCommunity — Full community post for detail screen.
 
 import Foundation
+import SparkCore
 
 public struct CommunityPostDetail: Identifiable, Hashable, Sendable, Equatable {
     public let id: String
@@ -11,6 +12,8 @@ public struct CommunityPostDetail: Identifiable, Hashable, Sendable, Equatable {
     public let replyCount: Int
     public let replies: [CommunityPostReply]
     public let linkedActivity: LinkedActivityContext?
+    public let mediaItems: [SparkGalleryMedia]
+    public let tags: [String]
 
     public init(
         id: String,
@@ -20,7 +23,9 @@ public struct CommunityPostDetail: Identifiable, Hashable, Sendable, Equatable {
         authorUserID: String? = nil,
         replyCount: Int,
         replies: [CommunityPostReply] = [],
-        linkedActivity: LinkedActivityContext? = nil
+        linkedActivity: LinkedActivityContext? = nil,
+        mediaItems: [SparkGalleryMedia] = [],
+        tags: [String] = []
     ) {
         self.id = id
         self.title = title
@@ -30,5 +35,9 @@ public struct CommunityPostDetail: Identifiable, Hashable, Sendable, Equatable {
         self.replyCount = replyCount
         self.replies = replies
         self.linkedActivity = linkedActivity
+        self.mediaItems = mediaItems
+        self.tags = tags
     }
+
+    public var galleryMedia: [SparkGalleryMedia] { mediaItems }
 }

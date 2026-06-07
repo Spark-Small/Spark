@@ -7,13 +7,25 @@ import Testing
 
 @MainActor
 struct AppRouterTests {
+    @Test func defaultSelectedTabIsActivity() {
+        let router = AppRouter()
+        #expect(router.selectedTab == .activity)
+    }
+
     @Test func deepLinkToMessagesWhenGuestShowsAuthSheet() {
         let router = AppRouter()
         let url = URL(string: "spark://messages")!
         router.handle(url: url, isAuthenticated: false)
         #expect(router.globalSheet == .authRequired)
         #expect(router.pendingDeepLinkAfterAuth != nil)
-        #expect(router.selectedTab == .community)
+        #expect(router.selectedTab == .activity)
+    }
+
+    @Test func resetAfterSignOutReturnsToActivityTab() {
+        let router = AppRouter()
+        router.selectedTab = .messages
+        router.resetAfterSignOut()
+        #expect(router.selectedTab == .activity)
     }
 
     @Test func deepLinkAppliesWhenAuthenticated() {

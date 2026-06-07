@@ -26,7 +26,9 @@ public final class ProfileViewModel {
     }
 
     public convenience init(trustRepository: any TrustRepository) {
-        self.init(fetchProfileSummary: FetchProfileSummaryUseCase(trustRepository: trustRepository))
+        self.init(
+            fetchProfileSummary: FetchProfileSummaryUseCase(trustRepository: trustRepository)
+        )
     }
 
     public func load() async {

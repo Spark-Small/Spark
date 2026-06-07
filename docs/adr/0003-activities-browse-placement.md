@@ -5,7 +5,7 @@
 
 ## Context
 
-`GET /v1/activities/browse` is planned for Phase 19 (public activity discovery). ADR-0001 removed `ActivityBrowse*` from the 喜欢 Tab and assigned **人发现** to `SparkLikes`. Reviving browse as its own Tab would make six tabs and confuse「人 vs 局」.
+`GET /v1/activities/browse` is planned for Phase 19 (public activity discovery). The former 喜欢 Tab and `SparkLikes` module were removed (2026-06-08). Reviving browse as its own Tab would make five tabs and confuse「人 vs 局」.
 
 ## Decision
 
@@ -22,5 +22,5 @@
 
 ## Alternatives considered
 
-- **Likes sub-segment (人 | 局):** Rejected — re-blends two discovery modes ADR-0001 separated.
+- **Likes sub-segment (人 | 局):** N/A — Likes module removed.
 - **Independent Discover Tab:** Rejected for 0→1 scope and tab-bar cost.

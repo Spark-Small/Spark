@@ -41,10 +41,17 @@ function buildSeed() {
         summary: "静安 · 周五傍晚",
         category: "社交",
         description: "轻松聊天，认识新朋友。",
-        starts_at: "2026-06-10T11:00:00Z",
+        starts_at: "2026-06-06T19:00:00Z",
+        ends_at: "2026-06-06T21:00:00Z",
+        recurrence: {
+          frequency: "weekly",
+          weekday: "friday",
+          until: "2027-06-06T21:00:00Z",
+        },
         location_name: "静安寺商圈",
         host_display_name: "小雨",
         host_id: "u_host_2",
+        host_tier: "super_organizer",
         attendee_count: 2,
         capacity: 2,
         waitlisted_count: 1,
@@ -182,90 +189,14 @@ function buildSeed() {
     ],
   ]);
 
-  const likesState = {
-    cards: [
-      {
-        user_id: "u_like_1",
-        display_name: "阿乐",
-        bio: "徒步、摄影",
-        gender: "male",
-        is_daily_pick: true,
-        rank_score: 12,
-        interest_tags: ["hiking", "photo"],
-        spark_questions: [
-          { id: "sq_1", question: "周末最想做的事？", answer: "郊外徒步" },
-        ],
-        media: { kind: "image", url: "https://picsum.photos/seed/spark-like-1/1080/1440", poster_url: null },
-      },
-      {
-        user_id: "u_like_2",
-        display_name: "小雨",
-        bio: "咖啡、聊天、慢生活",
-        gender: "female",
-        rank_score: 8,
-        interest_tags: ["coffee", "chat"],
-        spark_questions: [
-          { id: "sq_2", question: "理想的周五晚上？", answer: "小馆子里聊天" },
-        ],
-        media: { kind: "image", url: "https://picsum.photos/seed/spark-like-2/1080/1440", poster_url: null },
-      },
-      {
-        user_id: "u_like_3",
-        display_name: "小晨",
-        bio: "城市漫步",
-        gender: "female",
-        rank_score: 5,
-        interest_tags: ["walk", "city"],
-        media: { kind: "image", url: "https://picsum.photos/seed/spark-like-3/1080/1440", poster_url: null },
-      },
-    ],
-    inbound: [
-      {
-        user_id: "u_like_5",
-        liked_at: "2026-06-05T12:00:00Z",
-        intensity: "spark",
-        opener: "你的笑容很治愈",
-        card: {
-          user_id: "u_like_5",
-          display_name: "小晨",
-          bio: "想认识你",
-          gender: "female",
-          media: { kind: "image", url: "https://picsum.photos/seed/spark-like-5/1080/1440", poster_url: null },
-        },
-      },
-    ],
-    inbound_by_user: {
-      u_staging_1: [
-        {
-          user_id: "u_like_5",
-          liked_at: "2026-06-05T12:00:00Z",
-          intensity: "spark",
-          opener: "你的笑容很治愈",
-          card: {
-            user_id: "u_like_5",
-            display_name: "小晨",
-            bio: "想认识你",
-            gender: "female",
-            media: { kind: "image", url: "https://picsum.photos/seed/spark-like-5/1080/1440", poster_url: null },
-          },
-        },
-      ],
-    },
+  const inboxState = {
     viewer_profiles: {},
-    passed_users: [],
-    passed_by_user: {},
-    liked_by_me: [],
-    liked_by_user: {},
-    daily_by_user: {},
     mutual_matches: {
       u_like_1: "th_dm_u_like_1",
       u_like_2: "th_dm_u_like_2",
     },
     inbox_action_items: null,
     dismissed_inbox_action_ids: [],
-    last_pass_user_id: null,
-    rewind_used_today: false,
-    rewind_by_user: {},
   };
 
   const meta = {
@@ -277,7 +208,7 @@ function buildSeed() {
     reply_counter: 3,
   };
 
-  return { users, activities, communityPosts, threads, likesState, meta };
+  return { users, activities, communityPosts, threads, inboxState, meta };
 }
 
 module.exports = { buildSeed };

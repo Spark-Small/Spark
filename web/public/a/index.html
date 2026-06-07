@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spark 活动邀请</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; }
+    body { margin: 0; padding: 24px; max-width: 480px; margin-inline: auto; line-height: 1.5; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    p { color: #666; }
+    .card { border: 1px solid rgba(128,128,128,.25); border-radius: 16px; padding: 16px; margin: 24px 0; }
+    a.button { display: inline-block; padding: 12px 20px; border-radius: 12px; background: #007aff; color: #fff; text-decoration: none; font-weight: 600; }
+    code { font-size: 0.85rem; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <h1>在 Spark 中打开活动</h1>
+  <p id="subtitle">正在加载活动信息…</p>
+  <div class="card">
+    <p id="activity-id"><strong>活动 ID：</strong><code>—</code></p>
+    <p>若已安装 Spark，点击下方在 App 内打开；未安装请前往 App Store 下载。</p>
+  </div>
+  <p><a class="button" id="open-app" href="#">在 Spark 中打开</a></p>
+  <p><a id="app-store" href="https://apps.apple.com/app/id0000000000">下载 Spark（TestFlight / App Store）</a></p>
+  <script>
+    (function () {
+      var parts = location.pathname.split("/").filter(Boolean);
+      var activityId = parts[parts.length - 1] || "";
+      var subtitle = document.getElementById("subtitle");
+      var idEl = document.querySelector("#activity-id code");
+      var openApp = document.getElementById("open-app");
+      if (activityId) {
+        idEl.textContent = activityId;
+        subtitle.textContent = "你收到一条 Spark 活动邀请。";
+        openApp.href = "spark://activity/" + encodeURIComponent(activityId);
+        openApp.addEventListener("click", function (e) {
+          setTimeout(function () {
+            if (document.hidden) return;
+            location.href = "https://spark.app/a/" + encodeURIComponent(activityId);
+          }, 1500);
+        });
+      } else {
+        subtitle.textContent = "链接无效或活动已下线。";
+        openApp.style.display = "none";
+      }
+    })();
+  </script>
+</body>
+</html>

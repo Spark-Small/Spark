@@ -22,16 +22,23 @@ public final class SearchViewModel {
 
     public var query: String = ""
     public private(set) var results: [SearchResultItem] = []
+    public private(set) var searchHistory: [String] = []
     public private(set) var loadState: LoadState = .idle
 
     private let searchQuery: any SearchQueryUseCaseProtocol
 
     public init(searchQuery: any SearchQueryUseCaseProtocol) {
         self.searchQuery = searchQuery
+        searchHistory = SearchHistoryStore.load()
     }
 
     public convenience init(repository: any SearchRepository) {
         self.init(searchQuery: SearchQueryUseCase(repository: repository))
+    }
+
+    public func clearSearchHistory() {
+        SearchHistoryStore.clear()
+        searchHistory = []
     }
 
     public func clearResults() {
@@ -49,6 +56,8 @@ public final class SearchViewModel {
         loadState = .loading
         do {
             results = try await searchQuery(query: trimmed)
+            SearchHistoryStore.record(trimmed)
+            searchHistory = SearchHistoryStore.load()
             loadState = results.isEmpty ? .empty : .loaded
         } catch is CancellationError {
             return

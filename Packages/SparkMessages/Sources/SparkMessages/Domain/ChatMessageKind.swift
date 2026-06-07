@@ -4,6 +4,7 @@ import Foundation
 
 public enum ChatMessageKind: String, Sendable, Equatable {
     case text
+    case image
     case system
     case activityShare
 }

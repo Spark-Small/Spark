@@ -29,19 +29,6 @@ const {
   dismissActionItemForInvite,
   dismissInboxActionItem,
 } = require("./lib/messages-helpers");
-const {
-  dailyStatsFor,
-  incrementSeen,
-  consumeSpark,
-  passedSetFor,
-  likedSetFor,
-  inboundListFor,
-  rewindStateFor,
-  parseLikeBody,
-  sortInboundItems,
-  rankFeedCards,
-} = require("./lib/likes-helpers");
-
 const PORT = Number(process.env.PORT) || 9000;
 
 const USER_DISPLAY_NAMES = {
@@ -55,19 +42,8 @@ const state = {
   activities: new Map(),
   communityPosts: new Map(),
   threads: new Map(),
-  likesCards: [],
-  inboundLikes: [],
-  inboundByUser: new Map(),
   viewerProfiles: new Map(),
-  passedUsers: new Set(),
-  passedByUser: new Map(),
-  likedByMe: new Set(),
-  likedByMeByUser: new Map(),
-  dailyByUser: new Map(),
   mutualMatches: new Map(),
-  lastPassUserId: null,
-  rewindUsedToday: false,
-  rewindByUser: new Map(),
   devices: new Map(),
   counters: {
     msg_counter: 100,
@@ -108,6 +84,9 @@ function serializePostDetail(post) {
     replies: communityRepliesFor(post).map(serializeReply),
     kind: post.kind || "discussion",
   };
+  if (Array.isArray(post.media) && post.media.length > 0) {
+    detail.media = post.media;
+  }
   if (post.linked_activity) {
     detail.linked_activity = post.linked_activity;
   } else if (post.id === "cp_001") {
@@ -141,8 +120,8 @@ function touchThread(id) {
   if (id) state.dirty.threads.add(id);
 }
 
-function touchLikes() {
-  state.dirty.likes = true;
+function touchInbox() {
+  state.dirty.inbox = true;
 }
 
 function touchMeta() {
@@ -155,55 +134,6 @@ function touchCommunityPost(id) {
 
 function touchDevice(token) {
   if (token) state.dirty.devices.add(token);
-}
-
-function isUserPremium(userId) {
-  const profile = state.viewerProfiles.get(userId);
-  if (profile?.is_premium) return true;
-  for (const user of Object.values(state.users)) {
-    if (user.user_id === userId && user.is_premium) return true;
-  }
-  return false;
-}
-
-function cardForUser(userId) {
-  const fromDeck = state.likesCards.find((c) => c.user_id === userId);
-  if (fromDeck) return { ...fromDeck };
-  const profile = state.viewerProfiles.get(userId);
-  return {
-    user_id: userId,
-    display_name: profile?.display_name || displayNameFor(userId),
-    bio: profile?.bio || "",
-    gender: profile?.gender,
-    has_photo: profile?.has_photo ?? true,
-    avatar_url: profile?.avatar_url,
-    media: profile?.avatar_url
-      ? { kind: "image", url: profile.avatar_url, poster_url: null }
-      : undefined,
-  };
-}
-
-function targetAlreadyLikedViewer(targetId, viewerId) {
-  const viewerInbound = inboundListFor(viewerId, state.inboundByUser, state.inboundLikes);
-  if (viewerInbound.some((item) => item.user_id === targetId)) return true;
-  const targetLikes = likedSetFor(targetId, state.likedByMeByUser, state.likedByMe);
-  return targetLikes.has(viewerId);
-}
-
-function inboundItemsFor(userId) {
-  const visible = isUserPremium(userId);
-  const raw = inboundListFor(userId, state.inboundByUser, state.inboundLikes);
-  return sortInboundItems(raw).map((item) => ({
-    ...item,
-    is_visible: visible,
-  }));
-}
-
-function feedCardsFor(userId) {
-  const passed = passedSetFor(userId, state.passedByUser, state.passedUsers);
-  let cards = state.likesCards.filter((c) => !passed.has(c.user_id) && c.user_id !== userId);
-  cards = rankFeedCards(cards, userId, state.viewerProfiles);
-  return cards;
 }
 
 function viewerProfileFor(userId) {
@@ -270,6 +200,8 @@ function activityFeedItem(a) {
     summary: a.summary,
     category: a.category,
     starts_at: a.starts_at,
+    ends_at: a.ends_at,
+    recurrence: a.recurrence,
     location_name: a.location_name,
     host_display_name: a.host_display_name,
     host_id: a.host_id,
@@ -289,9 +221,12 @@ function activityDetail(a) {
     category: a.category,
     description: a.description,
     starts_at: a.starts_at,
+    ends_at: a.ends_at,
+    recurrence: a.recurrence,
     location_name: a.location_name,
     host_display_name: a.host_display_name,
     host_id: a.host_id,
+    host_tier: a.host_tier,
     attendee_count: a.attendee_count,
     waitlisted_count: a.waitlisted_count ?? 0,
     capacity: a.capacity,
@@ -354,6 +289,37 @@ app.post("/v1/auth/email", (req, res) => {
   res.json({ access_token: tokenFor(user.user_id), user_id: user.user_id });
 });
 
+app.post("/v1/auth/register", (req, res) => {
+  const { email, password, display_name: displayName } = req.body || {};
+  const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+  if (!normalizedEmail || !password || !displayName?.trim()) {
+    return err(res, 400, "invalid_request", "Missing required fields");
+  }
+  if (password.length < 6) {
+    return err(res, 400, "invalid_request", "Password too short");
+  }
+  if (state.users[normalizedEmail]) {
+    return err(res, 409, "email_already_registered", "Email already registered");
+  }
+  const userId = `u_${Date.now()}`;
+  state.users[normalizedEmail] = {
+    password,
+    user_id: userId,
+    name: displayName.trim(),
+  };
+  touchMeta();
+  res.json({ access_token: tokenFor(userId), user_id: userId });
+});
+
+app.post("/v1/auth/password-reset", (req, res) => {
+  const { email } = req.body || {};
+  if (!email || typeof email !== "string" || !email.includes("@")) {
+    return err(res, 400, "invalid_request", "Valid email required");
+  }
+  // REASONING: Staging stub — always 204 to avoid email enumeration.
+  res.status(204).send();
+});
+
 app.get("/v1/auth/session", requireAuth, (req, res) => {
   res.json({ access_token: tokenFor(req.userId), user_id: req.userId });
 });
@@ -371,7 +337,7 @@ function purgeUserAccount(userId) {
   }
 
   state.viewerProfiles.delete(userId);
-  touchLikes();
+  touchInbox();
 
   for (const [threadId, thread] of state.threads.entries()) {
     const peerId = threadId.startsWith("th_dm_") ? threadId.slice("th_dm_".length) : null;
@@ -399,28 +365,12 @@ function purgeUserAccount(userId) {
     }
   }
 
-  state.likesCards = state.likesCards.filter((c) => c.user_id !== userId);
-
-  for (const [viewerId, inbound] of state.inboundByUser.entries()) {
-    const filtered = inbound.filter((item) => item.user_id !== userId);
-    if (filtered.length !== inbound.length) {
-      if (filtered.length === 0) state.inboundByUser.delete(viewerId);
-      else state.inboundByUser.set(viewerId, filtered);
-    }
-  }
-  state.inboundLikes = state.inboundLikes.filter((item) => item.user_id !== userId);
-
   for (const [token, device] of state.devices.entries()) {
     if (device.user_id === userId) {
       state.devices.delete(token);
       state.dirty.devices.delete(token);
     }
   }
-
-  state.passedByUser.delete(userId);
-  state.likedByMeByUser.delete(userId);
-  state.dailyByUser.delete(userId);
-  state.rewindByUser.delete(userId);
 
   for (const [key, match] of state.mutualMatches.entries()) {
     if (key.includes(userId)) state.mutualMatches.delete(key);
@@ -680,7 +630,7 @@ app.post(
       activity.attendee_count = Math.max(activity.attendee_count, 1);
       touchActivity(activity.id);
     }
-    state.dirty.likes = true;
+    state.dirty.inbox = true;
     res.status(204).send();
   }
 );
@@ -898,11 +848,39 @@ app.get("/v1/community/posts/:postId", requireAuth, (req, res) => {
   res.json({ post: serializePostDetail(p) });
 });
 
+app.post("/v1/community/media/stage", requireAuth, (req, res) => {
+  const kind = (req.body?.kind || "image").trim();
+  const digest = String(req.body?.content_sha256 || "unknown").slice(0, 16);
+  if (kind === "video") {
+    return res.json({
+      id: `vid_${digest}`,
+      url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      kind: "video",
+      poster_url: `https://picsum.photos/seed/community-video-${digest}/800/450`,
+    });
+  }
+  res.json({
+    id: `img_${digest}`,
+    url: `https://picsum.photos/seed/community-${digest}/800/450`,
+    kind: "image",
+  });
+});
+
 app.post("/v1/community/posts", requireAuth, (req, res) => {
   const title = (req.body?.title || "").trim();
   const body = (req.body?.body || "").trim();
   const kind = (req.body?.kind || "discussion").trim();
   const activityID = (req.body?.activity_id || "").trim();
+  const media = Array.isArray(req.body?.media)
+    ? req.body.media
+        .filter((item) => item && item.url)
+        .map((item, index) => ({
+          id: item.id || `media_${index}`,
+          url: String(item.url),
+          kind: item.kind || "image",
+          poster_url: item.poster_url || null,
+        }))
+    : [];
   if (!title) return err(res, 400, "invalid_request", "title required");
   if (kind === "activity_recap" && !activityID) {
     return err(res, 400, "invalid_request", "activity_id required for activity_recap");
@@ -920,6 +898,7 @@ app.post("/v1/community/posts", requireAuth, (req, res) => {
     replies: [],
     kind,
     activity_id: activityID || null,
+    media,
   };
   if (kind === "activity_recap" && activityID) {
     const activity = state.activities.get(activityID);
@@ -1014,155 +993,8 @@ app.patch("/v1/users/profile", requireAuth, (req, res) => {
     profile.display_name = req.body.display_name.trim();
   }
   state.viewerProfiles.set(req.userId, profile);
-  touchLikes();
+  touchInbox();
   res.json(profile);
-});
-
-// --- Likes ---
-
-app.get("/v1/likes/feed", requireAuth, (req, res) => {
-  const items = feedCardsFor(req.userId);
-  const cursor = req.query.cursor;
-  if (cursor) {
-    return res.status(204).send();
-  }
-  res.json({ items, next_cursor: items.length > 0 ? "c_page_2" : null });
-});
-
-app.get("/v1/likes/daily-stats", requireAuth, (req, res) => {
-  res.json(dailyStatsFor(req.userId, state.dailyByUser));
-});
-
-app.get("/v1/likes/inbound", requireAuth, (req, res) => {
-  res.json({ items: inboundItemsFor(req.userId), next_cursor: null });
-});
-
-app.get("/v1/likes/viewer-profile", requireAuth, (req, res) => {
-  res.json(viewerProfileFor(req.userId));
-});
-
-app.patch("/v1/likes/viewer-profile", requireAuth, (req, res) => {
-  const profile = { ...viewerProfileFor(req.userId) };
-  if (req.body?.display_name?.trim()) {
-    profile.display_name = req.body.display_name.trim();
-  }
-  if (req.body?.has_photo !== undefined) {
-    profile.has_photo = Boolean(req.body?.has_photo);
-  }
-  if (req.body?.avatar_url) {
-    profile.avatar_url = req.body.avatar_url;
-    profile.has_photo = true;
-  }
-  if (req.body?.is_premium !== undefined) {
-    profile.is_premium = Boolean(req.body.is_premium);
-  }
-  state.viewerProfiles.set(req.userId, profile);
-  touchLikes();
-  res.json(profile);
-});
-
-app.post("/v1/likes/rewind", requireAuth, (req, res) => {
-  const rewind = rewindStateFor(req.userId, state.rewindByUser, {
-    last_pass_user_id: state.lastPassUserId,
-  });
-  if (rewind.used_today || !rewind.last_pass_user_id) {
-    return res.json({ card: null });
-  }
-  rewind.used_today = true;
-  passedSetFor(req.userId, state.passedByUser, state.passedUsers).delete(
-    rewind.last_pass_user_id
-  );
-  const card =
-    state.likesCards.find((c) => c.user_id === rewind.last_pass_user_id) || null;
-  touchLikes();
-  res.json({ card });
-});
-
-app.post("/v1/likes/:userId/like", requireAuth, (req, res) => {
-  const target = req.params.userId;
-  const viewerId = req.userId;
-  const likeBody = parseLikeBody(req.body);
-
-  const sparkResult = consumeSpark(viewerId, state.dailyByUser, likeBody.intensity);
-  if (!sparkResult.ok) {
-    return err(res, 429, sparkResult.code, sparkResult.message);
-  }
-
-  const liked = likedSetFor(viewerId, state.likedByMeByUser, state.likedByMe);
-  liked.add(target);
-  state.likedByMe.add(target);
-
-  const passed = passedSetFor(viewerId, state.passedByUser, state.passedUsers);
-  passed.add(target);
-  incrementSeen(viewerId, state.dailyByUser);
-
-  const inboundOfTarget = inboundListFor(target, state.inboundByUser, []);
-  const alreadyInbound = inboundOfTarget.some((item) => item.user_id === viewerId);
-  if (!alreadyInbound) {
-    const inboundItem = {
-      user_id: viewerId,
-      liked_at: new Date().toISOString(),
-      intensity: likeBody.intensity,
-      opener: likeBody.opener,
-      liked_question_id: likeBody.liked_question_id,
-      voice_opener_url: likeBody.voice_opener_url,
-      card: cardForUser(viewerId),
-    };
-    inboundOfTarget.push(inboundItem);
-    state.inboundByUser.set(target, inboundOfTarget);
-  }
-
-  touchLikes();
-
-  const isMutual =
-    state.mutualMatches.has(target) ||
-    target === "u_like_2" ||
-    targetAlreadyLikedViewer(target, viewerId);
-
-  if (isMutual) {
-    const threadId = state.mutualMatches.get(target) || `th_dm_${target}`;
-    state.mutualMatches.set(target, threadId);
-    touchLikes();
-    notifyUser(state.devices, target, "likes.match", { thread_id: threadId });
-    return res.json({ outcome: "matched", thread_id: threadId });
-  }
-
-  notifyUser(state.devices, target, "likes.inbound", {});
-  return res.json({ outcome: "pending", thread_id: null });
-});
-
-app.post("/v1/likes/:userId/pass", requireAuth, (req, res) => {
-  const target = req.params.userId;
-  const passed = passedSetFor(req.userId, state.passedByUser, state.passedUsers);
-  passed.add(target);
-  const rewind = rewindStateFor(req.userId, state.rewindByUser, {
-    last_pass_user_id: state.lastPassUserId,
-  });
-  rewind.last_pass_user_id = target;
-  state.lastPassUserId = target;
-  incrementSeen(req.userId, state.dailyByUser);
-  touchLikes();
-  res.status(204).send();
-});
-
-app.post("/v1/likes/:userId/friend-request", requireAuth, (req, res) => {
-  const target = req.params.userId;
-  if (state.mutualMatches.has(target)) {
-    return err(res, 409, "already_connected", "Already connected");
-  }
-  res.json({ outcome: "sent" });
-});
-
-app.post("/v1/likes/:userId/report", requireAuth, (_req, res) => {
-  state.counters.report_counter += 1;
-  touchMeta();
-  res.json({ report_id: `rp_${state.counters.report_counter}` });
-});
-
-app.post("/v1/likes/:userId/block", requireAuth, (req, res) => {
-  passedSetFor(req.userId, state.passedByUser, state.passedUsers).add(req.params.userId);
-  touchLikes();
-  res.status(204).send();
 });
 
 app.post("/v1/devices", requireAuth, (req, res) => {

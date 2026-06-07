@@ -19,7 +19,7 @@ public enum ActivityRSVPStatus: String, Sendable, Equatable, CaseIterable {
     public var localizedLabel: String {
         switch self {
         case .invited:
-            String(localized: "activity.rsvp.invited", defaultValue: "待回复", comment: "RSVP status")
+            String(localized: "activity.rsvp.invited", defaultValue: "待确认", comment: "RSVP status")
         case .going:
             String(localized: "activity.rsvp.going", defaultValue: "参加", comment: "RSVP status")
         case .maybe:

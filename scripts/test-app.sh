@@ -5,7 +5,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-DESTINATION="${SPARK_DESTINATION:-platform=iOS Simulator,name=iPhone 17,OS=26.5}"
+DESTINATION="$("$ROOT/scripts/resolve-spark-destination.sh")"
+echo "==> Using destination: ${DESTINATION}"
 
 xcodebuild test \
   -project Spark.xcodeproj \

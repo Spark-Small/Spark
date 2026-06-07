@@ -7,8 +7,13 @@ function peerUserIdFromDirectThread(threadId) {
   return threadId.slice("th_dm_".length);
 }
 
-function findLikeCard(state, userId) {
-  return state.likesCards.find((c) => c.user_id === userId) || null;
+function userProfileFor(state, userId) {
+  const profile = state.viewerProfiles?.get?.(userId);
+  const displayName = profile?.display_name || displayNameFromMap(userId);
+  return {
+    display_name: displayName,
+    avatar_url: profile?.avatar_url || `https://picsum.photos/seed/${userId}/96/96`,
+  };
 }
 
 function activityForThread(state, threadId) {
@@ -40,14 +45,12 @@ function serializeActivitySummary(activity) {
 function serializeDmPartner(state, threadId) {
   const peerId = peerUserIdFromDirectThread(threadId);
   if (!peerId) return null;
-  const card = findLikeCard(state, peerId);
-  const displayName =
-    card?.display_name || state.users?.[peerId]?.name || displayNameFromMap(peerId);
+  const profile = userProfileFor(state, peerId);
   return {
     id: peerId,
-    display_name: displayName,
-    avatar_url: card?.media?.url || `https://picsum.photos/seed/${peerId}/96/96`,
-    first_name: displayName.slice(0, 1),
+    display_name: profile.display_name,
+    avatar_url: profile.avatar_url,
+    first_name: profile.display_name.slice(0, 1),
   };
 }
 
@@ -103,14 +106,14 @@ function buildUnmessagedMatches(state) {
         (thread.messages || []).some((m) => (m.body || "").trim().length > 0));
     if (hasConversation) continue;
 
-    const card = findLikeCard(state, peerId);
+    const profile = userProfileFor(state, peerId);
     matches.push({
       id: `match_${peerId}`,
       user: {
         id: peerId,
-        display_name: card?.display_name || displayNameFromMap(peerId),
-        avatar_url: card?.media?.url || `https://picsum.photos/seed/${peerId}/96/96`,
-        first_name: (card?.display_name || displayNameFromMap(peerId)).slice(0, 1),
+        display_name: profile.display_name,
+        avatar_url: profile.avatar_url,
+        first_name: profile.display_name.slice(0, 1),
       },
       matched_at: thread?.last_activity_at || new Date().toISOString(),
       thread_id: threadId,
@@ -185,7 +188,7 @@ function dismissActionItemForInvite(state, invitationId) {
       state.dismissedInboxActionIds.add(item.id);
     }
   }
-  if (state.dirty) state.dirty.likes = true;
+  if (state.dirty) state.dirty.inbox = true;
 }
 
 function dismissInboxActionItem(state, actionItemId) {
@@ -197,7 +200,7 @@ function dismissInboxActionItem(state, actionItemId) {
     state.dismissedInboxActionIds = new Set();
   }
   state.dismissedInboxActionIds.add(actionItemId);
-  if (state.dirty) state.dirty.likes = true;
+  if (state.dirty) state.dirty.inbox = true;
   return true;
 }
 

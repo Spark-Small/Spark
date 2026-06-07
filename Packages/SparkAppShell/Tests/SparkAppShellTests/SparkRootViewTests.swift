@@ -4,7 +4,6 @@ import SparkAppShell
 import SparkAuth
 import SparkActivity
 import SparkCommunity
-import SparkLikes
 import SparkMessages
 import SparkPayments
 import SparkPersistence
@@ -31,14 +30,10 @@ struct SparkRootViewTests {
                 messagesRepository: MockMessagesRepository(),
                 activityFeedRepository: MockActivityFeedRepository(),
                 activityBrowseRepository: MockActivityBrowseRepository(),
-                likesFeedRepository: MockLikesFeedRepository(),
                 searchRepository: MockSearchRepository(),
                 communityPostsRepository: MockCommunityPostsRepository(),
                 trustRepository: MockTrustRepository(),
-                blockedActivityHostsStore: BlockedActivityHostsStore(),
-                discoverMediaImageCache: DiscoverMediaImageCache.previewInstance(),
-                likesPreferencesStore: InMemoryLikesPreferencesStore(),
-                likesOnboardingPreferences: InMemoryLikesOnboardingPreferences()
+                blockedActivityHostsStore: BlockedActivityHostsStore()
             ),
             paywallRouter: PaywallRouter(appRouter: router)
         )

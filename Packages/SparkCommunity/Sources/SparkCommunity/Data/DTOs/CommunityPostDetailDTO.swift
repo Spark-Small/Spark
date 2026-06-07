@@ -15,6 +15,8 @@ struct CommunityPostDetailDTO: Decodable, Sendable {
     let replyCount: Int
     let replies: [CommunityPostReplyDTO]?
     let linkedActivity: LinkedActivityDTO?
+    let media: [CommunityPostMediaDTO]?
+    let tags: [String]?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -25,6 +27,8 @@ struct CommunityPostDetailDTO: Decodable, Sendable {
         case replyCount = "reply_count"
         case replies
         case linkedActivity = "linked_activity"
+        case media
+        case tags
     }
 }
 

@@ -3,12 +3,13 @@
 import Foundation
 
 enum MockCommunityDetailCatalog {
-    static func detail(id: String) -> CommunityDetail? {
+    static func detail(id: String, joinedIDs: Set<String>? = nil) -> CommunityDetail? {
         guard let summary = MockCommunityTabCatalog.allCommunities().first(where: { $0.id == id })
             ?? MockCommunityTabCatalog.joinedCommunities().first(where: { $0.id == id })
         else { return nil }
-        let joined = MockCommunityTabCatalog.joinedCommunities().contains(where: { $0.id == id })
-        return CommunityDetail(summary: summary, isJoined: joined)
+        let defaultJoined = Set(MockCommunityTabCatalog.joinedCommunities().map(\.id))
+        let joinedSet = joinedIDs ?? defaultJoined
+        return CommunityDetail(summary: summary, isJoined: joinedSet.contains(id))
     }
 
     static func members(communityID: String) -> [CommunityMember] {

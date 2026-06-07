@@ -48,6 +48,15 @@ public struct LiveCommunityPostsRepository: CommunityPostsRepository, Sendable {
         return dto.members.map(CommunityDTOMapper.member)
     }
 
+    public func joinCommunity(id: String) async throws -> CommunityDetail {
+        let dto: CommunityDetailResponseDTO = try await apiClient.post(
+            CommunityAPIPath.joinCommunity(id: id),
+            body: Data(),
+            as: CommunityDetailResponseDTO.self
+        )
+        return CommunityDTOMapper.communityDetail(from: dto.community)
+    }
+
     public func fetchCommunityPosts(communityID: String) async throws -> [CommunityFeedPost] {
         let dto: CommunityTabFeedResponseDTO = try await get(CommunityAPIPath.feed)
         let experience = CommunityDTOMapper.tabExperience(from: dto)
@@ -70,7 +79,8 @@ public struct LiveCommunityPostsRepository: CommunityPostsRepository, Sendable {
         let body = try JSONEncoder().encode(
             CreateCommunityPostRequestDTO(
                 title: draft.title.trimmingCharacters(in: .whitespacesAndNewlines),
-                body: draft.body.trimmingCharacters(in: .whitespacesAndNewlines)
+                body: draft.body.trimmingCharacters(in: .whitespacesAndNewlines),
+                media: Self.mediaRequestItems(from: draft.mediaItems)
             )
         )
         let dto: CreateCommunityPostResponseDTO = try await apiClient.post(
@@ -115,7 +125,8 @@ public struct LiveCommunityPostsRepository: CommunityPostsRepository, Sendable {
                 title: draft.postTitle,
                 body: draft.normalizedBody,
                 kind: CommunityPostKind.activityRecap.rawValue,
-                activityID: draft.activityID
+                activityID: draft.activityID,
+                imageURL: draft.shareImageURL?.absoluteString
             )
         )
         let dto: CommunityPostDetailResponseDTO = try await apiClient.post(
@@ -126,6 +137,20 @@ public struct LiveCommunityPostsRepository: CommunityPostsRepository, Sendable {
         return CommunityDTOMapper.postDetail(from: dto.post)
     }
 
+    private static func mediaRequestItems(
+        from items: [SparkGalleryMedia]
+    ) -> [CommunityPostMediaRequestDTO]? {
+        guard !items.isEmpty else { return nil }
+        return items.map { item in
+            CommunityPostMediaRequestDTO(
+                id: item.id,
+                url: item.url.absoluteString,
+                kind: item.kind.rawValue,
+                posterURL: item.posterURL?.absoluteString
+            )
+        }
+    }
+
     private func derivedTabExperience() async throws -> CommunityTabExperience {
         let posts = try await fetchPosts()
         let feedPosts = posts.map { summary in
@@ -133,6 +158,7 @@ public struct LiveCommunityPostsRepository: CommunityPostsRepository, Sendable {
                 id: summary.id,
                 authorDisplayName: summary.authorDisplayName,
                 authorUserID: summary.id,
+                authorAvatarURL: nil,
                 communityName: String(localized: "community.fallback.name", defaultValue: "社区", comment: "Community"),
                 content: summary.excerpt,
                 likeCount: 0,

@@ -19,6 +19,11 @@ extension ActivityRootView {
     var splitRoot: some View {
         NavigationSplitView {
             activityListShell
+                .navigationSplitViewColumnWidth(
+                    min: 280,
+                    ideal: SparkLayoutMetrics.navigationSplitSidebarIdealWidth,
+                    max: 400
+                )
         } detail: {
             if let activityID = selectedActivityID {
                 activityDetailView(activityID: activityID)
@@ -47,7 +52,8 @@ extension ActivityRootView {
 
     var activityListShell: some View {
         SparkScreenContainer(
-            navigationTitle: String(localized: "screen.activity", defaultValue: "活动", comment: "Activity screen"),
+            navigationTitle: "",
+            titleDisplayMode: .inline,
             embedding: .none
         ) {
             listContent
@@ -58,6 +64,11 @@ extension ActivityRootView {
                 }
         }
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                if showsInboxSegmentPicker {
+                    activityInboxSegmentToolbarPicker
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     if coordinator.hasBrowseCatalog {
@@ -99,6 +110,17 @@ extension ActivityRootView {
                 }
             }
         }
+        .sparkPhoneStyleNavigationBar()
+        .environment(activityFavoriteStore)
+    }
+
+    private var showsInboxSegmentPicker: Bool {
+        switch viewModel.loadState {
+        case .failure:
+            false
+        case .idle, .loading, .empty, .loaded:
+            true
+        }
     }
 
     var notificationSettingsSheet: some View {
@@ -123,26 +145,7 @@ extension ActivityRootView {
 
     @ViewBuilder
     var listContent: some View {
-        @Bindable var viewModel = viewModel
         switch viewModel.loadState {
-        case .idle, .loading:
-            ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .sparkLoadingAccessibilityLabel(
-                    String(
-                        localized: "activity.inbox.loading.a11y",
-                        defaultValue: "正在加载活动",
-                        comment: "Activity inbox loading"
-                    )
-                )
-        case .empty:
-            ContentUnavailableView(
-                String(localized: "activity.empty.title", defaultValue: "暂无活动", comment: "Empty activity list"),
-                systemImage: "calendar.badge.clock",
-                description: Text(
-                    String(localized: "activity.empty.subtitle", defaultValue: "稍后再来看看", comment: "Empty activity hint")
-                )
-            )
         case .failure(let message):
             SparkRetryUnavailableView(
                 title: String(localized: "activity.error.title", defaultValue: "无法加载", comment: "Activity list error"),
@@ -150,55 +153,43 @@ extension ActivityRootView {
             ) {
                 Task { await viewModel.load() }
             }
-        case .loaded:
-            VStack(spacing: 0) {
-                Picker("", selection: $viewModel.listFilter) {
-                    ForEach(ActivityListFilter.allCases) { filter in
-                        Text(filter.localizedTitle).tag(filter)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-                .padding(.vertical, 8)
+        case .idle, .loading, .empty, .loaded:
+            loadedInboxSegmentContent
+        }
+    }
 
-                if viewModel.showsFilterEmptyState {
-                    ContentUnavailableView(
-                        String(
-                            localized: "activity.filter.empty.title",
-                            defaultValue: "没有匹配的活动",
-                            comment: "Filter empty"
-                        ),
-                        systemImage: "line.3.horizontal.decrease.circle",
-                        description: Text(
-                            String(
-                                localized: "activity.filter.empty.subtitle",
-                                defaultValue: "试试其他筛选，或浏览全部活动。",
-                                comment: "Filter empty hint"
-                            )
-                        )
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if usesSplitLayout {
-                    List(viewModel.filteredItems, id: \.id, selection: $selectedActivityID) { item in
+    @ViewBuilder
+    func activityInboxList(selection: Binding<String?>?) -> some View {
+        @Bindable var viewModel = viewModel
+        let listItems = ActivityInboxListPresentation.listItems(
+            from: viewModel.filteredItems,
+            filter: viewModel.listFilter,
+            requestActivityIDs: requestActivityIDs(viewModel.listFilter)
+        )
+        Group {
+            if let selection {
+                List(selection: selection) {
+                    ActivityInboxFilterBar(selection: $viewModel.listFilter)
+                        .sparkInboxSearchListRow()
+                    actionItemsInset(viewModel.listFilter)
+                    ForEach(listItems, id: \.id) { item in
                         let index = viewModel.items.firstIndex(where: { $0.id == item.id }) ?? 0
                         activityRow(for: item, at: index)
                             .tag(item.id)
                     }
-                    .sparkScreenListStyle()
-                    .refreshable {
-                        await viewModel.load()
-                    }
-                } else {
-                    List(viewModel.filteredItems, id: \.id) { item in
+                }
+            } else {
+                List {
+                    ActivityInboxFilterBar(selection: $viewModel.listFilter)
+                        .sparkInboxSearchListRow()
+                    actionItemsInset(viewModel.listFilter)
+                    ForEach(listItems, id: \.id) { item in
                         let index = viewModel.items.firstIndex(where: { $0.id == item.id }) ?? 0
                         activityRow(for: item, at: index)
-                    }
-                    .sparkScreenListStyle()
-                    .refreshable {
-                        await viewModel.load()
                     }
                 }
             }
         }
+        .sparkFlatTabListStyle()
     }
 }

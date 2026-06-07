@@ -19,8 +19,8 @@ struct SearchResultKindTests {
         #expect(item.resultKind?.supportsInAppNavigation == true)
     }
 
-    @Test func localizedCommunityKindSupportsNavigation() {
-        let item = SearchResultItem(id: "cp_2", title: "t", subtitle: "s", kind: "社区")
+    @Test func personSupportsNavigation() {
+        let item = SearchResultItem(id: "u1", title: "Alex", subtitle: "上海", kind: "person")
         #expect(item.resultKind?.supportsInAppNavigation == true)
     }
 }

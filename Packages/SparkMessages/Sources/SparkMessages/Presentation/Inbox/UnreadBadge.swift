@@ -1,5 +1,6 @@
 // Module: SparkMessages — Numeric unread indicator for inbox rows.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct UnreadBadge: View {
@@ -8,13 +9,21 @@ struct UnreadBadge: View {
     var body: some View {
         if let label = badgeLabel {
             Text(label)
-                .font(.caption2.weight(.bold))
+                .font(.caption2.weight(.semibold))
+                .monospacedDigit()
                 .foregroundStyle(.white)
-                .padding(.horizontal, count > 9 ? 6 : 5)
-                .padding(.vertical, 2)
+                .frame(
+                    width: usesCircularFrame ? SparkLayoutMetrics.inboxUnreadBadgeMinSize : nil,
+                    height: SparkLayoutMetrics.inboxUnreadBadgeMinSize
+                )
+                .padding(.horizontal, usesCircularFrame ? 0 : SparkLayoutMetrics.inboxUnreadBadgeWideHorizontalPadding)
                 .background(Color.accentColor, in: Capsule())
                 .accessibilityLabel(accessibilityLabel)
         }
+    }
+
+    private var usesCircularFrame: Bool {
+        count <= 9
     }
 
     private var badgeLabel: String? {

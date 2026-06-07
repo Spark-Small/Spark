@@ -14,64 +14,56 @@ extension ActivityDetailLoadedList {
     func postEventSection(activity: ActivityDetail) -> some View {
         if activity.showsEndedRecap {
             Section {
-                Label(activity.scheduleLine, systemImage: "clock")
-                Label(activity.locationName, systemImage: "mappin.and.ellipse")
-                if activity.attendeeCount > 0 {
-                    let format = String(
-                        localized: "activity.recap.attendees.format",
-                        defaultValue: "共 %lld 人参加",
-                        comment: "Recap attendee count"
-                    )
-                    Text(String(format: format, locale: .current, Int64(activity.attendeeCount)))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
                 if let onCommunityRecap {
                     Button {
                         onCommunityRecap(activity)
                     } label: {
                         Label(
                             String(
-                                localized: "activity.recap.community",
-                                defaultValue: "发一条感受",
-                                comment: "Community recap"
+                                localized: "activity.shareToCommunity.cta",
+                                defaultValue: "分享到社区",
+                                comment: "Share ended activity to community"
                             ),
-                            systemImage: "text.bubble"
+                            systemImage: "photo.on.rectangle.angled"
                         )
                     }
                 }
-                if activity.rsvpStatus != .host, !viewModel.feedbackSubmitted {
-                    Button {
-                        Task { await viewModel.submitHostFeedback(.positive) }
-                    } label: {
-                        Label(ActivityHostFeedback.positive.localizedLabel, systemImage: "hand.thumbsup")
-                    }
-                    Button {
-                        Task { await viewModel.submitHostFeedback(.negative) }
-                    } label: {
-                        Label(ActivityHostFeedback.negative.localizedLabel, systemImage: "hand.thumbsdown")
-                    }
-                }
-                if activity.rsvpStatus.hasGroupChatAccess, activity.rsvpStatus != .host {
-                    Button {
-                        showHostAgainCreate = true
-                    } label: {
-                        Label(
-                            String(
-                                localized: "activity.hostAgain.cta",
-                                defaultValue: "再办一场",
-                                comment: "Host again"
-                            ),
-                            systemImage: "arrow.clockwise"
-                        )
-                    }
+                NavigationLink {
+                    ActivityPastRecapView(
+                        activity: activity,
+                        feedbackSubmitted: viewModel.feedbackSubmitted,
+                        onCommunityRecap: onCommunityRecap,
+                        onSubmitFeedback: { feedback in
+                            await viewModel.submitHostFeedback(feedback)
+                        },
+                        onHostAgain: activity.rsvpStatus.hasGroupChatAccess && activity.rsvpStatus != .host
+                            ? { showHostAgainCreate = true }
+                            : nil
+                    )
+                } label: {
+                    Label(
+                        String(
+                            localized: "activity.pastRecap.entry",
+                            defaultValue: "活动后记与反馈",
+                            comment: "Open post-event summary"
+                        ),
+                        systemImage: "clock.arrow.circlepath"
+                    )
                 }
             } header: {
                 Text(
                     String(
-                        localized: "activity.postEvent.section",
+                        localized: "activity.pastRecap.section",
                         defaultValue: "活动已结束",
-                        comment: "Post event section"
+                        comment: "Past event section"
+                    )
+                )
+            } footer: {
+                Text(
+                    String(
+                        localized: "activity.shareToCommunity.footer",
+                        defaultValue: "带上现场照片发到社区，帮其他人了解这场局。",
+                        comment: "Share to community footer"
                     )
                 )
             }
@@ -90,6 +82,18 @@ extension ActivityDetailLoadedList {
                 Label(
                     String(localized: "activity.host.edit", defaultValue: "编辑活动", comment: "Host edit"),
                     systemImage: "pencil"
+                )
+            }
+            NavigationLink {
+                ActivityHostApprovalView(viewModel: viewModel, activity: activity)
+            } label: {
+                Label(
+                    String(
+                        localized: "activity.host.approval.entry",
+                        defaultValue: "审批与协办",
+                        comment: "Host approval entry"
+                    ),
+                    systemImage: "person.crop.circle.badge.checkmark"
                 )
             }
             Button {
@@ -117,22 +121,171 @@ extension ActivityDetailLoadedList {
 
     @ViewBuilder
     func locationRow(activity: ActivityDetail) -> some View {
-        if let url = ActivityMapURL.mapsURL(locationName: activity.locationName) {
-            Button {
-                openURL(url)
+        if activity.locationName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            Label(activity.locationName, systemImage: "mappin.and.ellipse")
+        } else {
+            NavigationLink {
+                ActivityMeetupMapView(activityTitle: activity.title, locationName: activity.locationName)
             } label: {
                 Label(activity.locationName, systemImage: "mappin.and.ellipse")
             }
             .accessibilityHint(
                 String(
                     localized: "activity.detail.map.hint",
-                    defaultValue: "在地图中打开地点",
+                    defaultValue: "查看碰头地点地图",
                     comment: "Map hint"
                 )
             )
-        } else {
-            Label(activity.locationName, systemImage: "mappin.and.ellipse")
         }
+    }
+
+    @ViewBuilder
+    func postEventScrollSection(activity: ActivityDetail) -> some View {
+        if activity.showsEndedRecap {
+            VStack(alignment: .leading, spacing: SparkLayoutMetrics.compactVerticalPadding) {
+                meetupDetailSubsectionHeader(
+                    String(
+                        localized: "activity.pastRecap.section",
+                        defaultValue: "活动已结束",
+                        comment: "Past event section"
+                    )
+                )
+
+                meetupInsetActionsGroup {
+                    if let onCommunityRecap {
+                        Button {
+                            onCommunityRecap(activity)
+                        } label: {
+                            Label(
+                                String(
+                                    localized: "activity.shareToCommunity.cta",
+                                    defaultValue: "分享到社区",
+                                    comment: "Share ended activity to community"
+                                ),
+                                systemImage: "photo.on.rectangle.angled"
+                            )
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, ActivityDetailMeetupLayout.horizontalPadding)
+                            .padding(.vertical, SparkLayoutMetrics.compactVerticalPadding)
+                        }
+                        .buttonStyle(.plain)
+                        meetupActionDivider()
+                    }
+
+                    NavigationLink {
+                        ActivityPastRecapView(
+                            activity: activity,
+                            feedbackSubmitted: viewModel.feedbackSubmitted,
+                            onCommunityRecap: onCommunityRecap,
+                            onSubmitFeedback: { feedback in
+                                await viewModel.submitHostFeedback(feedback)
+                            },
+                            onHostAgain: activity.rsvpStatus.hasGroupChatAccess && activity.rsvpStatus != .host
+                                ? { showHostAgainCreate = true }
+                                : nil
+                        )
+                    } label: {
+                        Label(
+                            String(
+                                localized: "activity.pastRecap.entry",
+                                defaultValue: "活动后记与反馈",
+                                comment: "Open post-event summary"
+                            ),
+                            systemImage: "clock.arrow.circlepath"
+                        )
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, ActivityDetailMeetupLayout.horizontalPadding)
+                        .padding(.vertical, SparkLayoutMetrics.compactVerticalPadding)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Text(
+                    String(
+                        localized: "activity.shareToCommunity.footer",
+                        defaultValue: "带上现场照片发到社区，帮其他人了解这场局。",
+                        comment: "Share to community footer"
+                    )
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, ActivityDetailMeetupLayout.horizontalPadding)
+            }
+        }
+    }
+
+    @ViewBuilder
+    func hostManagementScrollSection(activity: ActivityDetail) -> some View {
+        VStack(alignment: .leading, spacing: SparkLayoutMetrics.compactVerticalPadding) {
+            meetupDetailSubsectionHeader(
+                String(localized: "activity.host.manage.section", defaultValue: "主办管理", comment: "Host section")
+            )
+
+            meetupInsetActionsGroup {
+                Text(activity.signupCounts.localizedSummary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, ActivityDetailMeetupLayout.horizontalPadding)
+                    .padding(.vertical, SparkLayoutMetrics.compactVerticalPadding)
+                meetupActionDivider()
+
+                hostActionButton(
+                    title: String(localized: "activity.host.edit", defaultValue: "编辑活动", comment: "Host edit"),
+                    systemImage: "pencil"
+                ) {
+                    showEditActivity = true
+                }
+                meetupActionDivider()
+
+                NavigationLink {
+                    ActivityHostApprovalView(viewModel: viewModel, activity: activity)
+                } label: {
+                    hostActionLabel(
+                        title: String(
+                            localized: "activity.host.approval.entry",
+                            defaultValue: "审批与协办",
+                            comment: "Host approval entry"
+                        ),
+                        systemImage: "person.crop.circle.badge.checkmark"
+                    )
+                }
+                .buttonStyle(.plain)
+                meetupActionDivider()
+
+                hostActionButton(
+                    title: String(localized: "activity.host.announce", defaultValue: "通知报名者", comment: "Host announce"),
+                    systemImage: "megaphone"
+                ) {
+                    showAnnounceSheet = true
+                }
+                meetupActionDivider()
+
+                Button(role: .destructive) {
+                    showCancelActivityConfirm = true
+                } label: {
+                    hostActionLabel(
+                        title: String(localized: "activity.host.cancel", defaultValue: "取消活动", comment: "Host cancel"),
+                        systemImage: "xmark.circle"
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func hostActionButton(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            hostActionLabel(title: title, systemImage: systemImage)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func hostActionLabel(title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, ActivityDetailMeetupLayout.horizontalPadding)
+            .padding(.vertical, SparkLayoutMetrics.compactVerticalPadding)
     }
 
     @ViewBuilder
@@ -154,6 +307,12 @@ extension ActivityDetailLoadedList {
                     } else if attendee.isVerified {
                         Text(
                             String(localized: "activity.attendee.verified", defaultValue: "已实名", comment: "Verified badge")
+                        )
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    } else if attendee.isCoHost {
+                        Text(
+                            String(localized: "activity.host.cohost.badge", defaultValue: "协办", comment: "Co-host badge")
                         )
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)

@@ -8,17 +8,20 @@ struct CommunityFeedSectionHeader: View {
 
     var body: some View {
         Text(title)
-            .font(.subheadline)
+            .font(.subheadline.weight(.semibold))
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(.bar)
+            .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
+            .padding(.vertical, SparkLayoutMetrics.feedSectionHeaderVerticalPadding)
             .accessibilityAddTraits(.isHeader)
             .accessibilityLabel(title)
     }
 }
 
 #Preview {
-    CommunityFeedSectionHeader(title: "热门讨论")
+    CommunityPreviewTraits.matrix("Feed section header") {
+        CommunityFeedSectionHeader(
+            title: String(localized: "community.home.segment.feed", defaultValue: "动态", comment: "Feed")
+        )
+    }
 }

@@ -12,22 +12,11 @@ struct CommunityMemberProfileSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                avatar
-                Text(profile.displayName)
-                    .font(.title2.weight(.semibold))
-                if !profile.bio.isEmpty {
-                    Text(profile.bio)
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
-                RelationshipBadge(context: profile.relationship)
-                Spacer(minLength: 0)
-                primaryAction
-            }
-            .padding()
+        SparkUnifiedIdentityContent(
+            model: identityModel
+        ) {
+            primaryAction
+        }
             .navigationTitle(
                 String(localized: "community.profile.title", defaultValue: "资料", comment: "Profile title")
             )
@@ -45,25 +34,34 @@ struct CommunityMemberProfileSheet: View {
         .presentationDetents([.medium, .large])
     }
 
-    @ViewBuilder
-    private var avatar: some View {
-        if let url = profile.avatarURL {
-            SparkCachedRemoteImage(
-                url: url,
-                maxPixelSize: 768,
-                content: { image in
-                    image.resizable().scaledToFill().accessibilityHidden(true)
-                },
-                placeholder: {
-                    Color(.tertiarySystemFill)
-                }
+    private var identityModel: SparkUnifiedIdentityModel {
+        SparkUnifiedIdentityModel(
+            id: profile.id,
+            displayName: profile.displayName,
+            avatarURL: profile.avatarURL,
+            bio: profile.bio,
+            relationshipLabel: relationshipLabel
+        )
+    }
+
+    private var relationshipLabel: String? {
+        switch profile.relationship {
+        case .sharedActivity(let name):
+            String(
+                format: String(
+                    localized: "community.relationship.sharedActivity",
+                    defaultValue: "也去了 %@",
+                    comment: "Shared activity; %@ is name"
+                ),
+                locale: .current,
+                name
             )
-            .frame(width: 88, height: 88)
-            .clipShape(Circle())
-        } else {
-            Circle()
-                .fill(Color(.tertiarySystemFill))
-                .frame(width: 88, height: 88)
+        case .matched:
+            String(localized: "community.relationship.matched", defaultValue: "已配对", comment: "Matched")
+        case .liked:
+            String(localized: "community.relationship.liked", defaultValue: "你喜欢过 TA", comment: "Liked")
+        case .none:
+            nil
         }
     }
 
@@ -81,33 +79,35 @@ struct CommunityMemberProfileSheet: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
-        default:
+        case .liked, .sharedActivity, .none:
             Button(action: onLike) {
-                Label(
+                Text(
                     isLiked
-                        ? String(localized: "community.profile.liked", defaultValue: "已喜欢", comment: "Liked")
-                        : String(localized: "community.profile.like", defaultValue: "喜欢 TA", comment: "Like person"),
-                    systemImage: isLiked ? "checkmark.circle.fill" : "heart.fill"
+                        ? String(localized: "community.profile.liked", defaultValue: "你已表达喜欢", comment: "Already liked")
+                        : String(localized: "community.profile.like", defaultValue: "喜欢", comment: "Like person")
                 )
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(isLiked)
+            .disabled(isLiked || profile.relationship == .liked)
         }
     }
 }
 
 #Preview {
-    CommunityMemberProfileSheet(
-        profile: CommunityProfilePreview(
-            person: DiscoveredPerson(
-                id: "u_preview",
-                displayName: "Nova",
-                sharedTag: "周末徒步",
-                relationship: .sharedActivity("北山徒步")
-            )
-        ),
-        isLiked: false,
-        onLike: {}
-    )
+    CommunityPreviewTraits.matrix("Member profile sheet") {
+        CommunityMemberProfileSheet(
+            profile: CommunityProfilePreview(
+                person: DiscoveredPerson(
+                    id: "u1",
+                    displayName: String(localized: "community.mock.1.author", defaultValue: "阿乐", comment: "Author"),
+                    avatarURL: MockCommunityAvatarCatalog.authorAvatarURL(userID: "u1"),
+                    sharedTag: String(localized: "community.mock.tag.hike", defaultValue: "爬山", comment: "Tag"),
+                    relationship: .none
+                )
+            ),
+            isLiked: false,
+            onLike: {}
+        )
+    }
 }

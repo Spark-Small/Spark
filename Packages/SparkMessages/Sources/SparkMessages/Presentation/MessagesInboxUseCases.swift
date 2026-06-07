@@ -6,6 +6,8 @@ public struct MessagesInboxUseCases: Sendable {
     public let fetchInbox: any FetchInboxUseCaseProtocol
     public let markAllRead: any MarkMessagesReadUseCaseProtocol
     public let markThreadRead: any MarkThreadReadUseCaseProtocol
+    public let hideThread: any HideThreadUseCaseProtocol
+    public let deleteThread: any DeleteThreadUseCaseProtocol
     public let respondToInvite: any RespondToActivityInviteUseCaseProtocol
     public let dismissActionItem: any DismissActionItemUseCaseProtocol
     public let ensureDirectMessageThread: any EnsureDirectMessageThreadUseCaseProtocol
@@ -14,6 +16,8 @@ public struct MessagesInboxUseCases: Sendable {
         fetchInbox: any FetchInboxUseCaseProtocol,
         markAllRead: any MarkMessagesReadUseCaseProtocol,
         markThreadRead: any MarkThreadReadUseCaseProtocol,
+        hideThread: any HideThreadUseCaseProtocol,
+        deleteThread: any DeleteThreadUseCaseProtocol,
         respondToInvite: any RespondToActivityInviteUseCaseProtocol,
         dismissActionItem: any DismissActionItemUseCaseProtocol,
         ensureDirectMessageThread: any EnsureDirectMessageThreadUseCaseProtocol
@@ -21,6 +25,8 @@ public struct MessagesInboxUseCases: Sendable {
         self.fetchInbox = fetchInbox
         self.markAllRead = markAllRead
         self.markThreadRead = markThreadRead
+        self.hideThread = hideThread
+        self.deleteThread = deleteThread
         self.respondToInvite = respondToInvite
         self.dismissActionItem = dismissActionItem
         self.ensureDirectMessageThread = ensureDirectMessageThread

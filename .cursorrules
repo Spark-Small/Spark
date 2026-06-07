@@ -8,7 +8,9 @@
 | Liquid Glass / materials | `.cursor/rules/ios-liquid-glass.mdc` | Always |
 | Swift 6, concurrency, security | `.cursor/rules/ios-foundation.mdc` | Always |
 | SwiftUI patterns | `.cursor/rules/ios-swiftui.mdc` | `**/*.swift` |
+| SwiftUI layout (Presentation) | `.cursor/rules/ios-swiftui-layout.mdc` | `**/Presentation/**`, `**/*View*.swift` |
 | Design / a11y / localization | `.cursor/rules/ios-design-system.mdc` | `**/*View*.swift` |
+| Typography (semantic styles) | `docs/TYPOGRAPHY.md` | UI / Presentation |
 | Performance | `.cursor/rules/ios-performance.mdc` | Manual |
 | New feature module | `.cursor/rules/ios-module-scaffold.mdc` | Manual |
 
@@ -23,6 +25,7 @@
 - Local dev / Mock: `docs/DEVELOPMENT.md`
 - CI: `docs/CI.md`
 - HIG compliance: `docs/HIG_COMPLIANCE.md` · audit plan: `docs/HIG_AUDIT_AND_PLAN.md`
+- Typography: `docs/TYPOGRAPHY.md` · Tab L3: `docs/TAB_SCREENS.md`
 - Git: `docs/GIT_WORKFLOW.md`
 
 ## Persona

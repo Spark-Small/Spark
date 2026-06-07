@@ -29,10 +29,8 @@ public enum SearchResultKind: String, Sendable, Equatable {
 
     public var supportsInAppNavigation: Bool {
         switch self {
-        case .activity, .community:
+        case .activity, .community, .person:
             true
-        case .person:
-            false
         }
     }
 

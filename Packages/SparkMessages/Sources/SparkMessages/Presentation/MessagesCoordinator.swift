@@ -10,28 +10,50 @@ public struct MessagesCoordinator: Sendable {
     }
 
     @MainActor
-    public func makeInboxViewModel() -> MessagesViewModel {
+    public func makeInboxViewModel(peerDisplayNameStore: PeerDisplayNameStore) -> MessagesViewModel {
         MessagesViewModel(
             useCases: makeInboxUseCases(),
-            makeConversationViewModel: { [self] thread in
-                makeConversationViewModel(thread: thread)
+            peerDisplayNameStore: peerDisplayNameStore,
+            makeConversationViewModel: { [self] thread, dmPartner, groupActivity in
+                makeConversationViewModel(
+                    thread: thread,
+                    dmPartner: dmPartner,
+                    groupActivity: groupActivity,
+                    peerDisplayNameStore: peerDisplayNameStore
+                )
             }
         )
     }
 
     @MainActor
-    public func makeConversationViewModel(thread: MessageThread) -> ConversationViewModel {
+    public func makeConversationViewModel(
+        thread: MessageThread,
+        dmPartner: InboxUserProfile? = nil,
+        groupActivity: InboxActivitySummary? = nil,
+        peerDisplayNameStore: PeerDisplayNameStore
+    ) -> ConversationViewModel {
         ConversationViewModel(
             fetchMessages: FetchThreadMessagesUseCase(repository: repository),
             fetchContext: FetchConversationContextUseCase(repository: repository),
             sendMessage: SendThreadMessageUseCase(repository: repository),
-            thread: thread
+            thread: thread,
+            dmPartner: dmPartner,
+            groupActivity: groupActivity,
+            peerDisplayNameStore: peerDisplayNameStore
         )
     }
 
     @MainActor
-    public func makeConversationViewModel(conversation: ConversationPreview) -> ConversationViewModel {
-        makeConversationViewModel(thread: conversation.asMessageThread())
+    public func makeConversationViewModel(
+        conversation: ConversationPreview,
+        peerDisplayNameStore: PeerDisplayNameStore
+    ) -> ConversationViewModel {
+        makeConversationViewModel(
+            thread: conversation.asMessageThread(),
+            dmPartner: conversation.dmPartner,
+            groupActivity: conversation.activity,
+            peerDisplayNameStore: peerDisplayNameStore
+        )
     }
 
     /// Cross-tab: open DM after match, optionally seeding the first message.
@@ -75,6 +97,8 @@ public struct MessagesCoordinator: Sendable {
             fetchInbox: FetchInboxUseCase(repository: repository),
             markAllRead: MarkMessagesReadUseCase(repository: repository),
             markThreadRead: MarkThreadReadUseCase(repository: repository),
+            hideThread: HideThreadUseCase(repository: repository),
+            deleteThread: DeleteThreadUseCase(repository: repository),
             respondToInvite: RespondToActivityInviteUseCase(repository: repository),
             dismissActionItem: DismissActionItemUseCase(repository: repository),
             ensureDirectMessageThread: EnsureDirectMessageThreadUseCase(repository: repository)

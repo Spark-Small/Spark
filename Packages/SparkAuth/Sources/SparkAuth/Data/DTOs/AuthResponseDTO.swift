@@ -17,6 +17,22 @@ struct EmailSignInRequestDTO: Encodable, Sendable {
     let password: String
 }
 
+struct EmailSignUpRequestDTO: Encodable, Sendable {
+    let email: String
+    let password: String
+    let displayName: String
+
+    enum CodingKeys: String, CodingKey {
+        case email
+        case password
+        case displayName = "display_name"
+    }
+}
+
+struct PasswordResetRequestDTO: Encodable, Sendable {
+    let email: String
+}
+
 struct AppleSignInRequestDTO: Encodable, Sendable {
     let identityToken: String
     let authorizationCode: String?

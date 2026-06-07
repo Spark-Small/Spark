@@ -5,35 +5,45 @@ import SwiftUI
 
 extension ActivityRootView {
     func activityDetailView(activityID: String) -> some View {
-        ActivityDetailView(
-            viewModel: coordinator.makeDetailViewModel(
-                activityID: activityID,
-                context: .inbox,
-                onRSVPCompleted: onRSVPCompleted,
-                onActivityUpdated: { _ in await viewModel.load() }
-            ),
-            coordinator: coordinator,
-            onOpenGroupChat: onOpenGroupChat,
-            onHostAnnouncePosted: onHostAnnouncePosted,
-            onActivityRescheduled: onActivityRescheduled,
-            onCommunityRecap: onCommunityRecap
+        activityDetailChrome(
+            ActivityDetailView(
+                viewModel: coordinator.makeDetailViewModel(
+                    activityID: activityID,
+                    context: .inbox,
+                    onRSVPCompleted: onRSVPCompleted,
+                    onActivityUpdated: { _ in await viewModel.load() }
+                ),
+                coordinator: coordinator,
+                inviteCandidates: inviteCandidates,
+                onOpenGroupChat: onOpenGroupChat,
+                onHostAnnouncePosted: onHostAnnouncePosted,
+                onActivityRescheduled: onActivityRescheduled,
+                onCommunityRecap: onCommunityRecap
+            )
         )
     }
 
     func externalActivityDetailView(activityID: String) -> some View {
-        ActivityDetailView(
-            viewModel: coordinator.makeDetailViewModel(
-                activityID: activityID,
-                context: .externalEntry,
-                onRSVPCompleted: onRSVPCompleted,
-                onActivityUpdated: { _ in await viewModel.load() }
-            ),
-            coordinator: coordinator,
-            onOpenGroupChat: onOpenGroupChat,
-            onHostAnnouncePosted: onHostAnnouncePosted,
-            onActivityRescheduled: onActivityRescheduled,
-            onCommunityRecap: onCommunityRecap
+        activityDetailChrome(
+            ActivityDetailView(
+                viewModel: coordinator.makeDetailViewModel(
+                    activityID: activityID,
+                    context: .externalEntry,
+                    onRSVPCompleted: onRSVPCompleted,
+                    onActivityUpdated: { _ in await viewModel.load() }
+                ),
+                coordinator: coordinator,
+                inviteCandidates: inviteCandidates,
+                onOpenGroupChat: onOpenGroupChat,
+                onHostAnnouncePosted: onHostAnnouncePosted,
+                onActivityRescheduled: onActivityRescheduled,
+                onCommunityRecap: onCommunityRecap
+            )
         )
+    }
+
+    private func activityDetailChrome<Content: View>(_ content: Content) -> some View {
+        content.environment(activityFavoriteStore)
     }
 
     @ViewBuilder
@@ -44,6 +54,7 @@ extension ActivityRootView {
                 ActivityInboxListRow(item: item, isLocked: true)
             }
             .buttonStyle(.sparkPressable)
+            .sparkFlatTabListRow()
             .accessibilityHint(
                 String(
                     localized: "activity.row.premium.hint",
@@ -51,8 +62,15 @@ extension ActivityRootView {
                     comment: "Locked activity row"
                 )
             )
-        } else if usesSplitLayout {
+        } else {
+            // REASONING: ShareLink + favorite live inside the row hero; NavigationLink swallows row taps.
             ActivityInboxListRow(item: item, isLocked: false)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    openActivity(item.id)
+                }
+                .sparkFlatTabListRow()
+                .accessibilityAddTraits(.isButton)
                 .accessibilityHint(
                     String(
                         localized: "activity.row.openDetail.hint",
@@ -60,17 +78,6 @@ extension ActivityRootView {
                         comment: "Activity row opens detail"
                     )
                 )
-        } else {
-            NavigationLink(value: item) {
-                ActivityInboxListRow(item: item, isLocked: false)
-            }
-            .accessibilityHint(
-                String(
-                    localized: "activity.row.openDetail.hint",
-                    defaultValue: "查看活动邀请详情",
-                    comment: "Activity row opens detail"
-                )
-            )
         }
     }
 

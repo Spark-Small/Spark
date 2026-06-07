@@ -22,6 +22,12 @@ struct ActivityBrowseResponseDTO: Decodable, Sendable {
     }
 }
 
+struct ActivityRecurrenceDTO: Decodable, Sendable {
+    let frequency: String?
+    let weekday: String?
+    let until: String?
+}
+
 struct ActivityItemDTO: Decodable, Sendable {
     let id: String
     let title: String
@@ -29,6 +35,8 @@ struct ActivityItemDTO: Decodable, Sendable {
     let category: String
     let threadId: String?
     let startsAt: String?
+    let endsAt: String?
+    let recurrence: ActivityRecurrenceDTO?
     let locationName: String?
     let hostDisplayName: String?
     let hostID: String?
@@ -46,6 +54,8 @@ struct ActivityItemDTO: Decodable, Sendable {
         case category
         case threadId = "thread_id"
         case startsAt = "starts_at"
+        case endsAt = "ends_at"
+        case recurrence
         case locationName = "location_name"
         case hostDisplayName = "host_display_name"
         case hostID = "host_id"
@@ -64,6 +74,7 @@ struct ActivityAttendeeDTO: Decodable, Sendable {
     let isHost: Bool?
     let rsvpStatus: String?
     let verified: Bool?
+    let isCoHost: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -71,6 +82,7 @@ struct ActivityAttendeeDTO: Decodable, Sendable {
         case isHost = "is_host"
         case rsvpStatus = "rsvp_status"
         case verified
+        case isCoHost = "is_co_host"
     }
 }
 
@@ -97,10 +109,13 @@ struct ActivityDetailDTO: Decodable, Sendable {
     let category: String
     let description: String
     let startsAt: String
+    let endsAt: String?
+    let recurrence: ActivityRecurrenceDTO?
     let locationName: String
     let hostDisplayName: String
     let hostID: String?
     let hostBio: String?
+    let hostTier: String?
     let attendeeCount: Int
     let waitlistedCount: Int?
     let capacity: Int?
@@ -116,10 +131,13 @@ struct ActivityDetailDTO: Decodable, Sendable {
         case category
         case description
         case startsAt = "starts_at"
+        case endsAt = "ends_at"
+        case recurrence
         case locationName = "location_name"
         case hostDisplayName = "host_display_name"
         case hostID = "host_id"
         case hostBio = "host_bio"
+        case hostTier = "host_tier"
         case attendeeCount = "attendee_count"
         case waitlistedCount = "waitlisted_count"
         case capacity
@@ -140,6 +158,18 @@ struct ActivityHostFeedbackRequestDTO: Encodable, Sendable {
 
 struct ActivityRSVPRequestDTO: Encodable, Sendable {
     let status: String
+}
+
+struct ActivityAttendeeReviewRequestDTO: Encodable, Sendable {
+    let approve: Bool
+}
+
+struct ActivityAttendeeCoHostRequestDTO: Encodable, Sendable {
+    let isCoHost: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case isCoHost = "is_co_host"
+    }
 }
 
 struct ActivityRSVPResponseDTO: Decodable, Sendable {

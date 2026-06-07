@@ -1,10 +1,41 @@
 // Module: SparkCommunity — Shared mock post data for list and detail.
 
 import Foundation
+import SparkCore
 
 enum MockCommunityPostCatalog {
     static func defaultReplies() -> [String: [CommunityPostReply]] {
         [
+            "cp_recap_mock": [
+                CommunityPostReply(
+                    id: "cpr_recap_1",
+                    body: String(
+                        localized: "community.mock.reply.recap.1",
+                        defaultValue: "照片拍得真好，下次一起呀。",
+                        comment: "Mock recap reply"
+                    ),
+                    authorDisplayName: String(
+                        localized: "community.mock.2.author",
+                        defaultValue: "小雨",
+                        comment: "Author"
+                    ),
+                    createdAt: Date().addingTimeInterval(-3_600)
+                ),
+                CommunityPostReply(
+                    id: "cpr_recap_2",
+                    body: String(
+                        localized: "community.mock.reply.recap.2",
+                        defaultValue: "这家咖啡店确实不错。",
+                        comment: "Mock recap reply"
+                    ),
+                    authorDisplayName: String(
+                        localized: "community.mock.1.author",
+                        defaultValue: "阿乐",
+                        comment: "Author"
+                    ),
+                    createdAt: Date().addingTimeInterval(-1_800)
+                )
+            ],
             "cp_1": [
                 CommunityPostReply(
                     id: "cpr_1",
@@ -35,7 +66,9 @@ enum MockCommunityPostCatalog {
                 authorUserID: detail.authorUserID,
                 replyCount: max(detail.replyCount, replies.count),
                 replies: replies,
-                linkedActivity: detail.linkedActivity
+                linkedActivity: detail.linkedActivity,
+                mediaItems: detail.mediaItems,
+                tags: detail.tags
             )
         }
     }
@@ -68,7 +101,12 @@ enum MockCommunityPostCatalog {
                         defaultValue: "周末爬香山",
                         comment: "Activity"
                     )
-                )
+                ),
+                mediaItems: SparkGalleryMediaFactory.mockActivityGallery(activityID: "act_001"),
+                tags: [
+                    String(localized: "community.mock.tag.hike", defaultValue: "爬山", comment: "Tag"),
+                    String(localized: "community.mock.tag.weekend", defaultValue: "周末", comment: "Tag")
+                ]
             ),
             CommunityPostDetail(
                 id: "cp_2",
@@ -87,13 +125,14 @@ enum MockCommunityPostCatalog {
                     defaultValue: "小雨",
                     comment: "Author"
                 ),
-                replyCount: 5
+                replyCount: 5,
+                tags: [String(localized: "community.mock.tag.run", defaultValue: "跑步", comment: "Tag")]
             ),
             CommunityPostDetail(
                 id: "cp_3",
                 title: String(
                     localized: "community.mock.3.title",
-                    defaultValue: "咖啡聊天局复盘",
+                    defaultValue: "「咖啡聊天局」局后随拍",
                     comment: "Community post"
                 ),
                 body: String(
@@ -113,7 +152,7 @@ enum MockCommunityPostCatalog {
 
     static func summary(from detail: CommunityPostDetail) -> CommunityPost {
         let kind: CommunityPostKind = detail.title.localizedStandardContains(
-            String(localized: "community.recap.keyword", defaultValue: "复盘", comment: "Recap keyword")
+            String(localized: "community.activityShare.keyword", defaultValue: "局后随拍", comment: "Activity share keyword")
         ) ? .activityRecap : .discussion
         return CommunityPost(
             id: detail.id,

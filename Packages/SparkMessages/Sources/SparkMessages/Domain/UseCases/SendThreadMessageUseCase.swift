@@ -9,7 +9,7 @@ struct SendThreadMessageUseCase: Sendable {
         self.repository = repository
     }
 
-    func callAsFunction(threadID: MessageThreadID, body: String) async throws -> ChatMessage {
-        try await repository.sendMessage(threadID: threadID, body: body)
+    func callAsFunction(threadID: MessageThreadID, body: String, kind: ChatMessageKind = .text) async throws -> ChatMessage {
+        try await repository.sendMessage(threadID: threadID, body: body, kind: kind)
     }
 }

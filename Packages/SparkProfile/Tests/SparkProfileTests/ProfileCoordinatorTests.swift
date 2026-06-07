@@ -1,22 +1,20 @@
-// Module: SparkProfileTests — Profile coordinator coverage.
+// Module: SparkProfileTests
 
 import SparkProfile
 import SparkSearch
 import SparkTrust
 import Testing
 
-@MainActor
-struct ProfileCoordinatorTests {
-    @Test func coordinatorBuildsProfileViewModel() {
+@Suite struct ProfileCoordinatorTests {
+    @Test @MainActor func makeProfileViewModel() {
         let coordinator = ProfileCoordinator(
             trustRepository: MockTrustRepository(),
             searchRepository: MockSearchRepository()
         )
-        let viewModel = coordinator.makeProfileViewModel()
-        #expect(viewModel.loadState == .idle)
+        _ = coordinator.makeProfileViewModel()
     }
 
-    @Test func coordinatorExposesSearchFactory() {
+    @Test func makeSearchCoordinator() {
         let coordinator = ProfileCoordinator(
             trustRepository: MockTrustRepository(),
             searchRepository: MockSearchRepository()

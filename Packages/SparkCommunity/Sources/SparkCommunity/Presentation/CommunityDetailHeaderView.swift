@@ -6,39 +6,41 @@ import SwiftUI
 struct CommunityDetailHeaderView: View {
     let detail: CommunityDetail
     let members: [CommunityMember]
+    let isJoining: Bool
+    let onJoin: () -> Void
     let onShowMembers: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: SparkLayoutMetrics.sectionVerticalPadding) {
             coverImage(url: detail.summary.coverURL)
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: SparkLayoutMetrics.sectionVerticalPadding) {
                 communityIcon(url: detail.summary.coverURL)
-                    .offset(y: -28)
+                    .offset(y: -SparkLayoutMetrics.communityDetailIconOverlap)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(detail.summary.name)
                         .font(.title3.weight(.semibold))
                     Text(statsLine(for: detail.summary))
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                .padding(.top, 4)
+                .padding(.top, SparkLayoutMetrics.communityCarouselRowTopInset)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
 
             if !detail.summary.bio.isEmpty {
                 Text(detail.summary.bio)
-                    .font(.subheadline)
+                    .font(.body)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .padding(.horizontal, 16)
+                    .lineLimit(3)
+                    .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
             }
 
-            HStack(spacing: 12) {
+            HStack(spacing: SparkLayoutMetrics.sectionVerticalPadding) {
                 joinButton(isJoined: detail.isJoined)
                 memberAvatarStack
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 12)
+            .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
+            .padding(.bottom, SparkLayoutMetrics.sectionVerticalPadding)
         }
     }
 
@@ -61,7 +63,7 @@ struct CommunityDetailHeaderView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 120)
+        .frame(height: SparkLayoutMetrics.communityDetailCoverHeight)
         .clipped()
     }
 
@@ -82,7 +84,10 @@ struct CommunityDetailHeaderView: View {
                 Color(.tertiarySystemFill)
             }
         }
-        .frame(width: 72, height: 72)
+        .frame(
+            width: SparkLayoutMetrics.communityDetailIconSize,
+            height: SparkLayoutMetrics.communityDetailIconSize
+        )
         .clipShape(Circle())
         .overlay {
             Circle().strokeBorder(.background, lineWidth: 3)
@@ -91,22 +96,48 @@ struct CommunityDetailHeaderView: View {
 
     @ViewBuilder
     private func joinButton(isJoined: Bool) -> some View {
-        let label = Text(
-            isJoined
-                ? String(localized: "community.detail.joined", defaultValue: "已加入 ✓", comment: "Joined")
-                : String(localized: "community.detail.join", defaultValue: "加入社区", comment: "Join community")
-        )
-        .font(.subheadline.weight(.semibold))
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-
         if isJoined {
-            label
-                .sparkGlassControl(Capsule())
+            Label(
+                String(localized: "community.detail.joined", defaultValue: "已加入", comment: "Joined"),
+                systemImage: "checkmark"
+            )
+            .font(.subheadline.weight(.semibold))
+            .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
+            .padding(.vertical, SparkLayoutMetrics.composerFieldVerticalPadding)
+            .sparkGlassControl(Capsule())
+            .sparkMinimumTouchTarget()
+            .labelStyle(.titleAndIcon)
         } else {
-            label
+            Button(action: onJoin) {
+                Group {
+                    if isJoining {
+                        ProgressView()
+                    } else {
+                        Text(
+                            String(
+                                localized: "community.detail.join",
+                                defaultValue: "加入社区",
+                                comment: "Join community"
+                            )
+                        )
+                        .font(.subheadline.weight(.semibold))
+                    }
+                }
                 .foregroundStyle(.white)
+                .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
+                .padding(.vertical, SparkLayoutMetrics.composerFieldVerticalPadding)
                 .background(Color.accentColor, in: Capsule())
+                .frame(minHeight: SparkLayoutMetrics.minimumTouchTarget)
+            }
+            .buttonStyle(.sparkPressable)
+            .disabled(isJoining)
+            .accessibilityHint(
+                String(
+                    localized: "community.detail.join.hint",
+                    defaultValue: "加入后可查看社区帖子和活动",
+                    comment: "Join community hint"
+                )
+            )
         }
     }
 
@@ -183,19 +214,23 @@ struct CommunityDetailHeaderView: View {
 }
 
 #Preview {
-    CommunityDetailHeaderView(
-        detail: CommunityDetail(
-            summary: CommunitySummary(
-                id: "cm_hike",
-                name: "徒步爱好者",
-                coverURL: nil,
-                memberCount: 128,
-                activityCount: 12,
-                bio: "周末一起爬山"
+    CommunityPreviewTraits.matrix("Community detail header") {
+        CommunityDetailHeaderView(
+            detail: CommunityDetail(
+                summary: CommunitySummary(
+                    id: "cm_hike",
+                    name: "徒步爱好者",
+                    coverURL: nil,
+                    memberCount: 128,
+                    activityCount: 12,
+                    bio: "周末一起爬山"
+                ),
+                isJoined: true
             ),
-            isJoined: true
-        ),
-        members: [],
-        onShowMembers: {}
-    )
+            members: [],
+            isJoining: false,
+            onJoin: {},
+            onShowMembers: {}
+        )
+    }
 }

@@ -1,6 +1,7 @@
 // Module: SparkCommunity — DTO mapping.
 
 import Foundation
+import SparkCore
 
 enum CommunityDTOMapper {
     private static func parseISO8601(_ raw: String) -> Date? {
@@ -29,7 +30,9 @@ enum CommunityDTOMapper {
             authorUserID: dto.authorUserID,
             replyCount: dto.replyCount,
             replies: (dto.replies ?? []).map(reply),
-            linkedActivity: dto.linkedActivity.map(linkedActivityContext)
+            linkedActivity: dto.linkedActivity.map(linkedActivityContext),
+            mediaItems: galleryMedia(from: dto.media),
+            tags: dto.tags ?? []
         )
     }
 
@@ -110,17 +113,27 @@ enum CommunityDTOMapper {
             id: dto.id,
             authorDisplayName: dto.authorDisplayName,
             authorUserID: dto.authorUserID,
+            authorAvatarURL: dto.authorAvatarURL.flatMap(URL.init(string:)),
             communityName: dto.communityName,
             content: dto.content,
             imageURL: dto.imageURL.flatMap(URL.init(string:)),
+            mediaItems: galleryMedia(from: dto.media, fallbackImageURL: dto.imageURL),
             likeCount: dto.likeCount,
             commentCount: dto.commentCount,
             tags: dto.tags ?? [],
             createdAt: parseISO8601(dto.createdAt) ?? Date(),
             sharedActivityWithViewer: dto.sharedActivityWithViewer.map(sharedActivity),
             relationshipToViewer: relationship(from: dto.relationshipToViewer),
-            linkedActivity: dto.linkedActivity.map(linkedActivityContext)
+            linkedActivity: dto.linkedActivity.map(linkedActivityContext),
+            kind: postKind(from: dto.kind)
         )
+    }
+
+    private static func postKind(from raw: String?) -> CommunityPostKind {
+        guard let raw, let kind = CommunityPostKind(rawValue: raw) else {
+            return .discussion
+        }
+        return kind
     }
 
     private static func discoveredPerson(from dto: DiscoveredPersonDTO) -> DiscoveredPerson {
@@ -152,5 +165,29 @@ enum CommunityDTOMapper {
         default:
             .none
         }
+    }
+
+    private static func galleryMedia(
+        from media: [CommunityPostMediaDTO]?,
+        fallbackImageURL: String? = nil
+    ) -> [SparkGalleryMedia] {
+        if let media, !media.isEmpty {
+            return media.compactMap(galleryItem)
+        }
+        if let fallbackImageURL, let url = URL(string: fallbackImageURL) {
+            return [SparkGalleryMedia(id: "legacy-cover", url: url, kind: .image)]
+        }
+        return []
+    }
+
+    private static func galleryItem(from dto: CommunityPostMediaDTO) -> SparkGalleryMedia? {
+        guard let url = URL(string: dto.url) else { return nil }
+        let kind = SparkGalleryMediaKind(rawValue: dto.kind ?? "image") ?? .image
+        return SparkGalleryMedia(
+            id: dto.id ?? url.absoluteString,
+            url: url,
+            kind: kind,
+            posterURL: dto.posterURL.flatMap(URL.init(string:))
+        )
     }
 }

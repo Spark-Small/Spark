@@ -4,9 +4,14 @@ import Foundation
 
 public struct CommunityCoordinator: Sendable {
     private let repository: any CommunityPostsRepository
+    private let prepareMediaUpload: any PrepareCommunityMediaUploadUseCaseProtocol
 
-    public init(repository: any CommunityPostsRepository) {
+    public init(
+        repository: any CommunityPostsRepository,
+        prepareMediaUpload: any PrepareCommunityMediaUploadUseCaseProtocol = PrepareCommunityMediaUploadUseCase()
+    ) {
         self.repository = repository
+        self.prepareMediaUpload = prepareMediaUpload
     }
 
     @MainActor
@@ -14,7 +19,16 @@ public struct CommunityCoordinator: Sendable {
         CommunityViewModel(
             fetchPosts: FetchCommunityPostsUseCase(repository: repository),
             fetchTabExperience: FetchCommunityTabExperienceUseCase(repository: repository),
-            createRecap: CreateCommunityRecapUseCase(repository: repository)
+            createRecap: CreateCommunityRecapUseCase(repository: repository),
+            createPost: CreateCommunityPostUseCase(repository: repository)
+        )
+    }
+
+    @MainActor
+    public func makeCreatePostViewModel() -> CreateCommunityPostViewModel {
+        CreateCommunityPostViewModel(
+            createPost: CreateCommunityPostUseCase(repository: repository),
+            prepareMediaUpload: prepareMediaUpload
         )
     }
 
@@ -22,7 +36,8 @@ public struct CommunityCoordinator: Sendable {
     public func makeDetailViewModel(communityID: String) -> CommunityDetailViewModel {
         CommunityDetailViewModel(
             communityID: communityID,
-            fetchDetailBundle: FetchCommunityDetailBundleUseCase(repository: repository)
+            fetchDetailBundle: FetchCommunityDetailBundleUseCase(repository: repository),
+            joinCommunity: JoinCommunityUseCase(repository: repository)
         )
     }
 

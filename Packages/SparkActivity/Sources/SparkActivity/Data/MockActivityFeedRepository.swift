@@ -170,27 +170,82 @@ public actor MockActivityFeedRepository: ActivityFeedRepository {
             displayName: member.displayName,
             isHost: false,
             rsvpStatus: .going,
-            isVerified: member.isVerified
+            isVerified: member.isVerified,
+            isCoHost: member.isCoHost
         )
-        detail = ActivityDetail(
-            id: detail.id,
-            title: detail.title,
-            summary: detail.summary,
-            category: detail.category,
-            description: detail.description,
-            startsAt: detail.startsAt,
-            locationName: detail.locationName,
-            hostDisplayName: detail.hostDisplayName,
-            hostID: detail.hostID,
-            hostBio: detail.hostBio,
+        detail = detail.updatingAttendees(
+            attendees,
             attendeeCount: detail.attendeeCount + 1,
-            waitlistedCount: max(0, detail.waitlistedCount - 1),
-            capacity: detail.capacity,
-            rsvpStatus: detail.rsvpStatus,
-            lifecycleStatus: detail.lifecycleStatus,
-            attendees: attendees,
-            conversationThreadID: detail.conversationThreadID
+            waitlistedCount: max(0, detail.waitlistedCount - 1)
         )
+        persistHostEdit(detail)
+        return detail
+    }
+
+    public func reviewAttendeeRSVP(activityID: String, attendeeID: String, approve: Bool) async throws -> ActivityDetail {
+        if approve {
+            guard let detail = mergedDetails().first(where: { $0.id == activityID }),
+                  let attendee = detail.attendees.first(where: { $0.id == attendeeID }) else {
+                throw ActivityError.underlying(.server(statusCode: 404, message: nil))
+            }
+            if attendee.rsvpStatus == .waitlisted {
+                return try await promoteFromWaitlist(activityID: activityID, attendeeID: attendeeID)
+            }
+            return try await replaceAttendeeStatus(activityID: activityID, attendeeID: attendeeID, status: .going)
+        }
+        return try await replaceAttendeeStatus(activityID: activityID, attendeeID: attendeeID, status: .declined)
+    }
+
+    public func setAttendeeCoHost(activityID: String, attendeeID: String, isCoHost: Bool) async throws -> ActivityDetail {
+        guard var detail = mergedDetails().first(where: { $0.id == activityID }) else {
+            throw ActivityError.underlying(.server(statusCode: 404, message: nil))
+        }
+        guard detail.rsvpStatus == .host else {
+            throw ActivityError.underlying(.server(statusCode: 403, message: nil))
+        }
+        var attendees = detail.attendees
+        guard let index = attendees.firstIndex(where: { $0.id == attendeeID && !$0.isHost }) else {
+            throw ActivityError.underlying(.unknown(message: "Attendee not found"))
+        }
+        let member = attendees[index]
+        attendees[index] = ActivityAttendee(
+            id: member.id,
+            displayName: member.displayName,
+            isHost: false,
+            rsvpStatus: member.rsvpStatus,
+            isVerified: member.isVerified,
+            isCoHost: isCoHost
+        )
+        detail = detail.updatingAttendees(attendees)
+        persistHostEdit(detail)
+        return detail
+    }
+
+    private func replaceAttendeeStatus(
+        activityID: String,
+        attendeeID: String,
+        status: ActivityRSVPStatus
+    ) async throws -> ActivityDetail {
+        guard var detail = mergedDetails().first(where: { $0.id == activityID }) else {
+            throw ActivityError.underlying(.server(statusCode: 404, message: nil))
+        }
+        guard detail.rsvpStatus == .host else {
+            throw ActivityError.underlying(.server(statusCode: 403, message: nil))
+        }
+        var attendees = detail.attendees
+        guard let index = attendees.firstIndex(where: { $0.id == attendeeID && !$0.isHost }) else {
+            throw ActivityError.underlying(.unknown(message: "Attendee not found"))
+        }
+        let member = attendees[index]
+        attendees[index] = ActivityAttendee(
+            id: member.id,
+            displayName: member.displayName,
+            isHost: false,
+            rsvpStatus: status,
+            isVerified: member.isVerified,
+            isCoHost: member.isCoHost
+        )
+        detail = detail.updatingAttendees(attendees)
         persistHostEdit(detail)
         return detail
     }

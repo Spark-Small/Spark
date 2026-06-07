@@ -2,6 +2,7 @@
 
 import SparkDesignSystem
 import SwiftUI
+import UIKit
 
 struct ConversationMessageView: View {
     let message: ChatMessage
@@ -11,6 +12,8 @@ struct ConversationMessageView: View {
         switch message.kind {
         case .text:
             ChatBubble(message: message)
+        case .image:
+            ImageMessageBubble(message: message)
         case .system:
             SystemMessageBubble(message: message, onOpenActivity: onOpenActivity)
         case .activityShare:
@@ -58,7 +61,7 @@ struct SystemMessageBubble: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Text(payload.title)
-                        .font(.headline)
+                        .font(.body.weight(.semibold))
                     Text(payload.body)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -120,6 +123,44 @@ struct ActivityShareBubble: View {
         .accessibilityLabel(
             String(localized: "messages.activity.share", defaultValue: "分享的活动", comment: "Shared activity")
         )
+    }
+}
+
+struct ImageMessageBubble: View {
+    let message: ChatMessage
+
+    var body: some View {
+        HStack {
+            if message.isFromCurrentUser { Spacer(minLength: 48) }
+            Group {
+                if let url = URL(string: message.body), let uiImage = UIImage(contentsOfFile: url.path) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: 220, maxHeight: 220)
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .accessibilityLabel(
+                            String(
+                                localized: "messages.bubble.image",
+                                defaultValue: "图片消息",
+                                comment: "Image message"
+                            )
+                        )
+                } else {
+                    Label(
+                        String(
+                            localized: "messages.bubble.image",
+                            defaultValue: "图片消息",
+                            comment: "Image message"
+                        ),
+                        systemImage: "photo"
+                    )
+                    .padding(14)
+                    .sparkGlassSurface(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                }
+            }
+            if !message.isFromCurrentUser { Spacer(minLength: 48) }
+        }
     }
 }
 

@@ -9,6 +9,7 @@ public final class MockAuthService: AuthService, @unchecked Sendable {
     private let sessionStore: AuthSessionStore
     private let tokenProvider: KeychainAccessTokenProvider
     public var simulatedDelayNanoseconds: UInt64 = 200_000_000
+    private var registeredEmails: Set<String> = []
 
     public init(sessionStore: AuthSessionStore, tokenProvider: KeychainAccessTokenProvider) {
         self.sessionStore = sessionStore
@@ -38,7 +39,29 @@ public final class MockAuthService: AuthService, @unchecked Sendable {
         let localPart = email.split(separator: "@").first.map(String.init) ?? "user"
         let session = AuthSession(userID: UserID(localPart), accessToken: "mock-email-token")
         try await persist(session)
+        registeredEmails.insert(email.lowercased())
         return session
+    }
+
+    public func signUpWithEmail(email: String, password: String, displayName: String) async throws -> AuthSession {
+        try await sleepIfNeeded()
+        guard email.contains("@") else { throw AuthError.invalidEmail }
+        guard password.count >= 6 else { throw AuthError.invalidCredentials }
+        guard !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw AuthError.invalidCredentials
+        }
+        let normalized = email.lowercased()
+        guard !registeredEmails.contains(normalized) else { throw AuthError.emailAlreadyRegistered }
+        registeredEmails.insert(normalized)
+        let localPart = email.split(separator: "@").first.map(String.init) ?? "user"
+        let session = AuthSession(userID: UserID(localPart), accessToken: "mock-signup-token")
+        try await persist(session)
+        return session
+    }
+
+    public func requestPasswordReset(email: String) async throws {
+        try await sleepIfNeeded()
+        guard email.contains("@") else { throw AuthError.invalidEmail }
     }
 
     public func signOut() async throws {

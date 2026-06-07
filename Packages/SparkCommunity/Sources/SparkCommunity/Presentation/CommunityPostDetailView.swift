@@ -3,6 +3,8 @@
 import SparkDesignSystem
 import SwiftUI
 
+// REASONING: Detail pager is read-only for images; videos keep inline playback controls.
+
 public struct CommunityPostDetailView: View {
     @State private var viewModel: CommunityPostDetailViewModel
     @State private var showReportSheet = false
@@ -137,122 +139,106 @@ public struct CommunityPostDetailView: View {
     }
 
     private func detailContent(post: CommunityPostDetail) -> some View {
-        VStack(spacing: 0) {
-            if let linkedActivity = post.linkedActivity {
-                activityBanner(linkedActivity)
-            }
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: SparkLayoutMetrics.sectionVerticalPadding) {
                     postHeader(post: post)
-                    if !post.replies.isEmpty {
-                        repliesSection(replies: post.replies)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
+                    repliesSection(post: post)
             }
-            #if DEBUG
-            postingComingSoonBar
-            #endif
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
+            .padding(.vertical, SparkLayoutMetrics.sectionVerticalPadding)
+        }
+        .safeAreaInset(edge: .bottom) {
+            CommunityReplyComposer(
+                draft: $viewModel.replyDraft,
+                isSending: viewModel.replyState == .sending,
+                errorMessage: replyErrorMessage,
+                onSend: {
+                    Task { await viewModel.sendReply() }
+                }
+            )
         }
         .accessibilityElement(children: .contain)
     }
 
-    private func activityBanner(_ activity: LinkedActivityContext) -> some View {
-        Button {
-            onOpenLinkedActivity?(activity.id)
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "mappin.and.ellipse")
-                    .foregroundStyle(.orange)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(
-                        String(
-                            format: String(
-                                localized: "community.detail.activityBanner.title",
-                                defaultValue: "这条帖子来自「%@」活动群",
-                                comment: "Activity banner; %@ is activity name"
-                            ),
-                            locale: .current,
-                            activity.name
-                        )
-                    )
-                    .font(.subheadline.weight(.medium))
-                    Text(
-                        String(
-                            localized: "community.detail.activityBanner.action",
-                            defaultValue: "查看活动详情",
-                            comment: "Open activity"
-                        )
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.bar)
+    private var replyErrorMessage: String? {
+        if case .failure(let message) = viewModel.replyState {
+            return message
         }
-        .buttonStyle(.sparkPressable)
-        .disabled(onOpenLinkedActivity == nil)
+        return nil
     }
 
     private func postHeader(post: CommunityPostDetail) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(post.authorDisplayName)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.primary)
+
+            if let linkedActivity = post.linkedActivity {
+                CommunityPostLinkedActivityLine(name: linkedActivity.name) {
+                    onOpenLinkedActivity?(linkedActivity.id)
+                }
+                .disabled(onOpenLinkedActivity == nil)
+            }
+
+            if !post.galleryMedia.isEmpty {
+                CommunityPostMediaPager(
+                    mediaItems: post.galleryMedia,
+                    usesInsetMedia: false,
+                    horizontalPadding: SparkLayoutMetrics.standardHorizontalPadding,
+                    onOpen: {}
+                )
+                .allowsHitTesting(post.galleryMedia.contains { $0.kind == .video })
+            }
+
             Text(post.body)
                 .font(.body)
-            Text(replyCountLabel(for: post.replyCount))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary)
+                .lineSpacing(SparkLayoutMetrics.communityFeedBodyLineSpacing)
+                .fixedSize(horizontal: false, vertical: true)
+
+            CommunityPostTagsRow(tags: post.tags)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(post.title), \(post.authorDisplayName)")
     }
 
-    private func repliesSection(replies: [CommunityPostReply]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(
-                String(
-                    localized: "community.replies.section.title",
-                    defaultValue: "回复",
-                    comment: "Replies section"
+    private func repliesSection(post: CommunityPostDetail) -> some View {
+        VStack(alignment: .leading, spacing: SparkLayoutMetrics.communityFeedBlockSpacing) {
+            Text(repliesSectionTitle(count: post.replyCount))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .accessibilityAddTraits(.isHeader)
+
+            if post.replies.isEmpty {
+                Text(
+                    String(
+                        localized: "community.replies.empty",
+                        defaultValue: "还没有评论，来抢沙发吧",
+                        comment: "No comments yet"
+                    )
                 )
-            )
-            .font(.headline)
-            ForEach(replies) { reply in
-                CommentRow(reply: reply, relationship: .none)
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+            } else {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(post.replies) { reply in
+                        CommentRow(reply: reply, relationship: .none)
+                            .padding(.vertical, SparkLayoutMetrics.communityRowVerticalPadding)
+                        if reply.id != post.replies.last?.id {
+                            Divider()
+                        }
+                    }
+                }
             }
         }
     }
 
-    private var postingComingSoonBar: some View {
-        Text(
-            String(
-                localized: "community.posting.comingSoon",
-                defaultValue: "发帖功能即将开放",
-                comment: "Posting coming soon"
-            )
-        )
-        .font(.footnote)
-        .foregroundStyle(.tertiary)
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(.bar)
-    }
-
-    private func replyCountLabel(for count: Int) -> String {
+    private func repliesSectionTitle(count: Int) -> String {
         let format = String(
-            localized: "community.replyCount.format",
-            defaultValue: "%lld 条回复",
-            comment: "Reply count; %lld is count"
+            localized: "community.replies.section.title.format",
+            defaultValue: "评论 · %lld",
+            comment: "Comments section with count; %lld is count"
         )
         return String(format: format, locale: .current, count)
     }
@@ -276,10 +262,12 @@ public struct CommunityPostDetailView: View {
 }
 
 #Preview {
-    NavigationStack {
-        CommunityPostDetailView(
-            postID: "cp_1",
-            coordinator: CommunityCoordinator(repository: MockCommunityPostsRepository())
-        )
+    CommunityPreviewTraits.matrix("Post detail") {
+        NavigationStack {
+            CommunityPostDetailView(
+                postID: "cp_1",
+                coordinator: CommunityCoordinator(repository: MockCommunityPostsRepository())
+            )
+        }
     }
 }

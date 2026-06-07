@@ -97,8 +97,8 @@ public struct LiveMessagesRepository: MessagesRepository, Sendable {
         }
     }
 
-    public func sendMessage(threadID: MessageThreadID, body: String) async throws -> ChatMessage {
-        let requestBody = try JSONEncoder().encode(SendMessageRequestDTO(body: body))
+    public func sendMessage(threadID: MessageThreadID, body: String, kind: ChatMessageKind = .text) async throws -> ChatMessage {
+        let requestBody = try JSONEncoder().encode(SendMessageRequestDTO(body: body, kind: kind.rawValue))
         let path = MessagesAPIPath.threadMessages(threadID: threadID.rawValue)
         do {
             let dto: ChatMessageDTO = try await apiClient.post(path, body: requestBody)
@@ -121,6 +121,22 @@ public struct LiveMessagesRepository: MessagesRepository, Sendable {
     public func markThreadRead(threadID: MessageThreadID) async throws {
         do {
             try await apiClient.post(MessagesAPIPath.markThreadRead(threadID: threadID.rawValue))
+        } catch {
+            throw MessagesError.underlying(mapToAppError(error))
+        }
+    }
+
+    public func hideThread(threadID: MessageThreadID) async throws {
+        do {
+            try await apiClient.post(MessagesAPIPath.hideThread(threadID: threadID.rawValue))
+        } catch {
+            throw MessagesError.underlying(mapToAppError(error))
+        }
+    }
+
+    public func deleteThread(threadID: MessageThreadID) async throws {
+        do {
+            try await apiClient.delete(MessagesAPIPath.deleteThread(threadID: threadID.rawValue))
         } catch {
             throw MessagesError.underlying(mapToAppError(error))
         }

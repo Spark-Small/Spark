@@ -74,9 +74,11 @@ private struct FailingSendMessagesRepository: MessagesRepository, Sendable {
     func fetchConversationContext(threadID: MessageThreadID) async throws -> ConversationContext {
         ConversationContext(sharedActivities: [], relationshipStatus: "none")
     }
-    func sendMessage(threadID: MessageThreadID, body: String) async throws -> ChatMessage { throw SendFailure() }
+    func sendMessage(threadID: MessageThreadID, body: String, kind: ChatMessageKind = .text) async throws -> ChatMessage { throw SendFailure() }
     func markAllRead() async throws {}
     func markThreadRead(threadID: MessageThreadID) async throws {}
+    func hideThread(threadID: MessageThreadID) async throws {}
+    func deleteThread(threadID: MessageThreadID) async throws {}
     func respondToActivityInvite(activityID: String, invitationID: String, accept: Bool) async throws {}
     func dismissInboxActionItem(id: String) async throws {}
     func ensureActivityGroupThread(threadID: MessageThreadID, displayName: String, welcomeMessage: String) async throws {}

@@ -18,6 +18,14 @@ enum MessagesAPIPath {
         "\(threads)/\(threadID)/read"
     }
 
+    static func hideThread(threadID: String) -> String {
+        "\(threads)/\(threadID)/hide"
+    }
+
+    static func deleteThread(threadID: String) -> String {
+        "\(threads)/\(threadID)"
+    }
+
     static func conversationContext(threadID: String) -> String {
         "\(threads)/\(threadID)/context"
     }

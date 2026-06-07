@@ -1,4 +1,4 @@
-// Module: SparkActivity — Activity inbox list row.
+// Module: SparkActivity — Meetup-style activity card row (hero image · schedule · going).
 
 import SparkDesignSystem
 import SwiftUI
@@ -7,62 +7,148 @@ struct ActivityInboxListRow: View {
     let item: ActivityItem
     let isLocked: Bool
 
+    private var horizontalPadding: CGFloat {
+        SparkLayoutMetrics.standardHorizontalPadding
+    }
+
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
-                    Text(item.category.uppercased())
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    if !isLocked {
-                        statusCapsule(item.rsvpStatus.localizedLabel)
-                        if let badge = item.lifecycleBadge {
-                            statusCapsule(badge)
-                        }
-                    }
-                }
-                Text(item.title)
-                    .font(.headline)
-                    .foregroundStyle(isLocked ? .secondary : .primary)
-                Text(item.scheduleLine)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                if !item.hostDisplayName.isEmpty, !isLocked {
-                    Text(hostLine(for: item.hostDisplayName))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: SparkLayoutMetrics.activityCardContentSpacing) {
+            heroImage
+                .padding(.top, SparkLayoutMetrics.compactVerticalPadding)
+                .padding(.horizontal, horizontalPadding)
+
+            VStack(alignment: .leading, spacing: SparkLayoutMetrics.activityCardContentSpacing) {
+                titleBlock
+                scheduleLine
+                metadataLine
+                if !isLocked {
+                    attendeeFooter
+                } else {
+                    lockedPreviewLine
                 }
             }
-            Spacer(minLength: 0)
+            .padding(.horizontal, horizontalPadding)
+            .padding(.bottom, SparkLayoutMetrics.activityCardBottomPadding)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(accessibilityLabelText)
+    }
+
+    // MARK: - Hero
+
+    private var heroImage: some View {
+        ActivityCoverHeroView(
+            activityID: item.id,
+            title: item.title,
+            showsOverlayActions: !isLocked
+        )
+        .overlay {
             if isLocked {
+                RoundedRectangle(
+                    cornerRadius: SparkLayoutMetrics.activityCardHeroCornerRadius,
+                    style: .continuous
+                )
+                .fill(.ultraThinMaterial)
                 Image(systemName: "lock.fill")
-                    .font(.body.weight(.semibold))
+                    .font(.title2.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
             }
         }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabelText)
+        .opacity(isLocked ? 0.72 : 1)
     }
 
-    private func statusCapsule(_ text: String) -> some View {
-        Text(text)
-            .font(.caption.weight(.medium))
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .sparkGlassControl(Capsule())
+    // MARK: - Copy
+
+    private var titleBlock: some View {
+        Text(item.title)
+            .font(.headline.weight(.bold))
+            .foregroundStyle(isLocked ? .secondary : .primary)
+            .lineSpacing(2)
+            .lineLimit(2)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func hostLine(for name: String) -> String {
-        let format = String(
-            localized: "activity.row.host.format",
-            defaultValue: "主办 %@",
-            comment: "Host line; %@ is name"
+    @ViewBuilder
+    private var scheduleLine: some View {
+        if let startsAt = item.startsAt {
+            Text(ActivityFormatting.listCardScheduleLine(startsAt: startsAt, endsAt: item.endsAt))
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .lineLimit(1)
+        }
+    }
+
+    private var metadataLine: some View {
+        Text(metadataText)
+            .font(.footnote)
+            .foregroundStyle(.tertiary)
+            .lineLimit(2)
+    }
+
+    private var attendeeFooter: some View {
+        ActivityAttendeeAvatarStack(
+            hostDisplayName: item.hostDisplayName,
+            attendeeCount: max(item.attendeeCount, 1)
         )
-        return String(format: format, locale: .current, name)
+    }
+
+    private var lockedPreviewLine: some View {
+        Text(
+            String(
+                localized: "activity.row.locked.preview",
+                defaultValue: "订阅后可查看详情",
+                comment: "Locked activity row preview"
+            )
+        )
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+        .lineLimit(2)
+    }
+
+    // MARK: - Copy helpers
+
+    private var metadataText: String {
+        if isLocked {
+            return String(
+                localized: "activity.row.locked.preview",
+                defaultValue: "订阅后可查看详情",
+                comment: "Locked activity row preview"
+            )
+        }
+        var parts: [String] = []
+        let location = item.locationName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !location.isEmpty {
+            parts.append(location)
+        }
+        if !item.hostDisplayName.isEmpty {
+            let format = String(
+                localized: "activity.row.hostedBy.format",
+                defaultValue: "by %@",
+                comment: "Hosted by; %@ is name"
+            )
+            parts.append(String(format: format, locale: .current, item.hostDisplayName))
+        }
+        if !item.category.isEmpty {
+            parts.append(item.category)
+        }
+        if let badge = statusBadgeLabel {
+            parts.append(badge)
+        }
+        if parts.isEmpty, !item.summary.isEmpty {
+            parts.append(item.summary)
+        }
+        return parts.joined(separator: " • ")
+    }
+
+    private var statusBadgeLabel: String? {
+        if item.lifecycleStatus != .scheduled {
+            return item.lifecycleStatus.localizedLabel
+        }
+        return item.lifecycleBadge
     }
 
     private var accessibilityLabelText: String {
@@ -74,15 +160,55 @@ struct ActivityInboxListRow: View {
             )
             return String(format: format, locale: .current, item.title)
         }
-        return "\(item.title), \(item.scheduleLine), \(item.rsvpStatus.localizedLabel)"
+        var parts = [item.title]
+        if let startsAt = item.startsAt {
+            parts.append(ActivityFormatting.listCardScheduleLine(startsAt: startsAt, endsAt: item.endsAt))
+        }
+        parts.append(metadataText)
+        parts.append(
+            String(
+                format: String(
+                    localized: "activity.row.going.format",
+                    defaultValue: "%lld 人参加",
+                    comment: "Attendee count; %lld is count"
+                ),
+                locale: .current,
+                item.attendeeCount
+            )
+        )
+        return parts.joined(separator: ", ")
     }
 }
 
-#Preview {
+// MARK: - Previews
+
+#Preview("Meetup card") {
     if let detail = MockActivityCatalog.detail(id: "act_1") {
-        List {
+        ScrollView {
             ActivityInboxListRow(item: detail.asListItem(), isLocked: false)
             ActivityInboxListRow(item: detail.asListItem(), isLocked: true)
+        }
+        .environment(ActivityFavoriteStore())
+        .background(.background)
+    }
+}
+
+#Preview("Meetup card — dark") {
+    SparkPreviewSupport.darkMode {
+        if let detail = MockActivityCatalog.detail(id: "act_1") {
+            ActivityInboxListRow(item: detail.asListItem(), isLocked: false)
+                .environment(ActivityFavoriteStore())
+                .background(.background)
+        }
+    }
+}
+
+#Preview("Meetup card — accessibility XL") {
+    SparkPreviewSupport.accessibilityXL {
+        if let detail = MockActivityCatalog.detail(id: "act_1") {
+            ActivityInboxListRow(item: detail.asListItem(), isLocked: false)
+                .environment(ActivityFavoriteStore())
+                .background(.background)
         }
     }
 }

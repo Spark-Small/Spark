@@ -5,6 +5,7 @@ import SwiftUI
 
 public struct ActivityBrowseListView: View {
     @State private var viewModel: ActivityBrowseViewModel
+    @State private var navigationPath = NavigationPath()
     @Environment(\.dismiss) private var dismiss
 
     private let coordinator: ActivityCoordinator
@@ -23,21 +24,22 @@ public struct ActivityBrowseListView: View {
     }
 
     public var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             SparkScreenContainer(
                 navigationTitle: String(
                     localized: "activity.browse.title",
                     defaultValue: "逛局",
                     comment: "Browse activities title"
                 ),
+                titleDisplayMode: .inline,
                 embedding: .none
             ) {
                 content
                     .task { await viewModel.loadIfNeeded() }
             }
-            .navigationDestination(for: ActivityItem.self) { item in
+            .navigationDestination(for: String.self) { activityID in
                 ActivityDetailView(
-                    activityID: item.id,
+                    activityID: activityID,
                     coordinator: coordinator,
                     context: .discover,
                     onRSVPCompleted: onRSVPCompleted,
@@ -61,14 +63,14 @@ public struct ActivityBrowseListView: View {
                 categoryPicker
                 timeWindowPicker
             }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
+            .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
+            .padding(.vertical, SparkLayoutMetrics.activityFilterVerticalPadding)
 
             switch viewModel.loadState {
             case .idle, .loading:
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .accessibilityLabel(
+                    .sparkLoadingAccessibilityLabel(
                         String(
                             localized: "activity.browse.loading.a11y",
                             defaultValue: "正在加载活动",
@@ -104,14 +106,18 @@ public struct ActivityBrowseListView: View {
                 }
             case .loaded:
                 List(viewModel.items) { item in
-                    NavigationLink(value: item) {
-                        ActivityInboxListRow(item: item, isLocked: false)
-                    }
-                    .onAppear {
-                        Task { await viewModel.loadMoreIfNeeded(currentItemID: item.id) }
-                    }
+                    ActivityInboxListRow(item: item, isLocked: false)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            navigationPath.append(item.id)
+                        }
+                        .sparkFlatTabListRow()
+                        .accessibilityAddTraits(.isButton)
+                        .onAppear {
+                            Task { await viewModel.loadMoreIfNeeded(currentItemID: item.id) }
+                        }
                 }
-                .sparkScreenListStyle()
+                .sparkFlatTabListStyle()
                 .refreshable {
                     await viewModel.reload()
                 }
@@ -159,4 +165,5 @@ public struct ActivityBrowseListView: View {
             browseRepository: MockActivityBrowseRepository()
         )
     )
+    .environment(ActivityFavoriteStore())
 }

@@ -301,8 +301,10 @@ graph TD
 
 ## MODULE-G：付费「谁喜欢我」模糊解锁
 
+> **Status: Cancelled (2026-06-08)** — `SparkLikes` 与 `/v1/likes/*` 已移除；本模块不再适用。
+
 ### 立项决策
-- **建议：** 条件 Go（ADR-0004 决策后）
+- **建议：** ~~条件 Go~~ **Cancelled**
 - **前置条件：** StoreKit Paywall 已交付；MODULE-A 付费状态字段
 - **ADR 编号：** [ADR-0004](adr/0004-premium-inbound-blur.md)（Proposed）
 

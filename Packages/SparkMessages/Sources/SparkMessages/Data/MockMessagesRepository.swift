@@ -7,8 +7,12 @@ public actor MockMessagesRepository: MessagesRepository {
     private var inbox: MessagesInbox
     private var messagesByThread: [String: [ChatMessage]]
     private var dismissedActionItemIDs: Set<String> = []
+    private var hiddenThreadIDs: Set<String> = []
+    private var deletedThreadIDs: Set<String> = []
     public private(set) var markReadCallCount = 0
     public private(set) var markThreadReadCallCount = 0
+    public private(set) var hideThreadCallCount = 0
+    public private(set) var deleteThreadCallCount = 0
     public private(set) var dismissActionItemCallCount = 0
 
     public init(unreadCount: Int = 3) {
@@ -23,12 +27,13 @@ public actor MockMessagesRepository: MessagesRepository {
     }
 
     public func fetchInbox() async throws -> MessagesInbox {
-        MessagesInbox(
-            actionItems: inbox.actionItems.filter { !dismissedActionItemIDs.contains($0.id) },
-            unmessagedMatches: inbox.unmessagedMatches,
-            dmConversations: inbox.dmConversations,
-            activeGroupChats: inbox.activeGroupChats,
-            archivedGroupChats: inbox.archivedGroupChats
+        let visible = visibleInbox()
+        return MessagesInbox(
+            actionItems: visible.actionItems.filter { !dismissedActionItemIDs.contains($0.id) },
+            unmessagedMatches: visible.unmessagedMatches,
+            dmConversations: visible.dmConversations,
+            activeGroupChats: visible.activeGroupChats,
+            archivedGroupChats: visible.archivedGroupChats
         )
     }
 
@@ -44,7 +49,7 @@ public actor MockMessagesRepository: MessagesRepository {
         messagesByThread[threadID.rawValue] ?? []
     }
 
-    public func sendMessage(threadID: MessageThreadID, body: String) async throws -> ChatMessage {
+    public func sendMessage(threadID: MessageThreadID, body: String, kind: ChatMessageKind = .text) async throws -> ChatMessage {
         let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             throw MessagesError.underlying(.unknown(message: "Empty message"))
@@ -54,12 +59,16 @@ public actor MockMessagesRepository: MessagesRepository {
             threadID: threadID,
             body: trimmed,
             sentAt: Date(),
-            isFromCurrentUser: true
+            isFromCurrentUser: true,
+            kind: kind
         )
         var list = messagesByThread[threadID.rawValue] ?? []
         list.append(message)
         messagesByThread[threadID.rawValue] = list
-        updatePreview(threadID: threadID, preview: trimmed, at: message.sentAt)
+        let preview = kind == .image
+            ? String(localized: "messages.preview.image", defaultValue: "[图片]", comment: "Image preview")
+            : trimmed
+        updatePreview(threadID: threadID, preview: preview, at: message.sentAt)
         return message
     }
 
@@ -83,6 +92,25 @@ public actor MockMessagesRepository: MessagesRepository {
             activeGroupChats: inbox.activeGroupChats.map { clearUnreadIfNeeded($0, threadID: threadID) },
             archivedGroupChats: inbox.archivedGroupChats.map { clearUnreadIfNeeded($0, threadID: threadID) }
         )
+    }
+
+    public func hideThread(threadID: MessageThreadID) async throws {
+        guard inbox.allThreads.contains(where: { $0.threadID == threadID }) else {
+            throw MessagesError.underlying(.server(statusCode: 404, message: "Thread not found"))
+        }
+        hiddenThreadIDs.insert(threadID.rawValue)
+        hideThreadCallCount += 1
+    }
+
+    public func deleteThread(threadID: MessageThreadID) async throws {
+        guard inbox.allThreads.contains(where: { $0.threadID == threadID }) else {
+            throw MessagesError.underlying(.server(statusCode: 404, message: "Thread not found"))
+        }
+        deletedThreadIDs.insert(threadID.rawValue)
+        hiddenThreadIDs.remove(threadID.rawValue)
+        deleteThreadCallCount += 1
+        inbox = removingThread(threadID, from: inbox)
+        messagesByThread.removeValue(forKey: threadID.rawValue)
     }
 
     private func clearUnreadIfNeeded(
@@ -126,10 +154,41 @@ public actor MockMessagesRepository: MessagesRepository {
             defaultValue: "你们互相喜欢，打个招呼吧",
             comment: "DM welcome"
         )
-        try await ensureActivityGroupThread(
+        let partner = inbox.unmessagedMatches.first(where: { $0.user.id == peerUserID })?.user
+            ?? InboxUserProfile(id: peerUserID, displayName: peerDisplayName, avatarURL: nil)
+        let graduatedMatches = inbox.unmessagedMatches.filter { $0.user.id != peerUserID }
+        var dmConversations = inbox.dmConversations.filter { $0.threadID != threadID }
+
+        let preview = ConversationPreview(
             threadID: threadID,
+            kind: .dm,
             displayName: peerDisplayName,
-            welcomeMessage: welcome
+            lastMessagePreview: welcome,
+            lastMessageAt: Date(),
+            unreadCount: 0,
+            dmPartner: partner,
+            isPartnerOnline: false
+        )
+        dmConversations.insert(preview, at: 0)
+
+        if messagesByThread[threadID.rawValue] == nil {
+            messagesByThread[threadID.rawValue] = [
+                ChatMessage(
+                    id: "msg_welcome_\(threadID.rawValue)",
+                    threadID: threadID,
+                    body: welcome,
+                    sentAt: Date(),
+                    isFromCurrentUser: false
+                )
+            ]
+        }
+
+        inbox = MessagesInbox(
+            actionItems: inbox.actionItems,
+            unmessagedMatches: graduatedMatches,
+            dmConversations: dmConversations,
+            activeGroupChats: inbox.activeGroupChats,
+            archivedGroupChats: inbox.archivedGroupChats
         )
         return threadID
     }
@@ -206,6 +265,38 @@ public actor MockMessagesRepository: MessagesRepository {
             activity: conversation.activity,
             memberCount: conversation.memberCount,
             isArchived: conversation.isArchived
+        )
+    }
+
+    private func visibleInbox() -> MessagesInbox {
+        let dm = inbox.dmConversations.filter { isThreadVisible($0.threadID) }
+        let groups = inbox.activeGroupChats.filter { isThreadVisible($0.threadID) }
+        let archived = inbox.archivedGroupChats.filter { isThreadVisible($0.threadID) }
+        let matches = inbox.unmessagedMatches.filter {
+            isThreadVisible(MessagesInboxSorting.pendingMatchThreadID(for: $0))
+        }
+        return MessagesInbox(
+            actionItems: inbox.actionItems,
+            unmessagedMatches: matches,
+            dmConversations: dm,
+            activeGroupChats: groups,
+            archivedGroupChats: archived
+        )
+    }
+
+    private func isThreadVisible(_ threadID: MessageThreadID) -> Bool {
+        !hiddenThreadIDs.contains(threadID.rawValue) && !deletedThreadIDs.contains(threadID.rawValue)
+    }
+
+    private func removingThread(_ threadID: MessageThreadID, from inbox: MessagesInbox) -> MessagesInbox {
+        MessagesInbox(
+            actionItems: inbox.actionItems,
+            unmessagedMatches: inbox.unmessagedMatches.filter {
+                MessagesInboxSorting.pendingMatchThreadID(for: $0) != threadID
+            },
+            dmConversations: inbox.dmConversations.filter { $0.threadID != threadID },
+            activeGroupChats: inbox.activeGroupChats.filter { $0.threadID != threadID },
+            archivedGroupChats: inbox.archivedGroupChats.filter { $0.threadID != threadID }
         )
     }
 

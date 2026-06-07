@@ -40,13 +40,29 @@ struct CommunityFeedItemDTO: Decodable, Sendable {
     let people: [DiscoveredPersonDTO]?
 }
 
+struct CommunityPostMediaDTO: Decodable, Sendable {
+    let id: String?
+    let url: String
+    let kind: String?
+    let posterURL: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case url
+        case kind
+        case posterURL = "poster_url"
+    }
+}
+
 struct CommunityFeedPostDTO: Decodable, Sendable {
     let id: String
     let authorDisplayName: String
     let authorUserID: String
+    let authorAvatarURL: String?
     let communityName: String
     let content: String
     let imageURL: String?
+    let media: [CommunityPostMediaDTO]?
     let likeCount: Int
     let commentCount: Int
     let tags: [String]?
@@ -54,11 +70,13 @@ struct CommunityFeedPostDTO: Decodable, Sendable {
     let sharedActivityWithViewer: SharedActivityDTO?
     let relationshipToViewer: String?
     let linkedActivity: LinkedActivityDTO?
+    let kind: String?
 
     enum CodingKeys: String, CodingKey {
         case id
         case authorDisplayName = "author_display_name"
         case authorUserID = "author_user_id"
+        case authorAvatarURL = "author_avatar_url"
         case communityName = "community_name"
         case content
         case imageURL = "image_url"
@@ -69,6 +87,8 @@ struct CommunityFeedPostDTO: Decodable, Sendable {
         case sharedActivityWithViewer = "shared_activity_with_viewer"
         case relationshipToViewer = "relationship_to_viewer"
         case linkedActivity = "linked_activity"
+        case kind
+        case media
     }
 }
 

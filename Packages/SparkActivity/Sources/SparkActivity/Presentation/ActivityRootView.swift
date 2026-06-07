@@ -21,12 +21,17 @@ public struct ActivityRootView: View {
     let onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)?
     let onActivityRescheduled: ((ActivityDetail) async -> Void)?
     let onCommunityRecap: ((ActivityDetail) -> Void)?
+    let inviteCandidates: () -> [ActivityInviteCandidate]
+    let actionItemsInset: (ActivityListFilter) -> AnyView
+    let requestActivityIDs: (ActivityListFilter) -> Set<String>
 
     @State var showCreateActivity = false
     @State var showNotificationSettings = false
     @State var showBrowse = false
+    @State var selectedInboxSegment: ActivityInboxSegment = .activities
+    @State var activityFavoriteStore = ActivityFavoriteStore()
 
-    public init(
+    public init<ActionItems: View>(
         coordinator: ActivityCoordinator,
         pendingActivityID: Binding<String?> = .constant(nil),
         pendingCreateActivityDraft: Binding<CreateActivityDraft?> = .constant(nil),
@@ -37,7 +42,10 @@ public struct ActivityRootView: View {
         onLockedItemTap: (() -> Void)? = nil,
         onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)? = nil,
         onActivityRescheduled: ((ActivityDetail) async -> Void)? = nil,
-        onCommunityRecap: ((ActivityDetail) -> Void)? = nil
+        onCommunityRecap: ((ActivityDetail) -> Void)? = nil,
+        inviteCandidates: @escaping () -> [ActivityInviteCandidate] = { [] },
+        @ViewBuilder actionItemsInset: @escaping (ActivityListFilter) -> ActionItems = { _ in EmptyView() },
+        requestActivityIDs: @escaping (ActivityListFilter) -> Set<String> = { _ in [] }
     ) {
         self.coordinator = coordinator
         _pendingActivityID = pendingActivityID
@@ -51,9 +59,12 @@ public struct ActivityRootView: View {
         self.onHostAnnouncePosted = onHostAnnouncePosted
         self.onActivityRescheduled = onActivityRescheduled
         self.onCommunityRecap = onCommunityRecap
+        self.inviteCandidates = inviteCandidates
+        self.actionItemsInset = { filter in AnyView(actionItemsInset(filter)) }
+        self.requestActivityIDs = requestActivityIDs
     }
 
-    init(
+    init<ActionItems: View>(
         viewModel: ActivityViewModel,
         coordinator: ActivityCoordinator,
         pendingActivityID: Binding<String?> = .constant(nil),
@@ -65,7 +76,10 @@ public struct ActivityRootView: View {
         onLockedItemTap: (() -> Void)? = nil,
         onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)? = nil,
         onActivityRescheduled: ((ActivityDetail) async -> Void)? = nil,
-        onCommunityRecap: ((ActivityDetail) -> Void)? = nil
+        onCommunityRecap: ((ActivityDetail) -> Void)? = nil,
+        inviteCandidates: @escaping () -> [ActivityInviteCandidate] = { [] },
+        @ViewBuilder actionItemsInset: @escaping (ActivityListFilter) -> ActionItems = { _ in EmptyView() },
+        requestActivityIDs: @escaping (ActivityListFilter) -> Set<String> = { _ in [] }
     ) {
         self.coordinator = coordinator
         _pendingActivityID = pendingActivityID
@@ -79,6 +93,9 @@ public struct ActivityRootView: View {
         self.onHostAnnouncePosted = onHostAnnouncePosted
         self.onActivityRescheduled = onActivityRescheduled
         self.onCommunityRecap = onCommunityRecap
+        self.inviteCandidates = inviteCandidates
+        self.actionItemsInset = { filter in AnyView(actionItemsInset(filter)) }
+        self.requestActivityIDs = requestActivityIDs
     }
 
     var usesSplitLayout: Bool {
@@ -93,6 +110,8 @@ public struct ActivityRootView: View {
                 compactRoot
             }
         }
+        // REASONING: Split detail column is not a descendant of `activityListShell`; cover hero needs this.
+        .environment(activityFavoriteStore)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(
             String(localized: "screen.activity", defaultValue: "活动", comment: "Activity screen")
@@ -107,6 +126,7 @@ public struct ActivityRootView: View {
                     onRSVPCompleted: onRSVPCompleted,
                     onOpenGroupChat: onOpenGroupChat
                 )
+                .environment(activityFavoriteStore)
             }
         }
         .sheet(isPresented: $showCreateActivity) {

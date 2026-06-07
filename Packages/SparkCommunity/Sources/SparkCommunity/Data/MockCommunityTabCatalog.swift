@@ -1,6 +1,7 @@
 // Module: SparkCommunity — Mock tab feed, communities, and people discovery.
 
 import Foundation
+import SparkCore
 
 enum MockCommunityTabCatalog {
     static func joinedCommunities() -> [CommunitySummary] {
@@ -46,36 +47,6 @@ enum MockCommunityTabCatalog {
         ]
     }
 
-    static func discoveredPeople() -> [DiscoveredPerson] {
-        [
-            DiscoveredPerson(
-                id: "u_like_1",
-                displayName: String(localized: "community.mock.person.1", defaultValue: "李明", comment: "Person"),
-                avatarURL: URL(string: "https://picsum.photos/seed/person-1/96/96"),
-                sharedTag: String(localized: "community.mock.tag.hike", defaultValue: "爬山", comment: "Tag"),
-                relationship: .sharedActivity(
-                    String(localized: "community.mock.activity.hike", defaultValue: "周末爬香山", comment: "Activity")
-                )
-            ),
-            DiscoveredPerson(
-                id: "u_like_2",
-                displayName: String(localized: "community.mock.person.2", defaultValue: "王芳", comment: "Person"),
-                avatarURL: URL(string: "https://picsum.photos/seed/person-2/96/96"),
-                sharedTag: String(localized: "community.mock.tag.book", defaultValue: "读书", comment: "Tag"),
-                relationship: .sharedActivity(
-                    String(localized: "community.mock.activity.book", defaultValue: "咖啡聊天局", comment: "Activity")
-                )
-            ),
-            DiscoveredPerson(
-                id: "u_like_3",
-                displayName: String(localized: "community.mock.person.3", defaultValue: "张伟", comment: "Person"),
-                avatarURL: URL(string: "https://picsum.photos/seed/person-3/96/96"),
-                sharedTag: String(localized: "community.mock.tag.photo", defaultValue: "摄影", comment: "Tag"),
-                relationship: .liked
-            )
-        ]
-    }
-
     static func feedPosts() -> [CommunityFeedPost] {
         feedPostsBatchOne() + feedPostsBatchTwo()
     }
@@ -88,9 +59,32 @@ enum MockCommunityTabCatalog {
         let now = Date()
         return [
             CommunityFeedPost(
+                id: "cp_recap_mock",
+                authorDisplayName: String(localized: "community.mock.3.author", defaultValue: "Nova", comment: "Author"),
+                authorUserID: "u_guest_1",
+                authorAvatarURL: MockCommunityAvatarCatalog.authorAvatarURL(userID: "u_guest_1"),
+                communityName: String(localized: "community.mock.book", defaultValue: "读书会", comment: "Community"),
+                content: String(
+                    localized: "community.mock.feed.activityShare",
+                    defaultValue: "玉林咖啡局氛围很好，认识了几位新朋友，下次还想来。",
+                    comment: "Activity share feed post"
+                ),
+                imageURL: URL(string: "https://picsum.photos/seed/feed-recap/800/450"),
+                mediaItems: SparkGalleryMediaFactory.mockActivityGallery(activityID: "act_browse_2"),
+                likeCount: 9,
+                commentCount: 2,
+                createdAt: now.addingTimeInterval(-7_200),
+                linkedActivity: LinkedActivityContext(
+                    id: "act_browse_2",
+                    name: String(localized: "community.mock.activity.book", defaultValue: "咖啡聊天局", comment: "Activity")
+                ),
+                kind: .activityRecap
+            ),
+            CommunityFeedPost(
                 id: "cp_1",
                 authorDisplayName: String(localized: "community.mock.1.author", defaultValue: "阿乐", comment: "Author"),
                 authorUserID: "u_host_1",
+                authorAvatarURL: MockCommunityAvatarCatalog.authorAvatarURL(userID: "u_host_1"),
                 communityName: String(localized: "community.mock.hike", defaultValue: "爬山队", comment: "Community"),
                 content: String(
                     localized: "community.mock.feed.1",
@@ -112,6 +106,7 @@ enum MockCommunityTabCatalog {
                 id: "cp_2",
                 authorDisplayName: String(localized: "community.mock.2.author", defaultValue: "小雨", comment: "Author"),
                 authorUserID: "u_host_2",
+                authorAvatarURL: MockCommunityAvatarCatalog.authorAvatarURL(userID: "u_host_2"),
                 communityName: String(localized: "community.mock.book", defaultValue: "读书会", comment: "Community"),
                 content: String(
                     localized: "community.mock.feed.2",
@@ -127,6 +122,7 @@ enum MockCommunityTabCatalog {
                 id: "cp_3",
                 authorDisplayName: String(localized: "community.mock.3.author", defaultValue: "Nova", comment: "Author"),
                 authorUserID: "u_guest_1",
+                authorAvatarURL: MockCommunityAvatarCatalog.authorAvatarURL(userID: "u_guest_1"),
                 communityName: String(localized: "community.mock.photo", defaultValue: "摄影组", comment: "Community"),
                 content: String(
                     localized: "community.mock.feed.3",
@@ -149,6 +145,7 @@ enum MockCommunityTabCatalog {
                 id: "cp_4",
                 authorDisplayName: String(localized: "community.mock.1.author", defaultValue: "阿乐", comment: "Author"),
                 authorUserID: "u_host_1",
+                authorAvatarURL: MockCommunityAvatarCatalog.authorAvatarURL(userID: "u_host_1"),
                 communityName: String(localized: "community.mock.hike", defaultValue: "爬山队", comment: "Community"),
                 content: String(
                     localized: "community.mock.feed.4",
@@ -164,6 +161,7 @@ enum MockCommunityTabCatalog {
                 id: "cp_5",
                 authorDisplayName: String(localized: "community.mock.2.author", defaultValue: "小雨", comment: "Author"),
                 authorUserID: "u_host_2",
+                authorAvatarURL: MockCommunityAvatarCatalog.authorAvatarURL(userID: "u_host_2"),
                 communityName: String(localized: "community.mock.run", defaultValue: "晨跑打卡", comment: "Community"),
                 content: String(
                     localized: "community.mock.feed.5",
@@ -180,23 +178,47 @@ enum MockCommunityTabCatalog {
     }
 
     static func feedItems() -> [CommunityFeedItem] {
-        var items: [CommunityFeedItem] = []
-        let posts = feedPosts()
-        let people = discoveredPeople()
-        for (index, post) in posts.enumerated() {
-            items.append(.post(post))
-            if (index + 1) % 5 == 0 {
-                items.append(.peopleDiscovery(people))
-            }
-        }
-        return items
+        feedPosts().map { .post($0) }
     }
 
-    static func tabExperience() -> CommunityTabExperience {
-        CommunityTabExperience(
-            joinedCommunities: joinedCommunities(),
+    static func tabExperience(joinedIDs: Set<String>? = nil) -> CommunityTabExperience {
+        let defaultJoined = Set(joinedCommunities().map(\.id))
+        let joinedSet = joinedIDs ?? defaultJoined
+        let joined = allCommunities().filter { joinedSet.contains($0.id) }
+        return CommunityTabExperience(
+            joinedCommunities: joined,
             feedItems: feedItems(),
             allCommunities: allCommunities()
+        )
+    }
+
+    /// Builds detail payload when a feed card id is not in `MockCommunityPostCatalog`.
+    static func postDetail(
+        for feedPost: CommunityFeedPost,
+        replies: [CommunityPostReply] = []
+    ) -> CommunityPostDetail {
+        let title: String
+        if feedPost.kind == .activityRecap, let linked = feedPost.linkedActivity {
+            let format = String(
+                localized: "community.activityShare.postTitle.format",
+                defaultValue: "「%@」局后随拍",
+                comment: "Activity share post title; %@ activity title"
+            )
+            title = String(format: format, locale: .current, linked.name)
+        } else {
+            title = String(feedPost.content.prefix(40))
+        }
+        return CommunityPostDetail(
+            id: feedPost.id,
+            title: title,
+            body: feedPost.content,
+            authorDisplayName: feedPost.authorDisplayName,
+            authorUserID: feedPost.authorUserID,
+            replyCount: max(feedPost.commentCount, replies.count),
+            replies: replies,
+            linkedActivity: feedPost.linkedActivity,
+            mediaItems: feedPost.galleryMedia,
+            tags: feedPost.tags
         )
     }
 }

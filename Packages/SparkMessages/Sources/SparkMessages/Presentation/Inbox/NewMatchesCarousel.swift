@@ -18,10 +18,10 @@ struct NewMatchesCarousel: View {
             )
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
-            .padding(.horizontal, 16)
+            .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
+                HStack(spacing: SparkLayoutMetrics.standardHorizontalPadding) {
                     ForEach(matches) { match in
                         Button {
                             onSelect(match)
@@ -31,10 +31,10 @@ struct NewMatchesCarousel: View {
                         .buttonStyle(.sparkPressable)
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, SparkLayoutMetrics.compactVerticalPadding)
         .listRowInsets(EdgeInsets())
         .listRowSeparator(.hidden)
     }
@@ -46,12 +46,25 @@ private struct NewMatchAvatar: View {
     var body: some View {
         VStack(spacing: 6) {
             ZStack {
-                Circle()
-                    .strokeBorder(Color.accentColor, lineWidth: 2)
-                    .frame(width: 64, height: 64)
-                avatar
-                    .frame(width: 56, height: 56)
-                    .clipShape(Circle())
+            Circle()
+                .strokeBorder(Color.accentColor, lineWidth: 2)
+                .frame(
+                    width: SparkLayoutMetrics.newMatchAvatarOuter,
+                    height: SparkLayoutMetrics.newMatchAvatarOuter
+                )
+            avatar
+                .frame(
+                    width: SparkLayoutMetrics.newMatchAvatarInner,
+                    height: SparkLayoutMetrics.newMatchAvatarInner
+                )
+                .clipShape(Circle())
+            Circle()
+                .fill(Color(.systemRed))
+                .frame(
+                    width: SparkLayoutMetrics.newMatchUnreadDotSize,
+                    height: SparkLayoutMetrics.newMatchUnreadDotSize
+                )
+                .offset(x: 24, y: -24)
             }
             Text(match.user.displayName)
                 .font(.caption2)

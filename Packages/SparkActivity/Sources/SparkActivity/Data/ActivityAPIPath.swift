@@ -54,6 +54,14 @@ enum ActivityAPIPath {
         "\(activities)/\(id)/waitlist/\(attendeeID)/promote"
     }
 
+    static func reviewAttendeeRSVP(id: String, attendeeID: String) -> String {
+        "\(activities)/\(id)/attendees/\(attendeeID)/review"
+    }
+
+    static func setAttendeeCoHost(id: String, attendeeID: String) -> String {
+        "\(activities)/\(id)/attendees/\(attendeeID)/cohost"
+    }
+
     static func cancel(id: String) -> String {
         "\(activities)/\(id)/cancel"
     }

@@ -80,5 +80,7 @@ struct CommunityReportSheet: View {
 }
 
 #Preview {
-    CommunityReportSheet { _, _ in }
+    CommunityPreviewTraits.matrix("Report sheet") {
+        CommunityReportSheet { _, _ in }
+    }
 }

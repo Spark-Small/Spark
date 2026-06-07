@@ -7,7 +7,8 @@ import Testing
 struct MessagesCoordinatorTests {
     @Test func coordinatorBuildsInboxAndConversationViewModels() {
         let coordinator = MessagesCoordinator(repository: MockMessagesRepository(unreadCount: 2))
-        let inbox = coordinator.makeInboxViewModel()
+        let store = PeerDisplayNameStore(storage: InMemoryPeerDisplayNameStore())
+        let inbox = coordinator.makeInboxViewModel(peerDisplayNameStore: store)
         #expect(inbox.loadState == .idle)
 
         let thread = MessageThread(
@@ -17,7 +18,10 @@ struct MessagesCoordinatorTests {
             lastActivityAt: .now,
             unreadCount: 1
         )
-        let conversation = coordinator.makeConversationViewModel(thread: thread)
+        let conversation = coordinator.makeConversationViewModel(
+            thread: thread,
+            peerDisplayNameStore: store
+        )
         #expect(conversation.thread.threadID == thread.threadID)
     }
 }

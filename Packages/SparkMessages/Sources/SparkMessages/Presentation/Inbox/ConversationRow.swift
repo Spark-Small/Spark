@@ -1,24 +1,42 @@
 // Module: SparkMessages — DM and activity group chat list rows.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct ConversationRow: View {
     let conversation: ConversationPreview
+    var isNewMatch: Bool = false
 
     var body: some View {
-        HStack(spacing: 14) {
-            leadingAvatar
-            VStack(alignment: .leading, spacing: 4) {
-                headerLine
-                previewLine
-                if conversation.kind == .groupChat, let activity = conversation.activity {
-                    groupMetaLine(activity: activity)
+        VStack(spacing: 0) {
+            HStack(alignment: .center, spacing: 14) {
+                leadingAvatar
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(conversation.displayName)
+                            .font(.body.weight(conversation.hasUnread ? .semibold : .regular))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        Text(conversation.lastMessageRelativeTime)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
+                    previewLine
                 }
             }
+            .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
+            .padding(.vertical, SparkLayoutMetrics.inboxRowVerticalPadding)
+            .frame(
+                minHeight: SparkLayoutMetrics.inboxConversationRowMinHeight,
+                alignment: .center
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(accessibilityLabel)
+
+            Divider()
         }
-        .padding(.vertical, 2)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabel)
     }
 
     @ViewBuilder
@@ -28,58 +46,31 @@ struct ConversationRow: View {
             DMAvatar(
                 partner: conversation.dmPartner,
                 displayName: conversation.displayName,
-                isOnline: conversation.isPartnerOnline ?? false
+                isOnline: conversation.isPartnerOnline ?? false,
+                unreadCount: conversation.unreadCount
             )
         case .groupChat:
-            GroupChatAvatar(activity: conversation.activity, displayName: conversation.displayName)
-        }
-    }
-
-    private var headerLine: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(conversation.displayName)
-                .font(.headline)
-                .foregroundStyle(conversation.hasUnread ? .primary : .primary)
-            Spacer(minLength: 8)
-            Text(conversation.lastMessageRelativeTime)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if conversation.hasUnread {
-                UnreadBadge(count: conversation.unreadCount)
-            }
+            GroupChatAvatar(
+                activity: conversation.activity,
+                displayName: conversation.displayName,
+                unreadCount: conversation.unreadCount
+            )
         }
     }
 
     private var previewLine: some View {
         Text(conversation.lastMessagePreview)
             .font(.subheadline)
-            .foregroundStyle(conversation.hasUnread ? .primary : .secondary)
+            .foregroundStyle(previewForegroundStyle)
+            .fontWeight(isNewMatch ? .semibold : .regular)
             .lineLimit(2)
     }
 
-    private func groupMetaLine(activity: InboxActivitySummary) -> some View {
-        HStack(spacing: 6) {
-            Text(activity.countdownText)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if let members = conversation.memberCount {
-                Text("·")
-                    .foregroundStyle(.tertiary)
-                Text(memberLabel(count: members))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+    private var previewForegroundStyle: Color {
+        if isNewMatch {
+            return Color.accentColor
         }
-        .lineLimit(1)
-    }
-
-    private func memberLabel(count: Int) -> String {
-        let format = String(
-            localized: "messages.group.members.format",
-            defaultValue: "%lld 人",
-            comment: "Member count"
-        )
-        return String(format: format, locale: .current, count)
+        return conversation.hasUnread ? .primary : .secondary
     }
 
     private var accessibilityLabel: String {
@@ -100,8 +91,10 @@ struct ConversationRow: View {
     List {
         if let dm = inbox.dmConversations.first {
             ConversationRow(conversation: dm)
+                .sparkFlatTabListRow()
         }
     }
+    .sparkFlatTabListStyle()
 }
 
 #Preview("Group conversation row") {
@@ -109,6 +102,22 @@ struct ConversationRow: View {
     List {
         if let group = inbox.activeGroupChats.first {
             ConversationRow(conversation: group)
+                .sparkFlatTabListRow()
         }
     }
+    .sparkFlatTabListStyle()
+}
+
+#Preview("New match row") {
+    let inbox = MockMessagesInboxCatalog.inbox(unreadCount: 1)
+    List {
+        if let match = inbox.unmessagedMatches.first {
+            ConversationRow(
+                conversation: MessagesInboxSorting.conversationPreview(from: match),
+                isNewMatch: true
+            )
+            .sparkFlatTabListRow()
+        }
+    }
+    .sparkFlatTabListStyle()
 }

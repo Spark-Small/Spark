@@ -4,8 +4,8 @@ import SparkActivity
 import SparkAuth
 import SparkCommunity
 import SparkCore
-import SparkLikes
 import SparkMessages
+import SparkNotifications
 import SparkPayments
 import SparkProfile
 import SparkSearch
@@ -19,9 +19,12 @@ public struct SparkMainTabView: View {
     let tabDependencies: SparkTabDependencies
     let paywallRouter: PaywallRouter
 
-    @State private var messagesViewModel: MessagesViewModel?
+    @State var messagesViewModel: MessagesViewModel?
+    @State private var peerDisplayNameStore: PeerDisplayNameStore?
     @State private var profileViewModel: ProfileViewModel?
     @State private var searchQuery: String = ""
+    @State private var showPushPermissionGuide = false
+    @State private var showDeepLinkFallback = false
 
     public init(
         router: AppRouter,
@@ -74,22 +77,30 @@ public struct SparkMainTabView: View {
                 router.selectedTab = .profile
                 router.pendingSearchQuery = nil
             }
-            syncPremiumEntitlementToBackend()
-        }
-        .onChange(of: entitlementManager.hasPremium) { _, _ in
-            syncPremiumEntitlementToBackend()
+            if !SparkPushPermissionPreferences.hasSeenGuide {
+                showPushPermissionGuide = true
+            }
         }
         .onChange(of: router.selectedTab) { _, tab in
-            guard tab == .messages else { return }
+            guard tab == .messages || tab == .activity else { return }
             Task { await messagesViewModel?.load() }
         }
-    }
-
-    private func syncPremiumEntitlementToBackend() {
-        guard SparkFeatureFlags.isPremiumInboundBlurEnabled else { return }
-        let isActive = entitlementManager.hasPremium
-        Task {
-            await tabDependencies.orchestrator.syncPremiumEntitlement(isActive: isActive)
+        .onChange(of: router.pendingUnrecognizedURL) { _, url in
+            showDeepLinkFallback = url != nil
+        }
+        .fullScreenCover(isPresented: $showPushPermissionGuide) {
+            PushNotificationPermissionGuideView(
+                onContinue: { showPushPermissionGuide = false },
+                onSkip: { showPushPermissionGuide = false }
+            )
+        }
+        .sheet(isPresented: $showDeepLinkFallback) {
+            if let url = router.pendingUnrecognizedURL {
+                UniversalLinkFallbackView(url: url) {
+                    router.clearPendingUnrecognizedURL()
+                    showDeepLinkFallback = false
+                }
+            }
         }
     }
 
@@ -112,6 +123,9 @@ public struct SparkMainTabView: View {
                 },
                 onOpenPaywall: {
                     paywallRouter.presentPaywall(placement: .activity)
+                },
+                onOpenPersonMessages: { userID in
+                    router.openConversation(threadID: SparkMainTabRouting.directThreadID(for: userID))
                 }
             )
             .tabItem { tabLabel(for: .profile) }
@@ -147,13 +161,27 @@ public struct SparkMainTabView: View {
     }
 
     var messagesTab: some View {
-        SparkMainTabMessagesSection(
-            messagesViewModel: messagesViewModel,
-            pendingConversationThreadID: $router.pendingConversationThreadID,
-            onOpenActivity: { router.openActivityDetail(activityID: $0) },
-            onOpenLikes: { router.selectedTab = .likes },
-            ensureMessagesViewModel: ensureMessagesViewModel
-        )
+        Group {
+            if let messagesViewModel, let peerDisplayNameStore {
+                SparkMainTabMessagesSection(
+                    peerDisplayNameStore: peerDisplayNameStore,
+                    messagesViewModel: messagesViewModel,
+                    pendingConversationThreadID: $router.pendingConversationThreadID,
+                    onOpenActivity: { router.openActivityDetail(activityID: $0) },
+                    onProposeMeetup: { peerName in
+                        router.openCreateActivity(draft: .matchCoffee(peerName: peerName))
+                    },
+                    onOpenActivityTab: { router.selectedTab = .activity },
+                    onScannedPayload: { payload in
+                        guard let url = URL(string: payload) else { return }
+                        router.handle(url: url, isAuthenticated: authViewModel.isAuthenticated)
+                    }
+                )
+            } else {
+                ProgressView()
+                    .task { ensureMessagesTabState() }
+            }
+        }
     }
 
     private var tabSelection: Binding<SparkTab> {
@@ -168,10 +196,19 @@ public struct SparkMainTabView: View {
         )
     }
 
-    private func ensureMessagesViewModel() {
-        if messagesViewModel == nil {
-            messagesViewModel = tabDependencies.messagesCoordinator.makeInboxViewModel()
+    private func ensureMessagesTabState() {
+        if peerDisplayNameStore == nil {
+            peerDisplayNameStore = PeerDisplayNameStore(storage: tabDependencies.peerDisplayNameStorage)
         }
+        if messagesViewModel == nil, let peerDisplayNameStore {
+            messagesViewModel = tabDependencies.messagesCoordinator.makeInboxViewModel(
+                peerDisplayNameStore: peerDisplayNameStore
+            )
+        }
+    }
+
+    private func ensureMessagesViewModel() {
+        ensureMessagesTabState()
     }
 
     private func ensureProfileViewModel() {

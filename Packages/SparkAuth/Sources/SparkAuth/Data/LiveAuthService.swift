@@ -66,6 +66,34 @@ public struct LiveAuthService: AuthService, Sendable {
         }
     }
 
+    public func signUpWithEmail(email: String, password: String, displayName: String) async throws -> AuthSession {
+        let body = try JSONEncoder().encode(
+            EmailSignUpRequestDTO(email: email, password: password, displayName: displayName)
+        )
+        do {
+            let dto: AuthResponseDTO = try await apiClient.post("/v1/auth/register", body: body)
+            let session = AuthSession(userID: UserID(dto.userId), accessToken: dto.accessToken)
+            try await persist(session)
+            return session
+        } catch let error as AppError {
+            if case .server(let code, _) = error, code == 409 {
+                throw AuthError.emailAlreadyRegistered
+            }
+            throw AuthError.underlying(map(error))
+        }
+    }
+
+    public func requestPasswordReset(email: String) async throws {
+        let body = try JSONEncoder().encode(PasswordResetRequestDTO(email: email))
+        do {
+            try await apiClient.post("/v1/auth/password-reset", body: body)
+        } catch let error as AuthError {
+            throw error
+        } catch {
+            throw AuthError.underlying(map(error))
+        }
+    }
+
     public func signOut() async throws {
         try await apiClient.post("/v1/auth/sign-out")
         try await sessionStore.clear()

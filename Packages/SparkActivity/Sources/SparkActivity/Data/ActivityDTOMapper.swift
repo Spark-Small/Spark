@@ -5,6 +5,7 @@ import Foundation
 enum ActivityDTOMapper {
     static func item(from dto: ActivityItemDTO) -> ActivityItem {
         let startsAt = dto.startsAt.flatMap(ActivityFormatting.date(from:))
+        let endsAt = dto.endsAt.flatMap(ActivityFormatting.date(from:))
         let rsvp = dto.rsvpStatus.flatMap(ActivityRSVPStatus.init(wireValue:)) ?? .invited
         let lifecycle = dto.lifecycleStatus.flatMap(ActivityLifecycleStatus.init(wireValue:)) ?? .scheduled
         return ActivityItem(
@@ -13,6 +14,7 @@ enum ActivityDTOMapper {
             summary: dto.summary,
             category: dto.category,
             startsAt: startsAt,
+            endsAt: endsAt,
             locationName: dto.locationName ?? "",
             hostDisplayName: dto.hostDisplayName ?? "",
             hostID: dto.hostID,
@@ -30,6 +32,8 @@ enum ActivityDTOMapper {
             return nil
         }
         let lifecycle = dto.lifecycleStatus.flatMap(ActivityLifecycleStatus.init(wireValue:)) ?? .scheduled
+        let endsAt = dto.endsAt.flatMap(ActivityFormatting.date(from:))
+        let recurrence = recurrence(from: dto.recurrence)
         return ActivityDetail(
             id: dto.id,
             title: dto.title,
@@ -37,10 +41,13 @@ enum ActivityDTOMapper {
             category: dto.category,
             description: dto.description,
             startsAt: startsAt,
+            endsAt: endsAt,
+            recurrence: recurrence,
             locationName: dto.locationName,
             hostDisplayName: dto.hostDisplayName,
             hostID: dto.hostID,
             hostBio: dto.hostBio,
+            hostTier: ActivityHostTier(wireValue: dto.hostTier),
             attendeeCount: dto.attendeeCount,
             waitlistedCount: dto.waitlistedCount ?? 0,
             capacity: dto.capacity,
@@ -48,6 +55,16 @@ enum ActivityDTOMapper {
             lifecycleStatus: lifecycle,
             attendees: (dto.attendees ?? []).map(attendee(from:)),
             conversationThreadID: dto.threadId
+        )
+    }
+
+    private static func recurrence(from dto: ActivityRecurrenceDTO?) -> ActivityRecurrenceRule? {
+        guard let dto else { return nil }
+        let until = dto.until.flatMap(ActivityFormatting.date(from:))
+        return ActivityRecurrenceRule(
+            wireFrequency: dto.frequency,
+            wireWeekday: dto.weekday,
+            until: until
         )
     }
 
@@ -66,7 +83,8 @@ enum ActivityDTOMapper {
             displayName: name,
             isHost: dto.isHost ?? false,
             rsvpStatus: rsvp,
-            isVerified: dto.verified ?? false
+            isVerified: dto.verified ?? false,
+            isCoHost: dto.isCoHost ?? false
         )
     }
 }

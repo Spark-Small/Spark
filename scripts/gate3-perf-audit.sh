@@ -42,26 +42,11 @@ else
   fail "APIClient decode not offloaded to background"
 fi
 
-echo "==> P1: bounded discover image cache"
-if rg -n 'private var storage: \[URL: UIImage\]|UIImage\(data: data\)' \
-  Packages/SparkLikes/Sources/SparkLikes/Data/DiscoverMediaImageCache.swift >/dev/null 2>&1; then
-  fail "DiscoverMediaImageCache still uses unbounded dict or full-res decode"
-else
-  pass "DiscoverMediaImageCache delegates to bounded RemoteImageCache"
-fi
-
+echo "==> P1: bounded remote image cache"
 if rg -n 'NSCache|RemoteImageCache' Packages/SparkNetworking/Sources/SparkNetworking/RemoteImageCache.swift >/dev/null 2>&1; then
   pass "RemoteImageCache uses NSCache"
 else
   fail "RemoteImageCache missing"
-fi
-
-echo "==> P1: inbound sort cached (not computed in body)"
-if rg -n 'var sortedInboundItems: \[InboundLikeItem\] \{' \
-  Packages/SparkLikes/Sources/SparkLikes/Presentation/LikesFeedViewModel.swift >/dev/null 2>&1; then
-  fail "sortedInboundItems is still a computed property"
-else
-  pass "sortedInboundItems is stored state"
 fi
 
 echo "==> P1: Presentation uses cached remote images (no AsyncImage)"
@@ -116,7 +101,7 @@ echo "Failures: $FAIL | Warnings: $WARN"
 echo
 echo "Instruments checklist (manual, required before release):"
 echo "  - App Launch: cold start + time to first interactive"
-echo "  - SwiftUI + Animation Hitches: Likes feed + Community feed scroll"
+echo "  - SwiftUI + Animation Hitches: Community + Messages feed scroll"
 echo "  - Allocations: 5 min feed scroll, memory plateau < 150MB"
 echo "  - Leaks: 10 min mixed navigation"
 

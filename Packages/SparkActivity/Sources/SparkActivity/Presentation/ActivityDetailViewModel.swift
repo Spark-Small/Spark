@@ -36,6 +36,8 @@ public final class ActivityDetailViewModel {
     private let reportActivity: any ReportActivityUseCaseProtocol
     private let joinWaitlist: any JoinActivityWaitlistUseCaseProtocol
     private let promoteFromWaitlist: any PromoteFromWaitlistUseCaseProtocol
+    private let reviewAttendeeRSVP: any ReviewAttendeeRSVPUseCaseProtocol
+    private let setAttendeeCoHost: any SetAttendeeCoHostUseCaseProtocol
     private let announceActivity: any AnnounceActivityUseCaseProtocol
     private let submitHostFeedbackUseCase: any SubmitHostFeedbackUseCaseProtocol
     private let fetchHostActivities: any FetchActivitiesByHostUseCaseProtocol
@@ -54,6 +56,8 @@ public final class ActivityDetailViewModel {
         reportActivity: any ReportActivityUseCaseProtocol,
         joinWaitlist: any JoinActivityWaitlistUseCaseProtocol,
         promoteFromWaitlist: any PromoteFromWaitlistUseCaseProtocol,
+        reviewAttendeeRSVP: any ReviewAttendeeRSVPUseCaseProtocol,
+        setAttendeeCoHost: any SetAttendeeCoHostUseCaseProtocol,
         announceActivity: any AnnounceActivityUseCaseProtocol,
         submitHostFeedback: any SubmitHostFeedbackUseCaseProtocol,
         fetchHostActivities: any FetchActivitiesByHostUseCaseProtocol,
@@ -72,6 +76,8 @@ public final class ActivityDetailViewModel {
         self.reportActivity = reportActivity
         self.joinWaitlist = joinWaitlist
         self.promoteFromWaitlist = promoteFromWaitlist
+        self.reviewAttendeeRSVP = reviewAttendeeRSVP
+        self.setAttendeeCoHost = setAttendeeCoHost
         self.announceActivity = announceActivity
         submitHostFeedbackUseCase = submitHostFeedback
         self.fetchHostActivities = fetchHostActivities
@@ -97,6 +103,8 @@ public final class ActivityDetailViewModel {
             reportActivity: ReportActivityUseCase(repository: repository),
             joinWaitlist: JoinActivityWaitlistUseCase(repository: repository),
             promoteFromWaitlist: PromoteFromWaitlistUseCase(repository: repository),
+            reviewAttendeeRSVP: ReviewAttendeeRSVPUseCase(repository: repository),
+            setAttendeeCoHost: SetAttendeeCoHostUseCase(repository: repository),
             announceActivity: AnnounceActivityUseCase(repository: repository),
             submitHostFeedback: SubmitHostFeedbackUseCase(repository: repository),
             fetchHostActivities: FetchActivitiesByHostUseCase(repository: repository),
@@ -261,6 +269,74 @@ public final class ActivityDetailViewModel {
                 defaultValue: "已将该候补提升为参加。",
                 comment: "Promote waitlist"
             )
+            await onActivityUpdated?(updated)
+        } catch is CancellationError {
+            return
+        } catch {
+            hostFeedbackMessage = error.localizedDescription
+        }
+    }
+
+    public func approveAttendee(_ attendeeID: String) async {
+        await reviewAttendee(attendeeID, approve: true)
+    }
+
+    public func denyAttendee(_ attendeeID: String) async {
+        await reviewAttendee(attendeeID, approve: false)
+    }
+
+    public func setCoHost(_ attendeeID: String, isCoHost: Bool) async {
+        isPerformingHostAction = true
+        hostFeedbackMessage = nil
+        defer { isPerformingHostAction = false }
+        do {
+            let updated = try await setAttendeeCoHost(
+                activityID: activityID,
+                attendeeID: attendeeID,
+                isCoHost: isCoHost
+            )
+            activity = updated
+            hostFeedbackMessage = isCoHost
+                ? String(
+                    localized: "activity.host.cohost.added",
+                    defaultValue: "已设为协办。",
+                    comment: "Co-host added"
+                )
+                : String(
+                    localized: "activity.host.cohost.removed",
+                    defaultValue: "已取消协办。",
+                    comment: "Co-host removed"
+                )
+            await onActivityUpdated?(updated)
+        } catch is CancellationError {
+            return
+        } catch {
+            hostFeedbackMessage = error.localizedDescription
+        }
+    }
+
+    private func reviewAttendee(_ attendeeID: String, approve: Bool) async {
+        isPerformingHostAction = true
+        hostFeedbackMessage = nil
+        defer { isPerformingHostAction = false }
+        do {
+            let updated = try await reviewAttendeeRSVP(
+                activityID: activityID,
+                attendeeID: attendeeID,
+                approve: approve
+            )
+            activity = updated
+            hostFeedbackMessage = approve
+                ? String(
+                    localized: "activity.host.approved",
+                    defaultValue: "已通过该报名。",
+                    comment: "Approve RSVP"
+                )
+                : String(
+                    localized: "activity.host.denied",
+                    defaultValue: "已拒绝该报名。",
+                    comment: "Deny RSVP"
+                )
             await onActivityUpdated?(updated)
         } catch is CancellationError {
             return

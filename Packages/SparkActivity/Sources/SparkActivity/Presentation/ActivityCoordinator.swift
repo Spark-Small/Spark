@@ -1,6 +1,7 @@
 // Module: SparkActivity — ViewModel factory; keeps Repository out of SwiftUI Views.
 
 import Foundation
+import SparkCore
 
 public struct ActivityCoordinator: Sendable {
     private let feedRepository: any ActivityFeedRepository
@@ -39,6 +40,8 @@ public struct ActivityCoordinator: Sendable {
             reportActivity: ReportActivityUseCase(repository: feedRepository),
             joinWaitlist: JoinActivityWaitlistUseCase(repository: feedRepository),
             promoteFromWaitlist: PromoteFromWaitlistUseCase(repository: feedRepository),
+            reviewAttendeeRSVP: ReviewAttendeeRSVPUseCase(repository: feedRepository),
+            setAttendeeCoHost: SetAttendeeCoHostUseCase(repository: feedRepository),
             announceActivity: AnnounceActivityUseCase(repository: feedRepository),
             submitHostFeedback: SubmitHostFeedbackUseCase(repository: feedRepository),
             fetchHostActivities: FetchActivitiesByHostUseCase(repository: feedRepository),
@@ -85,9 +88,14 @@ public struct ActivityCoordinator: Sendable {
         return (item.id, item.title)
     }
 
-    public func fetchActivityRecap(activityID: String) async -> (title: String, scheduleLine: String)? {
+    public func fetchActivityShareContext(activityID: String) async -> ActivityShareContext? {
         guard let detail = try? await feedRepository.fetchActivity(id: activityID) else { return nil }
-        return (detail.title, detail.scheduleLine)
+        return ActivityShareContext(
+            activityID: detail.id,
+            title: detail.title,
+            scheduleLine: detail.scheduleLine,
+            mediaGallery: ActivityShareContext.mockMediaGallery(activityID: detail.id)
+        )
     }
 
     public func syncReminders(for detail: ActivityDetail) async {

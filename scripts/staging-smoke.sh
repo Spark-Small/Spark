@@ -37,35 +37,12 @@ FILTERED_COUNT=$(curl -sf -H "$AUTH" \
   && pass "browse week filter count=$FILTERED_COUNT (total=$BROWSE_COUNT)" \
   || fail "browse week filter count=$FILTERED_COUNT (total=$BROWSE_COUNT)"
 
-echo "== inbound is_visible =="
-curl -sf -H "$AUTH" "$BASE_URL/v1/likes/inbound" \
-  | python3 -c 'import sys,json; d=json.load(sys.stdin); items=d.get("items",[]); assert len(items)>0; assert items[0].get("is_visible") is False; print("is_visible=false ok")'
-pass "inbound blur"
-
-echo "== daily-stats =="
-curl -sf -H "$AUTH" "$BASE_URL/v1/likes/daily-stats" \
-  | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d.get("daily_pool_size")==50; assert "spark_charges_remaining" in d; print("daily-stats ok")'
-pass "daily-stats"
-
-echo "== like body (spark + opener) =="
-curl -sf -X POST -H "$AUTH" -H 'Content-Type: application/json' \
-  -d '{"intensity":"spark","opener":"smoke test opener","liked_question_id":"sq_1"}' \
-  "$BASE_URL/v1/likes/u_like_3/like" \
-  | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d.get("outcome") in ("pending","matched"); print("like body ok")'
-pass "like body"
-
-echo "== premium sync + inbound unlock =="
+echo "== user profile =="
 curl -sf -X PATCH -H "$AUTH" -H 'Content-Type: application/json' \
-  -d '{"is_premium":true}' \
-  "$BASE_URL/v1/likes/viewer-profile" >/dev/null
-curl -sf -H "$AUTH" "$BASE_URL/v1/likes/inbound" \
-  | python3 -c 'import sys,json; d=json.load(sys.stdin); items=d.get("items",[]); assert len(items)>0; assert items[0].get("is_visible") is True; print("is_visible=true ok")'
-curl -sf -X PATCH -H "$AUTH" -H 'Content-Type: application/json' \
-  -d '{"is_premium":false}' \
-  "$BASE_URL/v1/likes/viewer-profile" >/dev/null
-curl -sf -H "$AUTH" "$BASE_URL/v1/likes/inbound" \
-  | python3 -c 'import sys,json; d=json.load(sys.stdin); items=d.get("items",[]); assert len(items)>0; assert items[0].get("is_visible") is False; print("refund blur ok")'
-pass "premium sync refund blur"
+  -d '{"display_name":"Staging User"}' \
+  "$BASE_URL/v1/users/profile" \
+  | python3 -c 'import sys,json; p=json.load(sys.stdin); assert p.get("display_name"); print("profile patch ok")'
+pass "user profile"
 
 echo "== community feed =="
 FEED_ITEMS=$(curl -sf -H "$AUTH" "$BASE_URL/v1/community/feed" \
@@ -77,9 +54,26 @@ curl -sf -H "$AUTH" "$BASE_URL/v1/community/communities/cm_hike" \
   | python3 -c 'import sys,json; c=json.load(sys.stdin)["community"]; assert c["id"]=="cm_hike"; print("community ok")'
 pass "community detail cm_hike"
 
+echo "== auth register + password-reset =="
+SMOKE_EMAIL="smoke_$(date +%s)@staging.test"
+curl -sf -X POST "$BASE_URL/v1/auth/register" -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$SMOKE_EMAIL\",\"password\":\"staging123\",\"display_name\":\"Smoke\"}" \
+  | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d.get("access_token"); print("register ok")'
+pass "auth register"
+curl -sf -o /dev/null -w "%{http_code}" -X POST -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$SMOKE_EMAIL\"}" \
+  "$BASE_URL/v1/auth/password-reset" | grep -q 204 && pass "password-reset" || fail "password-reset"
+
+echo "== community media stage =="
+MEDIA_URL=$(curl -sf -X POST -H "$AUTH" -H 'Content-Type: application/json' \
+  -d '{"kind":"image","content_sha256":"smoke123","content_type":"image/jpeg"}' \
+  "$BASE_URL/v1/community/media/stage" \
+  | python3 -c 'import sys,json; print(json.load(sys.stdin)["url"])')
+[[ -n "$MEDIA_URL" ]] && pass "media stage url=$MEDIA_URL" || fail "media stage"
+
 echo "== community post + reply =="
 POST_ID=$(curl -sf -X POST -H "$AUTH" -H 'Content-Type: application/json' \
-  -d '{"title":"Smoke post","body":"Staging smoke body"}' \
+  -d "{\"title\":\"Smoke post\",\"body\":\"Staging smoke body\",\"media\":[{\"id\":\"img_smoke\",\"url\":\"$MEDIA_URL\",\"kind\":\"image\"}]}" \
   "$BASE_URL/v1/community/posts" \
   | python3 -c 'import sys,json; print(json.load(sys.stdin)["post"]["id"])')
 curl -sf -X POST -H "$AUTH" -H 'Content-Type: application/json' \
@@ -88,6 +82,9 @@ curl -sf -X POST -H "$AUTH" -H 'Content-Type: application/json' \
 REPLIES=$(curl -sf -H "$AUTH" "$BASE_URL/v1/community/posts/$POST_ID" \
   | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["post"].get("replies",[])))')
 [[ "$REPLIES" -ge 1 ]] && pass "replies=$REPLIES on $POST_ID" || fail "replies missing"
+MEDIA_COUNT=$(curl -sf -H "$AUTH" "$BASE_URL/v1/community/posts/$POST_ID" \
+  | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["post"].get("media",[])))')
+[[ "$MEDIA_COUNT" -ge 1 ]] && pass "post media=$MEDIA_COUNT" || fail "post media missing"
 
 echo "== trust profile =="
 curl -sf -H "$AUTH" "$BASE_URL/v1/trust/profile" \
@@ -133,7 +130,7 @@ pass "inbox action dismiss"
 
 echo "== notifications stub =="
 curl -sf -X POST -H "$AUTH" -H 'Content-Type: application/json' \
-  -d '{"user_id":"u_staging_1","type":"likes.inbound","payload":{}}' \
+  -d '{"user_id":"u_staging_1","type":"messages.new","payload":{"thread_id":"th_dm_u_like_1"}}' \
   "$BASE_URL/v1/notifications/send" \
   | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d.get("queued") is True; print("queued ok")'
 pass "notifications"

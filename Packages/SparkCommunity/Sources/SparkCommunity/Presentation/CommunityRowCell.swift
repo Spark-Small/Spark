@@ -1,4 +1,4 @@
-// Module: SparkCommunity — Community list row in tab footer.
+// Module: SparkCommunity — Community list row (groups segment · flat list).
 
 import SparkDesignSystem
 import SwiftUI
@@ -9,15 +9,18 @@ struct CommunityRowCell: View {
     var body: some View {
         HStack(spacing: 12) {
             communityAvatar
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: SparkLayoutMetrics.communityRowMetaLineSpacing) {
                 Text(community.name)
                     .font(.body.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
                 Text(statsLine)
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
                 if !community.bio.isEmpty {
                     Text(community.bio)
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
@@ -29,9 +32,13 @@ struct CommunityRowCell: View {
                     .frame(width: 8, height: 8)
                     .accessibilityHidden(true)
             }
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
+        .padding(.vertical, SparkLayoutMetrics.communityRowVerticalPadding)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
     }
@@ -77,43 +84,56 @@ struct CommunityRowCell: View {
 
     @ViewBuilder
     private var communityAvatar: some View {
-        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
-        if let url = community.coverURL {
-            SparkCachedRemoteImage(
-                url: url,
-                maxPixelSize: 768,
-                content: { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                        .accessibilityHidden(true)
-                },
-                placeholder: {
-                    Color.clear
-                }
-            )
-            .frame(width: 44, height: 44)
-            .sparkGlassSurface(shape)
-            .clipShape(shape)
-        } else {
-            Color.clear
-                .frame(width: 44, height: 44)
-                .sparkGlassSurface(shape)
+        let size = SparkLayoutMetrics.communityListAvatarSize
+        Group {
+            if let url = community.coverURL {
+                SparkCachedRemoteImage(
+                    url: url,
+                    maxPixelSize: 144,
+                    content: { image in
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .accessibilityHidden(true)
+                    },
+                    placeholder: {
+                        avatarPlaceholder
+                    }
+                )
+            } else {
+                avatarPlaceholder
+            }
         }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+    }
+
+    private var avatarPlaceholder: some View {
+        Color(.tertiarySystemFill)
+            .overlay {
+                Image(systemName: "person.2.fill")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
     }
 }
 
 #Preview {
-    CommunityRowCell(
-        community: CommunitySummary(
-            id: "cm_preview",
-            name: "徒步爱好者",
-            coverURL: nil,
-            memberCount: 128,
-            activityCount: 12,
-            hasNewPosts: true,
-            bio: "周末一起爬山"
-        )
-    )
-    .padding()
+    CommunityPreviewTraits.matrix("Community row") {
+        VStack(spacing: 0) {
+            CommunityRowCell(
+                community: CommunitySummary(
+                    id: "cm_preview",
+                    name: String(localized: "community.mock.hike", defaultValue: "爬山队", comment: "Community"),
+                    coverURL: nil,
+                    memberCount: 128,
+                    activityCount: 12,
+                    hasNewPosts: true,
+                    bio: String(localized: "community.mock.hike.bio", defaultValue: "一起去爬山的人都不会太差", comment: "Bio")
+                )
+            )
+            Divider()
+        }
+        .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
+    }
 }

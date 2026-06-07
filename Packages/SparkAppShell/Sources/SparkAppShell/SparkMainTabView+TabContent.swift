@@ -3,7 +3,6 @@
 import SparkActivity
 import SparkCommunity
 import SparkCore
-import SparkLikes
 import SparkMessages
 import SparkPayments
 import SparkProfile
@@ -12,75 +11,20 @@ import SwiftUI
 extension SparkMainTabView {
     @ViewBuilder
     var tabContent: some View {
-        LikesRootView(
-            coordinator: tabDependencies.likesCoordinator,
-            pendingInbound: $router.pendingLikesInbound,
-            onOpenMatchConversation: { threadID, peerDisplayName, initialMessage in
-                let thread = await tabDependencies.orchestrator.openMatchConversation(
-                    threadID: threadID,
-                    peerDisplayName: peerDisplayName,
-                    initialMessage: initialMessage
-                )
-                await MainActor.run {
-                    router.openConversation(threadID: thread)
-                }
-            },
-            onOpenSharedActivity: { activityID in
-                Task { @MainActor in
-                    router.openActivityDetail(activityID: activityID)
-                }
-            },
-            fetchRecommendedActivity: {
-                await tabDependencies.orchestrator.fetchRecommendedActivity()
-            },
-            onCreateMatchCoffee: { peerName in
-                IntegrationTelemetry.matchToActivityIntent(source: "match_coffee")
-                router.openCreateActivity(draft: CreateActivityDraft.matchCoffee(peerName: peerName))
-            },
-            isInboundItemBlurred: { item in
-                SparkFeatureFlags.isPremiumInboundBlurEnabled
-                    && SparkFeatureFlags.isPremiumPaywallEnabled
-                    && !entitlementManager.canAccess(.inboundLikes)
-                    && !item.isVisible
-            },
-            onInboundPaywall: {
-                paywallRouter.presentPaywall(placement: .likes)
-            },
-            onSparkPaywall: {
-                paywallRouter.presentPaywall(placement: .likes)
-            }
-        )
-        .tabItem { tabLabel(for: .likes) }
-        .tag(SparkTab.likes)
-
         CommunityRootView(
             coordinator: tabDependencies.communityCoordinator,
             pendingCommunityPostID: $router.pendingCommunityPostID,
             pendingRecapActivityID: $router.pendingCommunityRecapActivityID,
-            fetchActivityRecap: { activityID in
-                await tabDependencies.orchestrator.fetchActivityRecap(activityID: activityID)
+            fetchActivityShareContext: { activityID in
+                await tabDependencies.orchestrator.fetchActivityShareContext(activityID: activityID)
             },
-            onOpenSearch: {
-                router.selectedTab = .profile
-            },
-            onOpenLikesDiscover: {
-                router.selectedTab = .likes
-            },
-            onLikePerson: { userID in
-                Task {
-                    await tabDependencies.orchestrator.submitCommunityLike(userID: userID)
-                }
-            },
+            onLikePerson: { _ in },
             onOpenLinkedActivity: { activityID in
                 router.openActivityDetail(activityID: activityID)
             }
         )
         .tabItem { tabLabel(for: .community) }
         .tag(SparkTab.community)
-
-        messagesTabWithBadge
-            .tabItem { tabLabel(for: .messages) }
-            .tag(SparkTab.messages)
 
         ActivityRootView(
             coordinator: tabDependencies.activityCoordinator,
@@ -113,10 +57,47 @@ extension SparkMainTabView {
             },
             onCommunityRecap: { detail in
                 router.openCommunityRecap(activityID: detail.id)
+            },
+            inviteCandidates: {
+                ActivityInviteCandidateBuilder.from(messagesViewModel: messagesViewModel)
+            },
+            actionItemsInset: { filter in
+                guard filter.showsInboxActionItems,
+                      let messagesViewModel,
+                      !messagesViewModel.actionItems.isEmpty
+                else {
+                    return AnyView(EmptyView())
+                }
+
+                return AnyView(
+                    InboxActionItemsListSection(
+                        items: messagesViewModel.actionItems,
+                        onInviteAccept: { invite in
+                            Task { await messagesViewModel.handleInviteResponse(invite: invite, accept: true) }
+                        },
+                        onInviteDecline: { invite in
+                            Task { await messagesViewModel.handleInviteResponse(invite: invite, accept: false) }
+                        },
+                        onOpenActivity: { activityID in
+                            router.openActivityDetail(activityID: activityID)
+                        },
+                        onDismiss: { item in
+                            Task { await messagesViewModel.dismissActionItem(id: item.id) }
+                        }
+                    )
+                )
+            },
+            requestActivityIDs: { filter in
+                guard filter == .pendingReply, let messagesViewModel else { return [] }
+                return messagesViewModel.actionItems.coveredActivityIDs
             }
         )
         .tabItem { tabLabel(for: .activity) }
         .tag(SparkTab.activity)
+
+        messagesTabWithBadge
+            .tabItem { tabLabel(for: .messages) }
+            .tag(SparkTab.messages)
 
         profileTab
     }
