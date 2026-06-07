@@ -4,7 +4,7 @@ SHELL := /bin/bash
 SPARK_DESTINATION ?= platform=iOS Simulator,name=iPhone 17,OS=26.5
 export SPARK_DESTINATION
 
-.PHONY: help check lint lint-hig test test-packages build ci bootstrap
+.PHONY: help check lint lint-hig test test-packages build ci bootstrap deploy-spark-api staging-smoke
 
 help:
 	@echo "Spark Makefile targets:"
@@ -15,6 +15,8 @@ help:
 	@echo "  make test          - SPM tests + Xcode SparkTests"
 	@echo "  make build         - xcodebuild Spark app"
 	@echo "  make ci            - lint + test-packages + build + test-app"
+	@echo "  make deploy-spark-api - deploy CloudBase spark-api + staging smoke"
+	@echo "  make staging-smoke - HTTP smoke against Staging (no deploy)"
 	@echo "  make bootstrap     - repo scaffold script"
 
 check:
@@ -43,3 +45,10 @@ ci:
 bootstrap:
 	chmod +x scripts/spark-init-repo.sh
 	./scripts/spark-init-repo.sh
+
+deploy-spark-api:
+	chmod +x scripts/deploy-spark-api.sh
+	./scripts/deploy-spark-api.sh
+
+staging-smoke:
+	./scripts/staging-smoke.sh

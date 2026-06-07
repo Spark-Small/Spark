@@ -1,0 +1,32 @@
+name: Deploy spark-api
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-spark-api-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: cloudbase-spark-api
+    runs-on: ubuntu-latest
+    if: ${{ secrets.TCB_SECRET_ID != '' && secrets.TCB_SECRET_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install CloudBase CLI
+        run: npm install -g @cloudbase/cli@latest
+
+      - name: Login
+        env:
+          TCB_SECRET_ID: ${{ secrets.TCB_SECRET_ID }}
+          TCB_SECRET_KEY: ${{ secrets.TCB_SECRET_KEY }}
+        run: cloudbase login --apiKeyId "$TCB_SECRET_ID" --apiKey "$TCB_SECRET_KEY"
+
+      - name: Deploy spark-api
+        run: ./scripts/deploy-spark-api.sh

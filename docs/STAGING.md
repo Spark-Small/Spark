@@ -65,16 +65,22 @@ After login on a Staging build:
 | 20 | Inbound blur (`is_visible: false` for non-premium) | `GET /v1/likes/inbound` |
 | 21 | Device token + push stub | `POST /v1/devices` · `POST /v1/notifications/send` (`202` without `APNS_*`) |
 | 22 | Community post report | `POST /v1/community/posts/{id}/report` → `report_id` |
+| 23 | Trust profile (我的 Tab) | `GET /v1/trust/profile` |
+| 24 | Activity recap post | `POST /v1/community/posts` with `kind: activity_recap`, `activity_id` |
 
 APNs 真机：云函数配置 `APNS_*` 后 like/match/消息/活动/回复会自动触发 Push（MODULE-B.4）。见 [ADR-0005](adr/0005-apns-http2-delivery.md)。
 
 ```bash
-# Full HTTP smoke (auth + browse + inbound + community + devices)
+# Deploy latest spark-api, then full HTTP smoke (auth + browse + trust + recap + …)
+./scripts/deploy-spark-api.sh
+
+# Smoke only (already deployed)
 ./scripts/staging-smoke.sh
 
-# Quick browse smoke (after login token)
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "$SPARK_API_BASE_URL/v1/activities/browse"
+# Local API + smoke (no CloudBase credentials)
+cd cloudfunctions/spark-api && SPARK_PERSISTENCE=memory PORT=3000 node index.js
+# other terminal:
+SPARK_API_BASE_URL=http://127.0.0.1:3000 ./scripts/staging-smoke.sh
 ```
 
 Record failures with HTTP status + `error.code` from the contract error body.

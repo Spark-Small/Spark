@@ -1,0 +1,13 @@
+{
+  "envId": "ais-d1gab0emob99361a0",
+  "functionRoot": "./cloudfunctions",
+  "functions": [
+    {
+      "name": "spark-api",
+      "type": "HTTP",
+      "runtime": "Nodejs18.15",
+      "handler": "index.main",
+      "ignore": ["node_modules/.cache/**", "*.test.js"]
+    }
+  ]
+}
