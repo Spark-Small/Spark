@@ -2,6 +2,8 @@
 
 import Foundation
 import Observation
+import SparkActivity
+import SparkCore
 import SparkPayments
 
 @MainActor
@@ -18,6 +20,8 @@ public final class AppRouter {
     public var pendingCommunityRecapActivityID: String?
     /// Activity to push on the Activity tab (consumed by `ActivityRootView`).
     public var pendingActivityID: String?
+    /// Pre-filled create form after match → coffee activity (Nexus W3).
+    public var pendingCreateActivityDraft: CreateActivityDraft?
     public var pendingLikesInbound = false
     public var globalSheet: GlobalPresentation?
     public var globalFullScreenCover: GlobalPresentation?
@@ -53,7 +57,7 @@ public final class AppRouter {
         switch route {
         case let .tab(tab, query):
             selectedTab = tab
-            if tab == .search, let query, !query.isEmpty {
+            if tab == .profile, let query, !query.isEmpty {
                 pendingSearchQuery = query
             }
         case let .paywall(placement):
@@ -65,6 +69,7 @@ public final class AppRouter {
         case let .communityRecap(activityID):
             openCommunityRecap(activityID: activityID)
         case let .activityDetail(activityID):
+            IntegrationTelemetry.inviteLinkOpened(activityID: activityID)
             openActivityDetail(activityID: activityID)
         case .likesInbound:
             openLikesInbound()
@@ -78,14 +83,18 @@ public final class AppRouter {
 
     /// Opens activity detail on the Activity tab (universal links, search, inbox).
     public func openActivityDetail(activityID: String, preferredTab: SparkTab = .activity) {
-        selectedTab = preferredTab
-        switch preferredTab {
-        case .activity:
-            pendingActivityID = activityID
-        case .likes, .community, .messages, .search:
-            pendingActivityID = activityID
-            selectedTab = .activity
-        }
+        selectedTab = preferredTab == .activity ? preferredTab : .activity
+        pendingActivityID = activityID
+    }
+
+    /// Opens create-activity sheet on the Activity tab with a pre-filled draft.
+    public func openCreateActivity(draft: CreateActivityDraft) {
+        selectedTab = .activity
+        pendingCreateActivityDraft = draft
+    }
+
+    public func clearPendingCreateActivity() {
+        pendingCreateActivityDraft = nil
     }
 
     /// Switches to Community and queues a post push once the feed is loaded.
@@ -150,6 +159,7 @@ public final class AppRouter {
         pendingCommunityPostID = nil
         pendingCommunityRecapActivityID = nil
         pendingActivityID = nil
+        pendingCreateActivityDraft = nil
         pendingLikesInbound = false
         dismissGlobalPresentation()
     }

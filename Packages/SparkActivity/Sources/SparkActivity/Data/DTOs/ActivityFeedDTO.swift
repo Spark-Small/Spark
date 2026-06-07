@@ -4,6 +4,12 @@ import Foundation
 
 struct ActivityFeedResponseDTO: Decodable, Sendable {
     let items: [ActivityItemDTO]
+    let nextCursor: String?
+
+    enum CodingKeys: String, CodingKey {
+        case items
+        case nextCursor = "next_cursor"
+    }
 }
 
 struct ActivityBrowseResponseDTO: Decodable, Sendable {

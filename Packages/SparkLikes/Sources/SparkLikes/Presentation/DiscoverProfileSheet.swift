@@ -1,6 +1,7 @@
 // Module: SparkLikes — Half-sheet profile detail (swipe-up / tap bio).
 
 import SparkCore
+import SparkTrust
 import SwiftUI
 
 struct DiscoverProfileSheet: View {
@@ -15,6 +16,20 @@ struct DiscoverProfileSheet: View {
         NavigationStack {
             List {
                 Section {
+                    HStack {
+                        if let trustScore = card.trustScore {
+                            TrustBadgeView(
+                                score: trustScore,
+                                hasLiveness: card.hasLivenessVerification
+                            )
+                        }
+                        Spacer()
+                        if card.activityAttendanceCount > 0 {
+                            Text(attendanceLine(count: card.activityAttendanceCount))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                     if !card.bio.isEmpty {
                         Text(card.bio)
                     }
@@ -33,6 +48,14 @@ struct DiscoverProfileSheet: View {
                             Label(activity, systemImage: "calendar")
                         }
                     }
+                } header: {
+                    Text(
+                        String(
+                            localized: "likes.profile.trust.header",
+                            defaultValue: "信任档案",
+                            comment: "Trust profile header"
+                        )
+                    )
                 }
 
                 if !card.interestTags.isEmpty {
@@ -93,6 +116,15 @@ struct DiscoverProfileSheet: View {
         }
         .presentationDetents([.medium, .large])
     }
+
+    private func attendanceLine(count: Int) -> String {
+        let format = String(
+            localized: "likes.profile.attendance.format",
+            defaultValue: "参加过 %lld 场活动",
+            comment: "Activity attendance count"
+        )
+        return String(format: format, locale: .current, count)
+    }
 }
 
 private struct FlowTagsView: View {
@@ -122,7 +154,10 @@ private struct FlowTagsView: View {
             bio: "Bio",
             gender: .female,
             media: DiscoverMedia(kind: .image, url: URL(string: "https://example.com/a.jpg")!),
-            interestTags: ["咖啡", "徒步"]
+            interestTags: ["咖啡", "徒步"],
+            trustScore: 65,
+            hasLivenessVerification: true,
+            activityAttendanceCount: 3
         ),
         onReport: {}
     )

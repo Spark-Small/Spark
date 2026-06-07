@@ -43,7 +43,7 @@ public struct ActivityBrowseListView: View {
                 ActivityDetailView(
                     activityID: item.id,
                     repository: feedRepository,
-                    context: .externalEntry,
+                    context: .discover,
                     blockedHostsStore: blockedHostsStore,
                     onRSVPCompleted: onRSVPCompleted,
                     onOpenGroupChat: onOpenGroupChat,

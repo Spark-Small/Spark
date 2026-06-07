@@ -10,6 +10,9 @@ struct MatchSheetView: View {
     let onSendMessage: (String?) -> Void
     let onDismiss: () -> Void
     var onOpenSharedActivity: ((String) -> Void)?
+    var recommendedActivityTitle: String?
+    var onOpenRecommendedActivity: (() -> Void)?
+    var onCreateMatchCoffee: (() -> Void)?
 
     @State private var selectedIcebreaker: String?
 
@@ -83,6 +86,38 @@ struct MatchSheetView: View {
                 .buttonStyle(.bordered)
             }
 
+            if peerCard?.sharedActivityID == nil,
+               let recommendedActivityTitle,
+               let onOpenRecommendedActivity {
+                Button(
+                    String(
+                        localized: "likes.match.openRecommendedActivity",
+                        defaultValue: "看看本周推荐活动",
+                        comment: "Open recommended activity"
+                    )
+                ) {
+                    onOpenRecommendedActivity()
+                }
+                .buttonStyle(.bordered)
+                Text(recommendedActivityHint(for: recommendedActivityTitle))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            if let onCreateMatchCoffee {
+                Button(
+                    String(
+                        localized: "likes.match.createCoffeeActivity",
+                        defaultValue: "发起三人咖啡局",
+                        comment: "Create match coffee activity"
+                    )
+                ) {
+                    onCreateMatchCoffee()
+                }
+                .buttonStyle(.bordered)
+            }
+
             Button(
                 String(localized: "likes.match.message", defaultValue: "发消息", comment: "Open chat"),
                 action: { onSendMessage(selectedIcebreaker) }
@@ -138,6 +173,15 @@ struct MatchSheetView: View {
             localized: "likes.match.activity.hint.format",
             defaultValue: "你们都对「%@」感兴趣，聊聊要不要一起参加？",
             comment: "Match activity hint"
+        )
+        return String(format: format, locale: .current, activity)
+    }
+
+    private func recommendedActivityHint(for activity: String) -> String {
+        let format = String(
+            localized: "likes.match.recommended.hint.format",
+            defaultValue: "推荐：%@ — 一起报名？",
+            comment: "Recommended activity hint"
         )
         return String(format: format, locale: .current, activity)
     }

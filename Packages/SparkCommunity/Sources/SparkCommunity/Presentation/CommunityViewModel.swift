@@ -2,6 +2,7 @@
 
 import Foundation
 import Observation
+import SparkCore
 
 @MainActor
 @Observable
@@ -22,13 +23,25 @@ public final class CommunityViewModel {
     public private(set) var likedPostIDs: Set<String> = []
     public private(set) var likedPersonIDs: Set<String> = []
     public private(set) var likeCountOverrides: [String: Int] = [:]
+    public private(set) var selectedFilter: CommunityFeedFilter = .all
 
     private let fetchPosts: FetchCommunityPostsUseCase
+    private let createRecap: CreateCommunityRecapUseCase
     private let repository: any CommunityPostsRepository
+
+    public var filteredPosts: [CommunityPost] {
+        switch selectedFilter {
+        case .all:
+            posts
+        case .recaps:
+            posts.filter { $0.kind == .activityRecap }
+        }
+    }
 
     public init(repository: any CommunityPostsRepository) {
         self.repository = repository
         fetchPosts = FetchCommunityPostsUseCase(repository: repository)
+        createRecap = CreateCommunityRecapUseCase(repository: repository)
     }
 
     public func load() async {
@@ -78,5 +91,17 @@ public final class CommunityViewModel {
             }
         }
         return 0
+    }
+
+    public func applyFilter(_ filter: CommunityFeedFilter) async {
+        selectedFilter = filter
+    }
+
+    @discardableResult
+    public func publishRecap(_ draft: CommunityRecapDraft) async throws -> CommunityPostDetail {
+        let detail = try await createRecap(draft)
+        posts.insert(MockCommunityPostCatalog.summary(from: detail), at: 0)
+        IntegrationTelemetry.activityEndToRecap(activityID: draft.activityID)
+        return detail
     }
 }

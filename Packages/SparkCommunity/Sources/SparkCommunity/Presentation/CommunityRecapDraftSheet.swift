@@ -1,18 +1,29 @@
-// Module: SparkCommunity — Post-event recap draft (Phase 24; copy-first until create API).
+// Module: SparkCommunity — Post-event recap publish sheet (Nexus W5).
 
 import SwiftUI
-import UIKit
 
 public struct CommunityRecapDraftSheet: View {
+    let activityID: String
     let activityTitle: String
     let scheduleLine: String
+    let onPublish: (CommunityRecapDraft) async throws -> CommunityPostDetail
     let onDismiss: () -> Void
 
     @State private var draftText: String
+    @State private var isPublishing = false
+    @State private var errorMessage: String?
 
-    public init(activityTitle: String, scheduleLine: String, onDismiss: @escaping () -> Void) {
+    public init(
+        activityID: String,
+        activityTitle: String,
+        scheduleLine: String,
+        onPublish: @escaping (CommunityRecapDraft) async throws -> CommunityPostDetail,
+        onDismiss: @escaping () -> Void
+    ) {
+        self.activityID = activityID
         self.activityTitle = activityTitle
         self.scheduleLine = scheduleLine
+        self.onPublish = onPublish
         self.onDismiss = onDismiss
         let format = String(
             localized: "community.recap.draft.format",
@@ -28,14 +39,23 @@ public struct CommunityRecapDraftSheet: View {
                 Section {
                     TextEditor(text: $draftText)
                         .frame(minHeight: 120)
+                        .disabled(isPublishing)
                 } footer: {
                     Text(
                         String(
-                            localized: "community.recap.footer",
-                            defaultValue: "文案已可复制，前往社区发帖粘贴即可。",
-                            comment: "Recap footer"
+                            localized: "community.recap.footer.publish",
+                            defaultValue: "发布后会在社区展示，并关联这场活动。",
+                            comment: "Recap publish footer"
                         )
                     )
+                }
+
+                if let errorMessage {
+                    Section {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
                 }
             }
             .navigationTitle(
@@ -47,15 +67,57 @@ public struct CommunityRecapDraftSheet: View {
                     Button(String(localized: "action.cancel", defaultValue: "取消", comment: "Cancel")) {
                         onDismiss()
                     }
+                    .disabled(isPublishing)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(String(localized: "community.recap.copy", defaultValue: "复制", comment: "Copy recap")) {
-                        UIPasteboard.general.string = draftText
-                        onDismiss()
+                    if isPublishing {
+                        ProgressView()
+                    } else {
+                        Button(String(localized: "community.recap.publish", defaultValue: "发布", comment: "Publish recap")) {
+                            Task { await publishRecap() }
+                        }
                     }
                 }
             }
         }
         .presentationDetents([.medium, .large])
+        .interactiveDismissDisabled(isPublishing)
     }
+
+    private func publishRecap() async {
+        isPublishing = true
+        errorMessage = nil
+        let draft = CommunityRecapDraft(
+            activityID: activityID,
+            activityTitle: activityTitle,
+            scheduleLine: scheduleLine,
+            body: draftText
+        )
+        do {
+            _ = try await onPublish(draft)
+            onDismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isPublishing = false
+    }
+}
+
+#Preview {
+    CommunityRecapDraftSheet(
+        activityID: "act_browse_2",
+        activityTitle: "玉林咖啡聊天局",
+        scheduleLine: "周六 · 玉林西路",
+        onPublish: { draft in
+            CommunityPostDetail(
+                id: "preview",
+                title: draft.postTitle,
+                body: draft.normalizedBody,
+                authorDisplayName: "Preview",
+                replyCount: 0,
+                linkedActivity: LinkedActivityContext(id: draft.activityID, name: draft.activityTitle)
+            )
+        },
+        onDismiss: {}
+    )
 }

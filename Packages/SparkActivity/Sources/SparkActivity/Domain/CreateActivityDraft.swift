@@ -51,6 +51,28 @@ public struct CreateActivityDraft: Sendable, Equatable {
         capacity = activity.capacity
     }
 
+    /// Pre-fills a lightweight 3-person coffee meetup after a mutual match (Nexus W3).
+    public static func matchCoffee(peerName: String) -> CreateActivityDraft {
+        let titleFormat = String(
+            localized: "activity.create.matchCoffee.title.format",
+            defaultValue: "和 %@ 的咖啡小局",
+            comment: "Match coffee title; %@ peer name"
+        )
+        let title = String(format: titleFormat, locale: .current, peerName)
+        let description = String(
+            localized: "activity.create.matchCoffee.description",
+            defaultValue: "配对后的轻量见面局，最多 3 人，选个方便的咖啡馆聊聊。",
+            comment: "Match coffee description"
+        )
+        return CreateActivityDraft(
+            title: title,
+            description: description,
+            locationName: "",
+            startsAt: Date().addingTimeInterval(172_800),
+            capacity: 3
+        )
+    }
+
     public static func validate(_ draft: CreateActivityDraft) throws {
         let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
         let description = draft.description.trimmingCharacters(in: .whitespacesAndNewlines)

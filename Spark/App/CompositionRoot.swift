@@ -11,8 +11,8 @@ import SparkNetworking
 import SparkPayments
 import SparkPersistence
 import SparkSearch
+import SparkTrust
 
-/// Composition root for app-wide service registration.
 enum CompositionRoot {
     private static var dependenciesStorage: AppDependencies?
 
@@ -74,6 +74,10 @@ enum CompositionRoot {
             configuration: apiConfiguration,
             apiClient: apiClient
         )
+        let trustRepository = makeTrustRepository(
+            configuration: apiConfiguration,
+            apiClient: apiClient
+        )
         let storeKitService = makeStoreKitService(configuration: apiConfiguration)
         let entitlementManager = EntitlementManager(storeKit: storeKitService)
         let deviceTokenUploader = makeDeviceTokenUploader(
@@ -95,6 +99,7 @@ enum CompositionRoot {
             likesFeedRepository: likesFeedRepository,
             searchRepository: searchRepository,
             communityPostsRepository: communityPostsRepository,
+            trustRepository: trustRepository,
             storeKitService: storeKitService,
             entitlementManager: entitlementManager,
             deviceTokenUploader: deviceTokenUploader,
@@ -189,6 +194,16 @@ enum CompositionRoot {
             return MockCommunityPostsRepository()
         }
         return LiveCommunityPostsRepository(apiClient: apiClient)
+    }
+
+    private static func makeTrustRepository(
+        configuration: APIConfiguration,
+        apiClient: APIClient
+    ) -> any TrustRepository {
+        if configuration.usesMockBackend {
+            return MockTrustRepository(initialCompleted: [.phone, .realName])
+        }
+        return LiveTrustRepository(apiClient: apiClient)
     }
 
     private static func makeStoreKitService(configuration: APIConfiguration) -> any StoreKitServing {

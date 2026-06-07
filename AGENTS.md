@@ -9,12 +9,13 @@
 5. [docs/SPRINT_PROGRESS_PLAN.md](docs/SPRINT_PROGRESS_PLAN.md) — 当前 Sprint 执行计划（P0–P4 PR 拆分与验收）
 6. [docs/MISSING_MODULES_PLAN.md](docs/MISSING_MODULES_PLAN.md) — Phase 25+ 缺失模块立项（MODULE A–H）
 7. [docs/ACTIVITY_UPGRADE_PLAN.md](docs/ACTIVITY_UPGRADE_PLAN.md) — activity full vision (Phase 15+)
-8. [docs/UNIVERSAL_LINKS.md](docs/UNIVERSAL_LINKS.md) — Associated Domains setup (Phase 17)
-9. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — layers, navigation, DI
-10. [docs/API_CONTRACT.md](docs/API_CONTRACT.md) — HTTP contract (update before Live APIs)
-11. [docs/STAGING.md](docs/STAGING.md) · [cloudfunctions/spark-api/README.md](cloudfunctions/spark-api/README.md) — CloudBase Staging MVP
-12. [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) — PR checklist
-13. [docs/HIG_COMPLIANCE.md](docs/HIG_COMPLIANCE.md) · [docs/HIG_AUDIT_AND_PLAN.md](docs/HIG_AUDIT_AND_PLAN.md) — HIG audit & compliance
+8. [docs/PRODUCT_INTEGRATION_PLAN.md](docs/PRODUCT_INTEGRATION_PLAN.md) — Nexus integration roadmap (W0–W6)
+9. [docs/UNIVERSAL_LINKS.md](docs/UNIVERSAL_LINKS.md) — Associated Domains setup (Phase 17)
+10. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — layers, navigation, DI
+11. [docs/API_CONTRACT.md](docs/API_CONTRACT.md) — HTTP contract (update before Live APIs)
+12. [docs/STAGING.md](docs/STAGING.md) · [cloudfunctions/spark-api/README.md](cloudfunctions/spark-api/README.md) — CloudBase Staging MVP
+13. [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) — PR checklist
+14. [docs/HIG_COMPLIANCE.md](docs/HIG_COMPLIANCE.md) · [docs/HIG_AUDIT_AND_PLAN.md](docs/HIG_AUDIT_AND_PLAN.md) — HIG audit & compliance
 
 Cursor rules: `.cursor/rules/ios-product-philosophy.mdc` (always), `ios-liquid-glass.mdc`, `ios-foundation.mdc`.
 

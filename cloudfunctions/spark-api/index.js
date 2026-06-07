@@ -106,8 +106,11 @@ function serializePostDetail(post) {
     author_user_id: post.author_id || null,
     reply_count: post.reply_count,
     replies: communityRepliesFor(post).map(serializeReply),
+    kind: post.kind || "discussion",
   };
-  if (post.id === "cp_001") {
+  if (post.linked_activity) {
+    detail.linked_activity = post.linked_activity;
+  } else if (post.id === "cp_001") {
     detail.linked_activity = { id: "act_001", name: "周末爬香山" };
   }
   return detail;
@@ -828,7 +831,12 @@ app.get("/v1/community/posts/:postId", requireAuth, (req, res) => {
 app.post("/v1/community/posts", requireAuth, (req, res) => {
   const title = (req.body?.title || "").trim();
   const body = (req.body?.body || "").trim();
+  const kind = (req.body?.kind || "discussion").trim();
+  const activityID = (req.body?.activity_id || "").trim();
   if (!title) return err(res, 400, "invalid_request", "title required");
+  if (kind === "activity_recap" && !activityID) {
+    return err(res, 400, "invalid_request", "activity_id required for activity_recap");
+  }
   state.counters.post_counter += 1;
   const id = `cp_${String(state.counters.post_counter).padStart(3, "0")}`;
   const post = {
@@ -840,18 +848,21 @@ app.post("/v1/community/posts", requireAuth, (req, res) => {
     author_id: req.userId,
     reply_count: 0,
     replies: [],
+    kind,
+    activity_id: activityID || null,
   };
+  if (kind === "activity_recap" && activityID) {
+    const activity = state.activities.get(activityID);
+    post.linked_activity = {
+      id: activityID,
+      name: activity?.title || title,
+    };
+  }
   state.communityPosts.set(id, post);
   touchCommunityPost(id);
   touchMeta();
   res.status(201).json({
-    post: {
-      id: post.id,
-      title: post.title,
-      excerpt: post.excerpt,
-      author_display_name: post.author_display_name,
-      reply_count: post.reply_count,
-    },
+    post: serializePostDetail(post),
   });
 });
 
@@ -1141,6 +1152,35 @@ app.post("/v1/notifications/send", requireAuth, async (req, res) => {
     console.error("notifications/send failed", error);
     return err(res, 502, "push_failed", error.message || "APNs delivery failed");
   }
+});
+
+// --- Trust (Nexus W4 staging MVP) ---
+app.get("/v1/trust/profile", requireAuth, (req, res) => {
+  res.json({
+    profile: {
+      trust_score: 42,
+      activity_attendance_count: 2,
+      completed_levels: ["phone"],
+      has_liveness_verification: false,
+    },
+  });
+});
+
+app.post("/v1/trust/phone/verify", requireAuth, (req, res) => {
+  const code = (req.body?.code || "").trim();
+  if (!code) return err(res, 400, "invalid_request", "code required");
+  res.json({ outcome: "verified" });
+});
+
+app.post("/v1/trust/real-name", requireAuth, (req, res) => {
+  const name = (req.body?.legal_name || "").trim();
+  const idNumber = (req.body?.id_number || "").trim();
+  if (!name || !idNumber) return err(res, 400, "invalid_request", "legal_name and id_number required");
+  res.json({ outcome: "verified" });
+});
+
+app.post("/v1/trust/liveness/verify", requireAuth, (_req, res) => {
+  res.json({ outcome: "verified", has_liveness_verification: true });
 });
 
 app.use((req, res) => {

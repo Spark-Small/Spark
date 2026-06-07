@@ -89,6 +89,18 @@ REPLIES=$(curl -sf -H "$AUTH" "$BASE_URL/v1/community/posts/$POST_ID" \
   | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["post"].get("replies",[])))')
 [[ "$REPLIES" -ge 1 ]] && pass "replies=$REPLIES on $POST_ID" || fail "replies missing"
 
+echo "== trust profile =="
+curl -sf -H "$AUTH" "$BASE_URL/v1/trust/profile" \
+  | python3 -c 'import sys,json; p=json.load(sys.stdin)["profile"]; assert "trust_score" in p; print("trust ok")'
+pass "trust profile"
+
+echo "== community recap post =="
+RECAP_ID=$(curl -sf -X POST -H "$AUTH" -H 'Content-Type: application/json' \
+  -d '{"title":"「Smoke局」复盘","body":"Staging recap smoke","kind":"activity_recap","activity_id":"act_001"}' \
+  "$BASE_URL/v1/community/posts" \
+  | python3 -c 'import sys,json; post=json.load(sys.stdin)["post"]; assert post.get("kind")=="activity_recap"; print(post["id"])')
+[[ -n "$RECAP_ID" ]] && pass "recap post $RECAP_ID" || fail "recap post"
+
 echo "== devices 204 =="
 curl -sf -o /dev/null -w "%{http_code}" -X POST -H "$AUTH" -H 'Content-Type: application/json' \
   -d '{"token":"abc123smoke","platform":"ios"}' \

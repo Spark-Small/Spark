@@ -73,6 +73,13 @@ public enum DeepLinkParser: Sendable {
         if first == "community", components.count >= 3, components[1] == "posts" {
             return .communityPost(postID: components[2])
         }
+        if first == "community", components.count >= 3, components[1] == "post" {
+            return .communityPost(postID: components[2])
+        }
+        if first == "community", components.count == 1,
+           let activityID = url.queryValue(for: "activity_id"), !activityID.isEmpty {
+            return .communityRecap(activityID: activityID)
+        }
         if first == "messages", components.count >= 3, components[1] == "thread" {
             return .conversation(threadID: components[2])
         }

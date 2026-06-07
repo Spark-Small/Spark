@@ -105,6 +105,9 @@ public final class ConversationViewModel {
             messages.append(message)
             draftText = ""
             sendSuccessToken += 1
+            if isGroupChat, let activityID = thread.threadID.activityGroupActivityID {
+                IntegrationTelemetry.groupMessageAfterRSVP(activityID: activityID)
+            }
         } catch is CancellationError {
             return
         } catch let error as MessagesError {

@@ -42,16 +42,34 @@ public enum ActivityInviteURL {
         return String(format: format, locale: .current, title)
     }
 
-    /// Rich copy for paste / WeChat (time + place + deep link).
+    /// Rich copy for paste / WeChat (time + place + attendance + deep link).
     public static func inviteCopyText(activity: ActivityDetail) -> String {
         let headline = shareMessage(title: activity.title)
         let whenWhere = activity.scheduleLine
+        let attendance = attendeeSummary(for: activity)
         let link = shareLink(activityID: activity.id).absoluteString
         let format = String(
             localized: "activity.invite.copy.format",
-            defaultValue: "%@\n%@\n%@",
-            comment: "Invite copy; three lines: headline, schedule, link"
+            defaultValue: "%@\n%@\n%@\n%@",
+            comment: "Invite copy; headline, schedule, attendance, link"
         )
-        return String(format: format, locale: .current, headline, whenWhere, link)
+        return String(format: format, locale: .current, headline, whenWhere, attendance, link)
+    }
+
+    public static func attendeeSummary(for activity: ActivityDetail) -> String {
+        if let capacity = activity.capacity {
+            let format = String(
+                localized: "activity.share.attendance.capacity.format",
+                defaultValue: "%1$d/%2$d 人已报名",
+                comment: "Share attendance; count and capacity"
+            )
+            return String(format: format, locale: .current, activity.attendeeCount, capacity)
+        }
+        let format = String(
+            localized: "activity.share.attendance.format",
+            defaultValue: "%d 人已报名",
+            comment: "Share attendance count"
+        )
+        return String(format: format, locale: .current, activity.attendeeCount)
     }
 }

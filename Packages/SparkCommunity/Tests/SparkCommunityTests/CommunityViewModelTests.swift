@@ -68,6 +68,10 @@ private struct EmptyCommunityPostsRepository: CommunityPostsRepository, Sendable
         )
     }
 
+    func createRecapPost(_ draft: CommunityRecapDraft) async throws -> CommunityPostDetail {
+        throw TestError()
+    }
+
     func createReply(postID: String, body: String) async throws -> CommunityPostReply {
         throw TestError()
     }
@@ -111,6 +115,10 @@ private struct FailingCommunityPostsRepository: CommunityPostsRepository, Sendab
     }
 
     func createPost(_ draft: CreateCommunityPostDraft) async throws -> CommunityPost {
+        throw TestError()
+    }
+
+    func createRecapPost(_ draft: CommunityRecapDraft) async throws -> CommunityPostDetail {
         throw TestError()
     }
 

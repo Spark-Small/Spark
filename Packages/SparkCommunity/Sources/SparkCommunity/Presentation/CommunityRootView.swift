@@ -12,7 +12,7 @@ public struct CommunityRootView: View {
     @State var viewModel: CommunityViewModel
     @State var navigationPath = NavigationPath()
     @State var splitDestination: CommunitySplitDestination?
-    @State private var recapDraft: (title: String, scheduleLine: String)?
+    @State private var recapDraft: (activityID: String, title: String, scheduleLine: String)?
     @State var profilePreview: CommunityProfilePreview?
 
     let repository: any CommunityPostsRepository
@@ -121,8 +121,10 @@ public struct CommunityRootView: View {
         }
         .sheet(item: recapSheetBinding) { draft in
             CommunityRecapDraftSheet(
+                activityID: draft.activityID,
                 activityTitle: draft.title,
                 scheduleLine: draft.scheduleLine,
+                onPublish: { try await viewModel.publishRecap($0) },
                 onDismiss: { recapDraft = nil }
             )
         }
@@ -133,7 +135,10 @@ public struct CommunityRootView: View {
             navigationTitle: String(localized: "screen.community", defaultValue: "社区", comment: "Community screen"),
             embedding: .none
         ) {
-            feedContent
+            VStack(spacing: 0) {
+                CommunityFeedFilterBar(selectedFilter: feedFilterBinding)
+                feedContent
+            }
                 .task {
                     if viewModel.loadState == .idle {
                         await viewModel.load()
@@ -157,10 +162,21 @@ public struct CommunityRootView: View {
     private var recapSheetBinding: Binding<RecapSheetItem?> {
         Binding(
             get: {
-                recapDraft.map { RecapSheetItem(title: $0.title, scheduleLine: $0.scheduleLine) }
+                recapDraft.map {
+                    RecapSheetItem(activityID: $0.activityID, title: $0.title, scheduleLine: $0.scheduleLine)
+                }
             },
             set: { newValue in
                 if newValue == nil { recapDraft = nil }
+            }
+        )
+    }
+
+    private var feedFilterBinding: Binding<CommunityFeedFilter> {
+        Binding(
+            get: { viewModel.selectedFilter },
+            set: { newValue in
+                Task { await viewModel.applyFilter(newValue) }
             }
         )
     }
@@ -244,13 +260,14 @@ public struct CommunityRootView: View {
         pendingRecapActivityID = nil
         guard let fetchActivityRecap else { return }
         if let recap = await fetchActivityRecap(activityID) {
-            recapDraft = recap
+            recapDraft = (activityID: activityID, title: recap.title, scheduleLine: recap.scheduleLine)
         }
     }
 }
 
 private struct RecapSheetItem: Identifiable {
     let id = UUID()
+    let activityID: String
     let title: String
     let scheduleLine: String
 }

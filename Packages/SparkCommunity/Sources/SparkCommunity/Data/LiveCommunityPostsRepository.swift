@@ -93,6 +93,24 @@ public struct LiveCommunityPostsRepository: CommunityPostsRepository, Sendable {
         return CommunityDTOMapper.reply(from: dto.reply)
     }
 
+    public func createRecapPost(_ draft: CommunityRecapDraft) async throws -> CommunityPostDetail {
+        try CommunityRecapDraft.validate(draft)
+        let body = try JSONEncoder().encode(
+            CreateCommunityRecapRequestDTO(
+                title: draft.postTitle,
+                body: draft.normalizedBody,
+                kind: CommunityPostKind.activityRecap.rawValue,
+                activityID: draft.activityID
+            )
+        )
+        let dto: CommunityPostDetailResponseDTO = try await apiClient.post(
+            CommunityAPIPath.posts,
+            body: body,
+            as: CommunityPostDetailResponseDTO.self
+        )
+        return CommunityDTOMapper.postDetail(from: dto.post)
+    }
+
     private func derivedTabExperience() async throws -> CommunityTabExperience {
         let posts = try await fetchPosts()
         let feedPosts = posts.map { summary in

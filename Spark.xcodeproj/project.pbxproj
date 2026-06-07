@@ -19,6 +19,8 @@
 		88D5E3962FD1C88300A4CBD3 /* SparkSearch in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000B2FD19C1D00A4CBD1 /* SparkSearch */; };
 		88D5E3972FD1C88300A4CBD3 /* SparkCommunity in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000D2FD19C1D00A4CBD1 /* SparkCommunity */; };
 		88D5E3982FD1C88300A4CBD3 /* SparkLikes in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000E2FD19C1D00A4CBD1 /* SparkLikes */; };
+		88D5E3992FD1C88300A4CBD3 /* SparkTrust in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000F2FD19C1D00A4CBD1 /* SparkTrust */; };
+		88D5E39A2FD1C88300A4CBD3 /* SparkProfile in Frameworks */ = {isa = PBXBuildFile; productRef = SPK100102FD19C1D00A4CBD1 /* SparkProfile */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,6 +68,8 @@
 				88D5E3962FD1C88300A4CBD3 /* SparkSearch in Frameworks */,
 				88D5E3972FD1C88300A4CBD3 /* SparkCommunity in Frameworks */,
 				88D5E3982FD1C88300A4CBD3 /* SparkLikes in Frameworks */,
+				88D5E3992FD1C88300A4CBD3 /* SparkTrust in Frameworks */,
+				88D5E39A2FD1C88300A4CBD3 /* SparkProfile in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -138,6 +142,8 @@
 				SPK1000B2FD19C1D00A4CBD1 /* SparkSearch */,
 				SPK1000D2FD19C1D00A4CBD1 /* SparkCommunity */,
 				SPK1000E2FD19C1D00A4CBD1 /* SparkLikes */,
+				SPK1000F2FD19C1D00A4CBD1 /* SparkTrust */,
+				SPK100102FD19C1D00A4CBD1 /* SparkProfile */,
 			);
 			productName = Spark;
 			productReference = 88D5E04E2FD19C1D00A4CBD3 /* Spark.app */;
@@ -208,6 +214,8 @@
 				SPK0000B2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkSearch" */,
 				SPK0000C2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkPayments" */,
 				SPK0000E2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkLikes" */,
+				SPK0000F2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkTrust" */,
+				SPK000102FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkProfile" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 88D5E04F2FD19C1D00A4CBD3 /* Products */;
@@ -588,6 +596,14 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/SparkLikes;
 		};
+		SPK0000F2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkTrust" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SparkTrust;
+		};
+		SPK000102FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkProfile" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SparkProfile;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -650,6 +666,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = SPK0000E2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkLikes" */;
 			productName = SparkLikes;
+		};
+		SPK1000F2FD19C1D00A4CBD1 /* SparkTrust */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SPK0000F2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkTrust" */;
+			productName = SparkTrust;
+		};
+		SPK100102FD19C1D00A4CBD1 /* SparkProfile */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SPK000102FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkProfile" */;
+			productName = SparkProfile;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

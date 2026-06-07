@@ -1,4 +1,4 @@
-// Module: SparkAppShell — Five-tab primary interface.
+// Module: SparkAppShell — Five-tab primary interface (Nexus + W0).
 
 import SparkActivity
 import SparkAuth
@@ -7,7 +7,9 @@ import SparkCore
 import SparkLikes
 import SparkMessages
 import SparkPayments
+import SparkProfile
 import SparkSearch
+import SparkTrust
 import SwiftUI
 
 public struct SparkMainTabView: View {
@@ -20,11 +22,13 @@ public struct SparkMainTabView: View {
     let likesFeedRepository: any LikesFeedRepository
     let searchRepository: any SearchRepository
     let communityPostsRepository: any CommunityPostsRepository
+    let trustRepository: any TrustRepository
     let paywallRouter: PaywallRouter
     let blockedActivityHostsStore: BlockedActivityHostsStore
     let discoverMediaImageCache: DiscoverMediaImageCache
 
     @State private var messagesViewModel: MessagesViewModel?
+    @State private var profileViewModel: ProfileViewModel?
     @State private var searchQuery: String = ""
 
     public init(
@@ -37,6 +41,7 @@ public struct SparkMainTabView: View {
         likesFeedRepository: any LikesFeedRepository,
         searchRepository: any SearchRepository,
         communityPostsRepository: any CommunityPostsRepository,
+        trustRepository: any TrustRepository,
         paywallRouter: PaywallRouter,
         blockedActivityHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
         discoverMediaImageCache: DiscoverMediaImageCache = DiscoverMediaImageCache()
@@ -50,6 +55,7 @@ public struct SparkMainTabView: View {
         self.likesFeedRepository = likesFeedRepository
         self.searchRepository = searchRepository
         self.communityPostsRepository = communityPostsRepository
+        self.trustRepository = trustRepository
         self.paywallRouter = paywallRouter
         self.blockedActivityHostsStore = blockedActivityHostsStore
         self.discoverMediaImageCache = discoverMediaImageCache
@@ -67,6 +73,7 @@ public struct SparkMainTabView: View {
         .onChange(of: router.pendingSearchQuery) { _, query in
             if let query {
                 searchQuery = query
+                router.selectedTab = .profile
                 router.pendingSearchQuery = nil
             }
         }
@@ -85,8 +92,10 @@ public struct SparkMainTabView: View {
         }
         .onAppear {
             ensureMessagesViewModel()
+            ensureProfileViewModel()
             if let query = router.pendingSearchQuery {
                 searchQuery = query
+                router.selectedTab = .profile
                 router.pendingSearchQuery = nil
             }
             syncPremiumEntitlementToBackend()
@@ -104,7 +113,6 @@ public struct SparkMainTabView: View {
         guard SparkFeatureFlags.isPremiumInboundBlurEnabled else { return }
         let isActive = entitlementManager.hasPremium
         Task {
-            // REASONING: Background entitlement sync; blur state already reflects StoreKit locally.
             try? await likesFeedRepository.syncPremiumEntitlement(isActive: isActive)
         }
     }
@@ -117,14 +125,12 @@ public struct SparkMainTabView: View {
             pendingInbound: $router.pendingLikesInbound,
             onOpenMatchConversation: { threadID, peerDisplayName, initialMessage in
                 let peerUserID = SparkMainTabRouting.peerUserID(fromDirectThreadID: threadID)
-                // REASONING: Fall back to match thread id when ensure fails offline; user still opens chat.
                 let resolvedThread = try? await messagesRepository.ensureDirectMessageThread(
                     peerUserID: peerUserID,
                     peerDisplayName: peerDisplayName
                 )
                 let thread = (resolvedThread ?? MessageThreadID(threadID)).rawValue
                 if let initialMessage, !initialMessage.isEmpty {
-                    // REASONING: Opener send is best-effort; conversation opens even if message queues later.
                     _ = try? await messagesRepository.sendMessage(
                         threadID: MessageThreadID(thread),
                         body: initialMessage
@@ -138,6 +144,19 @@ public struct SparkMainTabView: View {
                 Task { @MainActor in
                     router.openActivityDetail(activityID: activityID)
                 }
+            },
+            fetchRecommendedActivity: {
+                guard let page = try? await activityBrowseRepository.fetchBrowse(
+                    query: ActivityBrowseQuery(startsBefore: Date().addingTimeInterval(604_800))
+                ),
+                    let item = page.items.first else {
+                    return nil
+                }
+                return (item.id, item.title)
+            },
+            onCreateMatchCoffee: { peerName in
+                IntegrationTelemetry.matchToActivityIntent(source: "match_coffee")
+                router.openCreateActivity(draft: CreateActivityDraft.matchCoffee(peerName: peerName))
             },
             isInboundItemBlurred: { item in
                 SparkFeatureFlags.isPremiumInboundBlurEnabled
@@ -160,21 +179,19 @@ public struct SparkMainTabView: View {
             pendingCommunityPostID: $router.pendingCommunityPostID,
             pendingRecapActivityID: $router.pendingCommunityRecapActivityID,
             fetchActivityRecap: { activityID in
-                // REASONING: Recap sheet degrades to empty when activity fetch fails.
                 guard let detail = try? await activityFeedRepository.fetchActivity(id: activityID) else {
                     return nil
                 }
                 return (detail.title, detail.scheduleLine)
             },
             onOpenSearch: {
-                router.selectedTab = .search
+                router.selectedTab = .profile
             },
             onOpenLikesDiscover: {
                 router.selectedTab = .likes
             },
             onLikePerson: { userID in
                 Task {
-                    // REASONING: Community discovery like is fire-and-forget; no inline error UI on card.
                     _ = try? await likesFeedRepository.submitLike(
                         SendLikeRequest(userID: UserID(userID), intensity: .like)
                     )
@@ -196,6 +213,7 @@ public struct SparkMainTabView: View {
             blockedHostsStore: blockedActivityHostsStore,
             browseRepository: activityBrowseRepository,
             pendingActivityID: $router.pendingActivityID,
+            pendingCreateActivityDraft: $router.pendingCreateActivityDraft,
             onRSVPCompleted: { detail in
                 await activityGroupChatCoordinator.onRSVPCompleted(detail)
                 await ActivityLocalReminderScheduler.syncReminders(for: detail)
@@ -225,25 +243,38 @@ public struct SparkMainTabView: View {
                 router.openCommunityRecap(activityID: detail.id)
             }
         )
-        .toolbar {
-            SparkMainTabAccountToolbar(
-                authViewModel: authViewModel,
-                router: router,
-                entitlementManager: entitlementManager,
-                paywallRouter: paywallRouter
-            )
-        }
         .tabItem { tabLabel(for: .activity) }
         .tag(SparkTab.activity)
 
-        SearchRootView(
-            repository: searchRepository,
-            initialQuery: searchQuery,
-            onSelectResult: handleSearchResult
-        )
-        .id(searchQuery)
-        .tabItem { tabLabel(for: .search) }
-        .tag(SparkTab.search)
+        profileTab
+    }
+
+    @ViewBuilder
+    private var profileTab: some View {
+        if let profileViewModel {
+            ProfileRootView(
+                viewModel: profileViewModel,
+                trustRepository: trustRepository,
+                searchRepository: searchRepository,
+                onSelectSearchResult: handleSearchResult,
+                onSignOut: {
+                    Task {
+                        await authViewModel.signOutTapped()
+                        router.resetAfterSignOut()
+                    }
+                },
+                onOpenPaywall: {
+                    paywallRouter.presentPaywall(placement: .activity)
+                }
+            )
+            .tabItem { tabLabel(for: .profile) }
+            .tag(SparkTab.profile)
+        } else {
+            ProgressView()
+                .task { ensureProfileViewModel() }
+                .tabItem { tabLabel(for: .profile) }
+                .tag(SparkTab.profile)
+        }
     }
 
     private var activityGroupChatCoordinator: ActivityGroupChatCoordinator {
@@ -293,6 +324,12 @@ public struct SparkMainTabView: View {
     private func ensureMessagesViewModel() {
         if messagesViewModel == nil {
             messagesViewModel = MessagesViewModel(repository: messagesRepository)
+        }
+    }
+
+    private func ensureProfileViewModel() {
+        if profileViewModel == nil {
+            profileViewModel = ProfileViewModel(trustRepository: trustRepository)
         }
     }
 

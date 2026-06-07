@@ -12,10 +12,13 @@ public struct LikesRootView: View {
     @State var showInbound = false
     @State var showProfileSheet = false
     @State var showOpenerPicker = false
+    @State private var recommendedActivity: (id: String, title: String)?
 
     @Binding var pendingInbound: Bool
     let onOpenMatchConversation: LikesOpenConversationHandler
     let onOpenSharedActivity: (@Sendable (String) -> Void)?
+    let fetchRecommendedActivity: (() async -> (id: String, title: String)?)?
+    let onCreateMatchCoffee: ((String) -> Void)?
     let isInboundItemBlurred: (InboundLikeItem) -> Bool
     let onInboundPaywall: () -> Void
     let onSparkPaywall: () -> Void
@@ -27,6 +30,8 @@ public struct LikesRootView: View {
         pendingInbound: Binding<Bool> = .constant(false),
         onOpenMatchConversation: @escaping LikesOpenConversationHandler,
         onOpenSharedActivity: (@Sendable (String) -> Void)? = nil,
+        fetchRecommendedActivity: (() async -> (id: String, title: String)?)? = nil,
+        onCreateMatchCoffee: ((String) -> Void)? = nil,
         isInboundItemBlurred: @escaping (InboundLikeItem) -> Bool = { _ in false },
         onInboundPaywall: @escaping () -> Void = {},
         onSparkPaywall: @escaping () -> Void = {}
@@ -35,6 +40,8 @@ public struct LikesRootView: View {
         _pendingInbound = pendingInbound
         self.onOpenMatchConversation = onOpenMatchConversation
         self.onOpenSharedActivity = onOpenSharedActivity
+        self.fetchRecommendedActivity = fetchRecommendedActivity
+        self.onCreateMatchCoffee = onCreateMatchCoffee
         self.isInboundItemBlurred = isInboundItemBlurred
         self.onInboundPaywall = onInboundPaywall
         self.onSparkPaywall = onSparkPaywall
@@ -47,6 +54,8 @@ public struct LikesRootView: View {
         pendingInbound: Binding<Bool> = .constant(false),
         onOpenMatchConversation: @escaping LikesOpenConversationHandler,
         onOpenSharedActivity: (@Sendable (String) -> Void)? = nil,
+        fetchRecommendedActivity: (() async -> (id: String, title: String)?)? = nil,
+        onCreateMatchCoffee: ((String) -> Void)? = nil,
         isInboundItemBlurred: @escaping (InboundLikeItem) -> Bool = { _ in false },
         onInboundPaywall: @escaping () -> Void = {},
         onSparkPaywall: @escaping () -> Void = {}
@@ -55,6 +64,8 @@ public struct LikesRootView: View {
         _pendingInbound = pendingInbound
         self.onOpenMatchConversation = onOpenMatchConversation
         self.onOpenSharedActivity = onOpenSharedActivity
+        self.fetchRecommendedActivity = fetchRecommendedActivity
+        self.onCreateMatchCoffee = onCreateMatchCoffee
         self.isInboundItemBlurred = isInboundItemBlurred
         self.onInboundPaywall = onInboundPaywall
         self.onSparkPaywall = onSparkPaywall
@@ -138,8 +149,26 @@ public struct LikesRootView: View {
                         onDismiss: {
                             viewModel.dismissMatchWithoutMessage()
                         },
-                        onOpenSharedActivity: onOpenSharedActivity
+                        onOpenSharedActivity: onOpenSharedActivity,
+                        recommendedActivityTitle: recommendedActivity?.title,
+                        onOpenRecommendedActivity: recommendedActivity.map { activity in
+                            { onOpenSharedActivity?(activity.id) }
+                        },
+                        onCreateMatchCoffee: onCreateMatchCoffee.map { handler in
+                            { handler(name) }
+                        }
                     )
+                }
+            }
+            .onChange(of: viewModel.pendingMatchPeerName) { _, peerName in
+                guard peerName != nil,
+                      viewModel.pendingMatchCard?.sharedActivityID == nil,
+                      let fetchRecommendedActivity else {
+                    recommendedActivity = nil
+                    return
+                }
+                Task {
+                    recommendedActivity = await fetchRecommendedActivity()
                 }
             }
             .alert(

@@ -22,6 +22,12 @@ public struct MessageThreadID: Hashable, Sendable, Codable, Equatable {
         rawValue.hasPrefix(MessageThreadIDPrefix.activityGroup)
     }
 
+    /// Activity id embedded in `th_activity_{activity_id}` thread ids.
+    public var activityGroupActivityID: String? {
+        guard isGroupChat else { return nil }
+        return String(rawValue.dropFirst(MessageThreadIDPrefix.activityGroup.count))
+    }
+
     /// Peer user id embedded in `th_dm_{user_id}` thread ids.
     public var directMessagePeerUserID: String? {
         guard isDirectMessage else { return nil }

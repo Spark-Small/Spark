@@ -9,6 +9,7 @@ import SparkMessages
 import SparkPayments
 import SparkPersistence
 import SparkSearch
+import SparkTrust
 import Testing
 
 @Suite(.serialized)
@@ -32,6 +33,7 @@ struct SparkRootViewTests {
             likesFeedRepository: MockLikesFeedRepository(),
             searchRepository: MockSearchRepository(),
             communityPostsRepository: MockCommunityPostsRepository(),
+            trustRepository: MockTrustRepository(),
             paywallRouter: PaywallRouter(appRouter: router)
         )
     }

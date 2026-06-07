@@ -6,10 +6,58 @@ import SwiftUI
 extension CommunityRootView {
     @ViewBuilder
     var loadedFeedContent: some View {
-        if usesSplitLayout {
+        if viewModel.selectedFilter == .recaps {
+            recapPostsContent
+        } else if usesSplitLayout {
             splitFeedList
         } else {
             compactFeedScroll
+        }
+    }
+
+    @ViewBuilder
+    var recapPostsContent: some View {
+        if viewModel.filteredPosts.isEmpty {
+            ContentUnavailableView(
+                String(
+                    localized: "community.recap.empty.title",
+                    defaultValue: "暂无活动复盘",
+                    comment: "Empty recap filter"
+                ),
+                systemImage: "calendar.badge.clock",
+                description: Text(
+                    String(
+                        localized: "community.recap.empty.subtitle",
+                        defaultValue: "活动结束后可以在这里分享感受",
+                        comment: "Empty recap hint"
+                    )
+                )
+            )
+        } else if usesSplitLayout {
+            List(selection: $splitDestination) {
+                Section {
+                    ForEach(viewModel.filteredPosts) { post in
+                        CommunityRecapPostRow(post: post) {
+                            openPostID(post.id)
+                        }
+                        .tag(CommunitySplitDestination.post(post.id))
+                    }
+                }
+            }
+            .sparkScreenListStyle()
+            .refreshable { await viewModel.load() }
+        } else {
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(viewModel.filteredPosts) { post in
+                        CommunityRecapPostRow(post: post) {
+                            openPostID(post.id)
+                        }
+                        Divider()
+                    }
+                }
+            }
+            .refreshable { await viewModel.load() }
         }
     }
 

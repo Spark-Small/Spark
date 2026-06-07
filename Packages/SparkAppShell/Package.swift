@@ -1,5 +1,5 @@
 // swift-tools-version: 6.0
-// Package: SparkAppShell — App root navigation, tabs, deep links.
+// Module: SparkAppShell — App root navigation, tabs, deep links.
 
 import PackageDescription
 
@@ -17,7 +17,9 @@ let package = Package(
         .package(path: "../SparkSearch"),
         .package(path: "../SparkLikes"),
         .package(path: "../SparkPersistence"),
-        .package(path: "../SparkPayments")
+        .package(path: "../SparkPayments"),
+        .package(path: "../SparkProfile"),
+        .package(path: "../SparkTrust")
     ],
     targets: [
         .target(
@@ -30,7 +32,9 @@ let package = Package(
                 "SparkLikes",
                 "SparkSearch",
                 "SparkPersistence",
-                "SparkPayments"
+                "SparkPayments",
+                "SparkProfile",
+                "SparkTrust"
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6),

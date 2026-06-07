@@ -126,10 +126,22 @@ public final class ActivityDetailViewModel {
         do {
             let updated = try await updateRSVP(activityID: activityID, status: status)
             self.activity = updated
-            if context == .externalEntry, updated.rsvpStatus.hasGroupChatAccess {
+            if context == .externalEntry || context == .discover, updated.rsvpStatus.hasGroupChatAccess {
                 shouldPromptInviteFriends = true
             }
             if updated.rsvpStatus.hasGroupChatAccess {
+                switch context {
+                case .discover where updated.rsvpStatus == .going || updated.rsvpStatus == .maybe:
+                    IntegrationTelemetry.browseToRSVP(activityID: activityID)
+                case .externalEntry where updated.rsvpStatus == .going || updated.rsvpStatus == .maybe:
+                    IntegrationTelemetry.inviteLinkToRSVP(activityID: activityID)
+                default:
+                    break
+                }
+                IntegrationTelemetry.rsvpCompleted(
+                    source: context.integrationTelemetrySource,
+                    activityID: activityID
+                )
                 await onRSVPCompleted?(updated)
             }
             await ActivityLocalReminderScheduler.syncReminders(for: updated)

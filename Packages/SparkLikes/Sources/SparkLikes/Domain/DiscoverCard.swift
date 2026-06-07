@@ -16,6 +16,9 @@ public struct DiscoverCard: Identifiable, Hashable, Sendable, Equatable {
     public let sharedActivityID: String?
     public let sparkQuestions: [SparkQuestion]
     public let isDailyPick: Bool
+    public let trustScore: Int?
+    public let hasLivenessVerification: Bool
+    public let activityAttendanceCount: Int
 
     public var id: String { userID.rawValue }
 
@@ -36,7 +39,10 @@ public struct DiscoverCard: Identifiable, Hashable, Sendable, Equatable {
         sharedActivityTitle: String? = nil,
         sharedActivityID: String? = nil,
         sparkQuestions: [SparkQuestion] = [],
-        isDailyPick: Bool = false
+        isDailyPick: Bool = false,
+        trustScore: Int? = nil,
+        hasLivenessVerification: Bool = false,
+        activityAttendanceCount: Int = 0
     ) {
         self.userID = userID
         self.displayName = displayName
@@ -50,5 +56,8 @@ public struct DiscoverCard: Identifiable, Hashable, Sendable, Equatable {
         self.sharedActivityID = sharedActivityID
         self.sparkQuestions = sparkQuestions
         self.isDailyPick = isDailyPick
+        self.trustScore = trustScore
+        self.hasLivenessVerification = hasLivenessVerification
+        self.activityAttendanceCount = activityAttendanceCount
     }
 }

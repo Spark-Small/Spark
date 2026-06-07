@@ -7,7 +7,7 @@ public enum SparkTab: String, CaseIterable, Identifiable, Sendable {
     case community
     case messages
     case activity
-    case search
+    case profile
 
     public var id: String { rawValue }
 
@@ -21,8 +21,8 @@ public enum SparkTab: String, CaseIterable, Identifiable, Sendable {
             String(localized: "tab.messages", defaultValue: "消息", comment: "Tab title")
         case .activity:
             String(localized: "tab.activity", defaultValue: "活动", comment: "Tab title")
-        case .search:
-            String(localized: "tab.search", defaultValue: "搜索", comment: "Tab title")
+        case .profile:
+            String(localized: "tab.profile", defaultValue: "我的", comment: "Tab title")
         }
     }
 
@@ -33,7 +33,7 @@ public enum SparkTab: String, CaseIterable, Identifiable, Sendable {
         case .community: "person.2"
         case .messages: "bubble.left.and.bubble.right"
         case .activity: "calendar"
-        case .search: "magnifyingglass"
+        case .profile: "person.crop.circle"
         }
     }
 
@@ -44,17 +44,23 @@ public enum SparkTab: String, CaseIterable, Identifiable, Sendable {
         case .community: "person.2.fill"
         case .messages: "bubble.left.and.bubble.right.fill"
         case .activity: "calendar"
-        case .search: "magnifyingglass"
+        case .profile: "person.crop.circle.fill"
         }
     }
 
     /// Tabs that require a signed-in user (guests are redirected to login).
     public var requiresAuthentication: Bool {
         switch self {
-        case .search:
+        case .profile:
             false
         case .likes, .community, .messages, .activity:
             true
         }
+    }
+
+    /// Legacy deep-link name for search entry (routes to profile tab).
+    public static func fromDeepLinkName(_ name: String) -> SparkTab? {
+        if name == "search" { return .profile }
+        return SparkTab(rawValue: name)
     }
 }

@@ -7,7 +7,9 @@ import SparkLikes
 import SparkMessages
 import SparkPayments
 import SparkPersistence
+import SparkProfile
 import SparkSearch
+import SparkTrust
 import SwiftUI
 
 /// Routes between login and the five-tab shell based on `AuthViewModel.authState`.
@@ -21,6 +23,7 @@ public struct SparkRootView: View {
     let likesFeedRepository: any LikesFeedRepository
     let searchRepository: any SearchRepository
     let communityPostsRepository: any CommunityPostsRepository
+    let trustRepository: any TrustRepository
     let paywallRouter: PaywallRouter
     let blockedActivityHostsStore: BlockedActivityHostsStore
     let discoverMediaImageCache: DiscoverMediaImageCache
@@ -35,6 +38,7 @@ public struct SparkRootView: View {
         likesFeedRepository: any LikesFeedRepository,
         searchRepository: any SearchRepository,
         communityPostsRepository: any CommunityPostsRepository,
+        trustRepository: any TrustRepository,
         paywallRouter: PaywallRouter,
         blockedActivityHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
         discoverMediaImageCache: DiscoverMediaImageCache = DiscoverMediaImageCache()
@@ -48,6 +52,7 @@ public struct SparkRootView: View {
         self.likesFeedRepository = likesFeedRepository
         self.searchRepository = searchRepository
         self.communityPostsRepository = communityPostsRepository
+        self.trustRepository = trustRepository
         self.paywallRouter = paywallRouter
         self.blockedActivityHostsStore = blockedActivityHostsStore
         self.discoverMediaImageCache = discoverMediaImageCache
@@ -74,6 +79,7 @@ public struct SparkRootView: View {
                     likesFeedRepository: likesFeedRepository,
                     searchRepository: searchRepository,
                     communityPostsRepository: communityPostsRepository,
+                    trustRepository: trustRepository,
                     paywallRouter: paywallRouter,
                     blockedActivityHostsStore: blockedActivityHostsStore,
                     discoverMediaImageCache: discoverMediaImageCache
@@ -107,6 +113,7 @@ public struct SparkRootView: View {
         likesFeedRepository: MockLikesFeedRepository(),
         searchRepository: MockSearchRepository(),
         communityPostsRepository: MockCommunityPostsRepository(),
+        trustRepository: MockTrustRepository(),
         paywallRouter: PaywallRouter(appRouter: router)
     )
 }

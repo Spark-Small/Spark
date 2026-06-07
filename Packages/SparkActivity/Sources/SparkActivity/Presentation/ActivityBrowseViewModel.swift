@@ -1,6 +1,7 @@
 // Module: SparkActivity — Browse list state.
 
 import Foundation
+import SparkCore
 
 @MainActor
 @Observable
@@ -58,6 +59,7 @@ final class ActivityBrowseViewModel {
             items = page.items
             nextCursor = page.nextCursor
             loadState = page.items.isEmpty ? .empty : .loaded
+            IntegrationTelemetry.browseImpression(itemCount: page.items.count)
         } catch is CancellationError {
             return
         } catch {

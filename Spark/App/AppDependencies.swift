@@ -11,6 +11,7 @@ import SparkNetworking
 import SparkPayments
 import SparkPersistence
 import SparkSearch
+import SparkTrust
 
 /// Container for composition-root dependencies (injected via SwiftUI environment).
 public struct AppDependencies {
@@ -26,6 +27,7 @@ public struct AppDependencies {
     public let likesFeedRepository: any LikesFeedRepository
     public let searchRepository: any SearchRepository
     public let communityPostsRepository: any CommunityPostsRepository
+    public let trustRepository: any TrustRepository
     public let storeKitService: any StoreKitServing
     // REASONING: EntitlementManager is MainActor-isolated; held by App and passed into views.
     public let entitlementManager: EntitlementManager
@@ -46,6 +48,7 @@ public struct AppDependencies {
         likesFeedRepository: any LikesFeedRepository,
         searchRepository: any SearchRepository,
         communityPostsRepository: any CommunityPostsRepository,
+        trustRepository: any TrustRepository,
         storeKitService: any StoreKitServing,
         entitlementManager: EntitlementManager,
         deviceTokenUploader: any DeviceTokenUploading,
@@ -64,6 +67,7 @@ public struct AppDependencies {
         self.likesFeedRepository = likesFeedRepository
         self.searchRepository = searchRepository
         self.communityPostsRepository = communityPostsRepository
+        self.trustRepository = trustRepository
         self.storeKitService = storeKitService
         self.entitlementManager = entitlementManager
         self.deviceTokenUploader = deviceTokenUploader

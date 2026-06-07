@@ -50,7 +50,10 @@ enum LikesDTOMapper {
             sharedActivityTitle: dto.sharedActivity?.title,
             sharedActivityID: dto.sharedActivity?.activityID,
             sparkQuestions: (dto.sparkQuestions ?? []).map(sparkQuestion(from:)),
-            isDailyPick: dto.isDailyPick ?? false
+            isDailyPick: dto.isDailyPick ?? false,
+            trustScore: dto.trustScore,
+            hasLivenessVerification: dto.hasLivenessVerification ?? false,
+            activityAttendanceCount: dto.activityAttendanceCount ?? 0
         )
     }
 

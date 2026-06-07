@@ -7,6 +7,7 @@ public struct ActivityRootView: View {
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
 
     @Binding var pendingActivityID: String?
+    @Binding var pendingCreateActivityDraft: CreateActivityDraft?
     @State var viewModel: ActivityViewModel
     @State var navigationPath = NavigationPath()
     @State var selectedActivityID: String?
@@ -32,6 +33,7 @@ public struct ActivityRootView: View {
         blockedHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
         browseRepository: (any ActivityBrowseRepository)? = nil,
         pendingActivityID: Binding<String?> = .constant(nil),
+        pendingCreateActivityDraft: Binding<CreateActivityDraft?> = .constant(nil),
         onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
         onOpenGroupChat: ((ActivityDetail) async -> Void)? = nil,
         onActivityCreated: ((ActivityDetail) async -> Void)? = nil,
@@ -45,6 +47,7 @@ public struct ActivityRootView: View {
         self.blockedHostsStore = blockedHostsStore
         self.browseRepository = browseRepository
         _pendingActivityID = pendingActivityID
+        _pendingCreateActivityDraft = pendingCreateActivityDraft
         _viewModel = State(initialValue: ActivityViewModel(repository: repository))
         self.onRSVPCompleted = onRSVPCompleted
         self.onOpenGroupChat = onOpenGroupChat
@@ -62,6 +65,7 @@ public struct ActivityRootView: View {
         blockedHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
         browseRepository: (any ActivityBrowseRepository)? = nil,
         pendingActivityID: Binding<String?> = .constant(nil),
+        pendingCreateActivityDraft: Binding<CreateActivityDraft?> = .constant(nil),
         onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
         onOpenGroupChat: ((ActivityDetail) async -> Void)? = nil,
         onActivityCreated: ((ActivityDetail) async -> Void)? = nil,
@@ -75,6 +79,7 @@ public struct ActivityRootView: View {
         self.blockedHostsStore = blockedHostsStore
         self.browseRepository = browseRepository
         _pendingActivityID = pendingActivityID
+        _pendingCreateActivityDraft = pendingCreateActivityDraft
         _viewModel = State(initialValue: viewModel)
         self.onRSVPCompleted = onRSVPCompleted
         self.onOpenGroupChat = onOpenGroupChat
@@ -116,6 +121,7 @@ public struct ActivityRootView: View {
             NavigationStack {
                 CreateActivityView(
                     repository: repository,
+                    initialDraft: pendingCreateActivityDraft,
                     onCreated: { detail in
                         Task {
                             await onActivityCreated?(detail)
@@ -125,6 +131,15 @@ public struct ActivityRootView: View {
                     },
                     onProvisionGroupChat: onRSVPCompleted
                 )
+            }
+        }
+        .onChange(of: pendingCreateActivityDraft) { _, draft in
+            guard draft != nil else { return }
+            showCreateActivity = true
+        }
+        .onChange(of: showCreateActivity) { _, isPresented in
+            if !isPresented {
+                pendingCreateActivityDraft = nil
             }
         }
         .onChange(of: pendingActivityID) { _, activityID in

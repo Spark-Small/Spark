@@ -828,11 +828,13 @@ Single post for the Community detail screen (`SparkCommunity` → `LiveCommunity
 
 ### `POST /v1/community/posts` (MODULE-E)
 
-Create a text post (Staging: no moderation queue).
+Create a text post or activity recap (Staging: no moderation queue).
 
-**Request:** `{ "title": "...", "body": "..." }`
+**Request (discussion):** `{ "title": "...", "body": "..." }`
 
-**Response `201`:** `{ "post": { "id", "title", "excerpt", "author_display_name", "reply_count" } }` (list item shape).
+**Request (activity recap):** `{ "title": "...", "body": "...", "kind": "activity_recap", "activity_id": "act_001" }`
+
+**Response `201`:** `{ "post": CommunityPostDetail }` — includes `kind`, `linked_activity` when recap.
 
 ### `POST /v1/community/posts/{post_id}/replies` (MODULE-E.2)
 
@@ -860,7 +862,29 @@ Add a text reply to a post thread.
 | POST | `/v1/community/posts/{post_id}/replies` (built in `CommunityAPIPath.replies`) |
 | POST | `/v1/community/posts/{post_id}/report` |
 
-**Deep links (iOS):** `spark://community/post/{post_id}` · `spark://community?post_id={id}`
+**Deep links (iOS):** `spark://community/post/{post_id}` · `spark://community?post_id={id}` · `spark://community?activity_id={id}` (recap draft)
+
+---
+
+## Trust profile
+
+**Module:** `SparkTrust` · **Tab:** 我的 (Profile)
+
+### `GET /v1/trust/profile`
+
+**Response `200`:** `{ "profile": { "trust_score": 42, "activity_attendance_count": 2, "completed_levels": ["phone"], "has_liveness_verification": false } }`
+
+### `POST /v1/trust/phone/verify`
+
+**Request:** `{ "code": "123456" }` · **Response `200`:** `{ "outcome": "verified" }`
+
+### `POST /v1/trust/real-name`
+
+**Request:** `{ "legal_name": "...", "id_number": "..." }` · **Response `200`:** `{ "outcome": "verified" }`
+
+### `POST /v1/trust/liveness/verify`
+
+**Response `200`:** `{ "outcome": "verified", "has_liveness_verification": true }`
 
 ---
 

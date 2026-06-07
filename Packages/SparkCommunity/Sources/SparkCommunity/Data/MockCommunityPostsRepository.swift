@@ -4,6 +4,7 @@ import Foundation
 
 public actor MockCommunityPostsRepository: CommunityPostsRepository {
     private var replyStore: [String: [CommunityPostReply]]
+    private var userCreatedPosts: [CommunityPostDetail] = []
 
     public init() {
         replyStore = MockCommunityPostCatalog.defaultReplies()
@@ -13,8 +14,16 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
         self.replyStore = replyStore
     }
 
+    public func resetUserCreatedPosts() {
+        userCreatedPosts = []
+    }
+
     public func fetchPosts() async throws -> [CommunityPost] {
-        MockCommunityPostCatalog.allPosts(replyStore: replyStore).map(MockCommunityPostCatalog.summary)
+        allPostDetails().map(MockCommunityPostCatalog.summary)
+    }
+
+    private func allPostDetails() -> [CommunityPostDetail] {
+        userCreatedPosts + MockCommunityPostCatalog.allPosts(replyStore: replyStore)
     }
 
     public func fetchTabExperience() async throws -> CommunityTabExperience {
@@ -41,7 +50,7 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
     }
 
     public func fetchPost(id: String) async throws -> CommunityPostDetail {
-        guard let post = MockCommunityPostCatalog.allPosts(replyStore: replyStore).first(where: { $0.id == id }) else {
+        guard let post = allPostDetails().first(where: { $0.id == id }) else {
             throw CommunityError.underlying(.server(statusCode: 404, message: nil))
         }
         return post
@@ -55,6 +64,24 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
             authorDisplayName: "你",
             replyCount: 0
         )
+    }
+
+    public func createRecapPost(_ draft: CommunityRecapDraft) async throws -> CommunityPostDetail {
+        try CommunityRecapDraft.validate(draft)
+        let detail = CommunityPostDetail(
+            id: "cp_recap_\(userCreatedPosts.count + 1)",
+            title: draft.postTitle,
+            body: draft.normalizedBody,
+            authorDisplayName: String(
+                localized: "community.reply.author.you",
+                defaultValue: "你",
+                comment: "Reply author"
+            ),
+            replyCount: 0,
+            linkedActivity: LinkedActivityContext(id: draft.activityID, name: draft.activityTitle)
+        )
+        userCreatedPosts.insert(detail, at: 0)
+        return detail
     }
 
     public func createReply(postID: String, body: String) async throws -> CommunityPostReply {

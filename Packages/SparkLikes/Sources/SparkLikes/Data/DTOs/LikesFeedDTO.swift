@@ -74,6 +74,9 @@ struct DiscoverCardDTO: Decodable, Sendable {
     let sharedActivity: SharedActivityDTO?
     let sparkQuestions: [SparkQuestionDTO]?
     let isDailyPick: Bool?
+    let trustScore: Int?
+    let hasLivenessVerification: Bool?
+    let activityAttendanceCount: Int?
 
     enum CodingKeys: String, CodingKey {
         case userID = "user_id"
@@ -87,6 +90,9 @@ struct DiscoverCardDTO: Decodable, Sendable {
         case sharedActivity = "shared_activity"
         case sparkQuestions = "spark_questions"
         case isDailyPick = "is_daily_pick"
+        case trustScore = "trust_score"
+        case hasLivenessVerification = "has_liveness_verification"
+        case activityAttendanceCount = "activity_attendance_count"
     }
 }
 

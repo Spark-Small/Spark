@@ -112,12 +112,18 @@ enum MockCommunityPostCatalog {
     }
 
     static func summary(from detail: CommunityPostDetail) -> CommunityPost {
-        CommunityPost(
+        let kind: CommunityPostKind = detail.title.localizedStandardContains(
+            String(localized: "community.recap.keyword", defaultValue: "复盘", comment: "Recap keyword")
+        ) ? .activityRecap : .discussion
+        return CommunityPost(
             id: detail.id,
             title: detail.title,
             excerpt: String(detail.body.prefix(80)),
             authorDisplayName: detail.authorDisplayName,
-            replyCount: detail.replyCount
+            replyCount: detail.replyCount,
+            kind: kind,
+            linkedActivityID: detail.linkedActivity?.id,
+            linkedActivityTitle: detail.linkedActivity?.name
         )
     }
 }
