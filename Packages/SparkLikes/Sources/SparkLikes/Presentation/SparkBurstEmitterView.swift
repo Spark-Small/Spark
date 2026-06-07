@@ -5,13 +5,14 @@ import UIKit
 
 struct SparkBurstEmitterView: UIViewRepresentable {
     let trigger: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeUIView(context: Context) -> SparkBurstUIView {
         SparkBurstUIView()
     }
 
     func updateUIView(_ uiView: SparkBurstUIView, context: Context) {
-        guard trigger > 0 else { return }
+        guard trigger > 0, !reduceMotion else { return }
         uiView.burst()
     }
 }

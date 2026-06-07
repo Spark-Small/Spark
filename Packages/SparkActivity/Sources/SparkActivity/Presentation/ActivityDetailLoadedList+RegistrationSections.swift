@@ -140,7 +140,7 @@ extension ActivityDetailLoadedList {
 
     @ViewBuilder
     func rsvpButtons(for activity: ActivityDetail) -> some View {
-        ForEach(ActivityRSVPStatus.selectableResponses, id: \.self) { status in
+        ForEach(ActivityRSVPStatus.selectableResponses, id: \.rawValue) { status in
             let isGoing = status == .going
             let disabled = viewModel.isUpdatingRSVP || (isGoing && !activity.canSelectGoing)
             Button {

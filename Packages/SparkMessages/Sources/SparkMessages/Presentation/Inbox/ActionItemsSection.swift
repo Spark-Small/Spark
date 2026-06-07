@@ -23,7 +23,25 @@ struct ActionItemsSection: View {
         .padding(.bottom, 8)
         .listRowInsets(EdgeInsets())
         .listRowSeparator(.hidden)
-        .background(.thinMaterial)
+        .background(.bar)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(actionSectionAccessibilityLabel)
+    }
+
+    private var actionSectionAccessibilityLabel: String {
+        if items.isEmpty {
+            return String(
+                localized: "messages.action.empty",
+                defaultValue: "没有待处理事项",
+                comment: "No pending actions"
+            )
+        }
+        let format = String(
+            localized: "messages.action.section.a11y.format",
+            defaultValue: "即将行动，%1$d 项待处理",
+            comment: "Action section; item count"
+        )
+        return String(format: format, locale: .current, items.count)
     }
 
     private var header: some View {

@@ -1,6 +1,7 @@
 // Module: Spark — Push tap → activity detail (Phase 16).
 
 import SparkAppShell
+import SparkNotifications
 import UIKit
 import UserNotifications
 

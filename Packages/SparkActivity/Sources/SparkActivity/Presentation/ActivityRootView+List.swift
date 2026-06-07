@@ -60,7 +60,7 @@ extension ActivityRootView {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    if browseRepository != nil {
+                    if coordinator.hasBrowseCatalog {
                         Button {
                             showBrowse = true
                         } label: {
@@ -128,6 +128,13 @@ extension ActivityRootView {
         case .idle, .loading:
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .sparkLoadingAccessibilityLabel(
+                    String(
+                        localized: "activity.inbox.loading.a11y",
+                        defaultValue: "正在加载活动",
+                        comment: "Activity inbox loading"
+                    )
+                )
         case .empty:
             ContentUnavailableView(
                 String(localized: "activity.empty.title", defaultValue: "暂无活动", comment: "Empty activity list"),

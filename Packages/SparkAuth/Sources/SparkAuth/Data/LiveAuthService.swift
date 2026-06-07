@@ -72,6 +72,12 @@ public struct LiveAuthService: AuthService, Sendable {
         try await tokenProvider.clear()
     }
 
+    public func deleteAccount() async throws {
+        try await apiClient.post("/v1/auth/account/delete")
+        try await sessionStore.clear()
+        try await tokenProvider.clear()
+    }
+
     private func persist(_ session: AuthSession) async throws {
         try await sessionStore.save(session)
         try await tokenProvider.store(token: session.accessToken)

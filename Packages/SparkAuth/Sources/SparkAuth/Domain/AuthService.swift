@@ -18,4 +18,6 @@ public protocol AuthService: Sendable {
     func signInWithApple(_ credential: AppleSignInCredential) async throws -> AuthSession
     func signInWithEmail(email: String, password: String) async throws -> AuthSession
     func signOut() async throws
+    /// Permanently deletes the account and all associated server data (Guideline 5.1.1).
+    func deleteAccount() async throws
 }

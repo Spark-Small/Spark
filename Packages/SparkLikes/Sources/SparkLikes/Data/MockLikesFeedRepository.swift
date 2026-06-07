@@ -79,7 +79,7 @@ public actor MockLikesFeedRepository: LikesFeedRepository {
     }
 
     public func prepareAvatarUpload(contentType: String) async throws -> AvatarUploadPrepared {
-        let avatarURL = URL(string: "https://picsum.photos/seed/mock-avatar/400/400")!
+        let avatarURL = MockURL.require("https://picsum.photos/seed/mock-avatar/400/400")
         return AvatarUploadPrepared(uploadURL: nil, avatarURL: avatarURL)
     }
 

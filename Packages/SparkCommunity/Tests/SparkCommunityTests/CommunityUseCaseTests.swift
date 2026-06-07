@@ -34,4 +34,31 @@ struct CommunityUseCaseTests {
         let detail = try await useCase(draft)
         #expect(detail.linkedActivity != nil)
     }
+
+    @Test func createCommunityPostUseCaseCreatesPost() async throws {
+        let draft = CreateCommunityPostDraft(title: "Hello", body: "First post")
+        let post = try await CreateCommunityPostUseCase(repository: MockCommunityPostsRepository())(draft)
+        #expect(post.title == "Hello")
+    }
+
+    @Test func fetchCommunityPostUseCaseReturnsDetail() async throws {
+        let post = try await FetchCommunityPostUseCase(repository: MockCommunityPostsRepository())(postID: "cp_1")
+        #expect(post.id == "cp_1")
+    }
+
+    @Test func createCommunityReplyUseCaseAddsReply() async throws {
+        let reply = try await CreateCommunityReplyUseCase(repository: MockCommunityPostsRepository())(
+            postID: "cp_1",
+            body: "Nice post"
+        )
+        #expect(reply.body == "Nice post")
+    }
+
+    @Test func reportCommunityPostUseCaseSucceeds() async throws {
+        try await ReportCommunityPostUseCase(repository: MockCommunityPostsRepository())(
+            postID: "cp_1",
+            reason: .spam,
+            detail: nil
+        )
+    }
 }

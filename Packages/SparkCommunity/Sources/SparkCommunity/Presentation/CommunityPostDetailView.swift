@@ -5,15 +5,18 @@ import SwiftUI
 
 public struct CommunityPostDetailView: View {
     @State private var viewModel: CommunityPostDetailViewModel
+    @State private var showReportSheet = false
     private let onOpenLinkedActivity: ((String) -> Void)?
 
     public init(
         postID: String,
-        repository: any CommunityPostsRepository,
+        coordinator: CommunityCoordinator,
         onOpenLinkedActivity: ((String) -> Void)? = nil
     ) {
-        _viewModel = State(initialValue: CommunityPostDetailViewModel(postID: postID, repository: repository))
-        self.onOpenLinkedActivity = onOpenLinkedActivity
+        self.init(
+            viewModel: coordinator.makePostDetailViewModel(postID: postID),
+            onOpenLinkedActivity: onOpenLinkedActivity
+        )
     }
 
     public init(
@@ -30,6 +33,13 @@ public struct CommunityPostDetailView: View {
             case .idle, .loading:
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .sparkLoadingAccessibilityLabel(
+                        String(
+                            localized: "community.post.loading.a11y",
+                            defaultValue: "正在加载帖子",
+                            comment: "Post detail loading"
+                        )
+                    )
             case .failure(let message):
                 SparkRetryUnavailableView(
                     title: String(
@@ -46,11 +56,79 @@ public struct CommunityPostDetailView: View {
                     detailContent(post: post)
                 } else {
                     ProgressView()
+                        .sparkLoadingAccessibilityLabel(
+                            String(
+                                localized: "community.post.loading.a11y",
+                                defaultValue: "正在加载帖子",
+                                comment: "Post detail loading"
+                            )
+                        )
                 }
             }
         }
         .navigationTitle(viewModel.post?.title ?? "")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if viewModel.loadState == .loaded {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(
+                        String(localized: "community.report.title", defaultValue: "举报帖子", comment: "Report title"),
+                        systemImage: "exclamationmark.bubble"
+                    ) {
+                        showReportSheet = true
+                    }
+                    .buttonStyle(.sparkPressable)
+                    .accessibilityHint(
+                        String(
+                            localized: "community.report.toolbar.hint",
+                            defaultValue: "举报不当内容",
+                            comment: "Report toolbar hint"
+                        )
+                    )
+                }
+            }
+        }
+        .sheet(isPresented: $showReportSheet) {
+            CommunityReportSheet { reason, detail in
+                Task { await viewModel.submitReport(reason: reason, detail: detail) }
+            }
+        }
+        .alert(
+            String(
+                localized: "community.report.success.title",
+                defaultValue: "举报已提交",
+                comment: "Report success title"
+            ),
+            isPresented: reportSuccessBinding
+        ) {
+            Button(String(localized: "action.ok", defaultValue: "好", comment: "OK")) {
+                viewModel.dismissReportFeedback()
+            }
+        } message: {
+            Text(
+                String(
+                    localized: "community.report.success.message",
+                    defaultValue: "感谢反馈，我们会尽快处理。",
+                    comment: "Report success message"
+                )
+            )
+        }
+        .alert(
+            String(
+                localized: "community.report.failure.title",
+                defaultValue: "举报失败",
+                comment: "Report failure title"
+            ),
+            isPresented: reportFailureBinding
+        ) {
+            Button(String(localized: "action.ok", defaultValue: "好", comment: "OK")) {
+                viewModel.dismissReportFeedback()
+            }
+        } message: {
+            if case let .failure(message) = viewModel.reportState {
+                Text(message)
+            }
+        }
         .task {
             if viewModel.loadState == .idle {
                 await viewModel.load()
@@ -73,7 +151,9 @@ public struct CommunityPostDetailView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
             }
+            #if DEBUG
             postingComingSoonBar
+            #endif
         }
         .accessibilityElement(children: .contain)
     }
@@ -116,9 +196,9 @@ public struct CommunityPostDetailView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.thinMaterial)
+            .background(.bar)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.sparkPressable)
         .disabled(onOpenLinkedActivity == nil)
     }
 
@@ -176,10 +256,30 @@ public struct CommunityPostDetailView: View {
         )
         return String(format: format, locale: .current, count)
     }
+
+    private var reportSuccessBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.reportState == .submitted },
+            set: { if !$0 { viewModel.dismissReportFeedback() } }
+        )
+    }
+
+    private var reportFailureBinding: Binding<Bool> {
+        Binding(
+            get: {
+                if case .failure = viewModel.reportState { return true }
+                return false
+            },
+            set: { if !$0 { viewModel.dismissReportFeedback() } }
+        )
+    }
 }
 
 #Preview {
     NavigationStack {
-        CommunityPostDetailView(postID: "cp_1", repository: MockCommunityPostsRepository())
+        CommunityPostDetailView(
+            postID: "cp_1",
+            coordinator: CommunityCoordinator(repository: MockCommunityPostsRepository())
+        )
     }
 }

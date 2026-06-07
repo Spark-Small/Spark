@@ -10,13 +10,23 @@ public final class TrustVerificationViewModel {
     public private(set) var isLoading = false
     public private(set) var errorMessage: String?
 
-    private let fetchProfile: FetchTrustProfileUseCase
-    private let verifyLevel: VerifyTrustLevelUseCase
+    private let fetchProfile: any FetchTrustProfileUseCaseProtocol
+    private let verifyLevel: any VerifyTrustLevelUseCaseProtocol
     public var onCompleted: (() -> Void)?
 
-    public init(repository: any TrustRepository) {
-        fetchProfile = FetchTrustProfileUseCase(repository: repository)
-        verifyLevel = VerifyTrustLevelUseCase(repository: repository)
+    public init(
+        fetchProfile: any FetchTrustProfileUseCaseProtocol,
+        verifyLevel: any VerifyTrustLevelUseCaseProtocol
+    ) {
+        self.fetchProfile = fetchProfile
+        self.verifyLevel = verifyLevel
+    }
+
+    public convenience init(repository: any TrustRepository) {
+        self.init(
+            fetchProfile: FetchTrustProfileUseCase(repository: repository),
+            verifyLevel: VerifyTrustLevelUseCase(repository: repository)
+        )
     }
 
     public func load() async {

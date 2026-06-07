@@ -35,6 +35,13 @@ struct ActivityInviteFriendsSection: View {
                     systemImage: "doc.on.doc"
                 )
             }
+            .accessibilityHint(
+                String(
+                    localized: "activity.inviteFriends.copy.hint",
+                    defaultValue: "复制后可粘贴给好友",
+                    comment: "Copy invite hint"
+                )
+            )
         } header: {
             Text(
                 String(
@@ -51,6 +58,14 @@ struct ActivityInviteFriendsSection: View {
                     comment: "Invite friends footer"
                 )
             )
+        }
+    }
+}
+
+#Preview {
+    if let activity = MockActivityCatalog.detail(id: "act_1") {
+        Form {
+            ActivityInviteFriendsSection(activity: activity) {}
         }
     }
 }

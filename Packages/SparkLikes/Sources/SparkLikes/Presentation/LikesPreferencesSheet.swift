@@ -28,6 +28,7 @@ struct LikesPreferencesSheet: View {
                     }
                 }
             }
+            .accessibilityElement(children: .contain)
             .navigationTitle(
                 String(localized: "likes.settings.title", defaultValue: "发现偏好", comment: "Settings title")
             )

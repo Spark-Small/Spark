@@ -12,27 +12,26 @@ import SparkPayments
 import SparkPersistence
 import SparkSearch
 import SparkTrust
+import SparkNotifications
+import SparkAppShell
 
 enum CompositionRoot {
-    private static var dependenciesStorage: AppDependencies?
-
-    static var dependencies: AppDependencies {
-        guard let dependenciesStorage else {
-            fatalError("CompositionRoot.bootstrap() must run before accessing dependencies")
-        }
-        return dependenciesStorage
-    }
-
-    @MainActor
-    static func bootstrapIfNeeded() {
-        if dependenciesStorage == nil {
-            bootstrap()
+    static func bootstrapAsync() async -> AppDependencies {
+        let apiConfiguration = await Task.detached(priority: .userInitiated) {
+            APIConfiguration.loadFromBundle()
+        }.value
+        return await MainActor.run {
+            assemble(apiConfiguration: apiConfiguration)
         }
     }
 
     @MainActor
-    static func bootstrap() {
-        let apiConfiguration = APIConfiguration.loadFromBundle()
+    static func bootstrap() -> AppDependencies {
+        assemble(apiConfiguration: APIConfiguration.loadFromBundle())
+    }
+
+    @MainActor
+    private static func assemble(apiConfiguration: APIConfiguration) -> AppDependencies {
         let tokenProvider = KeychainAccessTokenProvider()
         let sessionStore = AuthSessionStore()
         let httpClient = HTTPClient(
@@ -84,17 +83,34 @@ enum CompositionRoot {
             configuration: apiConfiguration,
             apiClient: apiClient
         )
-        let discoverMediaImageCache = DiscoverMediaImageCache()
+        let discoverMediaImageCache = DiscoverMediaImageCache(httpClient: httpClient)
+        let remoteImageCache = RemoteImageCache(httpClient: httpClient, configuration: .thumbnail)
         let likesPreferencesStore = UserDefaultsLikesPreferencesStore()
         let likesOnboardingPreferences = UserDefaultsLikesOnboardingPreferences()
+        let authCoordinator = AuthCoordinator(authService: authService)
+        let tabDependencies = SparkTabDependencies(
+            messagesRepository: messagesRepository,
+            activityFeedRepository: activityFeedRepository,
+            activityBrowseRepository: activityBrowseRepository,
+            likesFeedRepository: likesFeedRepository,
+            searchRepository: searchRepository,
+            communityPostsRepository: communityPostsRepository,
+            trustRepository: trustRepository,
+            blockedActivityHostsStore: blockedActivityHostsStore,
+            discoverMediaImageCache: discoverMediaImageCache,
+            likesPreferencesStore: likesPreferencesStore,
+            likesOnboardingPreferences: likesOnboardingPreferences
+        )
 
-        dependenciesStorage = AppDependencies(
+        return AppDependencies(
             apiConfiguration: apiConfiguration,
             tokenProvider: tokenProvider,
             sessionStore: sessionStore,
             httpClient: httpClient,
             apiClient: apiClient,
             authService: authService,
+            authCoordinator: authCoordinator,
+            tabDependencies: tabDependencies,
             messagesRepository: messagesRepository,
             activityFeedRepository: activityFeedRepository,
             activityBrowseRepository: activityBrowseRepository,
@@ -107,6 +123,7 @@ enum CompositionRoot {
             deviceTokenUploader: deviceTokenUploader,
             blockedActivityHostsStore: blockedActivityHostsStore,
             discoverMediaImageCache: discoverMediaImageCache,
+            remoteImageCache: remoteImageCache,
             likesPreferencesStore: likesPreferencesStore,
             likesOnboardingPreferences: likesOnboardingPreferences
         )

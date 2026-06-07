@@ -41,7 +41,19 @@ struct CommunityRecapPostRow: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.sparkPressable)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            String(
+                format: String(
+                    localized: "community.recap.row.a11y.format",
+                    defaultValue: "活动复盘：%1$@",
+                    comment: "Recap row; post title"
+                ),
+                locale: .current,
+                post.title
+            )
+        )
     }
 }
 

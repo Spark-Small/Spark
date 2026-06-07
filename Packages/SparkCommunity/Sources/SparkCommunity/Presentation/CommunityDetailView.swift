@@ -15,19 +15,19 @@ public struct CommunityDetailView: View {
 
     public init(
         communityID: String,
-        repository: any CommunityPostsRepository,
+        coordinator: CommunityCoordinator,
         likedPersonIDs: Set<String> = [],
         onOpenActivity: @escaping (String) -> Void = { _ in },
         onOpenPost: @escaping (CommunityFeedPost) -> Void = { _ in },
         onLikePerson: @escaping (String) -> Void = { _ in }
     ) {
-        _viewModel = State(
-            initialValue: CommunityDetailViewModel(communityID: communityID, repository: repository)
+        self.init(
+            viewModel: coordinator.makeDetailViewModel(communityID: communityID),
+            likedPersonIDs: likedPersonIDs,
+            onOpenActivity: onOpenActivity,
+            onOpenPost: onOpenPost,
+            onLikePerson: onLikePerson
         )
-        self.likedPersonIDs = likedPersonIDs
-        self.onOpenActivity = onOpenActivity
-        self.onOpenPost = onOpenPost
-        self.onLikePerson = onLikePerson
     }
 
     public init(
@@ -50,6 +50,13 @@ public struct CommunityDetailView: View {
             case .idle, .loading:
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .accessibilityLabel(
+                        String(
+                            localized: "community.detail.loading.a11y",
+                            defaultValue: "正在加载社区",
+                            comment: "Community detail loading"
+                        )
+                    )
             case .failure(let message):
                 SparkRetryUnavailableView(
                     title: String(
@@ -66,6 +73,13 @@ public struct CommunityDetailView: View {
                     detailContent(detail: detail)
                 } else {
                     ProgressView()
+                        .sparkLoadingAccessibilityLabel(
+                            String(
+                                localized: "community.detail.loading.a11y",
+                                defaultValue: "正在加载社区",
+                                comment: "Community detail loading"
+                            )
+                        )
                 }
             }
         }
@@ -170,7 +184,7 @@ public struct CommunityDetailView: View {
                     } label: {
                         CommunityFeedPostRow(post: post)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.sparkPressable)
                     Divider()
                 }
             }
@@ -181,6 +195,9 @@ public struct CommunityDetailView: View {
 
 #Preview {
     NavigationStack {
-        CommunityDetailView(communityID: "cm_hike", repository: MockCommunityPostsRepository())
+        CommunityDetailView(
+            communityID: "cm_hike",
+            coordinator: CommunityCoordinator(repository: MockCommunityPostsRepository())
+        )
     }
 }

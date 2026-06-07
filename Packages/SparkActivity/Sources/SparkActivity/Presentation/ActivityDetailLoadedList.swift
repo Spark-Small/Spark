@@ -135,5 +135,33 @@ struct ActivityDetailLoadedList: View {
         }
         .sparkScreenListStyle()
         .disabled(viewModel.isUpdatingRSVP || viewModel.isPerformingHostAction)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(
+            String(
+                localized: "activity.detail.loaded.a11y",
+                defaultValue: "活动详情",
+                comment: "Activity detail list"
+            )
+        )
+    }
+}
+
+#Preview {
+    if let activity = MockActivityCatalog.detail(id: "act_1") {
+        NavigationStack {
+            ActivityDetailLoadedList(
+                viewModel: ActivityDetailViewModel(
+                    activityID: activity.id,
+                    repository: MockActivityFeedRepository()
+                ),
+                activity: activity,
+                onOpenGroupChat: nil,
+                onCommunityRecap: nil,
+                showEditActivity: .constant(false),
+                showAnnounceSheet: .constant(false),
+                showHostAgainCreate: .constant(false),
+                showCancelActivityConfirm: .constant(false)
+            )
+        }
     }
 }

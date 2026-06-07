@@ -14,7 +14,7 @@ public struct ActivityDetailView: View {
     @State private var showAnnounceSheet = false
     @State private var announceMessage = ""
 
-    private let repository: any ActivityFeedRepository
+    private let coordinator: ActivityCoordinator
     private let onOpenGroupChat: ((ActivityDetail) async -> Void)?
     private let onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)?
     private let onActivityRescheduled: ((ActivityDetail) async -> Void)?
@@ -22,9 +22,8 @@ public struct ActivityDetailView: View {
 
     public init(
         activityID: String,
-        repository: any ActivityFeedRepository,
+        coordinator: ActivityCoordinator,
         context: ActivityDetailContext = .inbox,
-        blockedHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
         onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
         onOpenGroupChat: ((ActivityDetail) async -> Void)? = nil,
         onActivityUpdated: ((ActivityDetail) async -> Void)? = nil,
@@ -32,13 +31,11 @@ public struct ActivityDetailView: View {
         onActivityRescheduled: ((ActivityDetail) async -> Void)? = nil,
         onCommunityRecap: ((ActivityDetail) -> Void)? = nil
     ) {
-        self.repository = repository
+        self.coordinator = coordinator
         _viewModel = State(
-            initialValue: ActivityDetailViewModel(
+            initialValue: coordinator.makeDetailViewModel(
                 activityID: activityID,
-                repository: repository,
                 context: context,
-                blockedHostsStore: blockedHostsStore,
                 onRSVPCompleted: onRSVPCompleted,
                 onActivityUpdated: onActivityUpdated
             )
@@ -51,15 +48,18 @@ public struct ActivityDetailView: View {
 
     public init(
         viewModel: ActivityDetailViewModel,
-        repository: any ActivityFeedRepository,
-        onOpenGroupChat: ((ActivityDetail) async -> Void)? = nil
+        coordinator: ActivityCoordinator,
+        onOpenGroupChat: ((ActivityDetail) async -> Void)? = nil,
+        onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)? = nil,
+        onActivityRescheduled: ((ActivityDetail) async -> Void)? = nil,
+        onCommunityRecap: ((ActivityDetail) -> Void)? = nil
     ) {
-        self.repository = repository
+        self.coordinator = coordinator
         _viewModel = State(initialValue: viewModel)
         self.onOpenGroupChat = onOpenGroupChat
-        self.onHostAnnouncePosted = nil
-        self.onActivityRescheduled = nil
-        self.onCommunityRecap = nil
+        self.onHostAnnouncePosted = onHostAnnouncePosted
+        self.onActivityRescheduled = onActivityRescheduled
+        self.onCommunityRecap = onCommunityRecap
     }
 
     public var body: some View {
@@ -68,6 +68,13 @@ public struct ActivityDetailView: View {
             case .idle, .loading:
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .sparkLoadingAccessibilityLabel(
+                        String(
+                            localized: "activity.detail.loading.a11y",
+                            defaultValue: "正在加载活动",
+                            comment: "Activity detail loading"
+                        )
+                    )
             case .failure(let message):
                 SparkRetryUnavailableView(
                     title: String(
@@ -93,6 +100,13 @@ public struct ActivityDetailView: View {
                     )
                 } else {
                     ProgressView()
+                        .sparkLoadingAccessibilityLabel(
+                            String(
+                                localized: "activity.detail.loading.a11y",
+                                defaultValue: "正在加载活动",
+                                comment: "Activity detail loading"
+                            )
+                        )
                 }
             }
         }
@@ -143,13 +157,16 @@ public struct ActivityDetailView: View {
         .sheet(isPresented: $showEditActivity) {
             if let activity = viewModel.activity {
                 NavigationStack {
-                    EditActivityView(activity: activity, repository: repository) { updated in
-                        let previousStartsAt = viewModel.activity?.startsAt
-                        viewModel.applyUpdatedDetail(updated)
-                        if let previousStartsAt, previousStartsAt != updated.startsAt {
-                            Task { await onActivityRescheduled?(updated) }
+                    EditActivityView(
+                        viewModel: coordinator.makeEditViewModel(activity: activity),
+                        onSaved: { updated in
+                            let previousStartsAt = viewModel.activity?.startsAt
+                            viewModel.applyUpdatedDetail(updated)
+                            if let previousStartsAt, previousStartsAt != updated.startsAt {
+                                Task { await onActivityRescheduled?(updated) }
+                            }
                         }
-                    }
+                    )
                 }
             }
         }
@@ -163,8 +180,9 @@ public struct ActivityDetailView: View {
             if let activity = viewModel.activity {
                 NavigationStack {
                     CreateActivityView(
-                        repository: repository,
-                        initialDraft: CreateActivityDraft(hostAgainFrom: activity),
+                        viewModel: coordinator.makeCreateViewModel(
+                            initialDraft: CreateActivityDraft(hostAgainFrom: activity)
+                        ),
                         onCreated: { detail in
                             viewModel.applyUpdatedDetail(detail)
                         },
@@ -221,6 +239,7 @@ public struct ActivityDetailView: View {
                     .lineLimit(3 ... 6)
                 }
             }
+            .sparkDismissesKeyboardOnScroll()
             .navigationTitle(
                 String(localized: "activity.host.announce.title", defaultValue: "通知报名者", comment: "Announce title")
             )
@@ -277,6 +296,7 @@ public struct ActivityDetailView: View {
                     }
                 }
             }
+            .sparkDismissesKeyboardOnScroll()
             .navigationTitle(
                 String(localized: "activity.report.title", defaultValue: "举报活动", comment: "Report title")
             )
@@ -302,7 +322,10 @@ public struct ActivityDetailView: View {
 
 #Preview {
     NavigationStack {
-        ActivityDetailView(activityID: "act_3", repository: MockActivityFeedRepository())
+        ActivityDetailView(
+            activityID: "act_3",
+            coordinator: ActivityCoordinator(feedRepository: MockActivityFeedRepository())
+        )
     }
 }
 
@@ -310,7 +333,7 @@ public struct ActivityDetailView: View {
     NavigationStack {
         ActivityDetailView(
             activityID: "act_2",
-            repository: MockActivityFeedRepository(),
+            coordinator: ActivityCoordinator(feedRepository: MockActivityFeedRepository()),
             context: .externalEntry
         )
     }

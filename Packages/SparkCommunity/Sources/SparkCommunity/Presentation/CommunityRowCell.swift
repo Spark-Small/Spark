@@ -1,5 +1,6 @@
 // Module: SparkCommunity — Community list row in tab footer.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct CommunityRowCell: View {
@@ -26,6 +27,7 @@ struct CommunityRowCell: View {
                 Circle()
                     .fill(.red)
                     .frame(width: 8, height: 8)
+                    .accessibilityHidden(true)
             }
         }
         .padding(.horizontal, 16)
@@ -75,21 +77,43 @@ struct CommunityRowCell: View {
 
     @ViewBuilder
     private var communityAvatar: some View {
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
         if let url = community.coverURL {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    RoundedRectangle(cornerRadius: 10).fill(.thinMaterial)
+            SparkCachedRemoteImage(
+                url: url,
+                maxPixelSize: 768,
+                content: { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .accessibilityHidden(true)
+                },
+                placeholder: {
+                    Color.clear
                 }
-            }
+            )
             .frame(width: 44, height: 44)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .sparkGlassSurface(shape)
+            .clipShape(shape)
         } else {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(.thinMaterial)
+            Color.clear
                 .frame(width: 44, height: 44)
+                .sparkGlassSurface(shape)
         }
     }
+}
+
+#Preview {
+    CommunityRowCell(
+        community: CommunitySummary(
+            id: "cm_preview",
+            name: "徒步爱好者",
+            coverURL: nil,
+            memberCount: 128,
+            activityCount: 12,
+            hasNewPosts: true,
+            bio: "周末一起爬山"
+        )
+    )
+    .padding()
 }

@@ -1,5 +1,6 @@
 // Module: SparkCommunity — Joined communities horizontal carousel.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct MyCommunitiesCarousel: View {
@@ -16,7 +17,7 @@ struct MyCommunitiesCarousel: View {
                     } label: {
                         CommunityPill(community: community)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.sparkPressable)
                 }
                 ExplorePill(action: onExploreMore)
             }
@@ -57,19 +58,20 @@ private struct CommunityPill: View {
     @ViewBuilder
     private var avatar: some View {
         if let coverURL = community.coverURL {
-            AsyncImage(url: coverURL) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    Circle().fill(.thinMaterial)
+            SparkCachedRemoteImage(
+                url: coverURL,
+                content: { image in
+                    image.resizable().scaledToFill().accessibilityHidden(true)
+                },
+                placeholder: {
+                    Color(.tertiarySystemFill)
                 }
-            }
+            )
             .frame(width: 56, height: 56)
             .clipShape(Circle())
         } else {
             Circle()
-                .fill(.thinMaterial)
+                .fill(Color(.tertiarySystemFill))
                 .frame(width: 56, height: 56)
         }
     }
@@ -82,8 +84,8 @@ private struct ExplorePill: View {
         Button(action: action) {
         VStack(spacing: 6) {
             Circle()
-                .fill(.thinMaterial)
                 .frame(width: 56, height: 56)
+                .sparkGlassSurface(Circle())
                 .overlay {
                     Image(systemName: "plus")
                         .font(.title3.weight(.semibold))
@@ -97,6 +99,22 @@ private struct ExplorePill: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(String(localized: "community.explore", defaultValue: "探索更多", comment: "Explore more"))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.sparkPressable)
     }
+}
+
+#Preview {
+    MyCommunitiesCarousel(
+        communities: [
+            CommunitySummary(
+                id: "cm_1",
+                name: "徒步爱好者",
+                memberCount: 128,
+                activityCount: 12,
+                bio: "周末爬山"
+            )
+        ],
+        onSelect: { _ in },
+        onExploreMore: {}
+    )
 }

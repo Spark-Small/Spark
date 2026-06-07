@@ -13,24 +13,14 @@ extension SparkMainTabView {
     @ViewBuilder
     var tabContent: some View {
         LikesRootView(
-            repository: likesFeedRepository,
-            discoverMediaImageCache: discoverMediaImageCache,
-            preferencesStore: likesPreferencesStore,
-            onboardingPreferences: likesOnboardingPreferences,
+            coordinator: tabDependencies.likesCoordinator,
             pendingInbound: $router.pendingLikesInbound,
             onOpenMatchConversation: { threadID, peerDisplayName, initialMessage in
-                let peerUserID = SparkMainTabRouting.peerUserID(fromDirectThreadID: threadID)
-                let resolvedThread = try? await messagesRepository.ensureDirectMessageThread(
-                    peerUserID: peerUserID,
-                    peerDisplayName: peerDisplayName
+                let thread = await tabDependencies.orchestrator.openMatchConversation(
+                    threadID: threadID,
+                    peerDisplayName: peerDisplayName,
+                    initialMessage: initialMessage
                 )
-                let thread = (resolvedThread ?? MessageThreadID(threadID)).rawValue
-                if let initialMessage, !initialMessage.isEmpty {
-                    _ = try? await messagesRepository.sendMessage(
-                        threadID: MessageThreadID(thread),
-                        body: initialMessage
-                    )
-                }
                 await MainActor.run {
                     router.openConversation(threadID: thread)
                 }
@@ -41,13 +31,7 @@ extension SparkMainTabView {
                 }
             },
             fetchRecommendedActivity: {
-                guard let page = try? await activityBrowseRepository.fetchBrowse(
-                    query: ActivityBrowseQuery(startsBefore: Date().addingTimeInterval(604_800))
-                ),
-                    let item = page.items.first else {
-                    return nil
-                }
-                return (item.id, item.title)
+                await tabDependencies.orchestrator.fetchRecommendedActivity()
             },
             onCreateMatchCoffee: { peerName in
                 IntegrationTelemetry.matchToActivityIntent(source: "match_coffee")
@@ -70,14 +54,11 @@ extension SparkMainTabView {
         .tag(SparkTab.likes)
 
         CommunityRootView(
-            repository: communityPostsRepository,
+            coordinator: tabDependencies.communityCoordinator,
             pendingCommunityPostID: $router.pendingCommunityPostID,
             pendingRecapActivityID: $router.pendingCommunityRecapActivityID,
             fetchActivityRecap: { activityID in
-                guard let detail = try? await activityFeedRepository.fetchActivity(id: activityID) else {
-                    return nil
-                }
-                return (detail.title, detail.scheduleLine)
+                await tabDependencies.orchestrator.fetchActivityRecap(activityID: activityID)
             },
             onOpenSearch: {
                 router.selectedTab = .profile
@@ -87,9 +68,7 @@ extension SparkMainTabView {
             },
             onLikePerson: { userID in
                 Task {
-                    _ = try? await likesFeedRepository.submitLike(
-                        SendLikeRequest(userID: UserID(userID), intensity: .like)
-                    )
+                    await tabDependencies.orchestrator.submitCommunityLike(userID: userID)
                 }
             },
             onOpenLinkedActivity: { activityID in
@@ -104,21 +83,19 @@ extension SparkMainTabView {
             .tag(SparkTab.messages)
 
         ActivityRootView(
-            repository: activityFeedRepository,
-            blockedHostsStore: blockedActivityHostsStore,
-            browseRepository: activityBrowseRepository,
+            coordinator: tabDependencies.activityCoordinator,
             pendingActivityID: $router.pendingActivityID,
             pendingCreateActivityDraft: $router.pendingCreateActivityDraft,
             onRSVPCompleted: { detail in
                 await activityGroupChatCoordinator.onRSVPCompleted(detail)
-                await ActivityLocalReminderScheduler.syncReminders(for: detail)
+                await tabDependencies.orchestrator.syncActivityReminders(for: detail)
             },
             onOpenGroupChat: { detail in
                 await activityGroupChatCoordinator.openGroupChat(for: detail)
             },
             onActivityCreated: { detail in
                 await activityGroupChatCoordinator.onRSVPCompleted(detail)
-                await ActivityLocalReminderScheduler.syncReminders(for: detail)
+                await tabDependencies.orchestrator.syncActivityReminders(for: detail)
             },
             isItemLocked: { index in
                 SparkFeatureFlags.isPremiumPaywallEnabled

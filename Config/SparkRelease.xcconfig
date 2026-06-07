@@ -1,0 +1,6 @@
+// Release builds — production API + paid-team entitlements (App Store Archive).
+#include "Spark.xcconfig"
+
+SPARK_API_BASE_URL = https://api.spark.app
+CODE_SIGN_ENTITLEMENTS = Config/SparkRelease.entitlements
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) SPARK_ENABLE_PUSH

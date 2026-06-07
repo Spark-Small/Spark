@@ -10,13 +10,11 @@ public struct SearchRootView: View {
     private let onSelectResult: ((SearchResultItem) -> Void)?
 
     public init(
-        repository: any SearchRepository,
+        coordinator: SearchCoordinator,
         initialQuery: String = "",
         onSelectResult: ((SearchResultItem) -> Void)? = nil
     ) {
-        let model = SearchViewModel(repository: repository)
-        model.query = initialQuery
-        _viewModel = State(initialValue: model)
+        _viewModel = State(initialValue: coordinator.makeViewModel(initialQuery: initialQuery))
         self.onSelectResult = onSelectResult
     }
 
@@ -69,7 +67,7 @@ public struct SearchRootView: View {
     private var suggestionsList: some View {
         List {
             Section {
-                ForEach(SearchViewModel.defaultSuggestions, id: \.self) { suggestion in
+                ForEach(Array(SearchViewModel.defaultSuggestions.enumerated()), id: \.offset) { _, suggestion in
                     Button {
                         viewModel.query = suggestion
                     } label: {
@@ -93,6 +91,13 @@ public struct SearchRootView: View {
         case .idle, .loading:
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .sparkLoadingAccessibilityLabel(
+                    String(
+                        localized: "search.loading.a11y",
+                        defaultValue: "正在搜索",
+                        comment: "Search loading"
+                    )
+                )
         case .empty:
             ContentUnavailableView(
                 String(localized: "search.empty.title", defaultValue: "无结果", comment: "Empty search"),
@@ -116,7 +121,7 @@ public struct SearchRootView: View {
                     } label: {
                         SearchResultRow(item: item, showsChevron: true)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.sparkPressable)
                 } else {
                     SearchResultRow(item: item, showsChevron: false)
                 }
@@ -205,41 +210,23 @@ private extension SearchResultItem {
 }
 
 #Preview {
-    SearchRootView(repository: MockSearchRepository())
+    SearchRootView(coordinator: SearchCoordinator(repository: MockSearchRepository()))
 }
 
 #Preview("Search — dark") {
     SparkPreviewSupport.darkMode {
-        SearchRootView(repository: MockSearchRepository())
+        SearchRootView(coordinator: SearchCoordinator(repository: MockSearchRepository()))
     }
 }
 
 #Preview("Search — accessibility XL") {
     SparkPreviewSupport.accessibilityXL {
-        SearchRootView(repository: MockSearchRepository())
+        SearchRootView(coordinator: SearchCoordinator(repository: MockSearchRepository()))
     }
 }
 
 #Preview("Search — iPad regular") {
     SparkPreviewSupport.iPadRegular {
-        SearchRootView(repository: MockSearchRepository())
-    }
-}
-
-#Preview("Search — dark") {
-    SparkPreviewSupport.darkMode {
-        SearchRootView(repository: MockSearchRepository())
-    }
-}
-
-#Preview("Search — accessibility XL") {
-    SparkPreviewSupport.accessibilityXL {
-        SearchRootView(repository: MockSearchRepository())
-    }
-}
-
-#Preview("Search — iPad regular") {
-    SparkPreviewSupport.iPadRegular {
-        SearchRootView(repository: MockSearchRepository())
+        SearchRootView(coordinator: SearchCoordinator(repository: MockSearchRepository()))
     }
 }

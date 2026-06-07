@@ -1,5 +1,6 @@
 // Module: SparkActivity — Activity inbox list row.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct ActivityInboxListRow: View {
@@ -52,7 +53,7 @@ struct ActivityInboxListRow: View {
             .foregroundStyle(.secondary)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(.thinMaterial, in: Capsule())
+            .sparkGlassControl(Capsule())
     }
 
     private func hostLine(for name: String) -> String {
@@ -74,5 +75,14 @@ struct ActivityInboxListRow: View {
             return String(format: format, locale: .current, item.title)
         }
         return "\(item.title), \(item.scheduleLine), \(item.rsvpStatus.localizedLabel)"
+    }
+}
+
+#Preview {
+    if let detail = MockActivityCatalog.detail(id: "act_1") {
+        List {
+            ActivityInboxListRow(item: detail.asListItem(), isLocked: false)
+            ActivityInboxListRow(item: detail.asListItem(), isLocked: true)
+        }
     }
 }

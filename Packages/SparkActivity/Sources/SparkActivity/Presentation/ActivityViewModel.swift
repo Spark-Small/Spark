@@ -5,7 +5,7 @@ import Observation
 
 @MainActor
 @Observable
-final class ActivityViewModel {
+public final class ActivityViewModel {
     enum LoadState: Equatable, Sendable {
         case idle
         case loading
@@ -18,11 +18,15 @@ final class ActivityViewModel {
     private(set) var loadState: LoadState = .idle
     var listFilter: ActivityListFilter = .all
 
-    private let fetchActivities: FetchActivityFeedUseCase
+    private let fetchActivities: any FetchActivityFeedUseCaseProtocol
     private var loadGeneration = 0
 
-    init(repository: any ActivityFeedRepository) {
-        fetchActivities = FetchActivityFeedUseCase(repository: repository)
+    public init(fetchActivities: any FetchActivityFeedUseCaseProtocol) {
+        self.fetchActivities = fetchActivities
+    }
+
+    public convenience init(repository: any ActivityFeedRepository) {
+        self.init(fetchActivities: FetchActivityFeedUseCase(repository: repository))
     }
 
     var filteredItems: [ActivityItem] {

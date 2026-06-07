@@ -1,5 +1,6 @@
 // Module: SparkLikes — Report + block confirmation.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct LikesReportSheet: View {
@@ -45,6 +46,8 @@ struct LikesReportSheet: View {
                     }
                 }
             }
+            .sparkDismissesKeyboardOnScroll()
+            .accessibilityElement(children: .contain)
             .navigationTitle(
                 String(localized: "likes.report.title", defaultValue: "举报并屏蔽", comment: "Report title")
             )

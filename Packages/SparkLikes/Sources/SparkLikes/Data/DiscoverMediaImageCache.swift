@@ -1,5 +1,6 @@
 // Module: SparkLikes — In-memory cache for discover card photos.
 
+import SparkNetworking
 import UIKit
 
 enum DiscoverMediaImageError: Error {
@@ -7,23 +8,30 @@ enum DiscoverMediaImageError: Error {
 }
 
 public actor DiscoverMediaImageCache {
-    private var storage: [URL: UIImage] = [:]
+    private let cache: RemoteImageCache
+    private static let maxPixelSize: CGFloat = 1_280
 
-    public init() {}
-
-    func image(for url: URL) async throws -> UIImage {
-        if let cached = storage[url] {
-            return cached
-        }
-        let (data, _) = try await URLSession.shared.data(from: url)
-        guard let image = UIImage(data: data) else {
-            throw DiscoverMediaImageError.invalidData
-        }
-        storage[url] = image
-        return image
+    public init(httpClient: HTTPClient) {
+        cache = RemoteImageCache(httpClient: httpClient, configuration: .discover)
     }
 
-    func clear() {
-        storage.removeAll()
+    /// Preview and test helper wired to the mock API host session.
+    public static func previewInstance() -> DiscoverMediaImageCache {
+        guard let url = URL(string: "https://mock.spark.local") else {
+            preconditionFailure("Invalid mock API base URL")
+        }
+        return DiscoverMediaImageCache(httpClient: HTTPClient(configuration: APIConfiguration(baseURL: url)))
+    }
+
+    func image(for url: URL) async throws -> UIImage {
+        do {
+            return try await cache.image(for: url, maxPixelSize: Self.maxPixelSize)
+        } catch {
+            throw DiscoverMediaImageError.invalidData
+        }
+    }
+
+    func clear() async {
+        await cache.clear()
     }
 }

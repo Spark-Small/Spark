@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SPARK_DESTINATION: platform=iOS Simulator,name=iPhone 17,OS=26.5
+  SPARK_DESTINATION: platform=iOS Simulator,name=iPhone 17,OS=26.4.1
 
 jobs:
   lint:
@@ -40,6 +40,12 @@ jobs:
 
       - name: Test packages
         run: ./scripts/test-packages.sh
+
+      - name: UseCase test gate
+        run: ./scripts/check-usecase-tests.sh
+
+      - name: Domain+Data coverage gate
+        run: SPARK_COVERAGE_GATE=1 ./scripts/check-coverage.sh
 
   app:
     name: app-build-test

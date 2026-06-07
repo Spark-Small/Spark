@@ -6,13 +6,14 @@ import SwiftUI
 extension ActivityRootView {
     func activityDetailView(activityID: String) -> some View {
         ActivityDetailView(
-            activityID: activityID,
-            repository: repository,
-            context: .inbox,
-            blockedHostsStore: blockedHostsStore,
-            onRSVPCompleted: onRSVPCompleted,
+            viewModel: coordinator.makeDetailViewModel(
+                activityID: activityID,
+                context: .inbox,
+                onRSVPCompleted: onRSVPCompleted,
+                onActivityUpdated: { _ in await viewModel.load() }
+            ),
+            coordinator: coordinator,
             onOpenGroupChat: onOpenGroupChat,
-            onActivityUpdated: { _ in await viewModel.load() },
             onHostAnnouncePosted: onHostAnnouncePosted,
             onActivityRescheduled: onActivityRescheduled,
             onCommunityRecap: onCommunityRecap
@@ -21,13 +22,14 @@ extension ActivityRootView {
 
     func externalActivityDetailView(activityID: String) -> some View {
         ActivityDetailView(
-            activityID: activityID,
-            repository: repository,
-            context: .externalEntry,
-            blockedHostsStore: blockedHostsStore,
-            onRSVPCompleted: onRSVPCompleted,
+            viewModel: coordinator.makeDetailViewModel(
+                activityID: activityID,
+                context: .externalEntry,
+                onRSVPCompleted: onRSVPCompleted,
+                onActivityUpdated: { _ in await viewModel.load() }
+            ),
+            coordinator: coordinator,
             onOpenGroupChat: onOpenGroupChat,
-            onActivityUpdated: { _ in await viewModel.load() },
             onHostAnnouncePosted: onHostAnnouncePosted,
             onActivityRescheduled: onActivityRescheduled,
             onCommunityRecap: onCommunityRecap
@@ -41,7 +43,7 @@ extension ActivityRootView {
             Button(action: onLockedItemTap) {
                 ActivityInboxListRow(item: item, isLocked: true)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.sparkPressable)
             .accessibilityHint(
                 String(
                     localized: "activity.row.premium.hint",

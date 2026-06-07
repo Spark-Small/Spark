@@ -1,5 +1,6 @@
 // Module: SparkMessages — Action item card components.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct ActionCardContainer<Content: View>: View {
@@ -9,7 +10,7 @@ struct ActionCardContainer<Content: View>: View {
         content
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+            .sparkGlassSurface(RoundedRectangle.sparkCard)
             .padding(.horizontal, 16)
     }
 }

@@ -22,3 +22,15 @@ struct CommentRow: View {
         .accessibilityLabel("\(reply.authorDisplayName), \(reply.body)")
     }
 }
+
+#Preview {
+    CommentRow(
+        reply: CommunityPostReply(
+            id: "reply_preview",
+            body: "我也想去，几点集合？",
+            authorDisplayName: "Alex"
+        ),
+        relationship: .matched
+    )
+    .padding()
+}

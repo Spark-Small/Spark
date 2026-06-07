@@ -1,5 +1,6 @@
 // Module: SparkCommunity — Meet people from shared activities.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct PeopleDiscoveryCard: View {
@@ -32,7 +33,7 @@ struct PeopleDiscoveryCard: View {
             }
         }
         .padding(.vertical, 12)
-        .background(.thinMaterial)
+        .sparkGlassSurface(RoundedRectangle.sparkCard)
     }
 }
 
@@ -47,7 +48,8 @@ private struct PeopleMiniCard: View {
             Button(action: onViewProfile) {
                 avatar
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.sparkPressable)
+            .accessibilityLabel(user.displayName)
             Text(user.displayName)
                 .font(.caption)
                 .lineLimit(1)
@@ -63,7 +65,7 @@ private struct PeopleMiniCard: View {
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.sparkPressable)
             .disabled(isLiked)
             .accessibilityLabel(
                 isLiked
@@ -77,20 +79,22 @@ private struct PeopleMiniCard: View {
     @ViewBuilder
     private var avatar: some View {
         if let url = user.avatarURL {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    Circle().fill(.regularMaterial)
+            SparkCachedRemoteImage(
+                url: url,
+                content: { image in
+                    image.resizable().scaledToFill().accessibilityHidden(true)
+                },
+                placeholder: {
+                    Circle().fill(.clear)
                 }
-            }
+            )
             .frame(width: 48, height: 48)
+            .sparkGlassControl(Circle())
             .clipShape(Circle())
         } else {
             Circle()
-                .fill(.regularMaterial)
                 .frame(width: 48, height: 48)
+                .sparkGlassControl(Circle())
         }
     }
 }
@@ -102,8 +106,8 @@ private struct ViewMoreCell: View {
         Button(action: action) {
             VStack(spacing: 8) {
                 Circle()
-                    .fill(.regularMaterial)
                     .frame(width: 48, height: 48)
+                    .sparkGlassControl(Circle())
                     .overlay {
                         Image(systemName: "chevron.right")
                             .foregroundStyle(.secondary)
@@ -114,6 +118,27 @@ private struct ViewMoreCell: View {
             }
             .frame(width: 72)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.sparkPressable)
+        .accessibilityLabel(
+            String(localized: "community.people.viewMore.a11y", defaultValue: "查看更多推荐用户", comment: "View more people")
+        )
     }
+}
+
+#Preview {
+    PeopleDiscoveryCard(
+        users: [
+            DiscoveredPerson(
+                id: "u1",
+                displayName: "Nova",
+                sharedTag: "也去了玉林咖啡局",
+                relationship: .sharedActivity("玉林咖啡局")
+            )
+        ],
+        likedUserIDs: [],
+        onLike: { _ in },
+        onViewProfile: { _ in },
+        onViewMore: {}
+    )
+    .padding()
 }

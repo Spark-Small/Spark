@@ -10,18 +10,16 @@ import SwiftUI
 /// Application root view — auth guard and tab shell via `SparkAppShell`.
 struct ContentView: View {
     private let appDelegate: SparkAppDelegate?
+    private let dependencies: AppDependencies
     @State private var authViewModel: AuthViewModel
     @State private var router: AppRouter
     @State private var paywallRouter: PaywallRouter
 
-    init(appDelegate: SparkAppDelegate? = nil) {
+    init(dependencies: AppDependencies, appDelegate: SparkAppDelegate? = nil) {
         self.appDelegate = appDelegate
-        CompositionRoot.bootstrapIfNeeded()
-        let dependencies = CompositionRoot.dependencies
+        self.dependencies = dependencies
         let router = AppRouter()
-        _authViewModel = State(
-            initialValue: AuthViewModel(authService: dependencies.authService)
-        )
+        _authViewModel = State(initialValue: dependencies.authCoordinator.makeAuthViewModel())
         _router = State(initialValue: router)
         _paywallRouter = State(initialValue: PaywallRouter(appRouter: router))
     }
@@ -30,32 +28,25 @@ struct ContentView: View {
         SparkRootView(
             authViewModel: authViewModel,
             router: router,
-            entitlementManager: CompositionRoot.dependencies.entitlementManager,
-            messagesRepository: CompositionRoot.dependencies.messagesRepository,
-            activityFeedRepository: CompositionRoot.dependencies.activityFeedRepository,
-            activityBrowseRepository: CompositionRoot.dependencies.activityBrowseRepository,
-            likesFeedRepository: CompositionRoot.dependencies.likesFeedRepository,
-            searchRepository: CompositionRoot.dependencies.searchRepository,
-            communityPostsRepository: CompositionRoot.dependencies.communityPostsRepository,
-            trustRepository: CompositionRoot.dependencies.trustRepository,
-            paywallRouter: paywallRouter,
-            blockedActivityHostsStore: CompositionRoot.dependencies.blockedActivityHostsStore,
-            discoverMediaImageCache: CompositionRoot.dependencies.discoverMediaImageCache,
-            likesPreferencesStore: CompositionRoot.dependencies.likesPreferencesStore,
-            likesOnboardingPreferences: CompositionRoot.dependencies.likesOnboardingPreferences
+            entitlementManager: dependencies.entitlementManager,
+            tabDependencies: dependencies.tabDependencies,
+            paywallRouter: paywallRouter
         )
         .environment(router)
-        .environment(CompositionRoot.dependencies.entitlementManager)
+        .environment(dependencies.entitlementManager)
+        .environment(\.remoteImageCache, dependencies.remoteImageCache)
         .onOpenURL { url in
             router.handle(url: url, isAuthenticated: authViewModel.isAuthenticated)
         }
         .onAppear {
             appDelegate?.router = router
-            appDelegate?.deviceTokenUploader = CompositionRoot.dependencies.deviceTokenUploader
+            appDelegate?.deviceTokenUploader = dependencies.deviceTokenUploader
         }
     }
 }
 
 #Preview {
-    ContentView()
+    let dependencies = CompositionRoot.bootstrap()
+    return ContentView(dependencies: dependencies)
+        .environment(\.appDependencies, dependencies)
 }

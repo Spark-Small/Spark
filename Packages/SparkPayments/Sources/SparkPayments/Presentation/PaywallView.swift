@@ -1,5 +1,6 @@
 // Module: SparkPayments — StoreKit 2 paywall (products, purchase, restore).
 
+import SparkDesignSystem
 import SwiftUI
 
 public struct PaywallView: View {
@@ -46,6 +47,7 @@ public struct PaywallView: View {
                         String(localized: "paywall.close", defaultValue: "关闭", comment: "Close"),
                         action: onDismiss
                     )
+                    .buttonStyle(.sparkPressable)
                 }
             }
             .task {
@@ -101,6 +103,13 @@ public struct PaywallView: View {
         ) {
             if entitlementManager.isLoading, entitlementManager.products.isEmpty {
                 ProgressView()
+                    .sparkLoadingAccessibilityLabel(
+                        String(
+                            localized: "paywall.products.loading.a11y",
+                            defaultValue: "正在加载订阅方案",
+                            comment: "Paywall products loading"
+                        )
+                    )
             } else if entitlementManager.products.isEmpty {
                 Text(
                     String(
@@ -126,6 +135,16 @@ public struct PaywallView: View {
                             Spacer()
                         }
                     }
+                    .buttonStyle(.sparkPressable)
+                    .accessibilityLabel(product.displayName)
+                    .accessibilityValue(product.displayPrice)
+                    .accessibilityHint(
+                        String(
+                            localized: "paywall.purchase.hint",
+                            defaultValue: "购买此订阅方案",
+                            comment: "Purchase product hint"
+                        )
+                    )
                     .disabled(entitlementManager.isLoading)
                 }
             }
@@ -141,6 +160,14 @@ public struct PaywallView: View {
                     String(localized: "paywall.restore", defaultValue: "恢复购买", comment: "Restore purchases")
                 )
             }
+            .buttonStyle(.sparkPressable)
+            .accessibilityHint(
+                String(
+                    localized: "paywall.restore.hint",
+                    defaultValue: "恢复此前在此设备上的订阅",
+                    comment: "Restore purchases hint"
+                )
+            )
             .disabled(entitlementManager.isLoading)
         } footer: {
             Text(

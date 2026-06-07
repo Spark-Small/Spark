@@ -161,7 +161,7 @@ extension CommunityRootView {
                                 } label: {
                                     CommunityRowCell(community: community)
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(.sparkPressable)
                                 Divider()
                             }
                         } header: {

@@ -1,4 +1,4 @@
-// Module: SparkLikesTests
+// Module: SparkLikesTests — Likes DTO mapper coverage.
 
 @testable import SparkLikes
 import Foundation
@@ -6,85 +6,80 @@ import SparkCore
 import Testing
 
 struct LikesDTOMapperTests {
-    @Test func inboundItemParsesISO8601LikedAt() throws {
+    @Test func pageMapsDiscoverCards() throws {
         let json = """
         {
-          "user_id": "u1",
-          "liked_at": "2026-06-05T12:00:00Z",
-          "card": {
-            "user_id": "u1",
-            "display_name": "Test",
-            "bio": "Bio",
-            "gender": "female",
-            "media": { "kind": "image", "url": "https://example.com/a.jpg" }
-          }
+          "items": [{
+            "user_id": "u_like_1",
+            "display_name": "Alex",
+            "bio": "Runner",
+            "media": {
+              "kind": "image",
+              "url": "https://cdn.spark.test/photo.jpg"
+            },
+            "interest_tags": ["running"],
+            "is_daily_pick": true,
+            "trust_score": 80
+          }],
+          "next_cursor": "cursor_2"
         }
         """
-        let dto = try JSONDecoder().decode(InboundLikeItemDTO.self, from: Data(json.utf8))
-        let item = try #require(LikesDTOMapper.inboundItem(from: dto))
-        #expect(item.likedAt != nil)
+        let dto = try JSONDecoder().decode(LikesFeedResponseDTO.self, from: Data(json.utf8))
+        let page = LikesDTOMapper.page(from: dto)
+        #expect(page.items.count == 1)
+        #expect(page.nextCursor == "cursor_2")
     }
 
-    @Test func inboundItemParsesIsVisible() throws {
+    @Test func inboundPageMapsItems() throws {
         let json = """
         {
-          "user_id": "u1",
-          "is_visible": false,
-          "card": {
-            "user_id": "u1",
-            "display_name": "Test",
-            "media": { "kind": "image", "url": "https://example.com/a.jpg" }
-          }
+          "items": [{
+            "user_id": "u_like_2",
+            "card": {
+              "user_id": "u_like_2",
+              "display_name": "Sam",
+              "media": {
+                "kind": "image",
+                "url": "https://cdn.spark.test/sam.jpg"
+              }
+            },
+            "intensity": "spark",
+            "is_visible": true,
+            "opener": "Hi there"
+          }],
+          "next_cursor": null
         }
         """
-        let dto = try JSONDecoder().decode(InboundLikeItemDTO.self, from: Data(json.utf8))
-        let item = try #require(LikesDTOMapper.inboundItem(from: dto))
-        #expect(item.isVisible == false)
+        let dto = try JSONDecoder().decode(LikesInboundResponseDTO.self, from: Data(json.utf8))
+        let page = LikesDTOMapper.inboundPage(from: dto)
+        #expect(page.items.count == 1)
+        #expect(page.items.first?.intensity == .spark)
     }
 
-    @Test func inboundItemParsesFractionalISO8601() throws {
+    @Test func sendLikeBodyMapsIntensityAndOpener() {
+        let body = LikesDTOMapper.sendLikeBody(
+            from: SendLikeRequest(
+                userID: UserID("u_1"),
+                intensity: .spark,
+                opener: "Hello",
+                likedQuestionID: "q_1"
+            )
+        )
+        #expect(body.intensity == "spark")
+        #expect(body.opener == "Hello")
+    }
+
+    @Test func dailyStatsMapping() throws {
         let json = """
         {
-          "user_id": "u1",
-          "liked_at": "2026-06-05T12:00:00.123Z",
-          "card": {
-            "user_id": "u1",
-            "display_name": "Test",
-            "media": { "kind": "image", "url": "https://example.com/a.jpg" }
-          }
+          "today_seen_count": 5,
+          "daily_pool_size": 50,
+          "spark_charges_remaining": 2
         }
         """
-        let dto = try JSONDecoder().decode(InboundLikeItemDTO.self, from: Data(json.utf8))
-        let item = try #require(LikesDTOMapper.inboundItem(from: dto))
-        #expect(item.likedAt != nil)
-    }
-
-    @Test func cardMapsSharedActivity() throws {
-        let json = """
-        {
-          "user_id": "u1",
-          "display_name": "Test",
-          "media": { "kind": "image", "url": "https://example.com/a.jpg" },
-          "shared_activity": { "activity_id": "act_1", "title": "Walk" }
-        }
-        """
-        let dto = try JSONDecoder().decode(DiscoverCardDTO.self, from: Data(json.utf8))
-        let card = try #require(LikesDTOMapper.card(from: dto))
-        #expect(card.sharedActivityID == "act_1")
-        #expect(card.sharedActivityTitle == "Walk")
-    }
-}
-
-struct LikesErrorPresentationTests {
-    @Test func networkErrorIncludesRecovery() {
-        let error = LikesError.underlying(.networkUnavailable)
-        let facing = LikesUserFacingError.from(error)
-        #expect(facing.recoverySuggestion != nil)
-        #expect(facing.displayText.contains(facing.message))
-    }
-
-    @Test func rewindUnavailableRecovery() {
-        let facing = LikesUserFacingError.from(LikesError.rewindUnavailable)
-        #expect(facing.recoverySuggestion != nil)
+        let dto = try JSONDecoder().decode(DailyLikeStatsDTO.self, from: Data(json.utf8))
+        let stats = LikesDTOMapper.dailyStats(from: dto)
+        #expect(stats.todaySeenCount == 5)
+        #expect(stats.sparkChargesRemaining == 2)
     }
 }

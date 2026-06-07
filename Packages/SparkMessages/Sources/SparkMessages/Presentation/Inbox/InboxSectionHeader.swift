@@ -19,6 +19,20 @@ struct InboxSectionHeader: View {
         }
         .textCase(nil)
         .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 4, trailing: 16))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(sectionAccessibilityLabel)
+    }
+
+    private var sectionAccessibilityLabel: String {
+        if unreadCount > 0 {
+            let format = String(
+                localized: "messages.section.header.unread.format",
+                defaultValue: "%1$@，%2$d 条未读",
+                comment: "Section header; title, unread"
+            )
+            return String(format: format, locale: .current, title, unreadCount)
+        }
+        return title
     }
 }
 

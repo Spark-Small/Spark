@@ -102,11 +102,11 @@ enum MockLikesCatalog {
             gender: .male,
             media: DiscoverMedia(
                 kind: .image,
-                url: URL(string: "spark-likes://mock/u_like_1/a")!
+                url: MockURL.require("spark-likes://mock/u_like_1/a")
             ),
             mediaItems: [
-                DiscoverMedia(kind: .image, url: URL(string: "spark-likes://mock/u_like_1/a")!),
-                DiscoverMedia(kind: .image, url: URL(string: "spark-likes://mock/u_like_1/b")!)
+                DiscoverMedia(kind: .image, url: MockURL.require("spark-likes://mock/u_like_1/a")),
+                DiscoverMedia(kind: .image, url: MockURL.require("spark-likes://mock/u_like_1/b"))
             ],
             interestTags: ["徒步", "摄影"],
             coarseLocation: String(
@@ -141,8 +141,8 @@ enum MockLikesCatalog {
             gender: .female,
             media: DiscoverMedia(
                 kind: .video,
-                url: URL(string: "spark-likes://mock/u_like_2/video")!,
-                posterURL: URL(string: "spark-likes://mock/u_like_2/poster")!
+                url: MockURL.require("spark-likes://mock/u_like_2/video"),
+                posterURL: MockURL.require("spark-likes://mock/u_like_2/poster")
             ),
             interestTags: ["咖啡", "阅读"],
             coarseLocation: String(
@@ -169,7 +169,7 @@ enum MockLikesCatalog {
             gender: .other,
             media: DiscoverMedia(
                 kind: .image,
-                url: URL(string: "spark-likes://mock/u_like_3")!
+                url: MockURL.require("spark-likes://mock/u_like_3")
             ),
             interestTags: ["跑步"]
         )
@@ -191,7 +191,7 @@ enum MockLikesCatalog {
             gender: .female,
             media: DiscoverMedia(
                 kind: .image,
-                url: URL(string: "spark-likes://mock/u_like_4")!
+                url: MockURL.require("spark-likes://mock/u_like_4")
             ),
             interestTags: ["读书", "分享"]
         )
@@ -213,11 +213,11 @@ enum MockLikesCatalog {
             gender: .female,
             media: DiscoverMedia(
                 kind: .image,
-                url: URL(string: "spark-likes://mock/u_like_5")!
+                url: MockURL.require("spark-likes://mock/u_like_5")
             ),
             mediaItems: [
-                DiscoverMedia(kind: .image, url: URL(string: "spark-likes://mock/u_like_5/a")!),
-                DiscoverMedia(kind: .image, url: URL(string: "spark-likes://mock/u_like_5/b")!)
+                DiscoverMedia(kind: .image, url: MockURL.require("spark-likes://mock/u_like_5/a")),
+                DiscoverMedia(kind: .image, url: MockURL.require("spark-likes://mock/u_like_5/b"))
             ],
             interestTags: ["活动", "社交"],
             sharedActivityTitle: String(
@@ -245,7 +245,7 @@ enum MockLikesCatalog {
             gender: .male,
             media: DiscoverMedia(
                 kind: .image,
-                url: URL(string: "spark-likes://mock/u_like_6")!
+                url: MockURL.require("spark-likes://mock/u_like_6")
             ),
             interestTags: ["摄影"]
         )

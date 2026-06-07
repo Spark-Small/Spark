@@ -7,6 +7,9 @@ import Testing
 @MainActor
 struct SearchRootViewTests {
     @Test func rootViewInitializes() {
-        _ = SearchRootView(repository: MockSearchRepository(), initialQuery: "spark")
+        _ = SearchRootView(
+            coordinator: SearchCoordinator(repository: MockSearchRepository()),
+            initialQuery: "spark"
+        )
     }
 }

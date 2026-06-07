@@ -9,9 +9,13 @@ let package = Package(
     products: [
         .library(name: "SparkDesignSystem", targets: ["SparkDesignSystem"])
     ],
+    dependencies: [
+        .package(path: "../SparkNetworking")
+    ],
     targets: [
         .target(
             name: "SparkDesignSystem",
+            dependencies: ["SparkNetworking"],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
                 .enableExperimentalFeature("StrictConcurrency")

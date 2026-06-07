@@ -6,16 +6,16 @@ import SparkMessages
 
 @MainActor
 public struct ActivityGroupChatCoordinator {
-    private let messagesRepository: any MessagesRepository
+    private let orchestrator: SparkTabOrchestrator
     private let reloadInbox: () async -> Void
     private let openThread: (String) -> Void
 
     public init(
-        messagesRepository: any MessagesRepository,
+        orchestrator: SparkTabOrchestrator,
         reloadInbox: @escaping () async -> Void,
         openThread: @escaping (String) -> Void
     ) {
-        self.messagesRepository = messagesRepository
+        self.orchestrator = orchestrator
         self.reloadInbox = reloadInbox
         self.openThread = openThread
     }
@@ -43,7 +43,7 @@ public struct ActivityGroupChatCoordinator {
             scheduleLine: detail.scheduleLine
         )
         // REASONING: Reschedule notice is best-effort; inbox still reloads if send fails offline.
-        try? await messagesRepository.sendMessage(threadID: MessageThreadID(threadID), body: body)
+        try? await orchestrator.sendGroupChatMessage(threadID: MessageThreadID(threadID), body: body)
         await reloadInbox()
     }
 
@@ -52,7 +52,7 @@ public struct ActivityGroupChatCoordinator {
         await provisionGroupChat(for: detail)
         let body = ActivityAnnounceCopy.systemMessage(activityTitle: detail.title, body: message)
         // REASONING: Host announce is best-effort; user already saw the compose UI succeed locally.
-        try? await messagesRepository.sendMessage(threadID: MessageThreadID(threadID), body: body)
+        try? await orchestrator.sendGroupChatMessage(threadID: MessageThreadID(threadID), body: body)
         await reloadInbox()
     }
 
@@ -61,7 +61,7 @@ public struct ActivityGroupChatCoordinator {
         let displayName = ActivityGroupChatCopy.displayName(activityTitle: detail.title)
         let welcome = ActivityGroupChatCopy.welcomeMessage(activityTitle: detail.title)
         // REASONING: Thread provisioning is idempotent; failure should not block RSVP navigation.
-        try? await messagesRepository.ensureActivityGroupThread(
+        try? await orchestrator.ensureActivityGroupThread(
             threadID: MessageThreadID(threadID),
             displayName: displayName,
             welcomeMessage: welcome

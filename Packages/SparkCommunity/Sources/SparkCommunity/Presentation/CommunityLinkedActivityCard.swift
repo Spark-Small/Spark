@@ -1,5 +1,6 @@
 // Module: SparkCommunity — Linked activity card on recap posts.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct CommunityLinkedActivityCard: View {
@@ -39,9 +40,10 @@ struct CommunityLinkedActivityCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20))
+            .sparkGlassSurface(RoundedRectangle.sparkCard)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.sparkPressable)
+        .accessibilityLabel(title)
         .accessibilityHint(
             String(
                 localized: "community.recap.openActivity.hint",

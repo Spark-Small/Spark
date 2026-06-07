@@ -12,9 +12,7 @@ public struct ActivityRootView: View {
     @State var navigationPath = NavigationPath()
     @State var selectedActivityID: String?
 
-    let repository: any ActivityFeedRepository
-    let blockedHostsStore: BlockedActivityHostsStore
-    let browseRepository: (any ActivityBrowseRepository)?
+    let coordinator: ActivityCoordinator
     let onRSVPCompleted: ((ActivityDetail) async -> Void)?
     let onOpenGroupChat: ((ActivityDetail) async -> Void)?
     let onActivityCreated: ((ActivityDetail) async -> Void)?
@@ -29,9 +27,7 @@ public struct ActivityRootView: View {
     @State var showBrowse = false
 
     public init(
-        repository: any ActivityFeedRepository,
-        blockedHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
-        browseRepository: (any ActivityBrowseRepository)? = nil,
+        coordinator: ActivityCoordinator,
         pendingActivityID: Binding<String?> = .constant(nil),
         pendingCreateActivityDraft: Binding<CreateActivityDraft?> = .constant(nil),
         onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
@@ -43,12 +39,10 @@ public struct ActivityRootView: View {
         onActivityRescheduled: ((ActivityDetail) async -> Void)? = nil,
         onCommunityRecap: ((ActivityDetail) -> Void)? = nil
     ) {
-        self.repository = repository
-        self.blockedHostsStore = blockedHostsStore
-        self.browseRepository = browseRepository
+        self.coordinator = coordinator
         _pendingActivityID = pendingActivityID
         _pendingCreateActivityDraft = pendingCreateActivityDraft
-        _viewModel = State(initialValue: ActivityViewModel(repository: repository))
+        _viewModel = State(initialValue: coordinator.makeInboxViewModel())
         self.onRSVPCompleted = onRSVPCompleted
         self.onOpenGroupChat = onOpenGroupChat
         self.onActivityCreated = onActivityCreated
@@ -61,9 +55,7 @@ public struct ActivityRootView: View {
 
     init(
         viewModel: ActivityViewModel,
-        repository: any ActivityFeedRepository,
-        blockedHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
-        browseRepository: (any ActivityBrowseRepository)? = nil,
+        coordinator: ActivityCoordinator,
         pendingActivityID: Binding<String?> = .constant(nil),
         pendingCreateActivityDraft: Binding<CreateActivityDraft?> = .constant(nil),
         onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
@@ -75,9 +67,7 @@ public struct ActivityRootView: View {
         onActivityRescheduled: ((ActivityDetail) async -> Void)? = nil,
         onCommunityRecap: ((ActivityDetail) -> Void)? = nil
     ) {
-        self.repository = repository
-        self.blockedHostsStore = blockedHostsStore
-        self.browseRepository = browseRepository
+        self.coordinator = coordinator
         _pendingActivityID = pendingActivityID
         _pendingCreateActivityDraft = pendingCreateActivityDraft
         _viewModel = State(initialValue: viewModel)
@@ -103,15 +93,17 @@ public struct ActivityRootView: View {
                 compactRoot
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(
+            String(localized: "screen.activity", defaultValue: "活动", comment: "Activity screen")
+        )
         .sheet(isPresented: $showNotificationSettings) {
             notificationSettingsSheet
         }
         .sheet(isPresented: $showBrowse) {
-            if let browseRepository {
+            if coordinator.hasBrowseCatalog {
                 ActivityBrowseListView(
-                    browseRepository: browseRepository,
-                    feedRepository: repository,
-                    blockedHostsStore: blockedHostsStore,
+                    coordinator: coordinator,
                     onRSVPCompleted: onRSVPCompleted,
                     onOpenGroupChat: onOpenGroupChat
                 )
@@ -120,8 +112,7 @@ public struct ActivityRootView: View {
         .sheet(isPresented: $showCreateActivity) {
             NavigationStack {
                 CreateActivityView(
-                    repository: repository,
-                    initialDraft: pendingCreateActivityDraft,
+                    viewModel: coordinator.makeCreateViewModel(initialDraft: pendingCreateActivityDraft),
                     onCreated: { detail in
                         Task {
                             await onActivityCreated?(detail)
@@ -156,34 +147,37 @@ public struct ActivityRootView: View {
 }
 
 #Preview {
-    ActivityRootView(repository: MockActivityFeedRepository())
+    ActivityRootView(coordinator: ActivityCoordinator(feedRepository: MockActivityFeedRepository()))
 }
 
 #Preview("Activity — empty") {
-    ActivityRootView(viewModel: ActivityViewModel(repository: EmptyActivityFeedRepository()), repository: EmptyActivityFeedRepository())
+    ActivityRootView(
+        viewModel: ActivityViewModel(repository: EmptyActivityFeedRepository()),
+        coordinator: ActivityCoordinator(feedRepository: EmptyActivityFeedRepository())
+    )
 }
 
 #Preview("Activity — error") {
     ActivityRootView(
         viewModel: ActivityViewModel(repository: FailingActivityFeedRepository()),
-        repository: FailingActivityFeedRepository()
+        coordinator: ActivityCoordinator(feedRepository: FailingActivityFeedRepository())
     )
 }
 
 #Preview("Activity — dark") {
     SparkPreviewSupport.darkMode {
-        ActivityRootView(repository: MockActivityFeedRepository())
+        ActivityRootView(coordinator: ActivityCoordinator(feedRepository: MockActivityFeedRepository()))
     }
 }
 
 #Preview("Activity — accessibility XL") {
     SparkPreviewSupport.accessibilityXL {
-        ActivityRootView(repository: MockActivityFeedRepository())
+        ActivityRootView(coordinator: ActivityCoordinator(feedRepository: MockActivityFeedRepository()))
     }
 }
 
 #Preview("Activity — iPad split") {
     SparkPreviewSupport.iPadRegular {
-        ActivityRootView(repository: MockActivityFeedRepository())
+        ActivityRootView(coordinator: ActivityCoordinator(feedRepository: MockActivityFeedRepository()))
     }
 }

@@ -69,6 +69,14 @@ struct LikesInboundListView: View {
         .onAppear {
             LikesTelemetry.inboundOpened(count: viewModel.inboundCount)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(
+            String(
+                localized: "likes.inbound.title",
+                defaultValue: "喜欢你的人",
+                comment: "Inbound title"
+            )
+        )
     }
 }
 

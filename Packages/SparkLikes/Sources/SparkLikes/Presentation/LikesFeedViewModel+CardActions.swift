@@ -101,6 +101,7 @@ extension LikesFeedViewModel {
         do {
             let result = try await submitLike(request)
             inboundItems.removeAll { $0.userID == userID }
+            refreshSortedInbound()
             applyLikeResult(result, card: card, source: .inbound)
         } catch {
             setStatusMessage(from: error)
@@ -173,7 +174,8 @@ extension LikesFeedViewModel {
         isPerformingAction = true
         defer { isPerformingAction = false }
         do {
-            try await reportAndBlockUser(userID: card.userID, reason: reason.wireValue, detail: detail)
+            try await reportUser(userID: card.userID, reason: reason.wireValue, detail: detail)
+            try await blockUser(userID: card.userID)
             statusMessage = String(
                 localized: "likes.report.done",
                 defaultValue: "已举报并屏蔽",

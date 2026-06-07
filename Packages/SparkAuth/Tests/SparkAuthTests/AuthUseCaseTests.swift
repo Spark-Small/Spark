@@ -1,5 +1,6 @@
 // Module: SparkAuthTests — Auth use case coverage.
 
+import Foundation
 import SparkAuth
 import SparkPersistence
 import Testing
@@ -36,5 +37,20 @@ struct AuthUseCaseTests {
         try await SignOutUseCase(authService: service)()
         let restored = try await RestoreSessionUseCase(authService: service)()
         #expect(restored == nil)
+    }
+
+    @Test func deleteAccountUseCaseClearsSession() async throws {
+        let service = makeService()
+        _ = try await SignInWithEmailUseCase(authService: service)(email: "a@b.co", password: "secret1")
+        try await DeleteAccountUseCase(authService: service)()
+        let restored = try await RestoreSessionUseCase(authService: service)()
+        #expect(restored == nil)
+    }
+
+    @Test func signInWithAppleUseCasePersistsSession() async throws {
+        let service = makeService()
+        let credential = AppleSignInCredential(identityToken: Data("token".utf8), authorizationCode: nil)
+        let session = try await SignInWithAppleUseCase(authService: service)(credential)
+        #expect(session.userID.rawValue == "apple-mock-user")
     }
 }

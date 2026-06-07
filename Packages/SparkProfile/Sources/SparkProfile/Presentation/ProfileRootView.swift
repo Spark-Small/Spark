@@ -1,5 +1,6 @@
-// Module: SparkProfile — Nexus「我的」tab root.
+// Module: SparkProfile — Profile tab root.
 
+import SparkCore
 import SparkDesignSystem
 import SparkPayments
 import SparkSearch
@@ -8,28 +9,29 @@ import SwiftUI
 
 public struct ProfileRootView: View {
     public var viewModel: ProfileViewModel
-    public let trustRepository: any TrustRepository
-    public let searchRepository: any SearchRepository
+    public let profileCoordinator: ProfileCoordinator
     public let onSelectSearchResult: (SearchResultItem) -> Void
     public let onSignOut: () -> Void
+    public let onDeleteAccount: () async -> Void
     public let onOpenPaywall: () -> Void
 
     @State private var showVerificationWizard = false
+    @State private var showDeleteAccountConfirmation = false
     @State private var searchQuery = ""
 
     public init(
         viewModel: ProfileViewModel,
-        trustRepository: any TrustRepository,
-        searchRepository: any SearchRepository,
+        profileCoordinator: ProfileCoordinator,
         onSelectSearchResult: @escaping (SearchResultItem) -> Void,
         onSignOut: @escaping () -> Void,
+        onDeleteAccount: @escaping () async -> Void,
         onOpenPaywall: @escaping () -> Void
     ) {
         self.viewModel = viewModel
-        self.trustRepository = trustRepository
-        self.searchRepository = searchRepository
+        self.profileCoordinator = profileCoordinator
         self.onSelectSearchResult = onSelectSearchResult
         self.onSignOut = onSignOut
+        self.onDeleteAccount = onDeleteAccount
         self.onOpenPaywall = onOpenPaywall
     }
 
@@ -40,6 +42,7 @@ public struct ProfileRootView: View {
                 embedding: .none
             ) {
                 profileContent
+                    .accessibilityElement(children: .contain)
             }
             .task {
                 if viewModel.loadState == .idle {
@@ -58,9 +61,40 @@ public struct ProfileRootView: View {
                 }
             }
             .sheet(isPresented: $showVerificationWizard) {
-                TrustVerificationWizardView(repository: trustRepository) {
-                    Task { await viewModel.load() }
+                TrustVerificationWizardView(
+                    viewModel: profileCoordinator.makeVerificationViewModel {
+                        Task { await viewModel.load() }
+                    }
+                )
+            }
+            .confirmationDialog(
+                String(
+                    localized: "auth.deleteAccount.confirm.title",
+                    defaultValue: "注销账号？",
+                    comment: "Delete account confirm title"
+                ),
+                isPresented: $showDeleteAccountConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button(
+                    String(
+                        localized: "auth.deleteAccount.confirm.action",
+                        defaultValue: "永久注销",
+                        comment: "Delete account confirm"
+                    ),
+                    role: .destructive
+                ) {
+                    Task { await onDeleteAccount() }
                 }
+                Button(String(localized: "action.cancel", defaultValue: "取消", comment: "Cancel"), role: .cancel) {}
+            } message: {
+                Text(
+                    String(
+                        localized: "auth.deleteAccount.confirm.message",
+                        defaultValue: "将删除你的账号与服务器上的个人数据，此操作不可撤销。",
+                        comment: "Delete account confirm message"
+                    )
+                )
             }
         }
     }
@@ -71,6 +105,13 @@ public struct ProfileRootView: View {
         case .idle, .loading:
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .sparkLoadingAccessibilityLabel(
+                    String(
+                        localized: "profile.loading.a11y",
+                        defaultValue: "正在加载资料",
+                        comment: "Profile loading"
+                    )
+                )
         case .failure(let message):
             SparkRetryUnavailableView(
                 title: String(
@@ -112,7 +153,7 @@ public struct ProfileRootView: View {
                 ) {
                     NavigationLink {
                         SearchRootView(
-                            repository: searchRepository,
+                            coordinator: profileCoordinator.makeSearchCoordinator(),
                             initialQuery: searchQuery,
                             onSelectResult: onSelectSearchResult
                         )
@@ -124,6 +165,48 @@ public struct ProfileRootView: View {
                     }
                 }
 
+                Section(
+                    String(
+                        localized: "profile.section.legal",
+                        defaultValue: "法律信息",
+                        comment: "Legal section"
+                    )
+                ) {
+                    Link(
+                        String(
+                            localized: "legal.privacyPolicy",
+                            defaultValue: "隐私政策",
+                            comment: "Privacy policy link"
+                        ),
+                        destination: SparkLegalLinks.privacyPolicyURL
+                    )
+                    Link(
+                        String(
+                            localized: "legal.termsOfService",
+                            defaultValue: "用户协议",
+                            comment: "Terms of service link"
+                        ),
+                        destination: SparkLegalLinks.termsOfServiceURL
+                    )
+                }
+
+                Section(
+                    String(
+                        localized: "profile.section.about",
+                        defaultValue: "关于",
+                        comment: "About section"
+                    )
+                ) {
+                    LabeledContent(
+                        String(
+                            localized: "legal.icp.label",
+                            defaultValue: "ICP 备案号",
+                            comment: "ICP record label"
+                        ),
+                        value: SparkLegalLinks.icpRecordNumber
+                    )
+                }
+
                 Section {
                     Button(
                         String(localized: "auth.signOut", defaultValue: "退出登录", comment: "Sign out"),
@@ -131,6 +214,23 @@ public struct ProfileRootView: View {
                     ) {
                         onSignOut()
                     }
+                    Button(
+                        String(
+                            localized: "auth.deleteAccount",
+                            defaultValue: "注销账号",
+                            comment: "Delete account"
+                        ),
+                        role: .destructive
+                    ) {
+                        showDeleteAccountConfirmation = true
+                    }
+                    .accessibilityHint(
+                        String(
+                            localized: "auth.deleteAccount.hint",
+                            defaultValue: "永久删除账号与服务器数据",
+                            comment: "Delete account hint"
+                        )
+                    )
                 }
             }
             .sparkScreenListStyle()
@@ -141,10 +241,13 @@ public struct ProfileRootView: View {
 #Preview {
     ProfileRootView(
         viewModel: ProfileViewModel(trustRepository: MockTrustRepository()),
-        trustRepository: MockTrustRepository(),
-        searchRepository: MockSearchRepository(),
+        profileCoordinator: ProfileCoordinator(
+            trustRepository: MockTrustRepository(),
+            searchRepository: MockSearchRepository()
+        ),
         onSelectSearchResult: { _ in },
         onSignOut: {},
+        onDeleteAccount: {},
         onOpenPaywall: {}
     )
 }

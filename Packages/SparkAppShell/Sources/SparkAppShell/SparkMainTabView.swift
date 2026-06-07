@@ -16,18 +16,8 @@ public struct SparkMainTabView: View {
     @Bindable var router: AppRouter
     @Bindable var authViewModel: AuthViewModel
     @Bindable var entitlementManager: EntitlementManager
-    let messagesRepository: any MessagesRepository
-    let activityFeedRepository: any ActivityFeedRepository
-    let activityBrowseRepository: any ActivityBrowseRepository
-    let likesFeedRepository: any LikesFeedRepository
-    let searchRepository: any SearchRepository
-    let communityPostsRepository: any CommunityPostsRepository
-    let trustRepository: any TrustRepository
+    let tabDependencies: SparkTabDependencies
     let paywallRouter: PaywallRouter
-    let blockedActivityHostsStore: BlockedActivityHostsStore
-    let discoverMediaImageCache: DiscoverMediaImageCache
-    let likesPreferencesStore: any LikesPreferencesStoring
-    let likesOnboardingPreferences: any LikesOnboardingPreferences
 
     @State private var messagesViewModel: MessagesViewModel?
     @State private var profileViewModel: ProfileViewModel?
@@ -37,34 +27,14 @@ public struct SparkMainTabView: View {
         router: AppRouter,
         authViewModel: AuthViewModel,
         entitlementManager: EntitlementManager,
-        messagesRepository: any MessagesRepository,
-        activityFeedRepository: any ActivityFeedRepository,
-        activityBrowseRepository: any ActivityBrowseRepository,
-        likesFeedRepository: any LikesFeedRepository,
-        searchRepository: any SearchRepository,
-        communityPostsRepository: any CommunityPostsRepository,
-        trustRepository: any TrustRepository,
-        paywallRouter: PaywallRouter,
-        blockedActivityHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
-        discoverMediaImageCache: DiscoverMediaImageCache,
-        likesPreferencesStore: any LikesPreferencesStoring,
-        likesOnboardingPreferences: any LikesOnboardingPreferences
+        tabDependencies: SparkTabDependencies,
+        paywallRouter: PaywallRouter
     ) {
         self.router = router
         self.authViewModel = authViewModel
         self.entitlementManager = entitlementManager
-        self.messagesRepository = messagesRepository
-        self.activityFeedRepository = activityFeedRepository
-        self.activityBrowseRepository = activityBrowseRepository
-        self.likesFeedRepository = likesFeedRepository
-        self.searchRepository = searchRepository
-        self.communityPostsRepository = communityPostsRepository
-        self.trustRepository = trustRepository
+        self.tabDependencies = tabDependencies
         self.paywallRouter = paywallRouter
-        self.blockedActivityHostsStore = blockedActivityHostsStore
-        self.discoverMediaImageCache = discoverMediaImageCache
-        self.likesPreferencesStore = likesPreferencesStore
-        self.likesOnboardingPreferences = likesOnboardingPreferences
     }
 
     public var body: some View {
@@ -119,7 +89,7 @@ public struct SparkMainTabView: View {
         guard SparkFeatureFlags.isPremiumInboundBlurEnabled else { return }
         let isActive = entitlementManager.hasPremium
         Task {
-            try? await likesFeedRepository.syncPremiumEntitlement(isActive: isActive)
+            await tabDependencies.orchestrator.syncPremiumEntitlement(isActive: isActive)
         }
     }
 
@@ -128,14 +98,17 @@ public struct SparkMainTabView: View {
         if let profileViewModel {
             ProfileRootView(
                 viewModel: profileViewModel,
-                trustRepository: trustRepository,
-                searchRepository: searchRepository,
+                profileCoordinator: tabDependencies.profileCoordinator,
                 onSelectSearchResult: handleSearchResult,
                 onSignOut: {
                     Task {
                         await authViewModel.signOutTapped()
                         router.resetAfterSignOut()
                     }
+                },
+                onDeleteAccount: {
+                    await authViewModel.deleteAccountTapped()
+                    router.resetAfterSignOut()
                 },
                 onOpenPaywall: {
                     paywallRouter.presentPaywall(placement: .activity)
@@ -153,7 +126,7 @@ public struct SparkMainTabView: View {
 
     var activityGroupChatCoordinator: ActivityGroupChatCoordinator {
         ActivityGroupChatCoordinator(
-            messagesRepository: messagesRepository,
+            orchestrator: tabDependencies.orchestrator,
             reloadInbox: {
                 ensureMessagesViewModel()
                 await messagesViewModel?.load()
@@ -197,13 +170,13 @@ public struct SparkMainTabView: View {
 
     private func ensureMessagesViewModel() {
         if messagesViewModel == nil {
-            messagesViewModel = MessagesViewModel(repository: messagesRepository)
+            messagesViewModel = tabDependencies.messagesCoordinator.makeInboxViewModel()
         }
     }
 
     private func ensureProfileViewModel() {
         if profileViewModel == nil {
-            profileViewModel = ProfileViewModel(trustRepository: trustRepository)
+            profileViewModel = tabDependencies.profileCoordinator.makeProfileViewModel()
         }
     }
 
@@ -218,4 +191,10 @@ public struct SparkMainTabView: View {
             systemImage: isSelected ? tab.selectedSystemImage : tab.systemImage
         )
     }
+}
+
+#Preview("Main tabs") {
+    SparkMainTabPreviewSupport.tabView(
+        authViewModel: SparkMainTabPreviewSupport.makeAuthenticatedViewModel()
+    )
 }

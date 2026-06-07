@@ -1,5 +1,6 @@
 // Module: SparkCommunity — Community member list sheet.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct CommunityMembersSheet: View {
@@ -17,7 +18,7 @@ struct CommunityMembersSheet: View {
                 } label: {
                     MemberRow(member: member)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.sparkPressable)
             }
             .navigationTitle(
                 String(localized: "community.members.title", defaultValue: "成员", comment: "Members title")
@@ -62,20 +63,31 @@ struct MemberRow: View {
     @ViewBuilder
     private var memberAvatar: some View {
         if let url = member.avatarURL {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    Circle().fill(.thinMaterial)
+            SparkCachedRemoteImage(
+                url: url,
+                content: { image in
+                    image.resizable().scaledToFill().accessibilityHidden(true)
+                },
+                placeholder: {
+                    Color(.tertiarySystemFill)
                 }
-            }
+            )
             .frame(width: 44, height: 44)
             .clipShape(Circle())
         } else {
             Circle()
-                .fill(.thinMaterial)
+                .fill(Color(.tertiarySystemFill))
                 .frame(width: 44, height: 44)
         }
     }
+}
+
+#Preview {
+    CommunityMembersSheet(
+        members: [
+            CommunityMember(id: "m1", displayName: "Alex", bio: "Runner"),
+            CommunityMember(id: "m2", displayName: "Nova")
+        ],
+        onSelectMember: { _ in }
+    )
 }

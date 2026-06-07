@@ -14,19 +14,25 @@ public final class ProfileViewModel {
         case failure(String)
     }
 
-    public private(set) var profile: TrustProfile?
+    public private(set) var summary: ProfileSummary?
     public private(set) var loadState: LoadState = .idle
 
-    private let fetchTrustProfile: FetchTrustProfileUseCase
+    public var profile: TrustProfile? { summary?.trustProfile }
 
-    public init(trustRepository: any TrustRepository) {
-        fetchTrustProfile = FetchTrustProfileUseCase(repository: trustRepository)
+    private let fetchProfileSummary: any FetchProfileSummaryUseCaseProtocol
+
+    public init(fetchProfileSummary: any FetchProfileSummaryUseCaseProtocol) {
+        self.fetchProfileSummary = fetchProfileSummary
+    }
+
+    public convenience init(trustRepository: any TrustRepository) {
+        self.init(fetchProfileSummary: FetchProfileSummaryUseCase(trustRepository: trustRepository))
     }
 
     public func load() async {
         loadState = .loading
         do {
-            profile = try await fetchTrustProfile()
+            summary = try await fetchProfileSummary()
             loadState = .loaded
         } catch is CancellationError {
             return

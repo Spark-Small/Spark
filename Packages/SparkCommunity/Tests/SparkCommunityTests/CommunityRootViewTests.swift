@@ -7,6 +7,6 @@ import Testing
 @MainActor
 struct CommunityRootViewTests {
     @Test func rootViewInitializes() {
-        _ = CommunityRootView(repository: MockCommunityPostsRepository())
+        _ = CommunityRootView(coordinator: CommunityCoordinator(repository: MockCommunityPostsRepository()))
     }
 }

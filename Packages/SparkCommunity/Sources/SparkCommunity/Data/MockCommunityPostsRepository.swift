@@ -102,4 +102,14 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
         replyStore[postID, default: []].append(reply)
         return reply
     }
+
+    public func reportPost(
+        postID: String,
+        reason: CommunityReportReason,
+        detail: String?
+    ) async throws {
+        _ = postID
+        _ = reason
+        _ = detail
+    }
 }

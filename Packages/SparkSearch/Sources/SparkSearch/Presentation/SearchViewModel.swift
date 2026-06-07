@@ -24,10 +24,14 @@ public final class SearchViewModel {
     public private(set) var results: [SearchResultItem] = []
     public private(set) var loadState: LoadState = .idle
 
-    private let searchQuery: SearchQueryUseCase
+    private let searchQuery: any SearchQueryUseCaseProtocol
 
-    public init(repository: any SearchRepository) {
-        searchQuery = SearchQueryUseCase(repository: repository)
+    public init(searchQuery: any SearchQueryUseCaseProtocol) {
+        self.searchQuery = searchQuery
+    }
+
+    public convenience init(repository: any SearchRepository) {
+        self.init(searchQuery: SearchQueryUseCase(repository: repository))
     }
 
     public func clearResults() {

@@ -13,8 +13,7 @@ struct DiscoverMediaPlaceholder: View {
                 Rectangle()
                     .fill(accent.gradient)
                     .frame(width: geometry.size.width, height: geometry.size.height)
-                Rectangle()
-                    .fill(.thickMaterial)
+                Color(.tertiarySystemFill)
                     .frame(width: geometry.size.width, height: geometry.size.height)
 
                 VStack(spacing: 12) {
@@ -32,5 +31,24 @@ struct DiscoverMediaPlaceholder: View {
             }
             .clipped()
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            displayName.isEmpty
+                ? String(
+                    localized: "likes.media.placeholder.a11y",
+                    defaultValue: "推荐照片",
+                    comment: "Media placeholder"
+                )
+                : displayName
+        )
     }
+}
+
+#Preview {
+    DiscoverMediaPlaceholder(
+        displayName: "Preview",
+        systemImage: "person.fill",
+        accent: .purple
+    )
+    .frame(height: 320)
 }

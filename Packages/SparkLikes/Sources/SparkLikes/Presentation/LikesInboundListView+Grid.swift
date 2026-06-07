@@ -1,5 +1,6 @@
 // Module: SparkLikes — Two-column inbound grid layout.
 
+import SparkDesignSystem
 import SwiftUI
 
 extension LikesInboundListView {
@@ -30,6 +31,7 @@ extension LikesInboundListView {
                 ProgressView()
                     .frame(maxWidth: .infinity)
                     .padding()
+                    .sparkLoadingMoreAccessibilityLabel()
             }
         }
     }

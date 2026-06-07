@@ -10,18 +10,26 @@ public struct CreateActivityView: View {
     private let onProvisionGroupChat: ((ActivityDetail) async -> Void)?
 
     public init(
-        repository: any ActivityFeedRepository,
+        viewModel: CreateActivityViewModel,
+        onCreated: @escaping (ActivityDetail) -> Void,
+        onProvisionGroupChat: ((ActivityDetail) async -> Void)? = nil
+    ) {
+        _viewModel = State(initialValue: viewModel)
+        self.onCreated = onCreated
+        self.onProvisionGroupChat = onProvisionGroupChat
+    }
+
+    public init(
+        coordinator: ActivityCoordinator,
         initialDraft: CreateActivityDraft? = nil,
         onCreated: @escaping (ActivityDetail) -> Void,
         onProvisionGroupChat: ((ActivityDetail) async -> Void)? = nil
     ) {
-        let viewModel = CreateActivityViewModel(repository: repository)
-        if let initialDraft {
-            viewModel.draft = initialDraft
-        }
-        _viewModel = State(initialValue: viewModel)
-        self.onCreated = onCreated
-        self.onProvisionGroupChat = onProvisionGroupChat
+        self.init(
+            viewModel: coordinator.makeCreateViewModel(initialDraft: initialDraft),
+            onCreated: onCreated,
+            onProvisionGroupChat: onProvisionGroupChat
+        )
     }
 
     public var body: some View {
@@ -76,6 +84,8 @@ public struct CreateActivityView: View {
                 }
             }
         }
+        .sparkDismissesKeyboardOnScroll()
+        .accessibilityElement(children: .contain)
         .navigationTitle(
             String(localized: "activity.create.title.screen", defaultValue: "创建活动", comment: "Create screen")
         )
@@ -91,6 +101,13 @@ public struct CreateActivityView: View {
                     Task { await publish() }
                 }
                 .disabled(!viewModel.draft.isValid || isSubmitting)
+                .accessibilityHint(
+                    String(
+                        localized: "activity.create.publish.hint",
+                        defaultValue: "发布后将出现在活动列表",
+                        comment: "Publish activity hint"
+                    )
+                )
             }
         }
         .disabled(isSubmitting)
@@ -117,6 +134,6 @@ public struct CreateActivityView: View {
 
 #Preview {
     NavigationStack {
-        CreateActivityView(repository: MockActivityFeedRepository()) { _ in }
+        CreateActivityView(coordinator: ActivityCoordinator(feedRepository: MockActivityFeedRepository())) { _ in }
     }
 }

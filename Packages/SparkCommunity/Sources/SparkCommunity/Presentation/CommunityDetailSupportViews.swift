@@ -1,5 +1,6 @@
 // Module: SparkCommunity — Community detail row components.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct CommunityLinkedActivityRow: View {
@@ -29,7 +30,20 @@ struct CommunityLinkedActivityRow: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.sparkPressable)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            String(
+                format: String(
+                    localized: "community.linkedActivity.row.a11y.format",
+                    defaultValue: "%1$@，%2$@",
+                    comment: "Linked activity row; title, schedule"
+                ),
+                locale: .current,
+                activity.title,
+                activity.scheduleLine
+            )
+        )
     }
 }
 
@@ -49,5 +63,49 @@ struct CommunityFeedPostRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            String(
+                format: String(
+                    localized: "community.feedPost.row.a11y.format",
+                    defaultValue: "%1$@：%2$@",
+                    comment: "Feed post row; author, content"
+                ),
+                locale: .current,
+                post.authorDisplayName,
+                post.content
+            )
+        )
     }
+}
+
+#Preview("Community linked activity row") {
+    CommunityLinkedActivityRow(
+        activity: CommunityLinkedActivity(
+            id: "act_preview",
+            title: "Weekend hike",
+            scheduleLine: "Sat 9:30 · North gate"
+        ),
+        onTap: {}
+    )
+}
+
+#Preview("Community feed post row") {
+    CommunityFeedPostRow(
+        post: CommunityFeedPost(
+            id: "post_preview",
+            authorDisplayName: "Alex",
+            authorUserID: "u_1",
+            communityName: "Runners",
+            content: "Anyone up for a 5K this evening?",
+            imageURL: nil,
+            likeCount: 3,
+            commentCount: 1,
+            tags: ["running"],
+            createdAt: .now,
+            sharedActivityWithViewer: nil,
+            relationshipToViewer: .none,
+            linkedActivity: nil
+        )
+    )
 }

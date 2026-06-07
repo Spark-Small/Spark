@@ -1,5 +1,6 @@
 // Module: SparkMessages — Conversation message bubble views.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct ConversationMessageView: View {
@@ -29,8 +30,8 @@ struct ChatBubble: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .background {
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(message.isFromCurrentUser ? AnyShapeStyle(.regularMaterial) : AnyShapeStyle(.thinMaterial))
+                    Color.clear
+                        .sparkGlassSurface(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 }
             if !message.isFromCurrentUser { Spacer(minLength: 48) }
         }
@@ -77,7 +78,7 @@ struct SystemMessageBubble: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+                .sparkGlassSurface(RoundedRectangle.sparkCard)
             }
         }
         .frame(maxWidth: .infinity)
@@ -112,12 +113,62 @@ struct ActivityShareBubble: View {
                 Spacer()
             }
             .padding(14)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+            .sparkGlassSurface(RoundedRectangle.sparkCard)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.sparkPressable)
         .frame(maxWidth: .infinity, alignment: message.isFromCurrentUser ? .trailing : .leading)
         .accessibilityLabel(
             String(localized: "messages.activity.share", defaultValue: "分享的活动", comment: "Shared activity")
         )
     }
+}
+
+#Preview("Message bubbles") {
+    let threadID = MessageThreadID("preview_thread")
+    VStack(spacing: 16) {
+        ChatBubble(
+            message: ChatMessage(
+                id: "m1",
+                threadID: threadID,
+                body: "周末有空一起喝咖啡吗？",
+                sentAt: .now,
+                isFromCurrentUser: false
+            )
+        )
+        ChatBubble(
+            message: ChatMessage(
+                id: "m2",
+                threadID: threadID,
+                body: "好啊，周六下午？",
+                sentAt: .now,
+                isFromCurrentUser: true
+            )
+        )
+    }
+    .padding()
+}
+
+#Preview("Message bubbles") {
+    let threadID = MessageThreadID("preview_thread")
+    VStack(spacing: 16) {
+        ChatBubble(
+            message: ChatMessage(
+                id: "m1",
+                threadID: threadID,
+                body: "周末有空一起喝咖啡吗？",
+                sentAt: .now,
+                isFromCurrentUser: false
+            )
+        )
+        ChatBubble(
+            message: ChatMessage(
+                id: "m2",
+                threadID: threadID,
+                body: "好啊，周六下午？",
+                sentAt: .now,
+                isFromCurrentUser: true
+            )
+        )
+    }
+    .padding()
 }

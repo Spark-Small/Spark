@@ -1,6 +1,7 @@
 // Module: SparkLikes — Horizontal photo gallery (Photos-style paging).
 
 import AVKit
+import SparkCore
 import SwiftUI
 import UIKit
 
@@ -28,9 +29,9 @@ struct DiscoverCardMediaPager: View {
 
             if card.galleryMedia.count > 1 {
                 HStack(spacing: 4) {
-                    ForEach(0 ..< card.galleryMedia.count, id: \.self) { index in
+                    ForEach(Array(card.galleryMedia.enumerated()), id: \.offset) { index, _ in
                         Capsule()
-                            .fill(index == pageIndex ? AnyShapeStyle(Color.white) : AnyShapeStyle(.thinMaterial))
+                            .fill(index == pageIndex ? Color.primary : Color.secondary.opacity(0.35))
                             .frame(height: 3)
                             .frame(maxWidth: .infinity)
                     }
@@ -150,8 +151,7 @@ struct DiscoverMockZoomablePhoto: View {
                 Rectangle()
                     .fill(accent.gradient)
                     .frame(width: geometry.size.width, height: geometry.size.height)
-                Rectangle()
-                    .fill(.thickMaterial)
+                Color(.tertiarySystemFill)
                     .frame(width: geometry.size.width, height: geometry.size.height)
 
                 VStack(spacing: 12) {
@@ -316,4 +316,31 @@ final class DiscoverPlayerUIView: UIView {
         player = nil
         playerLayer = nil
     }
+}
+
+private extension DiscoverCard {
+    static var previewCard: DiscoverCard {
+        DiscoverCard(
+            userID: UserID("preview"),
+            displayName: "Preview",
+            bio: "Bio",
+            gender: .female,
+            media: DiscoverMedia(kind: .image, url: MockURL.require("https://example.com/a.jpg")),
+            mediaItems: [
+                DiscoverMedia(kind: .image, url: MockURL.require("https://example.com/a.jpg")),
+                DiscoverMedia(kind: .image, url: MockURL.require("https://example.com/b.jpg"))
+            ],
+            interestTags: ["咖啡"]
+        )
+    }
+}
+
+#Preview("Media pager") {
+    DiscoverCardMediaPager(
+        card: .previewCard,
+        isActive: true,
+        zoomState: DiscoverPhotoZoomState()
+    )
+    .environment(\.discoverMediaImageCache, DiscoverMediaImageCache.previewInstance())
+    .frame(height: 420)
 }

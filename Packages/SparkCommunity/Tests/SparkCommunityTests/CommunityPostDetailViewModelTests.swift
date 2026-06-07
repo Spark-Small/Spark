@@ -31,4 +31,10 @@ struct CommunityPostDetailViewModelTests {
         #expect(viewModel.replyState == .idle)
         #expect(viewModel.post?.replies.count == 2)
     }
+
+    @Test func submitReportSetsSubmitted() async {
+        let viewModel = CommunityPostDetailViewModel(postID: "cp_1", repository: MockCommunityPostsRepository())
+        await viewModel.submitReport(reason: .spam, detail: nil)
+        #expect(viewModel.reportState == .submitted)
+    }
 }

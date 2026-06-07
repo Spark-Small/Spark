@@ -15,7 +15,7 @@ public struct CommunityRootView: View {
     @State private var recapDraft: RecapSheetItem?
     @State var profilePreview: CommunityProfilePreview?
 
-    let repository: any CommunityPostsRepository
+    let coordinator: CommunityCoordinator
     private let fetchActivityRecap: ((String) async -> (title: String, scheduleLine: String)?)?
     let onOpenSearch: () -> Void
     let onOpenLikesDiscover: () -> Void
@@ -23,7 +23,7 @@ public struct CommunityRootView: View {
     let onOpenLinkedActivity: (String) -> Void
 
     public init(
-        repository: any CommunityPostsRepository,
+        coordinator: CommunityCoordinator,
         pendingCommunityPostID: Binding<String?> = .constant(nil),
         pendingRecapActivityID: Binding<String?> = .constant(nil),
         fetchActivityRecap: ((String) async -> (title: String, scheduleLine: String)?)? = nil,
@@ -32,10 +32,10 @@ public struct CommunityRootView: View {
         onLikePerson: @escaping (String) -> Void = { _ in },
         onOpenLinkedActivity: @escaping (String) -> Void = { _ in }
     ) {
-        self.repository = repository
+        self.coordinator = coordinator
         _pendingCommunityPostID = pendingCommunityPostID
         _pendingRecapActivityID = pendingRecapActivityID
-        _viewModel = State(initialValue: CommunityViewModel(repository: repository))
+        _viewModel = State(initialValue: coordinator.makeTabViewModel())
         self.fetchActivityRecap = fetchActivityRecap
         self.onOpenSearch = onOpenSearch
         self.onOpenLikesDiscover = onOpenLikesDiscover
@@ -45,7 +45,7 @@ public struct CommunityRootView: View {
 
     public init(
         viewModel: CommunityViewModel,
-        repository: any CommunityPostsRepository,
+        coordinator: CommunityCoordinator,
         pendingCommunityPostID: Binding<String?> = .constant(nil),
         pendingRecapActivityID: Binding<String?> = .constant(nil),
         fetchActivityRecap: ((String) async -> (title: String, scheduleLine: String)?)? = nil,
@@ -54,7 +54,7 @@ public struct CommunityRootView: View {
         onLikePerson: @escaping (String) -> Void = { _ in },
         onOpenLinkedActivity: @escaping (String) -> Void = { _ in }
     ) {
-        self.repository = repository
+        self.coordinator = coordinator
         _pendingCommunityPostID = pendingCommunityPostID
         _pendingRecapActivityID = pendingRecapActivityID
         _viewModel = State(initialValue: viewModel)
@@ -87,8 +87,7 @@ public struct CommunityRootView: View {
                         }
                         .navigationDestination(for: CommunitySummary.self) { community in
                             CommunityDetailView(
-                                communityID: community.id,
-                                repository: repository,
+                                viewModel: coordinator.makeDetailViewModel(communityID: community.id),
                                 likedPersonIDs: viewModel.likedPersonIDs,
                                 onOpenActivity: onOpenLinkedActivity,
                                 onOpenPost: { openFeedPost($0) },
@@ -174,6 +173,13 @@ public struct CommunityRootView: View {
         case .idle, .loading:
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .sparkLoadingAccessibilityLabel(
+                    String(
+                        localized: "community.feed.loading.a11y",
+                        defaultValue: "正在加载社区",
+                        comment: "Community feed loading"
+                    )
+                )
         case .empty:
             ContentUnavailableView(
                 String(localized: "community.empty.title", defaultValue: "暂无讨论", comment: "Empty community"),
@@ -202,8 +208,7 @@ public struct CommunityRootView: View {
 
     func postDetailView(postID: String) -> some View {
         CommunityPostDetailView(
-            postID: postID,
-            repository: repository,
+            viewModel: coordinator.makePostDetailViewModel(postID: postID),
             onOpenLinkedActivity: onOpenLinkedActivity
         )
     }
@@ -265,23 +270,23 @@ private struct RecapSheetItem: Identifiable {
 }
 
 #Preview {
-    CommunityRootView(repository: MockCommunityPostsRepository())
+    CommunityRootView(coordinator: CommunityCoordinator(repository: MockCommunityPostsRepository()))
 }
 
 #Preview("Community — dark") {
     SparkPreviewSupport.darkMode {
-        CommunityRootView(repository: MockCommunityPostsRepository())
+        CommunityRootView(coordinator: CommunityCoordinator(repository: MockCommunityPostsRepository()))
     }
 }
 
 #Preview("Community — accessibility XL") {
     SparkPreviewSupport.accessibilityXL {
-        CommunityRootView(repository: MockCommunityPostsRepository())
+        CommunityRootView(coordinator: CommunityCoordinator(repository: MockCommunityPostsRepository()))
     }
 }
 
 #Preview("Community — iPad split") {
     SparkPreviewSupport.iPadRegular {
-        CommunityRootView(repository: MockCommunityPostsRepository())
+        CommunityRootView(coordinator: CommunityCoordinator(repository: MockCommunityPostsRepository()))
     }
 }

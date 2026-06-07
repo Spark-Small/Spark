@@ -1,5 +1,6 @@
 // Module: SparkMessages — DM and group chat avatar stacks.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct DMAvatar: View {
@@ -14,7 +15,7 @@ struct DMAvatar: View {
                 .clipShape(Circle())
             if isOnline {
                 Circle()
-                    .fill(Color.green)
+                    .fill(Color(.systemGreen))
                     .frame(width: 12, height: 12)
                     .overlay(Circle().strokeBorder(.background, lineWidth: 2))
                     .offset(x: 2, y: 2)
@@ -27,14 +28,15 @@ struct DMAvatar: View {
     @ViewBuilder
     private var avatarContent: some View {
         if let url = partner?.avatarURL {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
+            SparkCachedRemoteImage(
+                url: url,
+                content: { image in
+                    image.resizable().scaledToFill().accessibilityHidden(true)
+                },
+                placeholder: {
                     initialsPlaceholder
                 }
-            }
+            )
         } else {
             initialsPlaceholder
         }
@@ -55,20 +57,21 @@ struct GroupChatAvatar: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.thinMaterial)
+            Color.clear
                 .frame(width: 48, height: 48)
+                .sparkGlassSurface(RoundedRectangle(cornerRadius: 16, style: .continuous))
             if let url = activity?.coverURL {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
+                SparkCachedRemoteImage(
+                    url: url,
+                    content: { image in
+                        image.resizable().scaledToFill().accessibilityHidden(true)
+                    },
+                    placeholder: {
                         groupIcon
                     }
-                }
+                )
                 .frame(width: 48, height: 48)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             } else {
                 groupIcon
             }

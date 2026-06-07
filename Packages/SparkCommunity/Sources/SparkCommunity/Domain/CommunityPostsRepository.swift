@@ -13,4 +13,5 @@ public protocol CommunityPostsRepository: Sendable {
     func createPost(_ draft: CreateCommunityPostDraft) async throws -> CommunityPost
     func createRecapPost(_ draft: CommunityRecapDraft) async throws -> CommunityPostDetail
     func createReply(postID: String, body: String) async throws -> CommunityPostReply
+    func reportPost(postID: String, reason: CommunityReportReason, detail: String?) async throws
 }

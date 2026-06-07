@@ -7,21 +7,17 @@ public struct ActivityBrowseListView: View {
     @State private var viewModel: ActivityBrowseViewModel
     @Environment(\.dismiss) private var dismiss
 
-    private let feedRepository: any ActivityFeedRepository
-    private let blockedHostsStore: BlockedActivityHostsStore
+    private let coordinator: ActivityCoordinator
     private let onRSVPCompleted: ((ActivityDetail) async -> Void)?
     private let onOpenGroupChat: ((ActivityDetail) async -> Void)?
 
     public init(
-        browseRepository: any ActivityBrowseRepository,
-        feedRepository: any ActivityFeedRepository,
-        blockedHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
+        coordinator: ActivityCoordinator,
         onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
         onOpenGroupChat: ((ActivityDetail) async -> Void)? = nil
     ) {
-        _viewModel = State(initialValue: ActivityBrowseViewModel(repository: browseRepository))
-        self.feedRepository = feedRepository
-        self.blockedHostsStore = blockedHostsStore
+        _viewModel = State(initialValue: coordinator.makeBrowseViewModel())
+        self.coordinator = coordinator
         self.onRSVPCompleted = onRSVPCompleted
         self.onOpenGroupChat = onOpenGroupChat
     }
@@ -42,12 +38,10 @@ public struct ActivityBrowseListView: View {
             .navigationDestination(for: ActivityItem.self) { item in
                 ActivityDetailView(
                     activityID: item.id,
-                    repository: feedRepository,
+                    coordinator: coordinator,
                     context: .discover,
-                    blockedHostsStore: blockedHostsStore,
                     onRSVPCompleted: onRSVPCompleted,
-                    onOpenGroupChat: onOpenGroupChat,
-                    onActivityUpdated: nil
+                    onOpenGroupChat: onOpenGroupChat
                 )
             }
             .toolbar {
@@ -74,6 +68,13 @@ public struct ActivityBrowseListView: View {
             case .idle, .loading:
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .accessibilityLabel(
+                        String(
+                            localized: "activity.browse.loading.a11y",
+                            defaultValue: "正在加载活动",
+                            comment: "Browse loading"
+                        )
+                    )
             case .empty:
                 ContentUnavailableView(
                     String(
@@ -128,7 +129,7 @@ public struct ActivityBrowseListView: View {
         ) {
             Text(String(localized: "activity.browse.category.all", defaultValue: "全部", comment: "All categories"))
                 .tag(String?.none)
-            ForEach(ActivityBrowseViewModel.categoryOptions.compactMap { $0 }, id: \.self) { category in
+            ForEach(Array(ActivityBrowseViewModel.categoryOptions.compactMap { $0 }.enumerated()), id: \.offset) { _, category in
                 Text(category).tag(Optional(category))
             }
         }
@@ -143,7 +144,7 @@ public struct ActivityBrowseListView: View {
                 set: { viewModel.selectedTimeWindow = $0 }
             )
         ) {
-            ForEach(ActivityBrowseTimeWindow.allCases, id: \.self) { window in
+            ForEach(ActivityBrowseTimeWindow.allCases, id: \.rawValue) { window in
                 Text(window.localizedTitle).tag(window)
             }
         }
@@ -153,7 +154,9 @@ public struct ActivityBrowseListView: View {
 
 #Preview {
     ActivityBrowseListView(
-        browseRepository: MockActivityBrowseRepository(),
-        feedRepository: MockActivityFeedRepository()
+        coordinator: ActivityCoordinator(
+            feedRepository: MockActivityFeedRepository(),
+            browseRepository: MockActivityBrowseRepository()
+        )
     )
 }

@@ -1,5 +1,6 @@
 // Module: SparkActivity — Host edits activity basics.
 
+import SparkDesignSystem
 import SwiftUI
 
 public struct EditActivityView: View {
@@ -8,12 +9,22 @@ public struct EditActivityView: View {
     private let onSaved: (ActivityDetail) -> Void
 
     public init(
-        activity: ActivityDetail,
-        repository: any ActivityFeedRepository,
+        viewModel: EditActivityViewModel,
         onSaved: @escaping (ActivityDetail) -> Void
     ) {
-        _viewModel = State(initialValue: EditActivityViewModel(activity: activity, repository: repository))
+        _viewModel = State(initialValue: viewModel)
         self.onSaved = onSaved
+    }
+
+    public init(
+        activity: ActivityDetail,
+        coordinator: ActivityCoordinator,
+        onSaved: @escaping (ActivityDetail) -> Void
+    ) {
+        self.init(
+            viewModel: coordinator.makeEditViewModel(activity: activity),
+            onSaved: onSaved
+        )
     }
 
     public var body: some View {
@@ -68,6 +79,8 @@ public struct EditActivityView: View {
                 }
             }
         }
+        .sparkDismissesKeyboardOnScroll()
+        .accessibilityElement(children: .contain)
         .navigationTitle(
             String(localized: "activity.edit.title", defaultValue: "编辑活动", comment: "Edit screen")
         )
@@ -109,7 +122,7 @@ public struct EditActivityView: View {
         if let activity = MockActivityCatalog.detail(id: "act_1") {
             EditActivityView(
                 activity: activity,
-                repository: MockActivityFeedRepository(),
+                coordinator: ActivityCoordinator(feedRepository: MockActivityFeedRepository()),
                 onSaved: { _ in }
             )
         }

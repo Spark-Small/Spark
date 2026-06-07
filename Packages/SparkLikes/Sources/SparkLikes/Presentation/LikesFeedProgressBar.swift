@@ -1,10 +1,13 @@
 // Module: SparkLikes — Thin daily discover progress above the card stack.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct LikesFeedProgressBar: View {
     let seenCount: Int
     let poolSize: Int
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var progress: Double {
         guard poolSize > 0 else { return 0 }
@@ -15,14 +18,14 @@ struct LikesFeedProgressBar: View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(.ultraThinMaterial)
+                    .fill(Color(.tertiarySystemFill))
                 Capsule()
                     .fill(Color.accentColor.gradient)
                     .frame(width: max(0, proxy.size.width * progress))
             }
         }
         .frame(height: 3)
-        .animation(.easeInOut, value: seenCount)
+        .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.85), value: seenCount)
         .accessibilityLabel(
             String(
                 localized: "likes.progress.a11y",

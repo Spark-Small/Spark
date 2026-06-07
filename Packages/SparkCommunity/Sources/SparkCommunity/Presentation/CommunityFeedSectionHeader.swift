@@ -1,5 +1,6 @@
 // Module: SparkCommunity — Section header for tab feed.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct CommunityFeedSectionHeader: View {
@@ -12,6 +13,12 @@ struct CommunityFeedSectionHeader: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(.regularMaterial)
+            .background(.bar)
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityLabel(title)
     }
+}
+
+#Preview {
+    CommunityFeedSectionHeader(title: "热门讨论")
 }

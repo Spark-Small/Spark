@@ -43,8 +43,7 @@ extension CommunityRootView {
             postDetailView(postID: postID)
         case .community(let communityID):
             CommunityDetailView(
-                communityID: communityID,
-                repository: repository,
+                viewModel: coordinator.makeDetailViewModel(communityID: communityID),
                 likedPersonIDs: viewModel.likedPersonIDs,
                 onOpenActivity: onOpenLinkedActivity,
                 onOpenPost: { openFeedPost($0) },

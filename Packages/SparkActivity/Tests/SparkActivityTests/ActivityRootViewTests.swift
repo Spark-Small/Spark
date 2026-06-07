@@ -7,6 +7,6 @@ import Testing
 @MainActor
 struct ActivityRootViewTests {
     @Test func rootViewInitializes() {
-        _ = ActivityRootView(repository: MockActivityFeedRepository())
+        _ = ActivityRootView(coordinator: ActivityCoordinator(feedRepository: MockActivityFeedRepository()))
     }
 }

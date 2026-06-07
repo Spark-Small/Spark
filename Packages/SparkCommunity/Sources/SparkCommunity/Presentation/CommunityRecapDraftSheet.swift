@@ -1,5 +1,7 @@
 // Module: SparkCommunity — Post-event recap publish sheet (Nexus W5).
 
+import SparkDesignSystem
+import SparkDesignSystem
 import SwiftUI
 
 public struct CommunityRecapDraftSheet: View {
@@ -40,6 +42,13 @@ public struct CommunityRecapDraftSheet: View {
                     TextEditor(text: $draftText)
                         .frame(minHeight: 120)
                         .disabled(isPublishing)
+                        .accessibilityLabel(
+                            String(
+                                localized: "community.recap.draft.a11y",
+                                defaultValue: "活动感受",
+                                comment: "Recap draft field"
+                            )
+                        )
                 } footer: {
                     Text(
                         String(
@@ -58,6 +67,7 @@ public struct CommunityRecapDraftSheet: View {
                     }
                 }
             }
+            .sparkDismissesKeyboardOnScroll()
             .navigationTitle(
                 String(localized: "community.recap.title", defaultValue: "分享感受", comment: "Recap title")
             )
@@ -72,6 +82,7 @@ public struct CommunityRecapDraftSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     if isPublishing {
                         ProgressView()
+                            .accessibilityHidden(true)
                     } else {
                         Button(String(localized: "community.recap.publish", defaultValue: "发布", comment: "Publish recap")) {
                             Task { await publishRecap() }

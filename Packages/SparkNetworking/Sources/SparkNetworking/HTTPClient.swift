@@ -21,6 +21,18 @@ public actor HTTPClient {
         self.retryPolicy = retryPolicy
     }
 
+    /// Fetches bytes from an absolute URL (e.g. CDN image). Does not apply API interceptors.
+    public func fetchData(from url: URL) async throws -> Data {
+        let (data, response) = try await session.data(from: url)
+        guard let http = response as? HTTPURLResponse else {
+            throw AppError.unknown(message: "Invalid URL response")
+        }
+        guard (200 ..< 300).contains(http.statusCode) else {
+            throw HTTPErrorMapper.map(statusCode: http.statusCode, body: data)
+        }
+        return data
+    }
+
     public func execute(_ request: HTTPRequest) async throws -> HTTPResponse {
         var lastError: Error?
         for attempt in 0 ..< retryPolicy.maxAttempts {

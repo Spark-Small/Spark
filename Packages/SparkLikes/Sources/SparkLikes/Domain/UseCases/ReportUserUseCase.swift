@@ -1,9 +1,9 @@
-// Module: SparkLikes — Report then block a discover user.
+// Module: SparkLikes — Report a discover user.
 
 import Foundation
 import SparkCore
 
-struct ReportAndBlockUserUseCase: Sendable {
+struct ReportUserUseCase: Sendable {
     private let repository: any LikesFeedRepository
 
     init(repository: any LikesFeedRepository) {
@@ -12,6 +12,5 @@ struct ReportAndBlockUserUseCase: Sendable {
 
     func callAsFunction(userID: UserID, reason: String, detail: String?) async throws {
         try await repository.reportUser(userID: userID, reason: reason, detail: detail)
-        try await repository.blockUser(userID: userID)
     }
 }

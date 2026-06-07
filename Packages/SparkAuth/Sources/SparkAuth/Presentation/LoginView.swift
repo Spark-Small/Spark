@@ -28,7 +28,8 @@ public struct LoginView: View {
                 String(localized: "auth.login.title", defaultValue: "登录 Spark", comment: "Login title")
             )
             .navigationBarTitleDisplayMode(.large)
-            .background(.regularMaterial)
+            .background(.background)
+            .sparkDismissesKeyboardOnScroll()
             .alert(
                 String(localized: "auth.login.error.title", defaultValue: "无法登录", comment: "Login error title"),
                 isPresented: failureBinding
@@ -54,6 +55,7 @@ public struct LoginView: View {
                 )
             )
             .font(.title3.weight(.semibold))
+#if DEBUG
             Text(
                 String(
                     localized: "auth.login.hint",
@@ -63,6 +65,7 @@ public struct LoginView: View {
             )
             .font(.subheadline)
             .foregroundStyle(.secondary)
+#endif
         }
     }
 
@@ -84,7 +87,7 @@ public struct LoginView: View {
             .textContentType(.password)
         }
         .padding(16)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .sparkGlassSurface(RoundedRectangle.sparkCard)
     }
 
     private var signInButton: some View {

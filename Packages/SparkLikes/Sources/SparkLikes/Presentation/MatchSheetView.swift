@@ -15,6 +15,7 @@ struct MatchSheetView: View {
     var onCreateMatchCoffee: (() -> Void)?
 
     @State private var selectedIcebreaker: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 16) {
@@ -44,7 +45,7 @@ struct MatchSheetView: View {
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    ForEach(icebreakers, id: \.self) { line in
+                    ForEach(Array(icebreakers.enumerated()), id: \.offset) { _, line in
                         Button {
                             selectedIcebreaker = line
                         } label: {
@@ -59,11 +60,12 @@ struct MatchSheetView: View {
                             }
                             .padding(12)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .sparkGlassSurface(RoundedRectangle(cornerRadius: 12))
+                            .sparkGlassSurface(RoundedRectangle(cornerRadius: 20, style: .continuous))
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.sparkPressable)
                     }
                 }
+                .animation(reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.82), value: selectedIcebreaker)
             }
 
             if let activity = peerCard?.sharedActivityTitle {

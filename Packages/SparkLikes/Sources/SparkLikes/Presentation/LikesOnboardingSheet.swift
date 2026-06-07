@@ -1,5 +1,6 @@
 // Module: SparkLikes — One-screen discover primer (first visit).
 
+import SparkDesignSystem
 import SwiftUI
 
 struct LikesOnboardingSheet: View {
@@ -35,6 +36,7 @@ struct LikesOnboardingSheet: View {
                     )
                 }
             }
+            .accessibilityElement(children: .contain)
             .navigationTitle(
                 String(localized: "likes.onboarding.title", defaultValue: "发现朋友", comment: "Onboarding title")
             )
@@ -44,6 +46,7 @@ struct LikesOnboardingSheet: View {
                     Button(String(localized: "action.continue", defaultValue: "开始", comment: "Continue")) {
                         onContinue()
                     }
+                    .buttonStyle(.sparkPressable)
                 }
             }
         }

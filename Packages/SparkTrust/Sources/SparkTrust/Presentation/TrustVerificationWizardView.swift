@@ -9,11 +9,13 @@ public struct TrustVerificationWizardView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    public init(repository: any TrustRepository, onCompleted: (() -> Void)? = nil) {
-        let model = TrustVerificationViewModel(repository: repository)
-        model.onCompleted = onCompleted
-        _viewModel = State(initialValue: model)
+    public init(trustCoordinator: TrustCoordinator, onCompleted: (() -> Void)? = nil) {
+        _viewModel = State(initialValue: trustCoordinator.makeVerificationViewModel(onCompleted: onCompleted))
         self.onCompleted = onCompleted
+    }
+
+    public init(repository: any TrustRepository, onCompleted: (() -> Void)? = nil) {
+        self.init(trustCoordinator: TrustCoordinator(repository: repository), onCompleted: onCompleted)
     }
 
     public init(viewModel: TrustVerificationViewModel, onCompleted: (() -> Void)? = nil) {
@@ -45,7 +47,8 @@ public struct TrustVerificationWizardView: View {
                                     Spacer()
                                     if profile.completedLevels.contains(level) {
                                         Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(.green)
+                                            .foregroundStyle(Color(.systemGreen))
+                                            .accessibilityHidden(true)
                                     } else {
                                         Button(
                                             String(
@@ -59,11 +62,33 @@ public struct TrustVerificationWizardView: View {
                                         .disabled(viewModel.isLoading)
                                     }
                                 }
+                                .accessibilityElement(children: .combine)
+                                .accessibilityLabel(level.localizedTitle)
+                                .accessibilityValue(
+                                    profile.completedLevels.contains(level)
+                                        ? String(
+                                            localized: "trust.wizard.level.completed",
+                                            defaultValue: "已完成",
+                                            comment: "Level completed"
+                                        )
+                                        : String(
+                                            localized: "trust.wizard.level.pending",
+                                            defaultValue: "未完成",
+                                            comment: "Level pending"
+                                        )
+                                )
                             }
                         }
                     }
                 } else if viewModel.isLoading {
                     ProgressView()
+                        .sparkLoadingAccessibilityLabel(
+                            String(
+                                localized: "trust.wizard.loading.a11y",
+                                defaultValue: "正在加载认证",
+                                comment: "Trust wizard loading"
+                            )
+                        )
                 } else if let errorMessage = viewModel.errorMessage {
                     SparkRetryUnavailableView(
                         title: String(
@@ -94,5 +119,5 @@ public struct TrustVerificationWizardView: View {
 }
 
 #Preview {
-    TrustVerificationWizardView(repository: MockTrustRepository())
+    TrustVerificationWizardView(trustCoordinator: TrustCoordinator(repository: MockTrustRepository()))
 }

@@ -1,4 +1,4 @@
-// Module: Spark — APNs device token registration (Phase 16.1).
+// Module: SparkNotifications — Live APNs token upload.
 
 import Foundation
 import SparkNetworking
@@ -12,18 +12,14 @@ private struct RegisterDeviceRequestDTO: Encodable, Sendable {
     let platform: String
 }
 
-public protocol DeviceTokenUploading: Sendable {
-    func upload(apnsToken: Data) async
-}
-
-struct LiveDeviceTokenUploader: DeviceTokenUploading {
+public struct LiveDeviceTokenUploader: DeviceTokenUploading, Sendable {
     private let apiClient: APIClient
 
-    init(apiClient: APIClient) {
+    public init(apiClient: APIClient) {
         self.apiClient = apiClient
     }
 
-    func upload(apnsToken: Data) async {
+    public func upload(apnsToken: Data) async {
         let token = apnsToken.map { String(format: "%02x", $0) }.joined()
         guard !token.isEmpty else { return }
         do {
@@ -33,10 +29,4 @@ struct LiveDeviceTokenUploader: DeviceTokenUploading {
             // REASONING: Token upload must not block launch; backend may be absent on Mock host.
         }
     }
-}
-
-public struct NoOpDeviceTokenUploader: DeviceTokenUploading {
-    public init() {}
-
-    public func upload(apnsToken: Data) async {}
 }

@@ -11,20 +11,27 @@ public final class AuthViewModel {
     public var email: String = ""
     public var password: String = ""
 
-    private let restoreSessionUseCase: RestoreSessionUseCase
-    private let signInWithAppleUseCase: SignInWithAppleUseCase
-    private let signInWithEmailUseCase: SignInWithEmailUseCase
-    private let signOutUseCase: SignOutUseCase
+    private let restoreSessionUseCase: any RestoreSessionUseCaseProtocol
+    private let signInWithAppleUseCase: any SignInWithAppleUseCaseProtocol
+    private let signInWithEmailUseCase: any SignInWithEmailUseCaseProtocol
+    private let signOutUseCase: any SignOutUseCaseProtocol
+    private let deleteAccountUseCase: any DeleteAccountUseCaseProtocol
     private let appleSignInCoordinator: AppleSignInCoordinator
 
     public init(
         authService: any AuthService,
-        appleSignInCoordinator: AppleSignInCoordinator = AppleSignInCoordinator()
+        appleSignInCoordinator: AppleSignInCoordinator = AppleSignInCoordinator(),
+        restoreSessionUseCase: (any RestoreSessionUseCaseProtocol)? = nil,
+        signInWithAppleUseCase: (any SignInWithAppleUseCaseProtocol)? = nil,
+        signInWithEmailUseCase: (any SignInWithEmailUseCaseProtocol)? = nil,
+        signOutUseCase: (any SignOutUseCaseProtocol)? = nil,
+        deleteAccountUseCase: (any DeleteAccountUseCaseProtocol)? = nil
     ) {
-        restoreSessionUseCase = RestoreSessionUseCase(authService: authService)
-        signInWithAppleUseCase = SignInWithAppleUseCase(authService: authService)
-        signInWithEmailUseCase = SignInWithEmailUseCase(authService: authService)
-        signOutUseCase = SignOutUseCase(authService: authService)
+        self.restoreSessionUseCase = restoreSessionUseCase ?? RestoreSessionUseCase(authService: authService)
+        self.signInWithAppleUseCase = signInWithAppleUseCase ?? SignInWithAppleUseCase(authService: authService)
+        self.signInWithEmailUseCase = signInWithEmailUseCase ?? SignInWithEmailUseCase(authService: authService)
+        self.signOutUseCase = signOutUseCase ?? SignOutUseCase(authService: authService)
+        self.deleteAccountUseCase = deleteAccountUseCase ?? DeleteAccountUseCase(authService: authService)
         self.appleSignInCoordinator = appleSignInCoordinator
     }
 
@@ -125,6 +132,22 @@ public final class AuthViewModel {
         authState = .loading
         do {
             try await signOutUseCase()
+            email = ""
+            password = ""
+            authState = .unauthenticated
+        } catch is CancellationError {
+            return
+        } catch let error as AuthError {
+            authState = .failure(message: error.errorDescription ?? "")
+        } catch {
+            authState = .failure(message: error.localizedDescription)
+        }
+    }
+
+    public func deleteAccountTapped() async {
+        authState = .loading
+        do {
+            try await deleteAccountUseCase()
             email = ""
             password = ""
             authState = .unauthenticated

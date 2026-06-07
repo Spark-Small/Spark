@@ -31,6 +31,7 @@ public final class LikesFeedViewModel {
     public package(set) var isLoadingMore = false
 
     public package(set) var inboundItems: [InboundLikeItem] = []
+    public package(set) var sortedInboundItems: [InboundLikeItem] = []
     public package(set) var inboundNextCursor: String?
     public package(set) var isLoadingMoreInbound = false
     public package(set) var viewerProfile: LikesViewerProfile = LikesViewerProfile()
@@ -48,40 +49,60 @@ public final class LikesFeedViewModel {
     public var sparkBurstToken = 0
     public var friendRequestSuccessToken = 0
 
-    let fetchFeed: FetchLikesFeedUseCase
-    let fetchInbound: FetchInboundLikesUseCase
-    let fetchViewerProfile: FetchViewerProfileUseCase
-    let updateViewerProfile: UpdateViewerProfileUseCase
-    let rewindPass: RewindPassUseCase
-    let submitLike: SubmitLikeUseCase
-    let fetchDailyStats: FetchDailyLikeStatsUseCase
-    let requestAvatarUpload: RequestAvatarUploadUseCase
-    let submitPass: SubmitPassUseCase
-    let submitFriendRequest: SubmitFriendRequestUseCase
-    let reportAndBlockUser: ReportAndBlockUserUseCase
+    let fetchFeed: any FetchLikesFeedUseCaseProtocol
+    let fetchInbound: any FetchInboundLikesUseCaseProtocol
+    let fetchViewerProfile: any FetchViewerProfileUseCaseProtocol
+    let updateViewerProfile: any UpdateViewerProfileUseCaseProtocol
+    let rewindPass: any RewindPassUseCaseProtocol
+    let submitLike: any SubmitLikeUseCaseProtocol
+    let fetchDailyStats: any FetchDailyLikeStatsUseCaseProtocol
+    let requestAvatarUpload: any RequestAvatarUploadUseCaseProtocol
+    let submitPass: any SubmitPassUseCaseProtocol
+    let submitFriendRequest: any SubmitFriendRequestUseCaseProtocol
+    let reportUser: any ReportUserUseCaseProtocol
+    let blockUser: any BlockUserUseCaseProtocol
     private let preferencesStore: any LikesPreferencesStoring
     private let onboardingPreferences: any LikesOnboardingPreferences
     private var loadGeneration = 0
 
     public init(
-        repository: any LikesFeedRepository,
+        useCases: LikesFeedUseCases,
         preferencesStore: any LikesPreferencesStoring,
         onboardingPreferences: any LikesOnboardingPreferences
     ) {
         preferences = preferencesStore.load()
         self.preferencesStore = preferencesStore
         self.onboardingPreferences = onboardingPreferences
-        fetchFeed = FetchLikesFeedUseCase(repository: repository)
-        fetchInbound = FetchInboundLikesUseCase(repository: repository)
-        fetchViewerProfile = FetchViewerProfileUseCase(repository: repository)
-        updateViewerProfile = UpdateViewerProfileUseCase(repository: repository)
-        rewindPass = RewindPassUseCase(repository: repository)
-        submitLike = SubmitLikeUseCase(repository: repository)
-        fetchDailyStats = FetchDailyLikeStatsUseCase(repository: repository)
-        requestAvatarUpload = RequestAvatarUploadUseCase(repository: repository)
-        submitPass = SubmitPassUseCase(repository: repository)
-        submitFriendRequest = SubmitFriendRequestUseCase(repository: repository)
-        reportAndBlockUser = ReportAndBlockUserUseCase(repository: repository)
+        fetchFeed = useCases.fetchFeed
+        fetchInbound = useCases.fetchInbound
+        fetchViewerProfile = useCases.fetchViewerProfile
+        updateViewerProfile = useCases.updateViewerProfile
+        rewindPass = useCases.rewindPass
+        submitLike = useCases.submitLike
+        fetchDailyStats = useCases.fetchDailyStats
+        requestAvatarUpload = useCases.requestAvatarUpload
+        submitPass = useCases.submitPass
+        submitFriendRequest = useCases.submitFriendRequest
+        reportUser = useCases.reportUser
+        blockUser = useCases.blockUser
+    }
+
+    public convenience init(
+        repository: any LikesFeedRepository,
+        preferencesStore: any LikesPreferencesStoring,
+        onboardingPreferences: any LikesOnboardingPreferences
+    ) {
+        let coordinator = LikesCoordinator(
+            repository: repository,
+            preferencesStore: preferencesStore,
+            onboardingPreferences: onboardingPreferences,
+            discoverMediaImageCache: DiscoverMediaImageCache.previewInstance()
+        )
+        self.init(
+            useCases: coordinator.makeFeedUseCases(),
+            preferencesStore: preferencesStore,
+            onboardingPreferences: onboardingPreferences
+        )
     }
 
     public var currentCard: DiscoverCard? {
@@ -90,10 +111,6 @@ public final class LikesFeedViewModel {
     }
 
     public var inboundCount: Int { inboundItems.count }
-
-    public var sortedInboundItems: [InboundLikeItem] {
-        inboundItems.sorted(by: Self.inboundSort)
-    }
 
     public var isDailyPoolExhausted: Bool {
         dailyStats.isPoolExhausted
@@ -125,6 +142,7 @@ public final class LikesFeedViewModel {
             nextCursor = page.nextCursor
             inboundItems = inbound.items
             inboundNextCursor = inbound.nextCursor
+            refreshSortedInbound()
             viewerProfile = profile
             dailyStats = stats
             currentIndex = 0
@@ -152,6 +170,7 @@ public final class LikesFeedViewModel {
             let inbound = try await fetchInbound(cursor: nil)
             inboundItems = inbound.items
             inboundNextCursor = inbound.nextCursor
+            refreshSortedInbound()
         } catch {
             setStatusMessage(from: error)
         }
@@ -171,6 +190,7 @@ public final class LikesFeedViewModel {
             inboundNextCursor = inbound.nextCursor
             guard !inbound.items.isEmpty else { return }
             inboundItems.append(contentsOf: inbound.items)
+            refreshSortedInbound()
         } catch is CancellationError {
             return
         } catch {
@@ -277,6 +297,10 @@ public final class LikesFeedViewModel {
         } catch {
             setStatusMessage(from: error)
         }
+    }
+
+    func refreshSortedInbound() {
+        sortedInboundItems = inboundItems.sorted(by: Self.inboundSort)
     }
 
     private static func inboundSort(_ lhs: InboundLikeItem, _ rhs: InboundLikeItem) -> Bool {

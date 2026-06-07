@@ -2,6 +2,7 @@
 
 import SparkCore
 import SparkTrust
+import SparkDesignSystem
 import SwiftUI
 
 struct DiscoverProfileSheet: View {
@@ -106,6 +107,7 @@ struct DiscoverProfileSheet: View {
             }
             .navigationTitle(card.displayName)
             .navigationBarTitleDisplayMode(.inline)
+            .accessibilityElement(children: .contain)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(String(localized: "action.done", defaultValue: "完成", comment: "Done")) {
@@ -133,12 +135,12 @@ private struct FlowTagsView: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(tags, id: \.self) { tag in
+                ForEach(Array(tags.enumerated()), id: \.offset) { _, tag in
                     Text(tag)
                         .font(.subheadline)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(.thinMaterial, in: Capsule())
+                        .sparkGlassControl(Capsule())
                 }
             }
         }
@@ -153,7 +155,7 @@ private struct FlowTagsView: View {
             displayName: "Preview",
             bio: "Bio",
             gender: .female,
-            media: DiscoverMedia(kind: .image, url: URL(string: "https://example.com/a.jpg")!),
+            media: DiscoverMedia(kind: .image, url: MockURL.require("https://example.com/a.jpg")),
             interestTags: ["咖啡", "徒步"],
             trustScore: 65,
             hasLivenessVerification: true,

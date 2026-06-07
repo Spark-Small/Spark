@@ -5,7 +5,7 @@ import SparkCore
 
 @MainActor
 @Observable
-final class ActivityBrowseViewModel {
+public final class ActivityBrowseViewModel {
     enum LoadState: Equatable {
         case idle
         case loading
@@ -38,11 +38,15 @@ final class ActivityBrowseViewModel {
         String(localized: "activity.category.social", defaultValue: "社交", comment: "Social category")
     ]
 
-    private let fetchBrowsePage: FetchActivityBrowsePageUseCase
+    private let fetchBrowsePage: any FetchActivityBrowsePageUseCaseProtocol
     private var nextCursor: String?
 
-    init(repository: any ActivityBrowseRepository) {
-        fetchBrowsePage = FetchActivityBrowsePageUseCase(repository: repository)
+    public init(fetchBrowsePage: any FetchActivityBrowsePageUseCaseProtocol) {
+        self.fetchBrowsePage = fetchBrowsePage
+    }
+
+    public convenience init(repository: any ActivityBrowseRepository) {
+        self.init(fetchBrowsePage: FetchActivityBrowsePageUseCase(repository: repository))
     }
 
     func loadIfNeeded() async {

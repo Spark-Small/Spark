@@ -1,5 +1,7 @@
 // Module: SparkLikes — Remote image display (ambient backdrop + zoomable foreground).
 
+import SparkDesignSystem
+import SparkCore
 import SwiftUI
 import UIKit
 
@@ -28,6 +30,13 @@ struct DiscoverRemoteImage: View {
                 case .loading:
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .sparkLoadingAccessibilityLabel(
+                            String(
+                                localized: "likes.photo.loading.a11y",
+                                defaultValue: "正在加载照片",
+                                comment: "Photo loading"
+                            )
+                        )
                 case .failed:
                     DiscoverMediaPlaceholder(
                         displayName: failureDisplayName,
@@ -197,4 +206,15 @@ private struct DiscoverPhotoInteractionModifier<G: Gesture>: ViewModifier {
             content
         }
     }
+}
+
+#Preview {
+    DiscoverRemoteImage(
+        url: MockURL.require("https://example.com/photo.jpg"),
+        isInteractionEnabled: true,
+        failureDisplayName: "Preview",
+        zoomState: DiscoverPhotoZoomState()
+    )
+    .environment(\.discoverMediaImageCache, DiscoverMediaImageCache.previewInstance())
+    .frame(height: 360)
 }

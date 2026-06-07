@@ -1,5 +1,6 @@
 // Module: SparkLikes — Optional compliment bubble picker on right-swipe.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct LikesOpenerPickerSheet: View {
@@ -11,7 +12,7 @@ struct LikesOpenerPickerSheet: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 10) {
-                    ForEach(suggestions, id: \.self) { line in
+                    ForEach(Array(suggestions.enumerated()), id: \.offset) { _, line in
                         Button {
                             onSelect(line)
                             dismiss()
@@ -21,13 +22,14 @@ struct LikesOpenerPickerSheet: View {
                                 .multilineTextAlignment(.leading)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(14)
-                                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20))
+                                .sparkGlassSurface(RoundedRectangle.sparkCard)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.sparkPressable)
                     }
                 }
                 .padding()
             }
+            .accessibilityElement(children: .contain)
             .navigationTitle(
                 String(
                     localized: "likes.opener.title",

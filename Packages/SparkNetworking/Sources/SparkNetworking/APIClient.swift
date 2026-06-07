@@ -17,7 +17,7 @@ public struct APIClient: Sendable {
         as type: T.Type = T.self
     ) async throws -> T {
         let response = try await http.execute(HTTPRequest(path: path, method: .get))
-        return try decode(response.data, as: type)
+        return try await decode(response.data, as: type)
     }
 
     public func post<T: Decodable & Sendable>(
@@ -26,7 +26,7 @@ public struct APIClient: Sendable {
         as type: T.Type = T.self
     ) async throws -> T {
         let response = try await http.execute(HTTPRequest(path: path, method: .post, body: body))
-        return try decode(response.data, as: type)
+        return try await decode(response.data, as: type)
     }
 
     public func post(_ path: String, body: Data? = nil) async throws {
@@ -39,17 +39,19 @@ public struct APIClient: Sendable {
         as type: T.Type = T.self
     ) async throws -> T {
         let response = try await http.execute(HTTPRequest(path: path, method: .patch, body: body))
-        return try decode(response.data, as: type)
+        return try await decode(response.data, as: type)
     }
 
-    private func decode<T: Decodable>(_ data: Data, as type: T.Type) throws -> T {
+    private func decode<T: Decodable & Sendable>(_ data: Data, as type: T.Type) async throws -> T {
         guard !data.isEmpty else {
             throw AppError.decodingFailed
         }
-        do {
-            return try decoder.decode(T.self, from: data)
-        } catch {
-            throw AppError.decodingFailed
-        }
+        return try await Task.detached(priority: .utility) {
+            do {
+                return try JSONDecoder().decode(T.self, from: data)
+            } catch {
+                throw AppError.decodingFailed
+            }
+        }.value
     }
 }

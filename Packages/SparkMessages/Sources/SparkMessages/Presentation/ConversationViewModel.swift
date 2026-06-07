@@ -56,15 +56,29 @@ public final class ConversationViewModel {
         return nil
     }
 
-    private let fetchMessages: FetchThreadMessagesUseCase
-    private let fetchContext: FetchConversationContextUseCase
-    private let sendMessage: SendThreadMessageUseCase
+    private let fetchMessages: any FetchThreadMessagesUseCaseProtocol
+    private let fetchContext: any FetchConversationContextUseCaseProtocol
+    private let sendMessage: any SendThreadMessageUseCaseProtocol
 
-    public init(repository: any MessagesRepository, thread: MessageThread) {
+    public init(
+        fetchMessages: any FetchThreadMessagesUseCaseProtocol,
+        fetchContext: any FetchConversationContextUseCaseProtocol,
+        sendMessage: any SendThreadMessageUseCaseProtocol,
+        thread: MessageThread
+    ) {
         self.thread = thread
-        fetchMessages = FetchThreadMessagesUseCase(repository: repository)
-        fetchContext = FetchConversationContextUseCase(repository: repository)
-        sendMessage = SendThreadMessageUseCase(repository: repository)
+        self.fetchMessages = fetchMessages
+        self.fetchContext = fetchContext
+        self.sendMessage = sendMessage
+    }
+
+    public convenience init(repository: any MessagesRepository, thread: MessageThread) {
+        self.init(
+            fetchMessages: FetchThreadMessagesUseCase(repository: repository),
+            fetchContext: FetchConversationContextUseCase(repository: repository),
+            sendMessage: SendThreadMessageUseCase(repository: repository),
+            thread: thread
+        )
     }
 
     public func load() async {

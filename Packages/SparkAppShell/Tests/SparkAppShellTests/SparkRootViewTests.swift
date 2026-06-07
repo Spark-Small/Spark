@@ -27,17 +27,20 @@ struct SparkRootViewTests {
             authViewModel: AuthViewModel(authService: service),
             router: router,
             entitlementManager: EntitlementManager(storeKit: MockStoreKitService()),
-            messagesRepository: MockMessagesRepository(),
-            activityFeedRepository: MockActivityFeedRepository(),
-            activityBrowseRepository: MockActivityBrowseRepository(),
-            likesFeedRepository: MockLikesFeedRepository(),
-            searchRepository: MockSearchRepository(),
-            communityPostsRepository: MockCommunityPostsRepository(),
-            trustRepository: MockTrustRepository(),
-            paywallRouter: PaywallRouter(appRouter: router),
-            discoverMediaImageCache: DiscoverMediaImageCache(),
-            likesPreferencesStore: InMemoryLikesPreferencesStore(),
-            likesOnboardingPreferences: InMemoryLikesOnboardingPreferences()
+            tabDependencies: SparkTabDependencies(
+                messagesRepository: MockMessagesRepository(),
+                activityFeedRepository: MockActivityFeedRepository(),
+                activityBrowseRepository: MockActivityBrowseRepository(),
+                likesFeedRepository: MockLikesFeedRepository(),
+                searchRepository: MockSearchRepository(),
+                communityPostsRepository: MockCommunityPostsRepository(),
+                trustRepository: MockTrustRepository(),
+                blockedActivityHostsStore: BlockedActivityHostsStore(),
+                discoverMediaImageCache: DiscoverMediaImageCache.previewInstance(),
+                likesPreferencesStore: InMemoryLikesPreferencesStore(),
+                likesOnboardingPreferences: InMemoryLikesOnboardingPreferences()
+            ),
+            paywallRouter: PaywallRouter(appRouter: router)
         )
     }
 }

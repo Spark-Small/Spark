@@ -1,5 +1,6 @@
 // Module: SparkMessages — Horizontal new-match avatars for icebreaking.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct NewMatchesCarousel: View {
@@ -27,7 +28,7 @@ struct NewMatchesCarousel: View {
                         } label: {
                             NewMatchAvatar(match: match)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.sparkPressable)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -70,14 +71,15 @@ private struct NewMatchAvatar: View {
     @ViewBuilder
     private var avatar: some View {
         if let url = match.user.avatarURL {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
+            SparkCachedRemoteImage(
+                url: url,
+                content: { image in
+                    image.resizable().scaledToFill().accessibilityHidden(true)
+                },
+                placeholder: {
                     placeholder
                 }
-            }
+            )
         } else {
             placeholder
         }

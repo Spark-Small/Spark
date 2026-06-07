@@ -25,7 +25,7 @@ struct CommunityPostCard: View {
                 mediaRegion
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.sparkPressable)
             .accessibilityLabel(
                 String(localized: "community.post.open.a11y", defaultValue: "查看帖子", comment: "Open post")
             )
@@ -81,17 +81,20 @@ struct CommunityPostCard: View {
     @ViewBuilder
     private var mediaRegion: some View {
         if let imageURL = post.imageURL {
-            AsyncImage(url: imageURL) { phase in
-                switch phase {
-                case .success(let image):
+            SparkCachedRemoteImage(
+                url: imageURL,
+                maxPixelSize: 1_280,
+                content: { image in
                     image
                         .resizable()
                         .aspectRatio(16 / 9, contentMode: .fill)
-                default:
+                        .accessibilityHidden(true)
+                },
+                placeholder: {
                     Color(.systemGray6)
                         .aspectRatio(16 / 9, contentMode: .fill)
                 }
-            }
+            )
             .frame(maxWidth: .infinity)
             .clipped()
         } else {
@@ -120,7 +123,7 @@ struct CommunityPostCard: View {
                     .foregroundStyle(isLiked ? .pink : .primary)
                     .scaleEffect(likeScale)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.sparkPressable)
             .accessibilityLabel(
                 String(localized: "community.post.like.a11y", defaultValue: "点赞", comment: "Like")
             )
@@ -203,4 +206,28 @@ private struct TextOnlyPostBackground: View {
         default: Color(.systemGray6)
         }
     }
+}
+
+#Preview {
+    CommunityPostCard(
+        post: CommunityFeedPost(
+            id: "post_preview",
+            authorDisplayName: "Alex",
+            authorUserID: "u_1",
+            communityName: "Runners",
+            content: "Anyone up for a 5K this evening?",
+            imageURL: nil,
+            likeCount: 3,
+            commentCount: 1,
+            tags: ["running"],
+            createdAt: .now,
+            sharedActivityWithViewer: nil,
+            relationshipToViewer: .none,
+            linkedActivity: nil
+        ),
+        isLiked: false,
+        likeCount: 3,
+        onToggleLike: {},
+        onOpen: {}
+    )
 }

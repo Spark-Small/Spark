@@ -2,6 +2,7 @@
 
 import Foundation
 
+// REASONING: Test/preview store; mutated only on @MainActor or single-threaded tests.
 public final class InMemoryLikesPreferencesStore: LikesPreferencesStoring, @unchecked Sendable {
     public var stored: LikesPreferences
 

@@ -92,6 +92,8 @@ private struct EmptyCommunityPostsRepository: CommunityPostsRepository, Sendable
         []
     }
 
+    func reportPost(postID: String, reason: CommunityReportReason, detail: String?) async throws {}
+
     struct TestError: LocalizedError {
         var errorDescription: String? { "Not found" }
     }
@@ -139,6 +141,10 @@ private struct FailingCommunityPostsRepository: CommunityPostsRepository, Sendab
     }
 
     func fetchCommunityPosts(communityID: String) async throws -> [CommunityFeedPost] {
+        throw TestError()
+    }
+
+    func reportPost(postID: String, reason: CommunityReportReason, detail: String?) async throws {
         throw TestError()
     }
 }

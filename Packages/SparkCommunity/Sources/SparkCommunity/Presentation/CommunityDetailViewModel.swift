@@ -26,11 +26,18 @@ public final class CommunityDetailViewModel {
     public var selectedSegment: Segment = .posts
 
     private let communityID: String
-    private let fetchDetailBundle: FetchCommunityDetailBundleUseCase
+    private let fetchDetailBundle: any FetchCommunityDetailBundleUseCaseProtocol
 
-    public init(communityID: String, repository: any CommunityPostsRepository) {
+    public init(communityID: String, fetchDetailBundle: any FetchCommunityDetailBundleUseCaseProtocol) {
         self.communityID = communityID
-        fetchDetailBundle = FetchCommunityDetailBundleUseCase(repository: repository)
+        self.fetchDetailBundle = fetchDetailBundle
+    }
+
+    public convenience init(communityID: String, repository: any CommunityPostsRepository) {
+        self.init(
+            communityID: communityID,
+            fetchDetailBundle: FetchCommunityDetailBundleUseCase(repository: repository)
+        )
     }
 
     public func load() async {

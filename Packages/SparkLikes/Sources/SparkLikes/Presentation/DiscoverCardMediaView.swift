@@ -21,11 +21,24 @@ struct DiscoverCardMediaView: View {
                 )
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(cardAccessibilityLabel)
         .onChange(of: isActive) { _, active in
             if !active {
                 zoomState.reset(animated: false)
             }
         }
+    }
+}
+
+private extension DiscoverCardMediaView {
+    var cardAccessibilityLabel: String {
+        let format = String(
+            localized: "likes.discover.card.media.a11y.format",
+            defaultValue: "%1$@ 的照片",
+            comment: "Discover card media; display name"
+        )
+        return String(format: format, locale: .current, card.displayName)
     }
 }
 
@@ -42,12 +55,12 @@ private extension DiscoverCard {
             displayName: "Preview",
             bio: "Bio",
             gender: .female,
-            media: DiscoverMedia(kind: .image, url: URL(string: "https://example.com/a.jpg")!),
+            media: DiscoverMedia(kind: .image, url: MockURL.require("https://example.com/a.jpg")),
             interestTags: ["咖啡"]
         ),
         isActive: true,
         zoomState: DiscoverPhotoZoomState()
     )
-    .environment(\.discoverMediaImageCache, DiscoverMediaImageCache())
+    .environment(\.discoverMediaImageCache, DiscoverMediaImageCache.previewInstance())
     .frame(height: 420)
 }

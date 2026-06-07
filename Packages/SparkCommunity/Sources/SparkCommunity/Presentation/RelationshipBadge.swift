@@ -38,6 +38,16 @@ struct RelationshipBadge: View {
             .foregroundStyle(.secondary)
         case .none:
             EmptyView()
+                .accessibilityHidden(true)
         }
     }
+}
+
+#Preview {
+    VStack(spacing: 8) {
+        RelationshipBadge(context: .matched)
+        RelationshipBadge(context: .liked)
+        RelationshipBadge(context: .sharedActivity("北山徒步"))
+    }
+    .padding()
 }

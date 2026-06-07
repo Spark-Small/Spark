@@ -23,6 +23,13 @@ public struct ActivityNotificationSettingsSection: View {
                     ActivityNotificationRegistrar.registerIfNeeded()
                 }
             }
+            .accessibilityHint(
+                String(
+                    localized: "activity.settings.reminders.hint",
+                    defaultValue: "开启后会在活动开始前收到提醒",
+                    comment: "Reminders toggle hint"
+                )
+            )
         } footer: {
             Text(
                 String(
@@ -32,5 +39,11 @@ public struct ActivityNotificationSettingsSection: View {
                 )
             )
         }
+    }
+}
+
+#Preview {
+    Form {
+        ActivityNotificationSettingsSection()
     }
 }

@@ -142,6 +142,13 @@ public struct MessagesRootView: View {
         case .idle, .loading:
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityLabel(
+                    String(
+                        localized: "messages.loading.a11y",
+                        defaultValue: "正在加载消息",
+                        comment: "Inbox loading"
+                    )
+                )
         case .empty:
             emptyInboxView
         case .failure(let message):
@@ -153,7 +160,25 @@ public struct MessagesRootView: View {
             }
         case .loaded:
             inboxList
+                .accessibilityLabel(inboxLoadedAccessibilityLabel)
         }
+    }
+
+    private var inboxLoadedAccessibilityLabel: String {
+        let unread = viewModel.totalUnreadCount
+        if unread > 0 {
+            let format = String(
+                localized: "messages.inbox.loaded.unread.format",
+                defaultValue: "消息列表，%1$d 条未读",
+                comment: "Inbox loaded; unread count"
+            )
+            return String(format: format, locale: .current, unread)
+        }
+        return String(
+            localized: "messages.inbox.loaded.a11y",
+            defaultValue: "消息列表",
+            comment: "Inbox loaded"
+        )
     }
 
     private var emptyInboxView: some View {

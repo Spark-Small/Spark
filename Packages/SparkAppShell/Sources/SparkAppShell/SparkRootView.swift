@@ -17,51 +17,21 @@ public struct SparkRootView: View {
     @Bindable var authViewModel: AuthViewModel
     @Bindable var router: AppRouter
     @Bindable var entitlementManager: EntitlementManager
-    let messagesRepository: any MessagesRepository
-    let activityFeedRepository: any ActivityFeedRepository
-    let activityBrowseRepository: any ActivityBrowseRepository
-    let likesFeedRepository: any LikesFeedRepository
-    let searchRepository: any SearchRepository
-    let communityPostsRepository: any CommunityPostsRepository
-    let trustRepository: any TrustRepository
+    let tabDependencies: SparkTabDependencies
     let paywallRouter: PaywallRouter
-    let blockedActivityHostsStore: BlockedActivityHostsStore
-    let discoverMediaImageCache: DiscoverMediaImageCache
-    let likesPreferencesStore: any LikesPreferencesStoring
-    let likesOnboardingPreferences: any LikesOnboardingPreferences
 
     public init(
         authViewModel: AuthViewModel,
         router: AppRouter,
         entitlementManager: EntitlementManager,
-        messagesRepository: any MessagesRepository,
-        activityFeedRepository: any ActivityFeedRepository,
-        activityBrowseRepository: any ActivityBrowseRepository,
-        likesFeedRepository: any LikesFeedRepository,
-        searchRepository: any SearchRepository,
-        communityPostsRepository: any CommunityPostsRepository,
-        trustRepository: any TrustRepository,
-        paywallRouter: PaywallRouter,
-        blockedActivityHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
-        discoverMediaImageCache: DiscoverMediaImageCache,
-        likesPreferencesStore: any LikesPreferencesStoring,
-        likesOnboardingPreferences: any LikesOnboardingPreferences
+        tabDependencies: SparkTabDependencies,
+        paywallRouter: PaywallRouter
     ) {
         self.authViewModel = authViewModel
         self.router = router
         self.entitlementManager = entitlementManager
-        self.messagesRepository = messagesRepository
-        self.activityFeedRepository = activityFeedRepository
-        self.activityBrowseRepository = activityBrowseRepository
-        self.likesFeedRepository = likesFeedRepository
-        self.searchRepository = searchRepository
-        self.communityPostsRepository = communityPostsRepository
-        self.trustRepository = trustRepository
+        self.tabDependencies = tabDependencies
         self.paywallRouter = paywallRouter
-        self.blockedActivityHostsStore = blockedActivityHostsStore
-        self.discoverMediaImageCache = discoverMediaImageCache
-        self.likesPreferencesStore = likesPreferencesStore
-        self.likesOnboardingPreferences = likesOnboardingPreferences
     }
 
     public var body: some View {
@@ -79,18 +49,8 @@ public struct SparkRootView: View {
                     router: router,
                     authViewModel: authViewModel,
                     entitlementManager: entitlementManager,
-                    messagesRepository: messagesRepository,
-                    activityFeedRepository: activityFeedRepository,
-                    activityBrowseRepository: activityBrowseRepository,
-                    likesFeedRepository: likesFeedRepository,
-                    searchRepository: searchRepository,
-                    communityPostsRepository: communityPostsRepository,
-                    trustRepository: trustRepository,
-                    paywallRouter: paywallRouter,
-                    blockedActivityHostsStore: blockedActivityHostsStore,
-                    discoverMediaImageCache: discoverMediaImageCache,
-                    likesPreferencesStore: likesPreferencesStore,
-                    likesOnboardingPreferences: likesOnboardingPreferences
+                    tabDependencies: tabDependencies,
+                    paywallRouter: paywallRouter
                 )
             }
         }
@@ -112,19 +72,22 @@ public struct SparkRootView: View {
     let service = MockAuthService(sessionStore: store, tokenProvider: tokenProvider)
     let router = AppRouter()
     SparkRootView(
-        authViewModel: AuthViewModel(authService: service),
+        authViewModel: AuthCoordinator(authService: service).makeAuthViewModel(),
         router: router,
         entitlementManager: EntitlementManager(storeKit: MockStoreKitService()),
-        messagesRepository: MockMessagesRepository(),
-        activityFeedRepository: MockActivityFeedRepository(),
-        activityBrowseRepository: MockActivityBrowseRepository(),
-        likesFeedRepository: MockLikesFeedRepository(),
-        searchRepository: MockSearchRepository(),
-        communityPostsRepository: MockCommunityPostsRepository(),
-        trustRepository: MockTrustRepository(),
-        paywallRouter: PaywallRouter(appRouter: router),
-        discoverMediaImageCache: DiscoverMediaImageCache(),
-        likesPreferencesStore: InMemoryLikesPreferencesStore(),
-        likesOnboardingPreferences: InMemoryLikesOnboardingPreferences()
+        tabDependencies: SparkTabDependencies(
+            messagesRepository: MockMessagesRepository(),
+            activityFeedRepository: MockActivityFeedRepository(),
+            activityBrowseRepository: MockActivityBrowseRepository(),
+            likesFeedRepository: MockLikesFeedRepository(),
+            searchRepository: MockSearchRepository(),
+            communityPostsRepository: MockCommunityPostsRepository(),
+            trustRepository: MockTrustRepository(),
+            blockedActivityHostsStore: BlockedActivityHostsStore(),
+            discoverMediaImageCache: DiscoverMediaImageCache.previewInstance(),
+            likesPreferencesStore: InMemoryLikesPreferencesStore(),
+            likesOnboardingPreferences: InMemoryLikesOnboardingPreferences()
+        ),
+        paywallRouter: PaywallRouter(appRouter: router)
     )
 }

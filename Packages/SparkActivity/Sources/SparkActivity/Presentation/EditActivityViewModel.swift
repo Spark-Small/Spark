@@ -16,9 +16,9 @@ public final class EditActivityViewModel {
     public private(set) var submitState: SubmitState = .idle
 
     private let activityID: String
-    private let updateActivity: UpdateActivityUseCase
+    private let updateActivity: any UpdateActivityUseCaseProtocol
 
-    public init(activity: ActivityDetail, repository: any ActivityFeedRepository) {
+    public init(activity: ActivityDetail, updateActivity: any UpdateActivityUseCaseProtocol) {
         activityID = activity.id
         draft = CreateActivityDraft(
             title: activity.title,
@@ -27,7 +27,11 @@ public final class EditActivityViewModel {
             startsAt: activity.startsAt,
             capacity: activity.capacity
         )
-        updateActivity = UpdateActivityUseCase(repository: repository)
+        self.updateActivity = updateActivity
+    }
+
+    public convenience init(activity: ActivityDetail, repository: any ActivityFeedRepository) {
+        self.init(activity: activity, updateActivity: UpdateActivityUseCase(repository: repository))
     }
 
     public func submit() async -> ActivityDetail? {

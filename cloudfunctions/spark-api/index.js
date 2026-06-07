@@ -362,6 +362,76 @@ app.post("/v1/auth/sign-out", requireAuth, (_req, res) => {
   res.status(204).send();
 });
 
+function purgeUserAccount(userId) {
+  for (const [email, user] of Object.entries(state.users)) {
+    if (user.user_id === userId) {
+      delete state.users[email];
+      touchMeta();
+    }
+  }
+
+  state.viewerProfiles.delete(userId);
+  touchLikes();
+
+  for (const [threadId, thread] of state.threads.entries()) {
+    const peerId = threadId.startsWith("th_dm_") ? threadId.slice("th_dm_".length) : null;
+    if (peerId === userId) {
+      state.threads.delete(threadId);
+      state.dirty.threads.delete(threadId);
+    }
+  }
+
+  for (const [postId, post] of state.communityPosts.entries()) {
+    if (post.author_id === userId) {
+      state.communityPosts.delete(postId);
+      state.dirty.community_posts.delete(postId);
+    }
+  }
+
+  for (const [activityId, activity] of state.activities.entries()) {
+    if (activity.host_id === userId) {
+      state.activities.delete(activityId);
+      state.dirty.activities.delete(activityId);
+      if (activity.thread_id) {
+        state.threads.delete(activity.thread_id);
+        state.dirty.threads.delete(activity.thread_id);
+      }
+    }
+  }
+
+  state.likesCards = state.likesCards.filter((c) => c.user_id !== userId);
+
+  for (const [viewerId, inbound] of state.inboundByUser.entries()) {
+    const filtered = inbound.filter((item) => item.user_id !== userId);
+    if (filtered.length !== inbound.length) {
+      if (filtered.length === 0) state.inboundByUser.delete(viewerId);
+      else state.inboundByUser.set(viewerId, filtered);
+    }
+  }
+  state.inboundLikes = state.inboundLikes.filter((item) => item.user_id !== userId);
+
+  for (const [token, device] of state.devices.entries()) {
+    if (device.user_id === userId) {
+      state.devices.delete(token);
+      state.dirty.devices.delete(token);
+    }
+  }
+
+  state.passedByUser.delete(userId);
+  state.likedByMeByUser.delete(userId);
+  state.dailyByUser.delete(userId);
+  state.rewindByUser.delete(userId);
+
+  for (const [key, match] of state.mutualMatches.entries()) {
+    if (key.includes(userId)) state.mutualMatches.delete(key);
+  }
+}
+
+app.post("/v1/auth/account/delete", requireAuth, (req, res) => {
+  purgeUserAccount(req.userId);
+  res.status(204).send();
+});
+
 app.post("/v1/auth/apple", (_req, res) => {
   const userId = "u_staging_1";
   res.json({ access_token: tokenFor(userId), user_id: userId });

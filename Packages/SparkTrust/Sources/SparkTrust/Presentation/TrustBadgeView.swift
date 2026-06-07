@@ -1,5 +1,6 @@
 // Module: SparkTrust — Compact trust score badge.
 
+import SparkDesignSystem
 import SwiftUI
 
 public struct TrustBadgeView: View {
@@ -18,10 +19,10 @@ public struct TrustBadgeView: View {
             Text("\(score)")
                 .font(.caption.weight(.bold))
         }
-        .foregroundStyle(hasLiveness ? Color.green : Color.secondary)
+        .foregroundStyle(hasLiveness ? Color(.systemGreen) : Color.secondary)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(.thinMaterial, in: Capsule())
+        .sparkGlassControl(Capsule())
         .accessibilityLabel(accessibilityLabelText)
     }
 

@@ -2,6 +2,7 @@
 
 import Foundation
 
+// REASONING: UserDefaults is process-local; callers serialize reads/writes on @MainActor.
 public final class UserDefaultsLikesPreferencesStore: LikesPreferencesStoring, @unchecked Sendable {
     private static let genderKey = "likes.pref.gender"
     private static let intentKey = "likes.pref.intent"

@@ -1,5 +1,6 @@
 // Module: SparkLikes — Hinge-style prompt card in profile sheet.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct SparkQuestionCard: View {
@@ -21,7 +22,7 @@ struct SparkQuestionCard: View {
                     Image(systemName: isHighlighted ? "heart.fill" : "heart")
                         .foregroundStyle(isHighlighted ? .pink : .secondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.sparkPressable)
                 .accessibilityLabel(
                     String(
                         localized: "likes.question.like.a11y",
@@ -33,7 +34,7 @@ struct SparkQuestionCard: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .sparkGlassSurface(RoundedRectangle.sparkCard)
     }
 }
 

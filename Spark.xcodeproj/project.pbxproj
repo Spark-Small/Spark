@@ -21,6 +21,7 @@
 		88D5E3982FD1C88300A4CBD3 /* SparkLikes in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000E2FD19C1D00A4CBD1 /* SparkLikes */; };
 		88D5E3992FD1C88300A4CBD3 /* SparkTrust in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000F2FD19C1D00A4CBD1 /* SparkTrust */; };
 		88D5E39A2FD1C88300A4CBD3 /* SparkProfile in Frameworks */ = {isa = PBXBuildFile; productRef = SPK100102FD19C1D00A4CBD1 /* SparkProfile */; };
+		88D5E39B2FD1C88300A4CBD3 /* SparkNotifications in Frameworks */ = {isa = PBXBuildFile; productRef = SPK100112FD19C1D00A4CBD1 /* SparkNotifications */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -37,6 +38,7 @@
 		88D5E04E2FD19C1D00A4CBD3 /* Spark.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Spark.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		88D5E0612FD19C2000A4CBD3 /* SparkTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SparkTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		SPK200012FD19C1D00A4CBD1 /* Spark.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Spark.xcconfig; sourceTree = "<group>"; };
+		SPK200032FD19C1D00A4CBD1 /* SparkRelease.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = SparkRelease.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -70,6 +72,7 @@
 				88D5E3982FD1C88300A4CBD3 /* SparkLikes in Frameworks */,
 				88D5E3992FD1C88300A4CBD3 /* SparkTrust in Frameworks */,
 				88D5E39A2FD1C88300A4CBD3 /* SparkProfile in Frameworks */,
+				88D5E39B2FD1C88300A4CBD3 /* SparkNotifications in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -107,6 +110,7 @@
 			isa = PBXGroup;
 			children = (
 				SPK200012FD19C1D00A4CBD1 /* Spark.xcconfig */,
+				SPK200032FD19C1D00A4CBD1 /* SparkRelease.xcconfig */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -144,6 +148,7 @@
 				SPK1000E2FD19C1D00A4CBD1 /* SparkLikes */,
 				SPK1000F2FD19C1D00A4CBD1 /* SparkTrust */,
 				SPK100102FD19C1D00A4CBD1 /* SparkProfile */,
+				SPK100112FD19C1D00A4CBD1 /* SparkNotifications */,
 			);
 			productName = Spark;
 			productReference = 88D5E04E2FD19C1D00A4CBD3 /* Spark.app */;
@@ -216,6 +221,7 @@
 				SPK0000E2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkLikes" */,
 				SPK0000F2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkTrust" */,
 				SPK000102FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkProfile" */,
+				SPK000112FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkNotifications" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 88D5E04F2FD19C1D00A4CBD3 /* Products */;
@@ -329,7 +335,7 @@
 		};
 		88D5E0582FD19C1E00A4CBD3 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = SPK200012FD19C1D00A4CBD1 /* Spark.xcconfig */;
+			baseConfigurationReference = SPK200032FD19C1D00A4CBD1 /* SparkRelease.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -423,7 +429,7 @@
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -468,7 +474,7 @@
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -604,6 +610,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/SparkProfile;
 		};
+		SPK000112FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkNotifications" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SparkNotifications;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -676,6 +686,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = SPK000102FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkProfile" */;
 			productName = SparkProfile;
+		};
+		SPK100112FD19C1D00A4CBD1 /* SparkNotifications */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SPK000112FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkNotifications" */;
+			productName = SparkNotifications;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

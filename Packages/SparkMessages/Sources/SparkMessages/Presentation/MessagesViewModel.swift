@@ -44,30 +44,46 @@ public final class MessagesViewModel {
         return count > 0 ? count : nil
     }
 
-    private let repository: any MessagesRepository
-    private let fetchInbox: FetchInboxUseCase
-    private let markAllRead: MarkMessagesReadUseCase
-    private let markThreadRead: MarkThreadReadUseCase
-    private let respondToInvite: RespondToActivityInviteUseCase
-    private let dismissActionItemUseCase: DismissActionItemUseCase
-    private let ensureDirectMessageThreadUseCase: EnsureDirectMessageThreadUseCase
+    private let makeConversationViewModel: @MainActor (MessageThread) -> ConversationViewModel
+    private let fetchInbox: any FetchInboxUseCaseProtocol
+    private let markAllRead: any MarkMessagesReadUseCaseProtocol
+    private let markThreadRead: any MarkThreadReadUseCaseProtocol
+    private let respondToInvite: any RespondToActivityInviteUseCaseProtocol
+    private let dismissActionItemUseCase: any DismissActionItemUseCaseProtocol
+    private let ensureDirectMessageThreadUseCase: any EnsureDirectMessageThreadUseCaseProtocol
 
-    public init(repository: any MessagesRepository) {
-        self.repository = repository
-        fetchInbox = FetchInboxUseCase(repository: repository)
-        markAllRead = MarkMessagesReadUseCase(repository: repository)
-        markThreadRead = MarkThreadReadUseCase(repository: repository)
-        respondToInvite = RespondToActivityInviteUseCase(repository: repository)
-        dismissActionItemUseCase = DismissActionItemUseCase(repository: repository)
-        ensureDirectMessageThreadUseCase = EnsureDirectMessageThreadUseCase(repository: repository)
+    public init(
+        useCases: MessagesInboxUseCases,
+        makeConversationViewModel: @escaping @MainActor (MessageThread) -> ConversationViewModel
+    ) {
+        self.makeConversationViewModel = makeConversationViewModel
+        fetchInbox = useCases.fetchInbox
+        markAllRead = useCases.markAllRead
+        markThreadRead = useCases.markThreadRead
+        respondToInvite = useCases.respondToInvite
+        dismissActionItemUseCase = useCases.dismissActionItem
+        ensureDirectMessageThreadUseCase = useCases.ensureDirectMessageThread
+    }
+
+    public convenience init(coordinator: MessagesCoordinator) {
+        self.init(
+            useCases: coordinator.makeInboxUseCases(),
+            makeConversationViewModel: { thread in
+                coordinator.makeConversationViewModel(thread: thread)
+            }
+        )
+    }
+
+    public convenience init(repository: any MessagesRepository) {
+        self.init(coordinator: MessagesCoordinator(repository: repository))
     }
 
     public func conversationViewModel(for thread: MessageThread) -> ConversationViewModel {
-        ConversationViewModel(repository: repository, thread: thread)
+        makeConversationViewModel(thread)
     }
 
     public func conversationViewModel(for conversation: ConversationPreview) -> ConversationViewModel {
-        ConversationViewModel(repository: repository, thread: conversation.asMessageThread())
+        makeConversationViewModel(conversation.asMessageThread())
     }
 
     public func thread(for threadID: MessageThreadID) -> MessageThread? {

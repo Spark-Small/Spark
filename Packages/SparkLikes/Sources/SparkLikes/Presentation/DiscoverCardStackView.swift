@@ -133,7 +133,7 @@ struct DiscoverCardStackView: View {
             displayName: "Preview",
             bio: "Bio",
             gender: .female,
-            media: DiscoverMedia(kind: .image, url: URL(string: "https://example.com/a.jpg")!),
+            media: DiscoverMedia(kind: .image, url: MockURL.require("https://example.com/a.jpg")),
             interestTags: ["咖啡"]
         ),
         nextCard: nil,
@@ -145,5 +145,5 @@ struct DiscoverCardStackView: View {
         onRewind: {},
         onShowOpenerPicker: {}
     )
-    .environment(\.discoverMediaImageCache, DiscoverMediaImageCache())
+    .environment(\.discoverMediaImageCache, DiscoverMediaImageCache.previewInstance())
 }

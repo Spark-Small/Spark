@@ -10,6 +10,13 @@ extension LikesRootView {
             if viewModel.loadState == .loading || viewModel.loadState == .idle {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .sparkLoadingAccessibilityLabel(
+                        String(
+                            localized: "likes.feed.loading.a11y",
+                            defaultValue: "正在加载推荐",
+                            comment: "Discover feed loading"
+                        )
+                    )
             }
         }
         .background(.black)
@@ -228,6 +235,7 @@ extension LikesRootView {
             if viewModel.isLoadingMore {
                 ProgressView()
                     .padding(.bottom, 120)
+                    .sparkLoadingMoreAccessibilityLabel()
             }
         }
     }

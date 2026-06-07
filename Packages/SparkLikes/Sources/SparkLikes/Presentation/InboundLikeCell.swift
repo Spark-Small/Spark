@@ -1,6 +1,7 @@
 // Module: SparkLikes — Two-column inbound grid cell.
 
 import SparkCore
+import SparkDesignSystem
 import SwiftUI
 
 struct InboundLikeCell: View {
@@ -36,14 +37,14 @@ struct InboundLikeCell: View {
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.yellow)
                         .padding(6)
-                        .background(.ultraThinMaterial, in: Circle())
+                        .sparkGlassControl(Circle())
                         .padding(8)
                         .accessibilityHidden(true)
                 }
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.sparkPressable)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint(accessibilityHint)
     }
@@ -59,8 +60,8 @@ struct InboundLikeCell: View {
                 )
                 .redacted(reason: .placeholder)
                 .allowsHitTesting(false)
-                Rectangle()
-                    .fill(.thickMaterial)
+                Color.primary.opacity(0.12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 Image(systemName: "lock.fill")
                     .font(.title2)
                     .foregroundStyle(.secondary)
@@ -98,7 +99,7 @@ struct InboundLikeCell: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial)
+        .background(.bar)
     }
 
     private var blurredName: String {
@@ -162,7 +163,7 @@ struct InboundLikeCell: View {
                 displayName: "Preview",
                 bio: "",
                 gender: nil,
-                media: DiscoverMedia(kind: .image, url: URL(string: "https://example.com/a.jpg")!)
+                media: DiscoverMedia(kind: .image, url: MockURL.require("https://example.com/a.jpg"))
             ),
             intensity: .spark,
             opener: "你好"

@@ -1,6 +1,7 @@
 // Module: SparkLikes — Minimum profile before like/pass.
 
 import PhotosUI
+import SparkDesignSystem
 import SwiftUI
 
 struct LikesViewerProfileGateSheet: View {
@@ -24,14 +25,17 @@ struct LikesViewerProfileGateSheet: View {
                 }
                 Section {
                     if let avatarURL = viewModel.viewerProfile.avatarURL {
-                        AsyncImage(url: avatarURL) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image.resizable().scaledToFill()
-                            default:
+                        SparkCachedRemoteImage(
+                            url: avatarURL,
+                            maxPixelSize: 768,
+                            content: { image in
+                                image.resizable().scaledToFill().accessibilityHidden(true)
+                            },
+                            placeholder: {
                                 ProgressView()
+                                    .sparkLoadingAccessibilityLabel()
                             }
-                        }
+                        )
                         .frame(width: 72, height: 72)
                         .clipShape(Circle())
                     }
@@ -76,6 +80,7 @@ struct LikesViewerProfileGateSheet: View {
                     )
                 }
             }
+            .sparkDismissesKeyboardOnScroll()
             .navigationTitle(
                 String(
                     localized: "likes.profileGate.title",

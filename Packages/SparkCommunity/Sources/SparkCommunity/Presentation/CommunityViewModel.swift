@@ -25,9 +25,9 @@ public final class CommunityViewModel {
     public private(set) var likeCountOverrides: [String: Int] = [:]
     public private(set) var selectedFilter: CommunityFeedFilter = .all
 
-    private let fetchPosts: FetchCommunityPostsUseCase
-    private let fetchTabExperience: FetchCommunityTabExperienceUseCase
-    private let createRecap: CreateCommunityRecapUseCase
+    private let fetchPosts: any FetchCommunityPostsUseCaseProtocol
+    private let fetchTabExperience: any FetchCommunityTabExperienceUseCaseProtocol
+    private let createRecap: any CreateCommunityRecapUseCaseProtocol
 
     public var filteredPosts: [CommunityPost] {
         switch selectedFilter {
@@ -38,10 +38,22 @@ public final class CommunityViewModel {
         }
     }
 
-    public init(repository: any CommunityPostsRepository) {
-        fetchPosts = FetchCommunityPostsUseCase(repository: repository)
-        fetchTabExperience = FetchCommunityTabExperienceUseCase(repository: repository)
-        createRecap = CreateCommunityRecapUseCase(repository: repository)
+    public init(
+        fetchPosts: any FetchCommunityPostsUseCaseProtocol,
+        fetchTabExperience: any FetchCommunityTabExperienceUseCaseProtocol,
+        createRecap: any CreateCommunityRecapUseCaseProtocol
+    ) {
+        self.fetchPosts = fetchPosts
+        self.fetchTabExperience = fetchTabExperience
+        self.createRecap = createRecap
+    }
+
+    public convenience init(repository: any CommunityPostsRepository) {
+        self.init(
+            fetchPosts: FetchCommunityPostsUseCase(repository: repository),
+            fetchTabExperience: FetchCommunityTabExperienceUseCase(repository: repository),
+            createRecap: CreateCommunityRecapUseCase(repository: repository)
+        )
     }
 
     public func load() async {

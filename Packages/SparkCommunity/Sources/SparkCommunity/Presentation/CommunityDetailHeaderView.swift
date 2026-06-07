@@ -1,5 +1,6 @@
 // Module: SparkCommunity — Instagram-style community detail header.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct CommunityDetailHeaderView: View {
@@ -45,16 +46,18 @@ struct CommunityDetailHeaderView: View {
     private func coverImage(url: URL?) -> some View {
         Group {
             if let url {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        Rectangle().fill(.thinMaterial)
+                SparkCachedRemoteImage(
+                    url: url,
+                    maxPixelSize: 1_024,
+                    content: { image in
+                        image.resizable().scaledToFill().accessibilityHidden(true)
+                    },
+                    placeholder: {
+                        Color(.tertiarySystemFill)
                     }
-                }
+                )
             } else {
-                Rectangle().fill(.thinMaterial)
+                Color(.tertiarySystemFill)
             }
         }
         .frame(maxWidth: .infinity)
@@ -66,16 +69,17 @@ struct CommunityDetailHeaderView: View {
     private func communityIcon(url: URL?) -> some View {
         Group {
             if let url {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        Circle().fill(.regularMaterial)
+                SparkCachedRemoteImage(
+                    url: url,
+                    content: { image in
+                        image.resizable().scaledToFill().accessibilityHidden(true)
+                    },
+                    placeholder: {
+                        Color(.tertiarySystemFill)
                     }
-                }
+                )
             } else {
-                Circle().fill(.regularMaterial)
+                Color(.tertiarySystemFill)
             }
         }
         .frame(width: 72, height: 72)
@@ -98,7 +102,7 @@ struct CommunityDetailHeaderView: View {
 
         if isJoined {
             label
-                .background(.thinMaterial, in: Capsule())
+                .sparkGlassControl(Capsule())
         } else {
             label
                 .foregroundStyle(.white)
@@ -120,7 +124,7 @@ struct CommunityDetailHeaderView: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.sparkPressable)
         .accessibilityLabel(
             String(localized: "community.detail.members.a11y", defaultValue: "查看成员", comment: "View members")
         )
@@ -130,16 +134,17 @@ struct CommunityDetailHeaderView: View {
     private func memberThumb(url: URL?) -> some View {
         Group {
             if let url {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        Circle().fill(.thinMaterial)
+                SparkCachedRemoteImage(
+                    url: url,
+                    content: { image in
+                        image.resizable().scaledToFill().accessibilityHidden(true)
+                    },
+                    placeholder: {
+                        Color(.tertiarySystemFill)
                     }
-                }
+                )
             } else {
-                Circle().fill(.thinMaterial)
+                Color(.tertiarySystemFill)
             }
         }
         .frame(width: 28, height: 28)

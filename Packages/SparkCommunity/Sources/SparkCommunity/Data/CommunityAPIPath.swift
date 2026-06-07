@@ -15,6 +15,10 @@ enum CommunityAPIPath {
         "\(posts)/\(postID)/replies"
     }
 
+    static func report(postID: String) -> String {
+        "\(posts)/\(postID)/report"
+    }
+
     static func community(id: String) -> String {
         "\(communities)/\(id)"
     }

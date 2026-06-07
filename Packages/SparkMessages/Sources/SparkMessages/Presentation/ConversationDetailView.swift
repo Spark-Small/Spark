@@ -20,6 +20,13 @@ public struct ConversationDetailView: View {
             case .idle, .loading:
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .sparkLoadingAccessibilityLabel(
+                        String(
+                            localized: "messages.conversation.loading.a11y",
+                            defaultValue: "正在加载对话",
+                            comment: "Conversation loading"
+                        )
+                    )
             case .failure(let message):
                 SparkRetryUnavailableView(
                     title: String(
@@ -35,7 +42,7 @@ public struct ConversationDetailView: View {
                 messageList
             }
         }
-        .background(.regularMaterial)
+        .background(.background)
         .navigationTitle(viewModel.thread.peerDisplayName)
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .top) {
@@ -78,7 +85,7 @@ public struct ConversationDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(.thinMaterial)
+            .background(.bar)
         }
     }
 
@@ -93,13 +100,13 @@ public struct ConversationDetailView: View {
                         } label: {
                             dmSharedActivityChip(activity: activity)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.sparkPressable)
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
             }
-            .background(.thinMaterial)
+            .background(.bar)
         }
     }
 
@@ -116,7 +123,7 @@ public struct ConversationDetailView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .sparkGlassSurface(RoundedRectangle.sparkCard)
     }
 
     private var messageList: some View {
@@ -180,16 +187,16 @@ public struct ConversationDetailView: View {
 #Preview {
     NavigationStack {
         ConversationDetailView(
-            viewModel: ConversationViewModel(
-                repository: MockMessagesRepository(unreadCount: 2),
-                thread: MessageThread(
-                    threadID: MessageThreadID("th_activity_act_1"),
-                    peerDisplayName: "周末徒步 · 群",
-                    lastMessagePreview: "周六 9:30 北门集合",
-                    lastActivityAt: .now,
-                    unreadCount: 1
+            viewModel: MessagesCoordinator(repository: MockMessagesRepository(unreadCount: 2))
+                .makeConversationViewModel(
+                    thread: MessageThread(
+                        threadID: MessageThreadID("th_activity_act_1"),
+                        peerDisplayName: "周末徒步 · 群",
+                        lastMessagePreview: "周六 9:30 北门集合",
+                        lastActivityAt: .now,
+                        unreadCount: 1
+                    )
                 )
-            )
         )
     }
 }

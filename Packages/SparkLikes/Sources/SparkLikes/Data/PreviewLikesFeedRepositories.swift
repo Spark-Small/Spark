@@ -21,7 +21,7 @@ struct EmptyLikesFeedRepository: LikesFeedRepository, Sendable {
     }
 
     func prepareAvatarUpload(contentType: String) async throws -> AvatarUploadPrepared {
-        let avatarURL = URL(string: "https://picsum.photos/seed/preview-avatar/400/400")!
+        let avatarURL = MockURL.require("https://picsum.photos/seed/preview-avatar/400/400")
         return AvatarUploadPrepared(uploadURL: nil, avatarURL: avatarURL)
     }
 

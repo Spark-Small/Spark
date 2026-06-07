@@ -1,6 +1,7 @@
 // Module: SparkLikes — Single full-screen discover card.
 
 import SparkCore
+import SparkDesignSystem
 import SwiftUI
 
 struct DiscoverCardView: View {
@@ -17,7 +18,7 @@ struct DiscoverCardView: View {
             Button(action: onOpenProfile) {
                 cardInfoOverlay
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.sparkPressable)
             .accessibilityLabel(cardAccessibilityLabel)
             .accessibilityHint(
                 String(
@@ -51,17 +52,17 @@ struct DiscoverCardView: View {
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(.thinMaterial, in: Capsule())
+                .sparkGlassControl(Capsule())
             }
             if !card.interestTags.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
-                        ForEach(card.interestTags.prefix(4), id: \.self) { tag in
+                        ForEach(Array(card.interestTags.prefix(4).enumerated()), id: \.offset) { _, tag in
                             Text(tag)
                                 .font(.caption)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(.thinMaterial, in: Capsule())
+                                .sparkGlassControl(Capsule())
                         }
                     }
                 }
@@ -95,20 +96,8 @@ struct DiscoverCardView: View {
         .padding(20)
         .padding(.bottom, intent == .friends ? 120 : 88)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background { cardInfoScrim }
+        .sparkPhotoTextScrim()
         .contentShape(Rectangle())
-    }
-
-    private var cardInfoScrim: some View {
-        Rectangle()
-            .fill(.ultraThinMaterial)
-            .mask(
-                LinearGradient(
-                    colors: [.clear, .black],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
     }
 
     private var cardAccessibilityLabel: String {
@@ -128,7 +117,7 @@ struct DiscoverCardView: View {
             displayName: "Preview",
             bio: "Bio",
             gender: .female,
-            media: DiscoverMedia(kind: .image, url: URL(string: "https://example.com/a.jpg")!),
+            media: DiscoverMedia(kind: .image, url: MockURL.require("https://example.com/a.jpg")),
             interestTags: ["咖啡"]
         ),
         isActive: true,
@@ -145,7 +134,7 @@ struct DiscoverCardView: View {
                 displayName: "Preview",
                 bio: "Bio",
                 gender: .female,
-                media: DiscoverMedia(kind: .image, url: URL(string: "https://example.com/a.jpg")!),
+                media: DiscoverMedia(kind: .image, url: MockURL.require("https://example.com/a.jpg")),
                 interestTags: ["咖啡"]
             ),
             isActive: true,

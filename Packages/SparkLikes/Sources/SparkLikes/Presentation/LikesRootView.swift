@@ -14,6 +14,7 @@ public struct LikesRootView: View {
     @State var showOpenerPicker = false
     @State private var recommendedActivity: (id: String, title: String)?
 
+    let coordinator: LikesCoordinator
     @Binding var pendingInbound: Bool
     let onOpenMatchConversation: LikesOpenConversationHandler
     let onOpenSharedActivity: (@Sendable (String) -> Void)?
@@ -22,15 +23,9 @@ public struct LikesRootView: View {
     let isInboundItemBlurred: (InboundLikeItem) -> Bool
     let onInboundPaywall: () -> Void
     let onSparkPaywall: () -> Void
-    let discoverMediaImageCache: DiscoverMediaImageCache
-    let preferencesStore: any LikesPreferencesStoring
-    let onboardingPreferences: any LikesOnboardingPreferences
 
     public init(
-        repository: any LikesFeedRepository,
-        discoverMediaImageCache: DiscoverMediaImageCache,
-        preferencesStore: any LikesPreferencesStoring,
-        onboardingPreferences: any LikesOnboardingPreferences,
+        coordinator: LikesCoordinator,
         pendingInbound: Binding<Bool> = .constant(false),
         onOpenMatchConversation: @escaping LikesOpenConversationHandler,
         onOpenSharedActivity: (@Sendable (String) -> Void)? = nil,
@@ -40,13 +35,8 @@ public struct LikesRootView: View {
         onInboundPaywall: @escaping () -> Void = {},
         onSparkPaywall: @escaping () -> Void = {}
     ) {
-        _viewModel = State(
-            initialValue: LikesFeedViewModel(
-                repository: repository,
-                preferencesStore: preferencesStore,
-                onboardingPreferences: onboardingPreferences
-            )
-        )
+        self.coordinator = coordinator
+        _viewModel = State(initialValue: coordinator.makeFeedViewModel())
         _pendingInbound = pendingInbound
         self.onOpenMatchConversation = onOpenMatchConversation
         self.onOpenSharedActivity = onOpenSharedActivity
@@ -55,16 +45,11 @@ public struct LikesRootView: View {
         self.isInboundItemBlurred = isInboundItemBlurred
         self.onInboundPaywall = onInboundPaywall
         self.onSparkPaywall = onSparkPaywall
-        self.discoverMediaImageCache = discoverMediaImageCache
-        self.preferencesStore = preferencesStore
-        self.onboardingPreferences = onboardingPreferences
     }
 
     init(
         viewModel: LikesFeedViewModel,
-        discoverMediaImageCache: DiscoverMediaImageCache,
-        preferencesStore: any LikesPreferencesStoring,
-        onboardingPreferences: any LikesOnboardingPreferences,
+        coordinator: LikesCoordinator,
         pendingInbound: Binding<Bool> = .constant(false),
         onOpenMatchConversation: @escaping LikesOpenConversationHandler,
         onOpenSharedActivity: (@Sendable (String) -> Void)? = nil,
@@ -74,6 +59,7 @@ public struct LikesRootView: View {
         onInboundPaywall: @escaping () -> Void = {},
         onSparkPaywall: @escaping () -> Void = {}
     ) {
+        self.coordinator = coordinator
         _viewModel = State(initialValue: viewModel)
         _pendingInbound = pendingInbound
         self.onOpenMatchConversation = onOpenMatchConversation
@@ -83,9 +69,6 @@ public struct LikesRootView: View {
         self.isInboundItemBlurred = isInboundItemBlurred
         self.onInboundPaywall = onInboundPaywall
         self.onSparkPaywall = onSparkPaywall
-        self.discoverMediaImageCache = discoverMediaImageCache
-        self.preferencesStore = preferencesStore
-        self.onboardingPreferences = onboardingPreferences
     }
 
     var usesSplitLayout: Bool {
@@ -111,7 +94,11 @@ public struct LikesRootView: View {
                 }
             }
         }
-        .environment(\.discoverMediaImageCache, discoverMediaImageCache)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(
+            String(localized: "screen.likes", defaultValue: "喜欢", comment: "Likes screen")
+        )
+        .environment(\.discoverMediaImageCache, coordinator.mediaImageCache)
         .sheet(isPresented: $viewModel.showOnboarding) {
                 LikesOnboardingSheet {
                     viewModel.markOnboardingSeen()
@@ -253,9 +240,7 @@ public struct LikesRootView: View {
             preferencesStore: LikesPreviewSupport.preferencesStore,
             onboardingPreferences: LikesPreviewSupport.onboardingPreferences
         ),
-        discoverMediaImageCache: DiscoverMediaImageCache(),
-        preferencesStore: LikesPreviewSupport.preferencesStore,
-        onboardingPreferences: LikesPreviewSupport.onboardingPreferences,
+        coordinator: LikesPreviewSupport.coordinator(repository: EmptyLikesFeedRepository()),
         onOpenMatchConversation: { _, _, _ in }
     )
 }

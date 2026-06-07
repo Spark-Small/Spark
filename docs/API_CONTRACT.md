@@ -90,6 +90,16 @@ Validates/refreshes the current session.
 
 ---
 
+### `POST /v1/auth/account/delete`
+
+**Headers:** `Authorization: Bearer <token>`
+
+Permanently deletes the authenticated user and associated personal data on the server (App Store Guideline 5.1.1).
+
+**Response `204`:** Empty body. Client clears Keychain session regardless of network failure after best effort.
+
+---
+
 ## Messages
 
 ### `GET /v1/messages/unread-count`
@@ -1154,7 +1164,7 @@ Copy `Config/Secrets.xcconfig.example` → `Config/Secrets.xcconfig` (gitignored
 
 | Area | iOS Live paths | MVP status |
 |------|----------------|------------|
-| Auth | email · session · apple · sign-out | Implemented |
+| Auth | email · session · apple · sign-out · account/delete | Implemented |
 | Messages | unread · threads · messages · read · activity/direct threads | Implemented |
 | Activities | feed · browse · detail · create · patch · rsvp · waitlist · promote · cancel · report · announce · feedback | Implemented (NoSQL write-through) |
 | Search · Community · Likes · devices | per path tables above | Implemented |

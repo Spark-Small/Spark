@@ -12,6 +12,8 @@ import SparkPayments
 import SparkPersistence
 import SparkSearch
 import SparkTrust
+import SparkNotifications
+import SparkAppShell
 
 /// Container for composition-root dependencies (injected via SwiftUI environment).
 public struct AppDependencies {
@@ -21,6 +23,8 @@ public struct AppDependencies {
     public let httpClient: HTTPClient
     public let apiClient: APIClient
     public let authService: any AuthService
+    public let authCoordinator: AuthCoordinator
+    public let tabDependencies: SparkTabDependencies
     public let messagesRepository: any MessagesRepository
     public let activityFeedRepository: any ActivityFeedRepository
     public let activityBrowseRepository: any ActivityBrowseRepository
@@ -34,6 +38,7 @@ public struct AppDependencies {
     public let deviceTokenUploader: any DeviceTokenUploading
     public let blockedActivityHostsStore: BlockedActivityHostsStore
     public let discoverMediaImageCache: DiscoverMediaImageCache
+    public let remoteImageCache: RemoteImageCache
     public let likesPreferencesStore: any LikesPreferencesStoring
     public let likesOnboardingPreferences: any LikesOnboardingPreferences
 
@@ -44,6 +49,8 @@ public struct AppDependencies {
         httpClient: HTTPClient,
         apiClient: APIClient,
         authService: any AuthService,
+        authCoordinator: AuthCoordinator,
+        tabDependencies: SparkTabDependencies,
         messagesRepository: any MessagesRepository,
         activityFeedRepository: any ActivityFeedRepository,
         activityBrowseRepository: any ActivityBrowseRepository,
@@ -56,6 +63,7 @@ public struct AppDependencies {
         deviceTokenUploader: any DeviceTokenUploading,
         blockedActivityHostsStore: BlockedActivityHostsStore,
         discoverMediaImageCache: DiscoverMediaImageCache,
+        remoteImageCache: RemoteImageCache,
         likesPreferencesStore: any LikesPreferencesStoring,
         likesOnboardingPreferences: any LikesOnboardingPreferences
     ) {
@@ -65,6 +73,8 @@ public struct AppDependencies {
         self.httpClient = httpClient
         self.apiClient = apiClient
         self.authService = authService
+        self.authCoordinator = authCoordinator
+        self.tabDependencies = tabDependencies
         self.messagesRepository = messagesRepository
         self.activityFeedRepository = activityFeedRepository
         self.activityBrowseRepository = activityBrowseRepository
@@ -77,6 +87,7 @@ public struct AppDependencies {
         self.deviceTokenUploader = deviceTokenUploader
         self.blockedActivityHostsStore = blockedActivityHostsStore
         self.discoverMediaImageCache = discoverMediaImageCache
+        self.remoteImageCache = remoteImageCache
         self.likesPreferencesStore = likesPreferencesStore
         self.likesOnboardingPreferences = likesOnboardingPreferences
     }

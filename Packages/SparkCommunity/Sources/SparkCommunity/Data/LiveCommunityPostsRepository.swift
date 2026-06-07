@@ -93,6 +93,21 @@ public struct LiveCommunityPostsRepository: CommunityPostsRepository, Sendable {
         return CommunityDTOMapper.reply(from: dto.reply)
     }
 
+    public func reportPost(
+        postID: String,
+        reason: CommunityReportReason,
+        detail: String?
+    ) async throws {
+        let payload = try JSONEncoder().encode(
+            ReportCommunityPostRequestDTO(reason: reason.wireValue, detail: detail)
+        )
+        _ = try await apiClient.post(
+            CommunityAPIPath.report(postID: postID),
+            body: payload,
+            as: ReportCommunityPostResponseDTO.self
+        )
+    }
+
     public func createRecapPost(_ draft: CommunityRecapDraft) async throws -> CommunityPostDetail {
         try CommunityRecapDraft.validate(draft)
         let body = try JSONEncoder().encode(

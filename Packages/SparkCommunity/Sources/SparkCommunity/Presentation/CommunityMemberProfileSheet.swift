@@ -1,5 +1,6 @@
 // Module: SparkCommunity — Lightweight profile from community context.
 
+import SparkDesignSystem
 import SwiftUI
 
 struct CommunityMemberProfileSheet: View {
@@ -47,19 +48,21 @@ struct CommunityMemberProfileSheet: View {
     @ViewBuilder
     private var avatar: some View {
         if let url = profile.avatarURL {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    Circle().fill(.regularMaterial)
+            SparkCachedRemoteImage(
+                url: url,
+                maxPixelSize: 768,
+                content: { image in
+                    image.resizable().scaledToFill().accessibilityHidden(true)
+                },
+                placeholder: {
+                    Color(.tertiarySystemFill)
                 }
-            }
+            )
             .frame(width: 88, height: 88)
             .clipShape(Circle())
         } else {
             Circle()
-                .fill(.regularMaterial)
+                .fill(Color(.tertiarySystemFill))
                 .frame(width: 88, height: 88)
         }
     }
@@ -92,4 +95,19 @@ struct CommunityMemberProfileSheet: View {
             .disabled(isLiked)
         }
     }
+}
+
+#Preview {
+    CommunityMemberProfileSheet(
+        profile: CommunityProfilePreview(
+            person: DiscoveredPerson(
+                id: "u_preview",
+                displayName: "Nova",
+                sharedTag: "周末徒步",
+                relationship: .sharedActivity("北山徒步")
+            )
+        ),
+        isLiked: false,
+        onLike: {}
+    )
 }

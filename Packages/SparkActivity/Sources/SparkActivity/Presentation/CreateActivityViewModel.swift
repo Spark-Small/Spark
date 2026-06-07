@@ -15,10 +15,14 @@ public final class CreateActivityViewModel {
     public var draft = CreateActivityDraft()
     public private(set) var submitState: SubmitState = .idle
 
-    private let createActivity: CreateActivityUseCase
+    private let createActivity: any CreateActivityUseCaseProtocol
 
-    public init(repository: any ActivityFeedRepository) {
-        createActivity = CreateActivityUseCase(repository: repository)
+    public init(createActivity: any CreateActivityUseCaseProtocol) {
+        self.createActivity = createActivity
+    }
+
+    public convenience init(repository: any ActivityFeedRepository) {
+        self.init(createActivity: CreateActivityUseCase(repository: repository))
     }
 
     public func submit() async -> ActivityDetail? {

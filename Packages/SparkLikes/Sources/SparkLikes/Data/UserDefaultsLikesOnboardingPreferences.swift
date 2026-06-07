@@ -2,6 +2,7 @@
 
 import Foundation
 
+// REASONING: UserDefaults is process-local; callers serialize reads/writes on @MainActor.
 public final class UserDefaultsLikesOnboardingPreferences: LikesOnboardingPreferences, @unchecked Sendable {
     private static let seenKey = "likes.onboarding.seen"
     private let defaults: UserDefaults

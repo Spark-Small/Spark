@@ -30,15 +30,15 @@ public final class ActivityDetailViewModel {
     public private(set) var hostOtherActivitiesLoadFailed = false
     public private(set) var feedbackSubmitted = false
 
-    private let fetchDetail: FetchActivityDetailUseCase
-    private let updateRSVP: UpdateActivityRSVPUseCase
-    private let cancelActivity: CancelActivityUseCase
-    private let reportActivity: ReportActivityUseCase
-    private let joinWaitlist: JoinActivityWaitlistUseCase
-    private let promoteFromWaitlist: PromoteFromWaitlistUseCase
-    private let announceActivity: AnnounceActivityUseCase
-    private let submitHostFeedbackUseCase: SubmitHostFeedbackUseCase
-    private let fetchHostActivities: FetchActivitiesByHostUseCase
+    private let fetchDetail: any FetchActivityDetailUseCaseProtocol
+    private let updateRSVP: any UpdateActivityRSVPUseCaseProtocol
+    private let cancelActivity: any CancelActivityUseCaseProtocol
+    private let reportActivity: any ReportActivityUseCaseProtocol
+    private let joinWaitlist: any JoinActivityWaitlistUseCaseProtocol
+    private let promoteFromWaitlist: any PromoteFromWaitlistUseCaseProtocol
+    private let announceActivity: any AnnounceActivityUseCaseProtocol
+    private let submitHostFeedbackUseCase: any SubmitHostFeedbackUseCaseProtocol
+    private let fetchHostActivities: any FetchActivitiesByHostUseCaseProtocol
     private let blockedHostsStore: BlockedActivityHostsStore
     private let calendarExporter: any ActivityCalendarExporting
     private let onRSVPCompleted: ((ActivityDetail) async -> Void)?
@@ -48,7 +48,15 @@ public final class ActivityDetailViewModel {
 
     public init(
         activityID: String,
-        repository: any ActivityFeedRepository,
+        fetchDetail: any FetchActivityDetailUseCaseProtocol,
+        updateRSVP: any UpdateActivityRSVPUseCaseProtocol,
+        cancelActivity: any CancelActivityUseCaseProtocol,
+        reportActivity: any ReportActivityUseCaseProtocol,
+        joinWaitlist: any JoinActivityWaitlistUseCaseProtocol,
+        promoteFromWaitlist: any PromoteFromWaitlistUseCaseProtocol,
+        announceActivity: any AnnounceActivityUseCaseProtocol,
+        submitHostFeedback: any SubmitHostFeedbackUseCaseProtocol,
+        fetchHostActivities: any FetchActivitiesByHostUseCaseProtocol,
         context: ActivityDetailContext = .inbox,
         blockedHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
         calendarExporter: (any ActivityCalendarExporting)? = nil,
@@ -58,18 +66,46 @@ public final class ActivityDetailViewModel {
         self.activityID = activityID
         self.context = context
         self.blockedHostsStore = blockedHostsStore
-        fetchDetail = FetchActivityDetailUseCase(repository: repository)
-        updateRSVP = UpdateActivityRSVPUseCase(repository: repository)
-        cancelActivity = CancelActivityUseCase(repository: repository)
-        reportActivity = ReportActivityUseCase(repository: repository)
-        joinWaitlist = JoinActivityWaitlistUseCase(repository: repository)
-        promoteFromWaitlist = PromoteFromWaitlistUseCase(repository: repository)
-        announceActivity = AnnounceActivityUseCase(repository: repository)
-        submitHostFeedbackUseCase = SubmitHostFeedbackUseCase(repository: repository)
-        fetchHostActivities = FetchActivitiesByHostUseCase(repository: repository)
+        self.fetchDetail = fetchDetail
+        self.updateRSVP = updateRSVP
+        self.cancelActivity = cancelActivity
+        self.reportActivity = reportActivity
+        self.joinWaitlist = joinWaitlist
+        self.promoteFromWaitlist = promoteFromWaitlist
+        self.announceActivity = announceActivity
+        submitHostFeedbackUseCase = submitHostFeedback
+        self.fetchHostActivities = fetchHostActivities
         self.calendarExporter = calendarExporter ?? ActivityCalendarExportService()
         self.onRSVPCompleted = onRSVPCompleted
         self.onActivityUpdated = onActivityUpdated
+    }
+
+    public convenience init(
+        activityID: String,
+        repository: any ActivityFeedRepository,
+        context: ActivityDetailContext = .inbox,
+        blockedHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
+        calendarExporter: (any ActivityCalendarExporting)? = nil,
+        onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
+        onActivityUpdated: ((ActivityDetail) async -> Void)? = nil
+    ) {
+        self.init(
+            activityID: activityID,
+            fetchDetail: FetchActivityDetailUseCase(repository: repository),
+            updateRSVP: UpdateActivityRSVPUseCase(repository: repository),
+            cancelActivity: CancelActivityUseCase(repository: repository),
+            reportActivity: ReportActivityUseCase(repository: repository),
+            joinWaitlist: JoinActivityWaitlistUseCase(repository: repository),
+            promoteFromWaitlist: PromoteFromWaitlistUseCase(repository: repository),
+            announceActivity: AnnounceActivityUseCase(repository: repository),
+            submitHostFeedback: SubmitHostFeedbackUseCase(repository: repository),
+            fetchHostActivities: FetchActivitiesByHostUseCase(repository: repository),
+            context: context,
+            blockedHostsStore: blockedHostsStore,
+            calendarExporter: calendarExporter,
+            onRSVPCompleted: onRSVPCompleted,
+            onActivityUpdated: onActivityUpdated
+        )
     }
 
     public func load() async {
