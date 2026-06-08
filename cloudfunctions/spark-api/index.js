@@ -22,12 +22,17 @@ const {
   serializeCommunityDetail,
   serializeCommunityActivities,
   serializeCommunityMembers,
+  joinCommunity,
+  defaultJoinedCommunitiesByUser,
 } = require("./lib/community-helpers");
 const {
   buildInboxResponse,
   buildConversationContext,
   dismissActionItemForInvite,
   dismissInboxActionItem,
+  isThreadVisibleForUser,
+  hideThreadForUser,
+  deleteThreadForUser,
 } = require("./lib/messages-helpers");
 const {
   dailyStatsFor,
@@ -41,6 +46,8 @@ const {
   sortInboundItems,
   rankFeedCards,
 } = require("./lib/likes-helpers");
+const { registerAuthRoutes } = require("./lib/auth-providers");
+const { registerCNPaymentRoutes } = require("./lib/cn-payments");
 
 const PORT = Number(process.env.PORT) || 9000;
 
@@ -77,10 +84,13 @@ const state = {
     post_counter: 3,
     reply_counter: 3,
     community_report_counter: 0,
+    user_counter: 100,
   },
+  usersByProvider: new Map(),
   communityReports: [],
   inboxActionItems: [],
   dismissedInboxActionIds: new Set(),
+  joinedCommunitiesByUser: new Map(),
   dirty: createDirtyTracker(),
 };
 
@@ -213,7 +223,9 @@ function viewerProfileFor(userId) {
 }
 
 function isActivityHost(activity, userId) {
-  return activity.host_id === userId || activity.rsvp_status === "host";
+  if (activity.host_id === userId) return true;
+  const attendee = (activity.attendees || []).find((att) => att.id === userId);
+  return Boolean(attendee?.is_host || attendee?.is_cohost || attendee?.rsvp_status === "host");
 }
 
 function ensureActivityThread(activity, welcomeMessage) {
@@ -364,11 +376,16 @@ app.post("/v1/auth/apple", (_req, res) => {
   res.json({ access_token: tokenFor(userId), user_id: userId });
 });
 
+registerAuthRoutes(app, { state, tokenFor, err });
+registerCNPaymentRoutes(app, { state, requireAuth, err });
+
 // --- Messages ---
 
-app.get("/v1/messages/unread-count", requireAuth, (_req, res) => {
+app.get("/v1/messages/unread-count", requireAuth, (req, res) => {
   let count = 0;
-  for (const t of state.threads.values()) count += t.unread_count;
+  for (const t of state.threads.values()) {
+    if (isThreadVisibleForUser(t, req.userId)) count += t.unread_count;
+  }
   res.json({ count });
 });
 
@@ -388,8 +405,8 @@ app.post("/v1/messages/threads/:threadId/read", requireAuth, (req, res) => {
   res.status(204).send();
 });
 
-app.get("/v1/messages/inbox", requireAuth, (_req, res) => {
-  res.json(buildInboxResponse(state));
+app.get("/v1/messages/inbox", requireAuth, (req, res) => {
+  res.json(buildInboxResponse(state, req.userId));
 });
 
 app.post("/v1/messages/inbox/action-items/:actionItemId/dismiss", requireAuth, (req, res) => {
@@ -399,29 +416,51 @@ app.post("/v1/messages/inbox/action-items/:actionItemId/dismiss", requireAuth, (
 });
 
 app.get("/v1/messages/threads/:threadId/context", requireAuth, (req, res) => {
+  const t = state.threads.get(req.params.threadId);
+  if (!t || !isThreadVisibleForUser(t, req.userId)) {
+    return err(res, 404, "not_found", "Thread not found");
+  }
   res.json(buildConversationContext(state, req.params.threadId));
 });
 
-app.get("/v1/messages/threads", requireAuth, (_req, res) => {
-  const list = [...state.threads.values()].map((t) => ({
-    id: t.id,
-    peer_display_name: t.peer_display_name,
-    last_message_preview: t.last_message_preview,
-    last_activity_at: t.last_activity_at,
-    unread_count: t.unread_count,
-  }));
+app.post("/v1/messages/threads/:threadId/hide", requireAuth, (req, res) => {
+  const ok = hideThreadForUser(state, req.params.threadId, req.userId);
+  if (!ok) return err(res, 404, "not_found", "Thread not found");
+  res.status(204).send();
+});
+
+app.delete("/v1/messages/threads/:threadId", requireAuth, (req, res) => {
+  const ok = deleteThreadForUser(state, req.params.threadId, req.userId);
+  if (!ok) return err(res, 404, "not_found", "Thread not found");
+  res.status(204).send();
+});
+
+app.get("/v1/messages/threads", requireAuth, (req, res) => {
+  const list = [...state.threads.values()]
+    .filter((t) => isThreadVisibleForUser(t, req.userId))
+    .map((t) => ({
+      id: t.id,
+      peer_display_name: t.peer_display_name,
+      last_message_preview: t.last_message_preview,
+      last_activity_at: t.last_activity_at,
+      unread_count: t.unread_count,
+    }));
   res.json({ threads: list });
 });
 
 app.get("/v1/messages/threads/:threadId/messages", requireAuth, (req, res) => {
   const t = state.threads.get(req.params.threadId);
-  if (!t) return err(res, 404, "not_found", "Thread not found");
+  if (!t || !isThreadVisibleForUser(t, req.userId)) {
+    return err(res, 404, "not_found", "Thread not found");
+  }
   res.json({ messages: t.messages });
 });
 
 app.post("/v1/messages/threads/:threadId/messages", requireAuth, (req, res) => {
   const t = state.threads.get(req.params.threadId);
-  if (!t) return err(res, 404, "not_found", "Thread not found");
+  if (!t || !isThreadVisibleForUser(t, req.userId)) {
+    return err(res, 404, "not_found", "Thread not found");
+  }
   const body = (req.body?.body || "").trim();
   if (!body) return err(res, 400, "invalid_request", "body required");
   state.counters.msg_counter += 1;
@@ -673,6 +712,54 @@ app.post("/v1/activities/:activityId/waitlist/:attendeeId/promote", requireAuth,
   res.json({ activity: activityDetail(a) });
 });
 
+app.post("/v1/activities/:activityId/attendees/:attendeeId/review", requireAuth, (req, res) => {
+  const a = state.activities.get(req.params.activityId);
+  if (!a) return err(res, 404, "not_found", "Activity not found");
+  if (!isActivityHost(a, req.userId)) {
+    return err(res, 403, "forbidden", "Only the host can review attendees");
+  }
+  const decision = req.body?.decision;
+  if (!["approve", "reject"].includes(decision)) {
+    return err(res, 400, "invalid_request", "decision must be approve or reject");
+  }
+  const attendee = (a.attendees || []).find((att) => att.id === req.params.attendeeId);
+  if (!attendee || !["pending", "waitlisted"].includes(attendee.rsvp_status)) {
+    return err(res, 404, "not_found", "Pending attendee not found");
+  }
+  const priorStatus = attendee.rsvp_status;
+  if (decision === "approve") {
+    attendee.rsvp_status = "going";
+    if (priorStatus === "waitlisted") {
+      a.waitlisted_count = Math.max(0, (a.waitlisted_count ?? 1) - 1);
+    }
+    a.attendee_count = (a.attendee_count ?? 0) + 1;
+    ensureActivityThread(a);
+  } else {
+    a.attendees = (a.attendees || []).filter((att) => att.id !== attendee.id);
+    if (priorStatus === "waitlisted") {
+      a.waitlisted_count = Math.max(0, (a.waitlisted_count ?? 1) - 1);
+    }
+  }
+  touchActivity(a.id);
+  res.json({ activity: activityDetail(a) });
+});
+
+app.post("/v1/activities/:activityId/attendees/:attendeeId/cohost", requireAuth, (req, res) => {
+  const a = state.activities.get(req.params.activityId);
+  if (!a) return err(res, 404, "not_found", "Activity not found");
+  if (!isActivityHost(a, req.userId)) {
+    return err(res, 403, "forbidden", "Only the host can assign co-hosts");
+  }
+  const attendee = (a.attendees || []).find((att) => att.id === req.params.attendeeId);
+  if (!attendee) return err(res, 404, "not_found", "Attendee not found");
+  if (attendee.is_host) {
+    return err(res, 409, "conflict", "Host cannot be assigned as co-host");
+  }
+  attendee.is_cohost = true;
+  touchActivity(a.id);
+  res.json({ activity: activityDetail(a) });
+});
+
 app.post("/v1/activities/:activityId/cancel", requireAuth, (req, res) => {
   const a = state.activities.get(req.params.activityId);
   if (!a) return err(res, 404, "not_found", "Activity not found");
@@ -786,24 +873,30 @@ app.get("/v1/search", requireAuth, (req, res) => {
 
 // --- Community ---
 
-app.get("/v1/community/feed", requireAuth, (_req, res) => {
-  res.json(buildCommunityFeed(state));
+app.get("/v1/community/feed", requireAuth, (req, res) => {
+  res.json(buildCommunityFeed(state, req.userId));
 });
 
 app.get("/v1/community/communities/:communityId", requireAuth, (req, res) => {
-  const community = serializeCommunityDetail(req.params.communityId);
+  const community = serializeCommunityDetail(req.params.communityId, req.userId, state);
+  if (!community) return err(res, 404, "not_found", "Community not found");
+  res.json({ community });
+});
+
+app.post("/v1/community/communities/:communityId/join", requireAuth, (req, res) => {
+  const community = joinCommunity(state, req.userId, req.params.communityId);
   if (!community) return err(res, 404, "not_found", "Community not found");
   res.json({ community });
 });
 
 app.get("/v1/community/communities/:communityId/activities", requireAuth, (req, res) => {
-  const community = serializeCommunityDetail(req.params.communityId);
+  const community = serializeCommunityDetail(req.params.communityId, req.userId, state);
   if (!community) return err(res, 404, "not_found", "Community not found");
   res.json({ activities: serializeCommunityActivities(req.params.communityId) });
 });
 
 app.get("/v1/community/communities/:communityId/members", requireAuth, (req, res) => {
-  const community = serializeCommunityDetail(req.params.communityId);
+  const community = serializeCommunityDetail(req.params.communityId, req.userId, state);
   if (!community) return err(res, 404, "not_found", "Community not found");
   res.json({ members: serializeCommunityMembers(req.params.communityId) });
 });

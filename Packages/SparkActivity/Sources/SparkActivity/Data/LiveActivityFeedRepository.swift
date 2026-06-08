@@ -166,6 +166,43 @@ public struct LiveActivityFeedRepository: ActivityFeedRepository, Sendable {
         }
     }
 
+    public func reviewAttendee(
+        activityID: String,
+        attendeeID: String,
+        decision: AttendeeReviewDecision
+    ) async throws -> ActivityDetail {
+        do {
+            let body = try JSONEncoder().encode(
+                ActivityAttendeeReviewRequestDTO(decision: decision.rawValue)
+            )
+            let dto: ActivityRSVPResponseDTO = try await apiClient.post(
+                ActivityAPIPath.reviewAttendee(activityID: activityID, attendeeID: attendeeID),
+                body: body
+            )
+            guard let detail = ActivityDTOMapper.detail(from: dto.activity) else {
+                throw ActivityError.underlying(.decodingFailed)
+            }
+            return detail
+        } catch {
+            throw logAndMap("reviewAttendee", error)
+        }
+    }
+
+    public func assignCohost(activityID: String, attendeeID: String) async throws -> ActivityDetail {
+        do {
+            let dto: ActivityRSVPResponseDTO = try await apiClient.post(
+                ActivityAPIPath.assignCohost(activityID: activityID, attendeeID: attendeeID),
+                body: nil
+            )
+            guard let detail = ActivityDTOMapper.detail(from: dto.activity) else {
+                throw ActivityError.underlying(.decodingFailed)
+            }
+            return detail
+        } catch {
+            throw logAndMap("assignCohost", error)
+        }
+    }
+
     public func announceActivity(activityID: String, message: String) async throws {
         do {
             let body = try JSONEncoder().encode(ActivityAnnounceRequestDTO(message: message))

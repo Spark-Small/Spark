@@ -342,9 +342,9 @@ graph TD
 ## MODULE-H：微信 Open SDK（合规评估）
 
 ### 立项决策
-- **建议：** No-Go（直至产品明确 CN 分发 + 合规签字）
-- **前置条件：** 微信开放平台企业主体；ICP；IAP 策略澄清
-- **ADR 编号：** ADR-0009（待建，评估档）
+- **建议：** Go（H.1 进行中 — 见 [ADR-0009](adr/0009-cn-auth-providers.md)）
+- **前置条件：** 微信开放平台企业主体；ICP；IAP 策略澄清（微信支付仍 No）
+- **ADR 编号：** [ADR-0009](adr/0009-cn-auth-providers.md)（Accepted — CN 登录 providers）
 
 ### 用户故事
 （待定）作为 CN 用户，我希望用微信登录/分享活动，以便符合本地习惯。

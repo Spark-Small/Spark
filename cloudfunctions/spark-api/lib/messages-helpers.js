@@ -119,11 +119,41 @@ function buildUnmessagedMatches(state) {
   return matches;
 }
 
-function buildInboxResponse(state) {
+function isThreadVisibleForUser(thread, userId) {
+  if (!thread) return false;
+  const hidden = thread.hidden_for_user_ids || [];
+  const deleted = thread.deleted_for_user_ids || [];
+  return !hidden.includes(userId) && !deleted.includes(userId);
+}
+
+function hideThreadForUser(state, threadId, userId) {
+  const thread = state.threads.get(threadId);
+  if (!thread) return false;
+  thread.hidden_for_user_ids = thread.hidden_for_user_ids || [];
+  if (!thread.hidden_for_user_ids.includes(userId)) {
+    thread.hidden_for_user_ids.push(userId);
+  }
+  if (state.dirty) state.dirty.threads.add(threadId);
+  return true;
+}
+
+function deleteThreadForUser(state, threadId, userId) {
+  const thread = state.threads.get(threadId);
+  if (!thread) return false;
+  thread.deleted_for_user_ids = thread.deleted_for_user_ids || [];
+  if (!thread.deleted_for_user_ids.includes(userId)) {
+    thread.deleted_for_user_ids.push(userId);
+  }
+  if (state.dirty) state.dirty.threads.add(threadId);
+  return true;
+}
+
+function buildInboxResponse(state, userId) {
   const dmConversations = [];
   const groupConversations = [];
 
   for (const thread of state.threads.values()) {
+    if (!isThreadVisibleForUser(thread, userId)) continue;
     const conversation = serializeThreadConversation(state, thread);
     if (conversation.kind === "dm") {
       dmConversations.push(conversation);
@@ -255,4 +285,7 @@ module.exports = {
   defaultInboxActionItems,
   serializeThreadConversation,
   peerUserIdFromDirectThread,
+  isThreadVisibleForUser,
+  hideThreadForUser,
+  deleteThreadForUser,
 };

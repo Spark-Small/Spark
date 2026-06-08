@@ -50,6 +50,8 @@ public final class MessagesViewModel {
     private let markThreadRead: MarkThreadReadUseCase
     private let respondToInvite: RespondToActivityInviteUseCase
     private let dismissActionItemUseCase: DismissActionItemUseCase
+    private let hideThreadUseCase: HideThreadUseCase
+    private let deleteThreadUseCase: DeleteThreadUseCase
     private let ensureDirectMessageThreadUseCase: EnsureDirectMessageThreadUseCase
 
     public init(repository: any MessagesRepository) {
@@ -59,6 +61,8 @@ public final class MessagesViewModel {
         markThreadRead = MarkThreadReadUseCase(repository: repository)
         respondToInvite = RespondToActivityInviteUseCase(repository: repository)
         dismissActionItemUseCase = DismissActionItemUseCase(repository: repository)
+        hideThreadUseCase = HideThreadUseCase(repository: repository)
+        deleteThreadUseCase = DeleteThreadUseCase(repository: repository)
         ensureDirectMessageThreadUseCase = EnsureDirectMessageThreadUseCase(repository: repository)
     }
 
@@ -191,6 +195,38 @@ public final class MessagesViewModel {
         )
     }
 
+    public func hideConversation(_ conversation: ConversationPreview) async {
+        let threadID = conversation.threadID
+        let snapshot = conversationReadSnapshot()
+        removeConversation(threadID)
+        do {
+            try await hideThreadUseCase(threadID: threadID)
+        } catch is CancellationError {
+            return
+        } catch {
+            restoreConversationRead(snapshot)
+            Self.logger.error(
+                "hideConversation failed for \(threadID.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
+    public func deleteConversation(_ conversation: ConversationPreview) async {
+        let threadID = conversation.threadID
+        let snapshot = conversationReadSnapshot()
+        removeConversation(threadID)
+        do {
+            try await deleteThreadUseCase(threadID: threadID)
+        } catch is CancellationError {
+            return
+        } catch {
+            restoreConversationRead(snapshot)
+            Self.logger.error(
+                "deleteConversation failed for \(threadID.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
     private func apply(_ inbox: MessagesInbox) {
         actionItems = inbox.actionItems
         unmessagedMatches = inbox.unmessagedMatches
@@ -225,6 +261,14 @@ public final class MessagesViewModel {
         archivedGroupChats = snapshot.archivedGroupChats
         threads = snapshot.threads
         unreadMessageCount = snapshot.unreadMessageCount
+    }
+
+    private func removeConversation(_ threadID: MessageThreadID) {
+        dmConversations.removeAll { $0.threadID == threadID }
+        activeGroupChats.removeAll { $0.threadID == threadID }
+        archivedGroupChats.removeAll { $0.threadID == threadID }
+        threads.removeAll { $0.threadID == threadID }
+        unreadMessageCount = totalUnreadCount
     }
 
     private func applyConversationRead(_ threadID: MessageThreadID) {

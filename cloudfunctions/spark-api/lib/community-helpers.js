@@ -1,6 +1,6 @@
 /** Community tab feed, groups, members, and linked activities (staging mock). */
 
-const JOINED_COMMUNITY_IDS = ["cm_hike", "cm_book", "cm_photo"];
+const DEFAULT_JOINED_COMMUNITY_IDS = ["cm_hike", "cm_book", "cm_photo"];
 
 const COMMUNITIES = [
   {
@@ -107,6 +107,29 @@ function communityById(id) {
   return COMMUNITIES.find((c) => c.id === id) || null;
 }
 
+function joinedIdsFor(state, userId) {
+  const map = state.joinedCommunitiesByUser;
+  if (map?.has(userId)) {
+    return [...map.get(userId)];
+  }
+  if (userId === "u_staging_1") {
+    return [...DEFAULT_JOINED_COMMUNITY_IDS];
+  }
+  return [];
+}
+
+function ensureJoinedSet(state, userId) {
+  if (!state.joinedCommunitiesByUser) {
+    state.joinedCommunitiesByUser = new Map();
+  }
+  let joined = state.joinedCommunitiesByUser.get(userId);
+  if (!joined) {
+    joined = new Set(joinedIdsFor(state, userId));
+    state.joinedCommunitiesByUser.set(userId, joined);
+  }
+  return joined;
+}
+
 function feedPostFromListPost(post) {
   return {
     id: post.id,
@@ -128,7 +151,8 @@ function feedPostFromListPost(post) {
   };
 }
 
-function buildCommunityFeed(state) {
+function buildCommunityFeed(state, userId) {
+  const joinedIds = joinedIdsFor(state, userId);
   const posts = [...state.communityPosts.values()].map(feedPostFromListPost);
   const items = [];
   posts.forEach((post, index) => {
@@ -141,19 +165,29 @@ function buildCommunityFeed(state) {
     items.push({ type: "people_discovery", post: null, people: DISCOVERED_PEOPLE });
   }
   return {
-    joined_communities: COMMUNITIES.filter((c) => JOINED_COMMUNITY_IDS.includes(c.id)),
+    joined_communities: COMMUNITIES.filter((c) => joinedIds.includes(c.id)),
     items,
     all_communities: COMMUNITIES,
   };
 }
 
-function serializeCommunityDetail(id) {
+function serializeCommunityDetail(id, userId, state) {
   const c = communityById(id);
   if (!c) return null;
+  const joinedIds = joinedIdsFor(state, userId);
   return {
     ...c,
-    is_joined: JOINED_COMMUNITY_IDS.includes(id),
+    is_joined: joinedIds.includes(id),
   };
+}
+
+function joinCommunity(state, userId, communityId) {
+  const c = communityById(communityId);
+  if (!c) return null;
+  const joined = ensureJoinedSet(state, userId);
+  joined.add(communityId);
+  if (state.dirty) state.dirty.likes = true;
+  return serializeCommunityDetail(communityId, userId, state);
 }
 
 function serializeCommunityActivities(id) {
@@ -164,10 +198,17 @@ function serializeCommunityMembers(id) {
   return COMMUNITY_MEMBERS[id] || [];
 }
 
+function defaultJoinedCommunitiesByUser() {
+  return { u_staging_1: [...DEFAULT_JOINED_COMMUNITY_IDS] };
+}
+
 module.exports = {
   buildCommunityFeed,
   serializeCommunityDetail,
   serializeCommunityActivities,
   serializeCommunityMembers,
+  joinCommunity,
   communityById,
+  defaultJoinedCommunitiesByUser,
+  DEFAULT_JOINED_COMMUNITY_IDS,
 };

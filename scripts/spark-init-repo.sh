@@ -65,4 +65,4 @@ else
   log "Skip push (set GITHUB_REMOTE_URL to push)."
 fi
 
-log "Done. See docs/INIT.md and docs/GITHUB_BRANCH_PROTECTION.md"
+log "Done. See docs/DEVELOPMENT.md and docs/GITHUB_BRANCH_PROTECTION.md"

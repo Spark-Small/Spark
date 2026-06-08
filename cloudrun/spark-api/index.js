@@ -10,6 +10,8 @@ const {
   dismissActionItemForInvite,
   defaultInboxActionItems,
 } = require("./lib/messages-helpers");
+const { registerAuthRoutes } = require("./lib/auth-providers");
+const { registerCNPaymentRoutes } = require("./lib/cn-payments");
 
 // CloudBase HTTP 云函数要求监听 9000；云托管可设 PORT=3000
 const PORT = Number(process.env.PORT) || 9000;
@@ -385,6 +387,14 @@ app.post("/v1/auth/apple", (_req, res) => {
   const userId = "u_staging_1";
   res.json({ access_token: tokenFor(userId), user_id: userId });
 });
+
+const authState = {
+  users: USERS,
+  usersByProvider: new Map(),
+  counters: { user_counter: 100 },
+};
+registerAuthRoutes(app, { state: authState, tokenFor, err });
+registerCNPaymentRoutes(app, { state: authState, requireAuth, err });
 
 // --- Messages ---
 

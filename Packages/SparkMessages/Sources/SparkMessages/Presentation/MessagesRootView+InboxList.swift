@@ -86,7 +86,24 @@ extension MessagesRootView {
     @ViewBuilder
     func conversationRow(_ conversation: ConversationPreview) -> some View {
         let row = ConversationRow(conversation: conversation)
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button(role: .destructive) {
+                    Task { await viewModel.deleteConversation(conversation) }
+                } label: {
+                    Label(
+                        String(localized: "messages.row.delete", defaultValue: "删除", comment: "Delete conversation swipe"),
+                        systemImage: "trash"
+                    )
+                }
+                Button {
+                    Task { await viewModel.hideConversation(conversation) }
+                } label: {
+                    Label(
+                        String(localized: "messages.row.hide", defaultValue: "隐藏", comment: "Hide conversation swipe"),
+                        systemImage: "eye.slash"
+                    )
+                }
+                .tint(.indigo)
                 if conversation.hasUnread {
                     Button {
                         Task { await viewModel.markConversationRead(conversation) }

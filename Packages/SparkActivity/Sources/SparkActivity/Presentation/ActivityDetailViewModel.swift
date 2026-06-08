@@ -36,6 +36,8 @@ public final class ActivityDetailViewModel {
     private let reportActivity: ReportActivityUseCase
     private let joinWaitlist: JoinActivityWaitlistUseCase
     private let promoteFromWaitlist: PromoteFromWaitlistUseCase
+    private let reviewAttendeeUseCase: ReviewAttendeeUseCase
+    private let assignCohostUseCase: AssignCohostUseCase
     private let announceActivity: AnnounceActivityUseCase
     private let submitHostFeedbackUseCase: SubmitHostFeedbackUseCase
     private let fetchHostActivities: FetchActivitiesByHostUseCase
@@ -64,6 +66,8 @@ public final class ActivityDetailViewModel {
         reportActivity = ReportActivityUseCase(repository: repository)
         joinWaitlist = JoinActivityWaitlistUseCase(repository: repository)
         promoteFromWaitlist = PromoteFromWaitlistUseCase(repository: repository)
+        reviewAttendeeUseCase = ReviewAttendeeUseCase(repository: repository)
+        assignCohostUseCase = AssignCohostUseCase(repository: repository)
         announceActivity = AnnounceActivityUseCase(repository: repository)
         submitHostFeedbackUseCase = SubmitHostFeedbackUseCase(repository: repository)
         fetchHostActivities = FetchActivitiesByHostUseCase(repository: repository)
@@ -202,22 +206,45 @@ public final class ActivityDetailViewModel {
     }
 
     public func promoteWaitlistedAttendee(_ attendeeID: String) async {
-        isPerformingHostAction = true
-        hostFeedbackMessage = nil
-        defer { isPerformingHostAction = false }
-        do {
-            let updated = try await promoteFromWaitlist(activityID: activityID, attendeeID: attendeeID)
-            activity = updated
-            hostFeedbackMessage = String(
+        await runHostAction(
+            successMessage: String(
                 localized: "activity.host.promoted",
                 defaultValue: "已将该候补提升为参加。",
                 comment: "Promote waitlist"
             )
-            await onActivityUpdated?(updated)
-        } catch is CancellationError {
-            return
-        } catch {
-            hostFeedbackMessage = error.localizedDescription
+        ) {
+            try await promoteFromWaitlist(activityID: activityID, attendeeID: attendeeID)
+        }
+    }
+
+    public func reviewAttendee(_ attendeeID: String, decision: AttendeeReviewDecision) async {
+        await runHostAction(
+            successMessage: decision == .approve
+                ? String(localized: "activity.host.review.approved", defaultValue: "已通过该报名。", comment: "Review approve")
+                : String(localized: "activity.host.review.rejected", defaultValue: "已拒绝该报名。", comment: "Review reject")
+        ) {
+            try await ActivityDetailHostActions.reviewAttendee(
+                activityID: activityID,
+                attendeeID: attendeeID,
+                decision: decision,
+                reviewAttendee: reviewAttendeeUseCase
+            )
+        }
+    }
+
+    public func assignCohost(to attendeeID: String) async {
+        await runHostAction(
+            successMessage: String(
+                localized: "activity.host.cohost.assigned",
+                defaultValue: "已设为协办。",
+                comment: "Assign cohost feedback"
+            )
+        ) {
+            try await ActivityDetailHostActions.assignCohost(
+                activityID: activityID,
+                attendeeID: attendeeID,
+                assignCohost: assignCohostUseCase
+            )
         }
     }
 
@@ -273,25 +300,25 @@ public final class ActivityDetailViewModel {
         guard let activity else { return }
         calendarFeedbackMessage = nil
         let result = await calendarExporter.addToCalendar(activity: activity)
-        calendarFeedbackMessage = message(for: result)
+        calendarFeedbackMessage = ActivityCalendarFeedback.message(for: result)
     }
 
-    private func message(for result: ActivityCalendarExportResult) -> String {
-        switch result {
-        case .added:
-            String(
-                localized: "activity.calendar.added",
-                defaultValue: "已加入日历",
-                comment: "Calendar feedback"
-            )
-        case .accessDenied:
-            String(
-                localized: "activity.calendar.denied",
-                defaultValue: "请在系统设置中允许访问日历。",
-                comment: "Calendar feedback"
-            )
-        case let .failed(description):
-            description
+    private func runHostAction(
+        successMessage: String,
+        operation: () async throws -> ActivityDetail
+    ) async {
+        isPerformingHostAction = true
+        hostFeedbackMessage = nil
+        defer { isPerformingHostAction = false }
+        do {
+            let updated = try await operation()
+            activity = updated
+            hostFeedbackMessage = successMessage
+            await onActivityUpdated?(updated)
+        } catch is CancellationError {
+            return
+        } catch {
+            hostFeedbackMessage = error.localizedDescription
         }
     }
 }

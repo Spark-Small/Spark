@@ -3,18 +3,15 @@
 ## Read first (in order)
 
 1. [docs/DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md) — form serves function
-2. [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) — phased roadmap (Phase 0–14 shipped)
-3. [docs/LIKES_DEVELOPMENT_PLAN.md](docs/LIKES_DEVELOPMENT_PLAN.md) — 喜欢 tab Phase 0–7
-4. [docs/LIKES_UPGRADE_PLAN.md](docs/LIKES_UPGRADE_PLAN.md) — 喜欢 Phase 8–12（inbound / 开场白）
-5. [docs/SPRINT_PROGRESS_PLAN.md](docs/SPRINT_PROGRESS_PLAN.md) — 当前 Sprint 执行计划（P0–P4 PR 拆分与验收）
-6. [docs/MISSING_MODULES_PLAN.md](docs/MISSING_MODULES_PLAN.md) — Phase 25+ 缺失模块立项（MODULE A–H）
-7. [docs/ACTIVITY_UPGRADE_PLAN.md](docs/ACTIVITY_UPGRADE_PLAN.md) — activity full vision (Phase 15+)
-8. [docs/UNIVERSAL_LINKS.md](docs/UNIVERSAL_LINKS.md) — Associated Domains setup (Phase 17)
-9. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — layers, navigation, DI
-10. [docs/API_CONTRACT.md](docs/API_CONTRACT.md) — HTTP contract (update before Live APIs)
-11. [docs/STAGING.md](docs/STAGING.md) · [cloudfunctions/spark-api/README.md](cloudfunctions/spark-api/README.md) — CloudBase Staging MVP
-12. [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) — PR checklist
-13. [docs/HIG_COMPLIANCE.md](docs/HIG_COMPLIANCE.md) · [docs/HIG_AUDIT_AND_PLAN.md](docs/HIG_AUDIT_AND_PLAN.md) — HIG audit & compliance
+2. [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) — phased roadmap (Phase 0–14 shipped; Phase 25+ partial)
+3. [docs/MISSING_MODULES_PLAN.md](docs/MISSING_MODULES_PLAN.md) — Phase 25+ 缺失模块立项（MODULE A–H）
+4. [docs/ACTIVITY_UPGRADE_PLAN.md](docs/ACTIVITY_UPGRADE_PLAN.md) — activity full vision (Phase 15+)
+5. [docs/UNIVERSAL_LINKS.md](docs/UNIVERSAL_LINKS.md) — Associated Domains setup (Phase 17)
+6. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — layers, navigation, DI
+7. [docs/API_CONTRACT.md](docs/API_CONTRACT.md) — HTTP contract (update before Live APIs)
+8. [docs/STAGING.md](docs/STAGING.md) · [cloudfunctions/spark-api/README.md](cloudfunctions/spark-api/README.md) — CloudBase Staging MVP
+9. [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) — PR checklist
+10. [docs/HIG_COMPLIANCE.md](docs/HIG_COMPLIANCE.md) — HIG compliance memo
 
 Cursor rules: `.cursor/rules/ios-product-philosophy.mdc` (always), `ios-liquid-glass.mdc`, `ios-foundation.mdc`.
 

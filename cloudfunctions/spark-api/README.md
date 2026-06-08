@@ -13,9 +13,9 @@ Staging REST MVP aligned with [docs/API_CONTRACT.md](../../docs/API_CONTRACT.md)
 ## iOS Live endpoints (all implemented)
 
 - **Auth:** session, email, apple, sign-out
-- **Messages:** unread-count, threads, messages, read, activity-threads, direct-threads
-- **Activities:** feed (`host_id`), **browse** (`category`, `starts_after`, `starts_before`, `cursor`), create, detail, patch, rsvp, waitlist, promote, cancel, report, announce, feedback
-- **Search, Community** (posts + replies), **Likes** (full path table in API contract), **devices**, **notifications/send** (APNs when `APNS_*` env set)
+- **Messages:** unread-count, threads, messages, read, hide, delete, inbox, activity-threads, direct-threads
+- **Activities:** feed (`host_id`), **browse** (`category`, `starts_after`, `starts_before`, `cursor`), create, detail, patch, rsvp, waitlist, promote, **attendees/review**, **attendees/cohost**, cancel, report, announce, feedback
+- **Search, Community** (feed, join, posts + replies), **Likes** (full path table in API contract), **devices**, **notifications/send** (APNs when `APNS_*` env set)
 
 **iOS wired:** Activity browse ([ADR-0003](../../docs/adr/0003-activities-browse-placement.md)), Community compose + reply thread, inbound blur, avatar upload-url.
 

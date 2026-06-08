@@ -10,6 +10,7 @@ import SparkMessages
 import SparkNetworking
 import SparkPayments
 import SparkPersistence
+import SparkProfile
 import SparkSearch
 
 /// Container for composition-root dependencies (injected via SwiftUI environment).
@@ -24,6 +25,7 @@ public struct AppDependencies {
     public let activityFeedRepository: any ActivityFeedRepository
     public let activityBrowseRepository: any ActivityBrowseRepository
     public let likesFeedRepository: any LikesFeedRepository
+    public let profileRepository: any ProfileRepository
     public let searchRepository: any SearchRepository
     public let communityPostsRepository: any CommunityPostsRepository
     public let storeKitService: any StoreKitServing
@@ -44,6 +46,7 @@ public struct AppDependencies {
         activityFeedRepository: any ActivityFeedRepository,
         activityBrowseRepository: any ActivityBrowseRepository,
         likesFeedRepository: any LikesFeedRepository,
+        profileRepository: any ProfileRepository,
         searchRepository: any SearchRepository,
         communityPostsRepository: any CommunityPostsRepository,
         storeKitService: any StoreKitServing,
@@ -62,6 +65,7 @@ public struct AppDependencies {
         self.activityFeedRepository = activityFeedRepository
         self.activityBrowseRepository = activityBrowseRepository
         self.likesFeedRepository = likesFeedRepository
+        self.profileRepository = profileRepository
         self.searchRepository = searchRepository
         self.communityPostsRepository = communityPostsRepository
         self.storeKitService = storeKitService

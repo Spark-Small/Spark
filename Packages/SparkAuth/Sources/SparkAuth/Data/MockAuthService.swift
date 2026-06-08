@@ -30,6 +30,65 @@ public final class MockAuthService: AuthService, @unchecked Sendable {
         return session
     }
 
+    public func signInWithWeChat(_ credential: WeChatSignInCredential) async throws -> AuthSession {
+        try await sleepIfNeeded()
+        guard credential.code.isEmpty == false else {
+            throw AuthError.invalidCredentials
+        }
+        let session = AuthSession(userID: UserID("wechat-mock-user"), accessToken: "mock-wechat-token")
+        try await persist(session)
+        return session
+    }
+
+    public func signInWithPhoneOneTap(_ credential: PhoneOneTapSignInCredential) async throws -> AuthSession {
+        try await sleepIfNeeded()
+        guard credential.token.isEmpty == false else {
+            throw AuthError.phoneOneTapUnavailable
+        }
+        let suffix = credential.provider == .aliyun ? "aliyun" : "tencent"
+        let session = AuthSession(
+            userID: UserID("phone-\(suffix)-mock-user"),
+            accessToken: "mock-phone-\(suffix)-token"
+        )
+        try await persist(session)
+        return session
+    }
+
+    public func sendPhoneOTP(_ phone: String) async throws {
+        try await sleepIfNeeded()
+        guard phone.trimmingCharacters(in: .whitespacesAndNewlines).count >= 8 else {
+            throw AuthError.invalidCredentials
+        }
+    }
+
+    public func signInWithPhoneOTP(phone: String, code: String) async throws -> AuthSession {
+        try await sleepIfNeeded()
+        guard phone.trimmingCharacters(in: .whitespacesAndNewlines).count >= 8 else {
+            throw AuthError.invalidCredentials
+        }
+        guard code == "123456" else {
+            throw AuthError.invalidCredentials
+        }
+        let session = AuthSession(userID: UserID("phone-otp-mock-user"), accessToken: "mock-phone-otp-token")
+        try await persist(session)
+        return session
+    }
+
+    public func fetchAlipayAuthInfo() async throws -> AlipayAuthInfo {
+        try await sleepIfNeeded()
+        return AlipayAuthInfo(authInfo: "mock-alipay-auth-info")
+    }
+
+    public func signInWithAlipay(_ credential: AlipaySignInCredential) async throws -> AuthSession {
+        try await sleepIfNeeded()
+        guard credential.authCode.isEmpty == false else {
+            throw AuthError.invalidCredentials
+        }
+        let session = AuthSession(userID: UserID("alipay-mock-user"), accessToken: "mock-alipay-token")
+        try await persist(session)
+        return session
+    }
+
     public func signInWithEmail(email: String, password: String) async throws -> AuthSession {
         try await sleepIfNeeded()
         guard email.contains("@"), password.count >= 6 else {

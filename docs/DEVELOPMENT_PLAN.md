@@ -253,7 +253,7 @@ flowchart LR
 
 | 15–24 | **全量 iOS 客户端** | Live 路径、推送/本地提醒、Universal Link、发现筛选、可信、候补、广播、安全、事后 | ☑ Mock |
 
-**Next:** 按 [SPRINT_PROGRESS_PLAN.md](SPRINT_PROGRESS_PLAN.md) 拆 PR 合并（inbox · browse 时间 · avatar/push）；待办：B.3 真机 Push、E.3 图文帖、F COS 真上传、E.0 合规签字。
+**Next:** 待办：B.3 真机 Push、E.3 图文帖、F COS 真上传、E.0 合规签字 — 见 [MISSING_MODULES_PLAN.md](MISSING_MODULES_PLAN.md)。
 
 ---
 

@@ -29,4 +29,12 @@ enum MessagesAPIPath {
     static func dismissActionItem(id: String) -> String {
         "/v1/messages/inbox/action-items/\(id)/dismiss"
     }
+
+    static func hideThread(threadID: String) -> String {
+        "\(threads)/\(threadID)/hide"
+    }
+
+    static func deleteThread(threadID: String) -> String {
+        "\(threads)/\(threadID)"
+    }
 }

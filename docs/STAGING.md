@@ -17,7 +17,25 @@ Use Staging when the backend team has deployed endpoints in [API_CONTRACT.md](AP
    // CloudBase 体验环境（HTTP 云函数 spark-api）
    SPARK_API_BASE_URL = https://ais-d1gab0emob99361a0.service.tcloudbase.com
    ```
-   Test account: `staging@test.com` / `staging123`. Backend uses CloudBase NoSQL write-through ([ADR-0002](adr/0002-backend-persistence-cloudbase-nosql.md)).
+   Test account (CI/smoke only): `staging@test.com` / `staging123` via `POST /v1/auth/email` — **not shown in the iOS login UI**.
+
+   **CN login on Staging (no vendor SDK):** set `SPARK_CN_AUTH_STAGING_BRIDGE = 1` in `Secrets.xcconfig` (default in `Spark.xcconfig`). The app uses magic tokens accepted by Staging:
+
+   | Provider | Magic value |
+   |----------|-------------|
+   | WeChat | OAuth code `staging-wechat-code` |
+   | Aliyun phone | token `staging-aliyun-token` |
+   | Tencent phone | token `staging-tencent-token` |
+   | Alipay | auth code `staging-alipay-code` |
+
+   See [CN_AUTH_SDK_SETUP.md](CN_AUTH_SDK_SETUP.md) for production SDK wiring.
+
+   **CN payments on Staging:** set `INFOPLIST_KEY_SPARKCNPaymentsEnabled = YES` in `Secrets.xcconfig`. Paywall shows WeChat Pay / Alipay when logged in. Magic receipts:
+
+   | Provider | Magic receipt |
+   |----------|---------------|
+   | WeChat Pay | `staging-wechat-pay-receipt` |
+   | Alipay Pay | `staging-alipay-pay-receipt` |
 3. `Config/Spark.xcconfig` already `#include`s `Secrets.xcconfig` when present (gitignored).
 4. Clean build in Xcode (or `make build`) so `APIConfiguration.loadFromBundle()` picks up the new host.
 
@@ -43,7 +61,7 @@ After login on a Staging build:
 
 | # | Flow | Endpoint |
 |---|------|----------|
-| 1 | Session restore / email sign-in | `GET /v1/auth/session`, `POST /v1/auth/email` |
+| 1 | Session restore / CN or email sign-in | `GET /v1/auth/session`, `POST /v1/auth/wechat` · `phone-one-tap` · `alipay` (UI) or `POST /v1/auth/email` (smoke) |
 | 2 | Messages inbox + open thread | `GET /v1/messages/threads`, thread messages |
 | 3 | Activity tab list | `GET /v1/activities/feed` |
 | 4 | Search tab (type query, submit) | `GET /v1/search?q=...` |

@@ -30,7 +30,8 @@ Avoid maintaining the same guidance in multiple places. When something changes, 
 | **Naming** | `docs/NAMING.md` |
 | **Package graph** | `docs/PACKAGES.md` |
 | **HTTP contract** | `docs/API_CONTRACT.md` |
-| **Mock / Staging** | `docs/DEVELOPMENT.md` |
+| **Roadmap** | `docs/DEVELOPMENT_PLAN.md` · `docs/MISSING_MODULES_PLAN.md` |
+| **HIG compliance** | `docs/HIG_COMPLIANCE.md` |
 | **CI & guardrails** | `docs/CI.md`, `scripts/check-*.sh` |
 | **ADRs** | `docs/adr/0000-template.md` |
 | **Doc index** | `docs/README.md` |

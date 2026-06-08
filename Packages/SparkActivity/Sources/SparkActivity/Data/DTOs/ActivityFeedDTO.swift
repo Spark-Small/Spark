@@ -56,6 +56,7 @@ struct ActivityAttendeeDTO: Decodable, Sendable {
     let id: String?
     let displayName: String
     let isHost: Bool?
+    let isCohost: Bool?
     let rsvpStatus: String?
     let verified: Bool?
 
@@ -63,6 +64,7 @@ struct ActivityAttendeeDTO: Decodable, Sendable {
         case id
         case displayName = "display_name"
         case isHost = "is_host"
+        case isCohost = "is_cohost"
         case rsvpStatus = "rsvp_status"
         case verified
     }
@@ -138,4 +140,8 @@ struct ActivityRSVPRequestDTO: Encodable, Sendable {
 
 struct ActivityRSVPResponseDTO: Decodable, Sendable {
     let activity: ActivityDetailDTO
+}
+
+struct ActivityAttendeeReviewRequestDTO: Encodable, Sendable {
+    let decision: String
 }

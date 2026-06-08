@@ -248,4 +248,6 @@ private struct PreviewFailingInboxRepository: MessagesRepository, Sendable {
     func ensureDirectMessageThread(peerUserID: String, peerDisplayName: String) async throws -> MessageThreadID {
         throw Failure()
     }
+    func hideThread(threadID: MessageThreadID) async throws { throw Failure() }
+    func deleteThread(threadID: MessageThreadID) async throws { throw Failure() }
 }

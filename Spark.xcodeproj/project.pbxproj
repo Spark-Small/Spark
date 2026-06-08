@@ -19,6 +19,7 @@
 		88D5E3962FD1C88300A4CBD3 /* SparkSearch in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000B2FD19C1D00A4CBD1 /* SparkSearch */; };
 		88D5E3972FD1C88300A4CBD3 /* SparkCommunity in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000D2FD19C1D00A4CBD1 /* SparkCommunity */; };
 		88D5E3982FD1C88300A4CBD3 /* SparkLikes in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000E2FD19C1D00A4CBD1 /* SparkLikes */; };
+		88D5E3992FD1C88300A4CBD3 /* SparkProfile in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000F2FD19C1D00A4CBD1 /* SparkProfile */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,6 +67,7 @@
 				88D5E3962FD1C88300A4CBD3 /* SparkSearch in Frameworks */,
 				88D5E3972FD1C88300A4CBD3 /* SparkCommunity in Frameworks */,
 				88D5E3982FD1C88300A4CBD3 /* SparkLikes in Frameworks */,
+				88D5E3992FD1C88300A4CBD3 /* SparkProfile in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -138,6 +140,7 @@
 				SPK1000B2FD19C1D00A4CBD1 /* SparkSearch */,
 				SPK1000D2FD19C1D00A4CBD1 /* SparkCommunity */,
 				SPK1000E2FD19C1D00A4CBD1 /* SparkLikes */,
+				SPK1000F2FD19C1D00A4CBD1 /* SparkProfile */,
 			);
 			productName = Spark;
 			productReference = 88D5E04E2FD19C1D00A4CBD3 /* Spark.app */;
@@ -174,7 +177,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2640;
-				LastUpgradeCheck = 2640;
+				LastUpgradeCheck = 2650;
 				TargetAttributes = {
 					88D5E04D2FD19C1D00A4CBD3 = {
 						CreatedOnToolsVersion = 26.4.1;
@@ -208,6 +211,7 @@
 				SPK0000B2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkSearch" */,
 				SPK0000C2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkPayments" */,
 				SPK0000E2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkLikes" */,
+				SPK0000F2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkProfile" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 88D5E04F2FD19C1D00A4CBD3 /* Products */;
@@ -262,6 +266,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -291,6 +296,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = A95ZH5QY7B;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -314,6 +320,7 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -325,6 +332,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -354,6 +362,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = A95ZH5QY7B;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -370,6 +379,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
 			name = Release;
@@ -588,6 +598,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/SparkLikes;
 		};
+		SPK0000F2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkProfile" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SparkProfile;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -650,6 +664,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = SPK0000E2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkLikes" */;
 			productName = SparkLikes;
+		};
+		SPK1000F2FD19C1D00A4CBD1 /* SparkProfile */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SPK0000F2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkProfile" */;
+			productName = SparkProfile;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

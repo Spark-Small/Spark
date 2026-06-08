@@ -39,4 +39,10 @@ public protocol MessagesRepository: Sendable {
 
     /// Creates or returns a 1:1 thread after mutual like (Likes tab).
     func ensureDirectMessageThread(peerUserID: String, peerDisplayName: String) async throws -> MessageThreadID
+
+    /// Removes a thread from the viewer inbox without deleting messages (`POST .../hide`).
+    func hideThread(threadID: MessageThreadID) async throws
+
+    /// Soft-deletes a thread for the current user (`DELETE .../threads/{id}`).
+    func deleteThread(threadID: MessageThreadID) async throws
 }

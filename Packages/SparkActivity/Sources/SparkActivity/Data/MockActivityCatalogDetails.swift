@@ -180,7 +180,8 @@ extension MockActivityCatalog {
                         ("大K", .going),
                         ("小鱼", .maybe),
                         ("阿哲", .declined),
-                        ("排队君", .waitlisted)
+                        ("排队君", .waitlisted),
+                        ("待审君", .pending)
                     ]
                 ),
                 conversationThreadID: ActivityThreadID.make(for: "act_3")

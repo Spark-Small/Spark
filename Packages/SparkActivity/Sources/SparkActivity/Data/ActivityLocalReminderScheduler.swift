@@ -19,7 +19,7 @@ public enum ActivityLocalReminderScheduler {
         switch activity.rsvpStatus {
         case .going, .maybe, .host:
             await scheduleReminders(for: activity)
-        case .invited, .declined, .waitlisted:
+        case .invited, .declined, .waitlisted, .pending:
             await cancelReminders(activityID: activity.id)
         }
     }

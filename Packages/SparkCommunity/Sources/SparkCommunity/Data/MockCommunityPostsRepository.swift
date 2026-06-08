@@ -4,6 +4,7 @@ import Foundation
 
 public actor MockCommunityPostsRepository: CommunityPostsRepository {
     private var replyStore: [String: [CommunityPostReply]]
+    private var joinedCommunityIDs: Set<String> = []
 
     public init() {
         replyStore = MockCommunityPostCatalog.defaultReplies()
@@ -22,9 +23,34 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
     }
 
     public func fetchCommunityDetail(id: String) async throws -> CommunityDetail {
-        guard let detail = MockCommunityDetailCatalog.detail(id: id) else {
+        guard var detail = MockCommunityDetailCatalog.detail(id: id) else {
             throw CommunityError.underlying(.server(statusCode: 404, message: nil))
         }
+        if joinedCommunityIDs.contains(id) {
+            detail.isJoined = true
+        }
+        return detail
+    }
+
+    public func joinCommunity(id: String) async throws -> CommunityDetail {
+        guard var detail = MockCommunityDetailCatalog.detail(id: id) else {
+            throw CommunityError.underlying(.server(statusCode: 404, message: nil))
+        }
+        joinedCommunityIDs.insert(id)
+        guard !detail.isJoined else { return detail }
+        let summary = detail.summary
+        detail = CommunityDetail(
+            summary: CommunitySummary(
+                id: summary.id,
+                name: summary.name,
+                coverURL: summary.coverURL,
+                memberCount: summary.memberCount + 1,
+                activityCount: summary.activityCount,
+                hasNewPosts: summary.hasNewPosts,
+                bio: summary.bio
+            ),
+            isJoined: true
+        )
         return detail
     }
 

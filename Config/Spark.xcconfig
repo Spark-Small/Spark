@@ -3,5 +3,17 @@
 
 SPARK_API_BASE_URL = https://mock.spark.local
 
+// CN auth (override in Secrets.xcconfig — see docs/STAGING.md)
+WECHAT_APP_ID =
+WECHAT_UNIVERSAL_LINK =
+ALIPAY_APP_ID =
+PHONE_ONE_TAP_PRIMARY = aliyun
+ALIYUN_PHONE_AUTH_SDK_KEY =
+TENCENT_PHONE_AUTH_APP_ID =
+SPARK_CN_AUTH_STAGING_BRIDGE = 1
+
+// CN payments (WeChat Pay / Alipay) — default off for App Store; enable in CN builds only
+INFOPLIST_KEY_SPARKCNPaymentsEnabled = NO
+
 // Personal Apple ID / free team: do NOT set CODE_SIGN_ENTITLEMENTS (no Push / Associated Domains).
 // Paid Apple Developer Program: see Config/Secrets.xcconfig.example

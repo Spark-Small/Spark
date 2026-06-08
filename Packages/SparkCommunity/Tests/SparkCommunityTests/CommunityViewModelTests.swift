@@ -76,6 +76,10 @@ private struct EmptyCommunityPostsRepository: CommunityPostsRepository, Sendable
         throw TestError()
     }
 
+    func joinCommunity(id: String) async throws -> CommunityDetail {
+        throw TestError()
+    }
+
     func fetchCommunityActivities(communityID: String) async throws -> [CommunityLinkedActivity] {
         []
     }
@@ -119,6 +123,10 @@ private struct FailingCommunityPostsRepository: CommunityPostsRepository, Sendab
     }
 
     func fetchCommunityDetail(id: String) async throws -> CommunityDetail {
+        throw TestError()
+    }
+
+    func joinCommunity(id: String) async throws -> CommunityDetail {
         throw TestError()
     }
 

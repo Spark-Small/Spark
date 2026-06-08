@@ -65,6 +65,190 @@ Validates/refreshes the current session.
 
 **Response `401`:** Invalid credentials → iOS `AuthError.invalidCredentials`.
 
+**Note:** Internal Staging / CI only — not exposed in the iOS login UI.
+
+---
+
+### `POST /v1/auth/wechat`
+
+WeChat OAuth authorization code exchange.
+
+**Request:**
+
+```json
+{
+  "code": "wx_oauth_code_from_sdk"
+}
+```
+
+**Response `200`:** Same as session response.
+
+**Response `401`:** Invalid or expired code.
+
+**Response `503`:** Server vendor credentials not configured (`provider_not_configured`).
+
+**Staging magic code (no WeChat app):** `staging-wechat-code` → issues session for a CN test user.
+
+---
+
+### `POST /v1/auth/phone-one-tap`
+
+Carrier number authentication token from Aliyun or Tencent SDK.
+
+**Request:**
+
+```json
+{
+  "provider": "aliyun",
+  "token": "sdk_login_token"
+}
+```
+
+| Field | Type | Values |
+|-------|------|--------|
+| `provider` | string | `aliyun` \| `tencent` |
+| `token` | string | One-tap login token from the matching SDK |
+
+**Response `200`:** Same as session response.
+
+**Staging magic tokens:** `staging-aliyun-token` · `staging-tencent-token`
+
+---
+
+### `POST /v1/auth/phone-otp/send`
+
+Send an SMS one-time code to the given phone number.
+
+**Request:**
+```json
+{
+  "phone": "+8613800138000"
+}
+```
+
+**Response `200`:**
+```json
+{
+  "ok": true
+}
+```
+
+Staging: always returns success (no real SMS in MVP).
+
+---
+### `POST /v1/auth/phone-otp/verify`
+
+Verify the SMS code and sign in / register.
+
+**Request:**
+```json
+{
+  "phone": "+8613800138000",
+  "code": "123456"
+}
+```
+
+**Response `200`:** Same as session response.
+
+**Response `401`:** Invalid OTP code.
+
+Staging OTP code:** `123456`
+
+---
+
+### `GET /v1/auth/alipay/prepare`
+
+Returns `auth_info` string for the Alipay iOS SDK authorization sheet.
+
+**Response `200`:**
+
+```json
+{
+  "auth_info": "apiname=com.alipay.account.auth&..."
+}
+```
+
+**Response `503`:** Alipay not configured on server.
+
+---
+
+### `POST /v1/auth/alipay`
+
+**Request:**
+
+```json
+{
+  "auth_code": "alipay_auth_code"
+}
+```
+
+**Response `200`:** Same as session response.
+
+**Staging magic code:** `staging-alipay-code`
+
+---
+
+## Payments (CN — feature-flagged)
+
+Requires `Authorization: Bearer <token>`. Global App Store builds use StoreKit; these endpoints serve CN distribution when `SPARKCNPaymentsEnabled` is on.
+
+### `POST /v1/payments/orders`
+
+**Request:**
+
+```json
+{
+  "product_id": "com.sparksmall.spark.premium.monthly",
+  "provider": "wechat"
+}
+```
+
+`provider`: `wechat` | `alipay`
+
+**Response `200`:**
+
+```json
+{
+  "order_id": "ord_...",
+  "provider": "wechat",
+  "product_id": "com.sparksmall.spark.premium.monthly",
+  "payload": {
+    "partner_id": "...",
+    "prepay_id": "...",
+    "package": "Sign=WXPay",
+    "nonce_str": "...",
+    "timestamp": "...",
+    "sign": "..."
+  }
+}
+```
+
+Alipay orders return `payload.order_string` instead.
+
+### `POST /v1/payments/confirm`
+
+**Request:**
+
+```json
+{
+  "order_id": "ord_...",
+  "provider": "wechat",
+  "receipt": "staging-wechat-pay-receipt"
+}
+```
+
+**Response `200`:**
+
+```json
+{
+  "order_id": "ord_...",
+  "status": "paid",
+  "is_premium": true
+}
+```
+
+**Staging magic receipts:** `staging-wechat-pay-receipt`, `staging-alipay-pay-receipt`
+
 ---
 
 ### `POST /v1/auth/apple`
@@ -117,6 +301,26 @@ Marks all threads read for the current user.
 Marks one thread read for the current user (inbox swipe / open conversation).
 
 **Path:** `thread_id` — opaque thread identifier.
+
+**Response `204`:** Empty body.
+
+**Response `404`:** Thread not found.
+
+---
+
+### `POST /v1/messages/threads/{thread_id}/hide`
+
+Hide a conversation for the current user (inbox / thread list). Idempotent.
+
+**Response `204`:** Empty body.
+
+**Response `404`:** Thread not found.
+
+---
+
+### `DELETE /v1/messages/threads/{thread_id}`
+
+Delete a conversation for the current user (soft delete; hidden from inbox and thread APIs).
 
 **Response `204`:** Empty body.
 
@@ -522,6 +726,30 @@ Join waitlist when at capacity. Response `200`: `activity` with `rsvp_status: "w
 
 Host promotes a waitlisted attendee to `going`. Response `200`: updated `activity`.
 
+### `POST /v1/activities/{activity_id}/attendees/{attendee_id}/review`
+
+Host approves or rejects a pending / waitlisted attendee.
+
+**Request:** `{ "decision": "approve" | "reject" }`
+
+**Response `200`:** `{ "activity": { ... } }` with updated `attendees`.
+
+**Response `403`:** Caller is not host / co-host.
+
+**Response `404`:** Attendee not in reviewable state.
+
+### `POST /v1/activities/{activity_id}/attendees/{attendee_id}/cohost`
+
+Host assigns co-host privileges to a going attendee (`is_cohost: true`). Co-hosts may perform host-only actions (update, cancel, announce, review).
+
+**Response `200`:** `{ "activity": { ... } }`
+
+**Response `403`:** Caller is not host.
+
+**Response `404`:** Attendee not found.
+
+**Response `409`:** Attendee is already host.
+
 ---
 
 ### `POST /v1/activities/{activity_id}/announce` (Phase 22)
@@ -547,6 +775,8 @@ Post-event host feedback. Request: `{ "feedback": "positive" | "negative" }`. Re
 | POST | `/v1/activities/{activity_id}/rsvp` |
 | POST | `/v1/activities/{activity_id}/waitlist` |
 | POST | `/v1/activities/{activity_id}/waitlist/{attendee_id}/promote` |
+| POST | `/v1/activities/{activity_id}/attendees/{attendee_id}/review` |
+| POST | `/v1/activities/{activity_id}/attendees/{attendee_id}/cohost` |
 | POST | `/v1/activities/{activity_id}/cancel` |
 | POST | `/v1/activities/{activity_id}/report` |
 | POST | `/v1/activities/{activity_id}/announce` |
@@ -640,6 +870,8 @@ Documented for `MessagesAPIPath` in `SparkMessages`:
 | GET | `/v1/messages/threads/{thread_id}/context` |
 | POST | `/v1/messages/read` |
 | POST | `/v1/messages/threads/{thread_id}/read` |
+| POST | `/v1/messages/threads/{thread_id}/hide` |
+| DELETE | `/v1/messages/threads/{thread_id}` |
 | POST | `/v1/messages/activity-threads` |
 | POST | `/v1/messages/direct-threads` |
 | GET/POST | `/v1/messages/threads/{thread_id}/messages` (built as `threads` + `/{id}/messages`) |
@@ -737,6 +969,14 @@ Tab experience for the Community discover screen (`SparkCommunity` → `LiveComm
 Community detail header (`LiveCommunityPostsRepository.fetchCommunityDetail`).
 
 **Response `200`:** `{ "community": { "id", "name", "cover_url", "member_count", "activity_count", "has_new_posts", "bio", "is_joined" } }`
+
+### `POST /v1/community/communities/{community_id}/join`
+
+Join a discoverable community. Idempotent when already joined.
+
+**Response `200`:** `{ "community": { ... "is_joined": true } }`
+
+**Response `404`:** Unknown community id.
 
 ### `GET /v1/community/communities/{community_id}/activities`
 
@@ -1152,3 +1392,4 @@ Copy `Config/Secrets.xcconfig.example` → `Config/Secrets.xcconfig` (gitignored
 | 2026-06-05 | Remove iOS `ActivityBrowse*`; document planned `GET /v1/activities/browse` only |
 | 2026-06-05 | CloudBase `spark-api` MVP: full iOS Live path coverage except browse; env matrix + coverage table |
 | 2026-06-05 | MODULE-A: CloudBase NoSQL persistence + `GET /v1/activities/browse`; see [MISSING_MODULES_PLAN.md](MISSING_MODULES_PLAN.md) |
+| 2026-06-08 | CN auth: `POST /v1/auth/wechat`, `phone-one-tap`, `alipay/prepare`, `alipay`; email retained for CI only ([ADR-0009](adr/0009-cn-auth-providers.md)) |

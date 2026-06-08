@@ -94,6 +94,8 @@ public struct CommunityDetailView: View {
                 CommunityDetailHeaderView(
                     detail: detail,
                     members: viewModel.members,
+                    isJoining: viewModel.isJoining,
+                    onJoin: { Task { await viewModel.joinCommunity() } },
                     onShowMembers: { showsMembersSheet = true }
                 )
                 segmentPicker

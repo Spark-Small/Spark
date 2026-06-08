@@ -157,22 +157,8 @@ extension ActivityDetailLoadedList {
                         )
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
-                    } else if isHostView, let status = attendee.rsvpStatus {
-                        Text(status.localizedLabel)
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.secondary)
-                        if status == .waitlisted {
-                            Button(
-                                String(
-                                    localized: "activity.host.promote",
-                                    defaultValue: "提升",
-                                    comment: "Promote waitlist"
-                                )
-                            ) {
-                                Task { await viewModel.promoteWaitlistedAttendee(attendee.id) }
-                            }
-                            .font(.caption)
-                        }
+                    } else if isHostView {
+                        ActivityHostRosterRowActions(attendee: attendee, viewModel: viewModel)
                     }
                 }
             }

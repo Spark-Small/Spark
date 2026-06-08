@@ -131,6 +131,8 @@ public struct ActivityDetail: Identifiable, Hashable, Sendable, Equatable {
                 declined += 1
             case .waitlisted:
                 waitlisted += 1
+            case .pending:
+                break
             case .invited, .host, .none:
                 break
             }

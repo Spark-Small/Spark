@@ -10,12 +10,13 @@ let package = Package(
         .library(name: "SparkPayments", targets: ["SparkPayments"])
     ],
     dependencies: [
-        .package(path: "../SparkCore")
+        .package(path: "../SparkCore"),
+        .package(path: "../SparkNetworking")
     ],
     targets: [
         .target(
             name: "SparkPayments",
-            dependencies: ["SparkCore"],
+            dependencies: ["SparkCore", "SparkNetworking"],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
                 .enableExperimentalFeature("StrictConcurrency")

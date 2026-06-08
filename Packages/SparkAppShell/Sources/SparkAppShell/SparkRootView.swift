@@ -7,6 +7,7 @@ import SparkLikes
 import SparkMessages
 import SparkPayments
 import SparkPersistence
+import SparkProfile
 import SparkSearch
 import SwiftUI
 
@@ -19,6 +20,7 @@ public struct SparkRootView: View {
     let activityFeedRepository: any ActivityFeedRepository
     let activityBrowseRepository: any ActivityBrowseRepository
     let likesFeedRepository: any LikesFeedRepository
+    let profileRepository: any ProfileRepository
     let searchRepository: any SearchRepository
     let communityPostsRepository: any CommunityPostsRepository
     let paywallRouter: PaywallRouter
@@ -33,6 +35,7 @@ public struct SparkRootView: View {
         activityFeedRepository: any ActivityFeedRepository,
         activityBrowseRepository: any ActivityBrowseRepository,
         likesFeedRepository: any LikesFeedRepository,
+        profileRepository: any ProfileRepository = MockProfileRepository(),
         searchRepository: any SearchRepository,
         communityPostsRepository: any CommunityPostsRepository,
         paywallRouter: PaywallRouter,
@@ -46,6 +49,7 @@ public struct SparkRootView: View {
         self.activityFeedRepository = activityFeedRepository
         self.activityBrowseRepository = activityBrowseRepository
         self.likesFeedRepository = likesFeedRepository
+        self.profileRepository = profileRepository
         self.searchRepository = searchRepository
         self.communityPostsRepository = communityPostsRepository
         self.paywallRouter = paywallRouter
@@ -72,6 +76,7 @@ public struct SparkRootView: View {
                     activityFeedRepository: activityFeedRepository,
                     activityBrowseRepository: activityBrowseRepository,
                     likesFeedRepository: likesFeedRepository,
+                    profileRepository: profileRepository,
                     searchRepository: searchRepository,
                     communityPostsRepository: communityPostsRepository,
                     paywallRouter: paywallRouter,
@@ -98,7 +103,7 @@ public struct SparkRootView: View {
     let service = MockAuthService(sessionStore: store, tokenProvider: tokenProvider)
     let router = AppRouter()
     SparkRootView(
-        authViewModel: AuthViewModel(authService: service),
+        authViewModel: AuthViewModel(authService: service, cnCoordinators: .preview),
         router: router,
         entitlementManager: EntitlementManager(storeKit: MockStoreKitService()),
         messagesRepository: MockMessagesRepository(),

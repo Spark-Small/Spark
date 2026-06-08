@@ -33,6 +33,10 @@ public struct APIClient: Sendable {
         _ = try await http.execute(HTTPRequest(path: path, method: .post, body: body))
     }
 
+    public func delete(_ path: String) async throws {
+        _ = try await http.execute(HTTPRequest(path: path, method: .delete))
+    }
+
     public func patch<T: Decodable & Sendable>(
         _ path: String,
         body: Data? = nil,

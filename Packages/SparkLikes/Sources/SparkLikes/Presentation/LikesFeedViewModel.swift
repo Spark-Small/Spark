@@ -3,6 +3,7 @@
 import Foundation
 import Observation
 import SparkCore
+import SparkProfile
 
 @MainActor
 @Observable
@@ -61,7 +62,11 @@ public final class LikesFeedViewModel {
     let reportAndBlockUser: ReportAndBlockUserUseCase
     private var loadGeneration = 0
 
-    public init(repository: any LikesFeedRepository, preferences: LikesPreferences = LikesPreferencesStore.load()) {
+    public init(
+        repository: any LikesFeedRepository,
+        profileRepository: any ProfileRepository = MockProfileRepository(),
+        preferences: LikesPreferences = LikesPreferencesStore.load()
+    ) {
         self.preferences = preferences
         fetchFeed = FetchLikesFeedUseCase(repository: repository)
         fetchInbound = FetchInboundLikesUseCase(repository: repository)
@@ -70,7 +75,7 @@ public final class LikesFeedViewModel {
         rewindPass = RewindPassUseCase(repository: repository)
         submitLike = SubmitLikeUseCase(repository: repository)
         fetchDailyStats = FetchDailyLikeStatsUseCase(repository: repository)
-        requestAvatarUpload = RequestAvatarUploadUseCase(repository: repository)
+        requestAvatarUpload = RequestAvatarUploadUseCase(repository: profileRepository)
         submitPass = SubmitPassUseCase(repository: repository)
         submitFriendRequest = SubmitFriendRequestUseCase(repository: repository)
         reportAndBlockUser = ReportAndBlockUserUseCase(repository: repository)

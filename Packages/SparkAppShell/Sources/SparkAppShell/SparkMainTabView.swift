@@ -7,6 +7,7 @@ import SparkCore
 import SparkLikes
 import SparkMessages
 import SparkPayments
+import SparkProfile
 import SparkSearch
 import SwiftUI
 
@@ -18,6 +19,7 @@ public struct SparkMainTabView: View {
     let activityFeedRepository: any ActivityFeedRepository
     let activityBrowseRepository: any ActivityBrowseRepository
     let likesFeedRepository: any LikesFeedRepository
+    let profileRepository: any ProfileRepository
     let searchRepository: any SearchRepository
     let communityPostsRepository: any CommunityPostsRepository
     let paywallRouter: PaywallRouter
@@ -35,6 +37,7 @@ public struct SparkMainTabView: View {
         activityFeedRepository: any ActivityFeedRepository,
         activityBrowseRepository: any ActivityBrowseRepository,
         likesFeedRepository: any LikesFeedRepository,
+        profileRepository: any ProfileRepository = MockProfileRepository(),
         searchRepository: any SearchRepository,
         communityPostsRepository: any CommunityPostsRepository,
         paywallRouter: PaywallRouter,
@@ -48,6 +51,7 @@ public struct SparkMainTabView: View {
         self.activityFeedRepository = activityFeedRepository
         self.activityBrowseRepository = activityBrowseRepository
         self.likesFeedRepository = likesFeedRepository
+        self.profileRepository = profileRepository
         self.searchRepository = searchRepository
         self.communityPostsRepository = communityPostsRepository
         self.paywallRouter = paywallRouter
@@ -113,6 +117,7 @@ public struct SparkMainTabView: View {
     private var tabContent: some View {
         LikesRootView(
             repository: likesFeedRepository,
+            profileRepository: profileRepository,
             discoverMediaImageCache: discoverMediaImageCache,
             pendingInbound: $router.pendingLikesInbound,
             onOpenMatchConversation: { threadID, peerDisplayName, initialMessage in

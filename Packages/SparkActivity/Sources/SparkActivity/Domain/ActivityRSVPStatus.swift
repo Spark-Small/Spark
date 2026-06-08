@@ -9,6 +9,7 @@ public enum ActivityRSVPStatus: String, Sendable, Equatable, CaseIterable {
     case maybe
     case declined
     case waitlisted
+    case pending
     case host
 
     public init?(wireValue: String) {
@@ -28,6 +29,8 @@ public enum ActivityRSVPStatus: String, Sendable, Equatable, CaseIterable {
             String(localized: "activity.rsvp.declined", defaultValue: "不参加", comment: "RSVP status")
         case .waitlisted:
             String(localized: "activity.rsvp.waitlisted", defaultValue: "候补", comment: "RSVP status")
+        case .pending:
+            String(localized: "activity.rsvp.pending", defaultValue: "待审核", comment: "RSVP status")
         case .host:
             String(localized: "activity.rsvp.host", defaultValue: "主办", comment: "RSVP status")
         }
@@ -45,7 +48,7 @@ public enum ActivityRSVPStatus: String, Sendable, Equatable, CaseIterable {
         switch self {
         case .going, .maybe, .host:
             true
-        case .invited, .declined, .waitlisted:
+        case .invited, .declined, .waitlisted, .pending:
             false
         }
     }

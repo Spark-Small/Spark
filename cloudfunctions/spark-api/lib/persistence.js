@@ -79,6 +79,12 @@ function applySeed(state) {
   state.inboxActionItems =
     seed.likesState.inbox_action_items || defaultInboxActionItems(state.activities);
   state.dismissedInboxActionIds = new Set(seed.likesState.dismissed_inbox_action_ids || []);
+  const { defaultJoinedCommunitiesByUser } = require("./community-helpers");
+  const joinedSeed =
+    seed.likesState.joined_communities_by_user || defaultJoinedCommunitiesByUser();
+  state.joinedCommunitiesByUser = new Map(
+    Object.entries(joinedSeed).map(([userId, ids]) => [userId, new Set(ids)])
+  );
   Object.assign(state.counters, seed.meta);
 }
 
@@ -129,6 +135,12 @@ function serializeLikesState(state) {
     rewind_by_user: Object.fromEntries(state.rewindByUser || new Map()),
     inbox_action_items: state.inboxActionItems || [],
     dismissed_inbox_action_ids: [...(state.dismissedInboxActionIds || new Set())],
+    joined_communities_by_user: Object.fromEntries(
+      [...(state.joinedCommunitiesByUser || new Map())].map(([userId, ids]) => [
+        userId,
+        [...ids],
+      ])
+    ),
   };
 }
 
@@ -161,6 +173,16 @@ function applyLikesDoc(state, doc) {
     state.dismissedInboxActionIds = new Set(doc.dismissed_inbox_action_ids);
   } else if (!state.dismissedInboxActionIds) {
     state.dismissedInboxActionIds = new Set();
+  }
+  if (doc.joined_communities_by_user) {
+    state.joinedCommunitiesByUser = new Map(
+      Object.entries(doc.joined_communities_by_user).map(([userId, ids]) => [
+        userId,
+        new Set(ids),
+      ])
+    );
+  } else if (!state.joinedCommunitiesByUser) {
+    state.joinedCommunitiesByUser = new Map();
   }
 }
 

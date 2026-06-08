@@ -195,6 +195,32 @@ public actor MockActivityFeedRepository: ActivityFeedRepository {
         return detail
     }
 
+    public func reviewAttendee(
+        activityID: String,
+        attendeeID: String,
+        decision: AttendeeReviewDecision
+    ) async throws -> ActivityDetail {
+        guard var detail = mergedDetails().first(where: { $0.id == activityID }) else {
+            throw ActivityError.underlying(.server(statusCode: 404, message: nil))
+        }
+        detail = try MockActivityFeedHostActions.reviewAttendee(
+            detail: detail,
+            attendeeID: attendeeID,
+            decision: decision
+        )
+        persistHostEdit(detail)
+        return detail
+    }
+
+    public func assignCohost(activityID: String, attendeeID: String) async throws -> ActivityDetail {
+        guard var detail = mergedDetails().first(where: { $0.id == activityID }) else {
+            throw ActivityError.underlying(.server(statusCode: 404, message: nil))
+        }
+        detail = try MockActivityFeedHostActions.assignCohost(detail: detail, attendeeID: attendeeID)
+        persistHostEdit(detail)
+        return detail
+    }
+
     public func announceActivity(activityID: String, message: String) async throws {
         let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {

@@ -83,4 +83,6 @@ private struct FailingSendMessagesRepository: MessagesRepository, Sendable {
     func ensureDirectMessageThread(peerUserID: String, peerDisplayName: String) async throws -> MessageThreadID {
         MessageThreadID("th_dm_test")
     }
+    func hideThread(threadID: MessageThreadID) async throws {}
+    func deleteThread(threadID: MessageThreadID) async throws {}
 }

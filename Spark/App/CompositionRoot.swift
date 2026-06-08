@@ -10,6 +10,7 @@ import SparkMessages
 import SparkNetworking
 import SparkPayments
 import SparkPersistence
+import SparkProfile
 import SparkSearch
 
 /// Composition root for app-wide service registration.
@@ -66,6 +67,10 @@ enum CompositionRoot {
             configuration: apiConfiguration,
             apiClient: apiClient
         )
+        let profileRepository = makeProfileRepository(
+            configuration: apiConfiguration,
+            apiClient: apiClient
+        )
         let searchRepository = makeSearchRepository(
             configuration: apiConfiguration,
             apiClient: apiClient
@@ -74,8 +79,11 @@ enum CompositionRoot {
             configuration: apiConfiguration,
             apiClient: apiClient
         )
-        let storeKitService = makeStoreKitService(configuration: apiConfiguration)
-        let entitlementManager = EntitlementManager(storeKit: storeKitService)
+        let entitlementManager = makeEntitlementManager(
+            configuration: apiConfiguration,
+            apiClient: apiClient,
+            storeKitService: makeStoreKitService(configuration: apiConfiguration)
+        )
         let deviceTokenUploader = makeDeviceTokenUploader(
             configuration: apiConfiguration,
             apiClient: apiClient
@@ -93,9 +101,10 @@ enum CompositionRoot {
             activityFeedRepository: activityFeedRepository,
             activityBrowseRepository: activityBrowseRepository,
             likesFeedRepository: likesFeedRepository,
+            profileRepository: profileRepository,
             searchRepository: searchRepository,
             communityPostsRepository: communityPostsRepository,
-            storeKitService: storeKitService,
+            storeKitService: makeStoreKitService(configuration: apiConfiguration),
             entitlementManager: entitlementManager,
             deviceTokenUploader: deviceTokenUploader,
             blockedActivityHostsStore: blockedActivityHostsStore,
@@ -171,6 +180,16 @@ enum CompositionRoot {
         return LiveLikesFeedRepository(apiClient: apiClient)
     }
 
+    private static func makeProfileRepository(
+        configuration: APIConfiguration,
+        apiClient: APIClient
+    ) -> any ProfileRepository {
+        if configuration.usesMockBackend {
+            return MockProfileRepository()
+        }
+        return LiveProfileRepository(apiClient: apiClient)
+    }
+
     private static func makeSearchRepository(
         configuration: APIConfiguration,
         apiClient: APIClient
@@ -191,10 +210,35 @@ enum CompositionRoot {
         return LiveCommunityPostsRepository(apiClient: apiClient)
     }
 
+    private static func makeEntitlementManager(
+        configuration: APIConfiguration,
+        apiClient: APIClient,
+        storeKitService: any StoreKitServing
+    ) -> EntitlementManager {
+        guard SparkFeatureFlags.isCNPaymentsEnabled else {
+            return EntitlementManager(storeKit: storeKitService)
+        }
+        return EntitlementManager(
+            storeKit: storeKitService,
+            paymentRepository: makePaymentRepository(configuration: configuration, apiClient: apiClient),
+            cnPaymentCoordinators: LiveCNPaymentCoordinatorsFactory.make(configuration: configuration)
+        )
+    }
+
     private static func makeStoreKitService(configuration: APIConfiguration) -> any StoreKitServing {
         if configuration.usesMockBackend {
             return MockStoreKitService()
         }
         return LiveStoreKitService()
+    }
+
+    private static func makePaymentRepository(
+        configuration: APIConfiguration,
+        apiClient: APIClient
+    ) -> any PaymentRepository {
+        if configuration.usesMockBackend {
+            return MockPaymentRepository()
+        }
+        return LivePaymentRepository(apiClient: apiClient)
     }
 }

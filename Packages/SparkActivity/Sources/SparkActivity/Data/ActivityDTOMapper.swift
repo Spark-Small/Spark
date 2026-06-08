@@ -66,7 +66,8 @@ enum ActivityDTOMapper {
             displayName: name,
             isHost: dto.isHost ?? false,
             rsvpStatus: rsvp,
-            isVerified: dto.verified ?? false
+            isVerified: dto.verified ?? false,
+            isCohost: dto.isCohost ?? false
         )
     }
 }

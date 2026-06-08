@@ -5,6 +5,8 @@ import SwiftUI
 struct CommunityDetailHeaderView: View {
     let detail: CommunityDetail
     let members: [CommunityMember]
+    let isJoining: Bool
+    let onJoin: () -> Void
     let onShowMembers: () -> Void
 
     var body: some View {
@@ -100,9 +102,22 @@ struct CommunityDetailHeaderView: View {
             label
                 .background(.thinMaterial, in: Capsule())
         } else {
-            label
-                .foregroundStyle(.white)
-                .background(Color.accentColor, in: Capsule())
+            Button(action: onJoin) {
+                if isJoining {
+                    ProgressView()
+                        .controlSize(.small)
+                        .padding(.horizontal, 8)
+                } else {
+                    label
+                }
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.white)
+            .background(Color.accentColor, in: Capsule())
+            .disabled(isJoining)
+            .accessibilityLabel(
+                String(localized: "community.detail.join", defaultValue: "加入社区", comment: "Join community")
+            )
         }
     }
 

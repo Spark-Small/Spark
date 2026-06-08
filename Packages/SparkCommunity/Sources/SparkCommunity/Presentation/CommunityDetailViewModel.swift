@@ -23,6 +23,7 @@ public final class CommunityDetailViewModel {
     public private(set) var activities: [CommunityLinkedActivity] = []
     public private(set) var members: [CommunityMember] = []
     public private(set) var posts: [CommunityFeedPost] = []
+    public private(set) var isJoining = false
     public var selectedSegment: Segment = .posts
 
     private let communityID: String
@@ -47,6 +48,19 @@ public final class CommunityDetailViewModel {
             members = try await membersTask
             posts = try await postsTask
             loadState = .loaded
+        } catch {
+            loadState = .failure(error.localizedDescription)
+        }
+    }
+
+    public func joinCommunity() async {
+        guard detail?.isJoined != true, !isJoining else { return }
+        isJoining = true
+        defer { isJoining = false }
+        do {
+            detail = try await repository.joinCommunity(id: communityID)
+        } catch is CancellationError {
+            return
         } catch {
             loadState = .failure(error.localizedDescription)
         }

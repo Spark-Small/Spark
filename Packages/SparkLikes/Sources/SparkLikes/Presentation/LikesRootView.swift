@@ -1,6 +1,7 @@
 // Module: SparkLikes — 喜欢 tab root (vertical discover feed).
 
 import SparkDesignSystem
+import SparkProfile
 import SwiftUI
 
 public struct LikesRootView: View {
@@ -23,6 +24,7 @@ public struct LikesRootView: View {
 
     public init(
         repository: any LikesFeedRepository,
+        profileRepository: any ProfileRepository = MockProfileRepository(),
         discoverMediaImageCache: DiscoverMediaImageCache = DiscoverMediaImageCache(),
         pendingInbound: Binding<Bool> = .constant(false),
         onOpenMatchConversation: @escaping LikesOpenConversationHandler,
@@ -31,7 +33,10 @@ public struct LikesRootView: View {
         onInboundPaywall: @escaping () -> Void = {},
         onSparkPaywall: @escaping () -> Void = {}
     ) {
-        _viewModel = State(initialValue: LikesFeedViewModel(repository: repository))
+        _viewModel = State(initialValue: LikesFeedViewModel(
+            repository: repository,
+            profileRepository: profileRepository
+        ))
         _pendingInbound = pendingInbound
         self.onOpenMatchConversation = onOpenMatchConversation
         self.onOpenSharedActivity = onOpenSharedActivity

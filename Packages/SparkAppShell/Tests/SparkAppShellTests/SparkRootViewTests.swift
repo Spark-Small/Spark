@@ -23,7 +23,7 @@ struct SparkRootViewTests {
         )
         let router = AppRouter()
         _ = SparkRootView(
-            authViewModel: AuthViewModel(authService: service),
+            authViewModel: AuthViewModel(authService: service, cnCoordinators: .preview),
             router: router,
             entitlementManager: EntitlementManager(storeKit: MockStoreKitService()),
             messagesRepository: MockMessagesRepository(),

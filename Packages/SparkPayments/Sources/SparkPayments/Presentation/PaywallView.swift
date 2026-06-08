@@ -25,6 +25,7 @@ public struct PaywallView: View {
                 } else {
                     benefitsSection
                     productsSection
+                    cnPaymentsSection
                     restoreSection
                 }
                 if let message = entitlementManager.lastErrorMessage {
@@ -153,6 +154,67 @@ public struct PaywallView: View {
         }
     }
 
+    @ViewBuilder
+    private var cnPaymentsSection: some View {
+        if entitlementManager.supportsCNPayments, let product = entitlementManager.products.first {
+            Section {
+                Button {
+                    Task {
+                        await entitlementManager.purchaseWithCN(
+                            provider: .wechat,
+                            productID: product.id
+                        )
+                    }
+                } label: {
+                    Label(
+                        String(
+                            localized: "paywall.cn.wechat",
+                            defaultValue: "微信支付",
+                            comment: "WeChat Pay"
+                        ),
+                        systemImage: "message.fill"
+                    )
+                }
+                .disabled(entitlementManager.isLoading)
+
+                Button {
+                    Task {
+                        await entitlementManager.purchaseWithCN(
+                            provider: .alipay,
+                            productID: product.id
+                        )
+                    }
+                } label: {
+                    Label(
+                        String(
+                            localized: "paywall.cn.alipay",
+                            defaultValue: "支付宝",
+                            comment: "Alipay Pay"
+                        ),
+                        systemImage: "creditcard.fill"
+                    )
+                }
+                .disabled(entitlementManager.isLoading)
+            } header: {
+                Text(
+                    String(
+                        localized: "paywall.cn.section",
+                        defaultValue: "其他支付方式",
+                        comment: "CN payments section"
+                    )
+                )
+            } footer: {
+                Text(
+                    String(
+                        localized: "paywall.cn.footer",
+                        defaultValue: "App Store 订阅仍可使用上方 Apple 购买。微信/支付宝仅在国内分发版本提供。",
+                        comment: "CN payments footer"
+                    )
+                )
+            }
+        }
+    }
+
     private var placementFooter: String {
         let format = String(
             localized: "paywall.placement.footer.format",
@@ -180,7 +242,11 @@ public struct PaywallView: View {
 
 #Preview("Paywall — products") {
     PaywallView(
-        entitlementManager: EntitlementManager(storeKit: MockStoreKitService()),
+        entitlementManager: EntitlementManager(
+            storeKit: MockStoreKitService(),
+            paymentRepository: MockPaymentRepository(),
+            cnPaymentCoordinators: .preview
+        ),
         placement: .activity,
         onDismiss: {}
     )

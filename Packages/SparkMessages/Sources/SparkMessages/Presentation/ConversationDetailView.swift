@@ -268,4 +268,6 @@ private struct PreviewFailingConversationRepository: MessagesRepository, Sendabl
     func ensureDirectMessageThread(peerUserID: String, peerDisplayName: String) async throws -> MessageThreadID {
         MessageThreadID("th_dm_preview")
     }
+    func hideThread(threadID: MessageThreadID) async throws {}
+    func deleteThread(threadID: MessageThreadID) async throws {}
 }

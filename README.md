@@ -53,7 +53,7 @@ git checkout -b feature/42-my-feature
 # PR → squash merge to develop
 ```
 
-One-time bootstrap: [docs/INIT.md](docs/INIT.md).
+Clone and setup: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Secrets
 

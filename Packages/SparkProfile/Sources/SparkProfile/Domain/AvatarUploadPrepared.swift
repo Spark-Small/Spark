@@ -1,4 +1,4 @@
-// Module: SparkLikes — Avatar presign response (MODULE-F).
+// Module: SparkProfile — Avatar presign response.
 
 import Foundation
 

@@ -25,8 +25,6 @@ public protocol LikesFeedRepository: Sendable {
     func fetchInbound(cursor: String?) async throws -> LikesInboundPage
     func fetchViewerProfile() async throws -> LikesViewerProfile
     func updateViewerProfile(_ profile: LikesViewerProfile) async throws -> LikesViewerProfile
-    /// Staging may return `upload_url: null` and a ready `avatar_url` (MODULE-F).
-    func prepareAvatarUpload(contentType: String) async throws -> AvatarUploadPrepared
     func rewindLastPass() async throws -> DiscoverCard?
     func submitLike(_ request: SendLikeRequest) async throws -> LikeActionResult
     func fetchDailyStats() async throws -> DailyLikeStats

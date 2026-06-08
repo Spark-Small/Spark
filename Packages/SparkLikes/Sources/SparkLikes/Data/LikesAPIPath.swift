@@ -4,9 +4,6 @@ import Foundation
 
 enum LikesAPIPath {
     private static let likes = "/v1/likes"
-    private static let users = "/v1/users"
-
-    static let avatarUploadURL = "\(users)/avatar/upload-url"
 
     static let feed = "\(likes)/feed"
     static let inbound = "\(likes)/inbound"

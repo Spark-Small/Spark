@@ -26,3 +26,41 @@ struct AppleSignInRequestDTO: Encodable, Sendable {
         case authorizationCode = "authorization_code"
     }
 }
+
+struct WeChatSignInRequestDTO: Encodable, Sendable {
+    let code: String
+}
+
+struct PhoneOneTapSignInRequestDTO: Encodable, Sendable {
+    let provider: String
+    let token: String
+}
+
+struct PhoneOtpSendRequestDTO: Encodable, Sendable {
+    let phone: String
+}
+
+struct PhoneOtpSendResponseDTO: Decodable, Sendable, Equatable {
+    let ok: Bool
+}
+
+struct PhoneOtpVerifyRequestDTO: Encodable, Sendable {
+    let phone: String
+    let code: String
+}
+
+struct AlipaySignInRequestDTO: Encodable, Sendable {
+    let authCode: String
+
+    enum CodingKeys: String, CodingKey {
+        case authCode = "auth_code"
+    }
+}
+
+struct AlipayPrepareResponseDTO: Decodable, Sendable {
+    let authInfo: String
+
+    enum CodingKeys: String, CodingKey {
+        case authInfo = "auth_info"
+    }
+}

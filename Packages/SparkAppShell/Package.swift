@@ -16,6 +16,7 @@ let package = Package(
         .package(path: "../SparkActivity"),
         .package(path: "../SparkSearch"),
         .package(path: "../SparkLikes"),
+        .package(path: "../SparkProfile"),
         .package(path: "../SparkPersistence"),
         .package(path: "../SparkPayments")
     ],
@@ -28,6 +29,7 @@ let package = Package(
                 "SparkMessages",
                 "SparkActivity",
                 "SparkLikes",
+                "SparkProfile",
                 "SparkSearch",
                 "SparkPersistence",
                 "SparkPayments"

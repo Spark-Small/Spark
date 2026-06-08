@@ -26,4 +26,8 @@ enum CommunityAPIPath {
     static func communityMembers(id: String) -> String {
         "\(communities)/\(id)/members"
     }
+
+    static func joinCommunity(id: String) -> String {
+        "\(communities)/\(id)/join"
+    }
 }

@@ -1,11 +1,14 @@
 // Module: Spark — Push tap → activity detail (Phase 16).
 
 import SparkAppShell
+import SparkAuth
+import SparkPayments
 import UIKit
 import UserNotifications
 
 final class SparkAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     weak var router: AppRouter?
+    weak var authViewModel: AuthViewModel?
     var deviceTokenUploader: (any DeviceTokenUploading)?
 
     func application(
@@ -14,6 +17,30 @@ final class SparkAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
         return true
+    }
+
+    func application(
+        _ app: UIApplication,
+        open url: URL,
+        options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+    ) -> Bool {
+        CompositionRoot.bootstrapIfNeeded()
+        if authViewModel?.handleOpenURL(url) == true { return true }
+        return CompositionRoot.dependencies.entitlementManager.handleOpenURL(url)
+    }
+
+    func application(
+        _ application: UIApplication,
+        continue userActivity: NSUserActivity,
+        restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
+    ) -> Bool {
+        guard userActivity.activityType == NSUserActivityTypeBrowsingWeb,
+              let url = userActivity.webpageURL else {
+            return false
+        }
+        CompositionRoot.bootstrapIfNeeded()
+        if authViewModel?.handleOpenURL(url) == true { return true }
+        return CompositionRoot.dependencies.entitlementManager.handleOpenURL(url)
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {

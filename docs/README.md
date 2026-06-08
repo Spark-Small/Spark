@@ -6,13 +6,14 @@
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute; PR workflow |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Layers, navigation, DI |
 | [UI_REVIEW.md](UI_REVIEW.md) | UI/a11y review checklist |
+| [HIG_COMPLIANCE.md](HIG_COMPLIANCE.md) | HIG rules, forbidden patterns, pre-merge checklist |
 | [ERRORS.md](ERRORS.md) | Error mapping and user copy |
 | [NAMING.md](NAMING.md) | Packages, Swift, git, l10n keys |
 | [PACKAGES.md](PACKAGES.md) | SPM layout and modules |
 | [API_CONTRACT.md](API_CONTRACT.md) | REST contract (iOS ↔ backend) |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Mock vs Staging, secrets |
 | [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) | Phased roadmap and acceptance criteria |
-| [LIKES_DEVELOPMENT_PLAN.md](LIKES_DEVELOPMENT_PLAN.md) | 喜欢 tab — social discover / match |
+| [MISSING_MODULES_PLAN.md](MISSING_MODULES_PLAN.md) | Phase 25+ modules (APNs, UGC, COS, etc.) |
 | [ACTIVITY_UPGRADE_PLAN.md](ACTIVITY_UPGRADE_PLAN.md) | Activity full vision (Phase 15+) |
 | [UNIVERSAL_LINKS.md](UNIVERSAL_LINKS.md) | Associated Domains setup |
 | [STAGING.md](STAGING.md) | Staging smoke checklist |
@@ -20,7 +21,7 @@
 | [RULES.md](RULES.md) | Canonical sources (anti-duplication) |
 | [GIT_WORKFLOW.md](GIT_WORKFLOW.md) | Branches, PRs, releases |
 | [GITHUB_BRANCH_PROTECTION.md](GITHUB_BRANCH_PROTECTION.md) | Required checks |
-| [INIT.md](INIT.md) | One-time repo bootstrap |
+| [COMMUNITY_UGC_COMPLIANCE.md](COMMUNITY_UGC_COMPLIANCE.md) | UGC compliance checklist |
 | [adr/0000-template.md](adr/0000-template.md) | Architecture decision records |
 
 **Agents:** [../AGENTS.md](../AGENTS.md)

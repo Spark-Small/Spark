@@ -22,7 +22,7 @@
 - API for backend: `docs/API_CONTRACT.md`
 - Local dev / Mock: `docs/DEVELOPMENT.md`
 - CI: `docs/CI.md`
-- HIG compliance: `docs/HIG_COMPLIANCE.md` · audit plan: `docs/HIG_AUDIT_AND_PLAN.md`
+- HIG compliance: `docs/HIG_COMPLIANCE.md`
 - Git: `docs/GIT_WORKFLOW.md`
 
 ## Persona

@@ -141,6 +141,22 @@ public struct LiveMessagesRepository: MessagesRepository, Sendable {
         }
     }
 
+    public func hideThread(threadID: MessageThreadID) async throws {
+        do {
+            try await apiClient.post(MessagesAPIPath.hideThread(threadID: threadID.rawValue))
+        } catch {
+            throw MessagesError.underlying(mapToAppError(error))
+        }
+    }
+
+    public func deleteThread(threadID: MessageThreadID) async throws {
+        do {
+            try await apiClient.delete(MessagesAPIPath.deleteThread(threadID: threadID.rawValue))
+        } catch {
+            throw MessagesError.underlying(mapToAppError(error))
+        }
+    }
+
     public func ensureActivityGroupThread(
         threadID: MessageThreadID,
         displayName: String,

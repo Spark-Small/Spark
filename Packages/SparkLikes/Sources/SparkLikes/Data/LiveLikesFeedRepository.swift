@@ -56,22 +56,6 @@ public struct LiveLikesFeedRepository: LikesFeedRepository, Sendable {
         }
     }
 
-    public func prepareAvatarUpload(contentType: String) async throws -> AvatarUploadPrepared {
-        try await request("prepareAvatarUpload") {
-            let body = try JSONEncoder().encode(AvatarUploadURLRequestDTO(contentType: contentType))
-            let dto: AvatarUploadURLResponseDTO = try await apiClient.post(
-                LikesAPIPath.avatarUploadURL,
-                body: body,
-                as: AvatarUploadURLResponseDTO.self
-            )
-            guard let avatarURL = URL(string: dto.avatarURL) else {
-                throw LikesError.underlying(.unknown(message: "Invalid avatar_url"))
-            }
-            let uploadURL = dto.uploadURL.flatMap(URL.init(string:))
-            return AvatarUploadPrepared(uploadURL: uploadURL, avatarURL: avatarURL)
-        }
-    }
-
     public func rewindLastPass() async throws -> DiscoverCard? {
         try await request("rewindLastPass") {
             let dto: LikesRewindResponseDTO = try await apiClient.post(LikesAPIPath.rewind, as: LikesRewindResponseDTO.self)

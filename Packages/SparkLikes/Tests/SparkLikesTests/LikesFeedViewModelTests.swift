@@ -166,10 +166,6 @@ private struct FailingLikesFeedRepository: LikesFeedRepository, Sendable {
         throw LikesError.underlying(.networkUnavailable)
     }
 
-    func prepareAvatarUpload(contentType: String) async throws -> AvatarUploadPrepared {
-        throw LikesError.underlying(.networkUnavailable)
-    }
-
     func rewindLastPass() async throws -> DiscoverCard? {
         throw LikesError.underlying(.networkUnavailable)
     }

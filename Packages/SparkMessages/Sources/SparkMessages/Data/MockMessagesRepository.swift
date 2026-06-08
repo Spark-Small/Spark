@@ -10,6 +10,10 @@ public actor MockMessagesRepository: MessagesRepository {
     public private(set) var markReadCallCount = 0
     public private(set) var markThreadReadCallCount = 0
     public private(set) var dismissActionItemCallCount = 0
+    public private(set) var hideThreadCallCount = 0
+    public private(set) var deleteThreadCallCount = 0
+    private var hiddenThreadIDs: Set<String> = []
+    private var deletedThreadIDs: Set<String> = []
 
     public init(unreadCount: Int = 3) {
         inbox = MockMessagesInboxCatalog.inbox(unreadCount: unreadCount)
@@ -23,17 +27,18 @@ public actor MockMessagesRepository: MessagesRepository {
     }
 
     public func fetchInbox() async throws -> MessagesInbox {
-        MessagesInbox(
+        let visible = filterVisibleConversations(inbox)
+        return MessagesInbox(
             actionItems: inbox.actionItems.filter { !dismissedActionItemIDs.contains($0.id) },
-            unmessagedMatches: inbox.unmessagedMatches,
-            dmConversations: inbox.dmConversations,
-            activeGroupChats: inbox.activeGroupChats,
-            archivedGroupChats: inbox.archivedGroupChats
+            unmessagedMatches: visible.unmessagedMatches,
+            dmConversations: visible.dmConversations,
+            activeGroupChats: visible.activeGroupChats,
+            archivedGroupChats: visible.archivedGroupChats
         )
     }
 
     public func fetchThreads() async throws -> [MessageThread] {
-        inbox.allThreads.sorted { $0.lastActivityAt > $1.lastActivityAt }
+        filterVisibleConversations(inbox).allThreads.sorted { $0.lastActivityAt > $1.lastActivityAt }
     }
 
     public func fetchConversationContext(threadID: MessageThreadID) async throws -> ConversationContext {
@@ -134,6 +139,22 @@ public actor MockMessagesRepository: MessagesRepository {
         return threadID
     }
 
+    public func hideThread(threadID: MessageThreadID) async throws {
+        guard inbox.allThreads.contains(where: { $0.threadID == threadID }) else {
+            throw MessagesError.underlying(.server(statusCode: 404, message: "Thread not found"))
+        }
+        hiddenThreadIDs.insert(threadID.rawValue)
+        hideThreadCallCount += 1
+    }
+
+    public func deleteThread(threadID: MessageThreadID) async throws {
+        guard inbox.allThreads.contains(where: { $0.threadID == threadID }) else {
+            throw MessagesError.underlying(.server(statusCode: 404, message: "Thread not found"))
+        }
+        deletedThreadIDs.insert(threadID.rawValue)
+        deleteThreadCallCount += 1
+    }
+
     public func ensureActivityGroupThread(
         threadID: MessageThreadID,
         displayName: String,
@@ -206,6 +227,23 @@ public actor MockMessagesRepository: MessagesRepository {
             activity: conversation.activity,
             memberCount: conversation.memberCount,
             isArchived: conversation.isArchived
+        )
+    }
+
+    private func filterVisibleConversations(_ source: MessagesInbox) -> MessagesInbox {
+        func isVisible(_ threadID: MessageThreadID) -> Bool {
+            let raw = threadID.rawValue
+            return !hiddenThreadIDs.contains(raw) && !deletedThreadIDs.contains(raw)
+        }
+        return MessagesInbox(
+            actionItems: source.actionItems,
+            unmessagedMatches: source.unmessagedMatches.filter {
+                guard let threadID = $0.threadID else { return true }
+                return isVisible(threadID)
+            },
+            dmConversations: source.dmConversations.filter { isVisible($0.threadID) },
+            activeGroupChats: source.activeGroupChats.filter { isVisible($0.threadID) },
+            archivedGroupChats: source.archivedGroupChats.filter { isVisible($0.threadID) }
         )
     }
 

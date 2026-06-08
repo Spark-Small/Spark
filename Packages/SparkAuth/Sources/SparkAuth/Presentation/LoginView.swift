@@ -1,37 +1,45 @@
-// Module: SparkAuth — Login screen (Apple + email).
+// Module: SparkAuth — Login screen (WeChat, phone one-tap, Alipay, Apple).
 
 import AuthenticationServices
 import SparkDesignSystem
-import SparkPersistence
 import SwiftUI
 
 public struct LoginView: View {
     @Bindable var viewModel: AuthViewModel
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isPresentingPhoneOTP = false
 
     public init(viewModel: AuthViewModel) {
         self.viewModel = viewModel
     }
 
     public var body: some View {
-        NavigationStack {
+        SparkScreenContainer(
+            navigationTitle: String(
+                localized: "auth.login.title",
+                defaultValue: "登录 Spark",
+                comment: "Login title"
+            )
+        ) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: SparkAuthLayout.sectionSpacing) {
                     header
-                    emailFields
-                    signInButton
-                    divider
+                    cnSignInButtons
+                    orDivider
                     appleButton
                 }
-                .padding(24)
+                .padding(SparkAuthLayout.screenHorizontalPadding)
+                .sparkReadableWidth()
             }
-            .navigationTitle(
-                String(localized: "auth.login.title", defaultValue: "登录 Spark", comment: "Login title")
-            )
-            .navigationBarTitleDisplayMode(.large)
-            .background(.regularMaterial)
+            .scrollBounceBehavior(.basedOnSize)
+            .background(Color(.systemGroupedBackground))
             .alert(
-                String(localized: "auth.login.error.title", defaultValue: "无法登录", comment: "Login error title"),
-                isPresented: failureBinding
+                String(
+                    localized: "auth.login.error.title",
+                    defaultValue: "无法登录",
+                    comment: "Login error title"
+                ),
+                isPresented: failureAlertIsPresented
             ) {
                 Button(String(localized: "auth.login.error.ok", defaultValue: "好", comment: "OK")) {
                     viewModel.dismissFailure()
@@ -42,6 +50,21 @@ public struct LoginView: View {
                 }
             }
         }
+        .sheet(isPresented: $isPresentingPhoneOTP) {
+            PhoneOTPLoginView(authViewModel: viewModel)
+        }
+    }
+
+    private var failureAlertIsPresented: Binding<Bool> {
+        Binding(
+            get: {
+                if isPresentingPhoneOTP { return false }
+                return viewModel.failureAlertIsPresented.wrappedValue
+            },
+            set: { isPresented in
+                if !isPresented { viewModel.dismissFailure() }
+            }
+        )
     }
 
     private var header: some View {
@@ -56,87 +79,155 @@ public struct LoginView: View {
             .font(.title3.weight(.semibold))
             Text(
                 String(
-                    localized: "auth.login.hint",
-                    defaultValue: "演示环境可使用任意有效邮箱与 6 位以上密码",
-                    comment: "Login hint"
+                    localized: "auth.login.cn.hint",
+                    defaultValue: "推荐使用微信或手机号验证码登录",
+                    comment: "Login hint for CN users"
                 )
             )
             .font(.subheadline)
             .foregroundStyle(.secondary)
         }
+        .accessibilityElement(children: .combine)
     }
 
-    private var emailFields: some View {
-        VStack(spacing: 12) {
-            TextField(
-                String(localized: "auth.login.email", defaultValue: "邮箱", comment: "Email field"),
-                text: $viewModel.email
+    private var cnSignInButtons: some View {
+        VStack(spacing: SparkAuthLayout.signInButtonSpacing) {
+            cnSignInButton(
+                title: String(
+                    localized: "auth.login.wechat",
+                    defaultValue: "微信登录",
+                    comment: "WeChat sign in"
+                ),
+                systemImage: "message.fill",
+                prominence: .primary,
+                brandTint: AuthBrandColor.weChat,
+                provider: .wechat,
+                hint: String(
+                    localized: "auth.login.wechat.hint",
+                    defaultValue: "使用微信账号授权登录",
+                    comment: "WeChat sign in hint"
+                ),
+                action: { await viewModel.signInWithWeChatTapped() }
             )
-            .textContentType(.emailAddress)
-            .keyboardType(.emailAddress)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
 
-            SecureField(
-                String(localized: "auth.login.password", defaultValue: "密码", comment: "Password field"),
-                text: $viewModel.password
+            cnSignInButton(
+                title: String(
+                    localized: "auth.login.phoneOtp",
+                    defaultValue: "手机号验证码登录",
+                    comment: "Phone OTP sign in"
+                ),
+                systemImage: "message.fill",
+                provider: .phoneOtp,
+                hint: String(
+                    localized: "auth.login.phoneOtp.hint",
+                    defaultValue: "输入手机号码并验证验证码完成登录/注册",
+                    comment: "Phone OTP hint"
+                ),
+                action: { isPresentingPhoneOTP = true }
             )
-            .textContentType(.password)
+
+            cnSignInButton(
+                title: String(
+                    localized: "auth.login.alipay",
+                    defaultValue: "支付宝登录",
+                    comment: "Alipay sign in"
+                ),
+                systemImage: "creditcard.fill",
+                brandTint: AuthBrandColor.alipay,
+                provider: .alipay,
+                hint: String(
+                    localized: "auth.login.alipay.hint",
+                    defaultValue: "使用支付宝账号授权登录",
+                    comment: "Alipay sign in hint"
+                ),
+                action: { await viewModel.signInWithAlipayTapped() }
+            )
         }
-        .padding(16)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20))
     }
 
-    private var signInButton: some View {
-        Button(
-            String(localized: "auth.login.email.button", defaultValue: "邮箱登录", comment: "Email sign in")
-        ) {
-            Task { await viewModel.signInWithEmailTapped() }
-        }
-        .buttonStyle(.borderedProminent)
-        .disabled(viewModel.email.isEmpty || viewModel.password.count < 6)
+    private func cnSignInButton(
+        title: String,
+        systemImage: String,
+        prominence: SparkSignInButton.Prominence = .secondary,
+        brandTint: Color? = nil,
+        provider: SignInProvider,
+        hint: String,
+        action: @escaping () async -> Void
+    ) -> some View {
+        SparkSignInButton(
+            title: title,
+            systemImage: systemImage,
+            prominence: prominence,
+            brandTint: brandTint,
+            isLoading: viewModel.isLoading(for: provider),
+            isDisabled: viewModel.isSignInInProgress,
+            accessibilityHint: hint,
+            action: { Task { await action() } }
+        )
     }
 
-    private var divider: some View {
-        HStack {
-            Rectangle().frame(height: 1).foregroundStyle(.tertiary)
+    private var orDivider: some View {
+        HStack(spacing: 12) {
+            Divider()
             Text(String(localized: "auth.login.or", defaultValue: "或", comment: "Divider"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Rectangle().frame(height: 1).foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
+            Divider()
         }
+        .accessibilityLabel(
+            String(localized: "auth.login.or.a11y", defaultValue: "或使用", comment: "Or divider a11y")
+        )
     }
 
     private var appleButton: some View {
-        SignInWithAppleButton(.signIn) { request in
-            request.requestedScopes = [.fullName, .email]
-        } onCompletion: { result in
-            Task { await viewModel.handleAppleSignInResult(result) }
+        ZStack {
+            SignInWithAppleButton(.signIn) { request in
+                request.requestedScopes = [.fullName, .email]
+            } onCompletion: { result in
+                Task { await viewModel.handleAppleSignInResult(result) }
+            }
+            .signInWithAppleButtonStyle(appleSignInButtonStyle)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: SparkAuthLayout.signInButtonMinHeight)
+            .clipShape(RoundedRectangle(cornerRadius: SparkAuthLayout.signInButtonCornerRadius))
+            .opacity(viewModel.isLoading(for: .apple) ? 0.65 : 1)
+            .allowsHitTesting(!viewModel.isSignInInProgress)
+
+            if viewModel.isLoading(for: .apple) {
+                ProgressView()
+                    .controlSize(.regular)
+            }
         }
-        .signInWithAppleButtonStyle(.black)
-        .frame(height: 48)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
         .accessibilityLabel(
             String(localized: "auth.login.apple", defaultValue: "通过 Apple 登录", comment: "Apple sign in")
         )
+        .accessibilityAddTraits(viewModel.isLoading(for: .apple) ? [.isButton, .updatesFrequently] : .isButton)
     }
 
-    private var failureBinding: Binding<Bool> {
-        Binding(
-            get: {
-                if case .failure = viewModel.authState { return true }
-                return false
-            },
-            set: { isPresented in
-                if !isPresented { viewModel.dismissFailure() }
-            }
-        )
+    private var appleSignInButtonStyle: SignInWithAppleButton.Style {
+        colorScheme == .dark ? .white : .black
     }
 }
 
-#Preview {
-    let store = AuthSessionStore()
-    let tokenProvider = KeychainAccessTokenProvider()
-    let service = MockAuthService(sessionStore: store, tokenProvider: tokenProvider)
-    LoginView(viewModel: AuthViewModel(authService: service))
+#Preview("Light") {
+    LoginView(viewModel: AuthPreviewSupport.makeViewModel())
+}
+
+#Preview("Dark") {
+    SparkPreviewSupport.darkMode {
+        LoginView(viewModel: AuthPreviewSupport.makeViewModel())
+    }
+}
+
+#Preview("Accessibility XL") {
+    SparkPreviewSupport.accessibilityXL {
+        LoginView(viewModel: AuthPreviewSupport.makeViewModel())
+    }
+}
+
+#Preview("iPad regular") {
+    SparkPreviewSupport.iPadRegular {
+        LoginView(viewModel: AuthPreviewSupport.makeViewModel())
+    }
 }

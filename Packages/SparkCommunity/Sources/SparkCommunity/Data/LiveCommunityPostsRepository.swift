@@ -34,6 +34,15 @@ public struct LiveCommunityPostsRepository: CommunityPostsRepository, Sendable {
         return CommunityDTOMapper.communityDetail(from: dto.community)
     }
 
+    public func joinCommunity(id: String) async throws -> CommunityDetail {
+        let dto: CommunityDetailResponseDTO = try await apiClient.post(
+            CommunityAPIPath.joinCommunity(id: id),
+            body: nil,
+            as: CommunityDetailResponseDTO.self
+        )
+        return CommunityDTOMapper.communityDetail(from: dto.community)
+    }
+
     public func fetchCommunityActivities(communityID: String) async throws -> [CommunityLinkedActivity] {
         let dto: CommunityActivitiesResponseDTO = try await get(
             CommunityAPIPath.communityActivities(id: communityID)

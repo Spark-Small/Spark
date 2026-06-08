@@ -17,5 +17,26 @@
 	<string>将活动开始时间加入系统日历，方便你准时参加。</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>将活动开始时间加入系统日历，方便你准时参加。</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>weixin</string>
+		<string>weixinULAPI</string>
+		<string>alipay</string>
+		<string>alipays</string>
+	</array>
+	<key>SparkWeChatAppID</key>
+	<string>$(WECHAT_APP_ID)</string>
+	<key>SparkWeChatUniversalLink</key>
+	<string>$(WECHAT_UNIVERSAL_LINK)</string>
+	<key>SparkAlipayAppID</key>
+	<string>$(ALIPAY_APP_ID)</string>
+	<key>SparkAliyunPhoneAuthSDKKey</key>
+	<string>$(ALIYUN_PHONE_AUTH_SDK_KEY)</string>
+	<key>SparkTencentPhoneAuthAppID</key>
+	<string>$(TENCENT_PHONE_AUTH_APP_ID)</string>
+	<key>SparkPhoneOneTapPrimary</key>
+	<string>$(PHONE_ONE_TAP_PRIMARY)</string>
+	<key>SparkCNAuthStagingBridge</key>
+	<string>$(SPARK_CN_AUTH_STAGING_BRIDGE)</string>
 </dict>
 </plist>
