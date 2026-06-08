@@ -101,7 +101,10 @@ struct ActivityDTOMapperTests {
         #expect(schedule.contains("to"))
         let recurrence = try #require(detail.recurrence)
         let recurrenceLine = ActivityFormatting.detailRecurrenceLine(recurrence)
-        #expect(recurrenceLine.localizedCaseInsensitiveContains("Friday"))
+        // REASONING: Simulator locale may be zh-Hans (星期五) or en (Friday).
+        let hasFridayLabel = recurrenceLine.localizedCaseInsensitiveContains("Friday")
+            || recurrenceLine.contains("星期五")
+        #expect(hasFridayLabel)
     }
 
     @Test func detailReturnsNilForInvalidRSVP() throws {

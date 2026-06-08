@@ -39,7 +39,9 @@ App target links: **SparkAppShell**, **SparkAuth**, **SparkPayments**, **SparkDe
 | SparkAppShell | `SparkRootView`, tabs, deep links, global presentation |
 | SparkActivity | Activity tab inbox + detail；`GET /v1/activities/feed` + CRUD/RSVP |
 | SparkSearch | Search Mock/Live, suggestions + results list |
-| SparkCommunity | Community posts Mock/Live, feed list + post detail, media stage |
+| SparkCommunity | Community posts Mock/Live, feed list + post detail, media stage, **识人** segment |
+| SparkProfile | `UserContext` domain + `UserContextSheet` (unified identity across tabs) |
+| SparkTrust | Trust score, verification wizard, `TrustRepository` |
 | SparkLikes | **Archived** — not in App; see [adr/0004-sparklikes-archived.md](adr/0004-sparklikes-archived.md) |
 
 ## App integration

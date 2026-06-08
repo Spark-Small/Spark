@@ -85,7 +85,13 @@ extension ActivityDetailLoadedList {
         }
         .padding(.horizontal, ActivityDetailMeetupLayout.horizontalPadding)
         .padding(.top, ActivityDetailMeetupLayout.contentSpacing)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard let hostID = activity.hostID else { return }
+            onOpenUserProfile?(hostID)
+        }
         .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(onOpenUserProfile != nil && activity.hostID != nil ? .isButton : [])
     }
 
     // MARK: - Group / category

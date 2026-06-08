@@ -7,6 +7,11 @@ import Testing
 @MainActor
 struct ActivityRootViewTests {
     @Test func rootViewInitializes() {
-        _ = ActivityRootView(coordinator: ActivityCoordinator(feedRepository: MockActivityFeedRepository()))
+        _ = ActivityRootView(
+            coordinator: ActivityCoordinator(
+                feedRepository: MockActivityFeedRepository(),
+                browseRepository: MockActivityBrowseRepository()
+            )
+        )
     }
 }

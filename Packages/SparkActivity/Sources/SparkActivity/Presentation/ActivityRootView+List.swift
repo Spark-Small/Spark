@@ -71,15 +71,15 @@ extension ActivityRootView {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    if coordinator.hasBrowseCatalog {
+                    if selectedInboxSegment == .mine {
                         Button {
-                            showBrowse = true
+                            showMineMap = true
                         } label: {
                             Label(
                                 String(
-                                    localized: "activity.browse.entry",
-                                    defaultValue: "逛局",
-                                    comment: "Browse public activities"
+                                    localized: "activity.segment.map",
+                                    defaultValue: "地图",
+                                    comment: "Activity inbox map segment"
                                 ),
                                 systemImage: "map"
                             )

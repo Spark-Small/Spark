@@ -43,6 +43,8 @@ extension CommunityRootView {
         switch selectedSegment {
         case .feed:
             feedSegmentContent
+        case .discover:
+            discoverPeopleSegmentContent
         case .groups:
             groupsSegmentContent
         }
@@ -126,6 +128,116 @@ extension CommunityRootView {
         )
         .sparkContentUnavailableCanvas()
         .sparkFlatTabListRow()
+    }
+
+    // MARK: - Discover people segment
+
+    @ViewBuilder
+    private var discoverPeopleSegmentContent: some View {
+        Group {
+            if usesSplitLayout {
+                discoverPeopleSegmentList
+            } else {
+                discoverPeopleSegmentScroll
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private var discoverPeopleSegmentList: some View {
+        List {
+            if viewModel.discoverPeople.isEmpty {
+                discoverPeopleEmptyRow
+            } else {
+                ForEach(viewModel.discoverPeople) { person in
+                    discoverPersonRow(person)
+                        .sparkFlatTabListRow()
+                }
+            }
+        }
+        .sparkFlatTabListStyle()
+        .refreshable {
+            await viewModel.load()
+        }
+    }
+
+    private var discoverPeopleSegmentScroll: some View {
+        List {
+            if viewModel.discoverPeople.isEmpty {
+                discoverPeopleEmptyRow
+            } else {
+                ForEach(viewModel.discoverPeople) { person in
+                    discoverPersonRow(person)
+                        .sparkFlatTabListRow()
+                }
+            }
+        }
+        .sparkFlatTabListStyle()
+        .refreshable {
+            await viewModel.load()
+        }
+    }
+
+    private var discoverPeopleEmptyRow: some View {
+        ContentUnavailableView(
+            String(
+                localized: "community.discoverPeople.empty.title",
+                defaultValue: "暂无推荐",
+                comment: "People discovery empty"
+            ),
+            systemImage: "person.2",
+            description: Text(
+                String(
+                    localized: "community.discoverPeople.empty.subtitle",
+                    defaultValue: "参加更多活动后，会在这里看到同局认识的人",
+                    comment: "People discovery empty hint"
+                )
+            )
+        )
+        .sparkContentUnavailableCanvas()
+        .sparkFlatTabListRow()
+    }
+
+    private func discoverPersonRow(_ person: DiscoveredPerson) -> some View {
+        Button {
+            openDiscoveredPerson(person)
+        } label: {
+            HStack(spacing: 12) {
+                Text(String(person.displayName.prefix(1)))
+                    .font(.body.weight(.semibold))
+                    .frame(width: 40, height: 40)
+                    .background(.quaternary, in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(person.displayName)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(person.sharedTag)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.vertical, SparkLayoutMetrics.compactVerticalPadding)
+        }
+        .buttonStyle(.sparkPressable)
+        .accessibilityHint(
+            String(
+                localized: "community.discoverPeople.row.hint",
+                defaultValue: "查看资料",
+                comment: "Open discovered person profile"
+            )
+        )
+    }
+
+    func openDiscoveredPerson(_ person: DiscoveredPerson) {
+        if let onOpenUserProfile {
+            onOpenUserProfile(person.id)
+        } else {
+            profilePreview = CommunityProfilePreview(person: person)
+        }
     }
 
     // MARK: - Groups segment

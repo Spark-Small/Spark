@@ -8,6 +8,7 @@ import SparkMessages
 import SparkPayments
 import SparkPersistence
 import SparkSearch
+import SparkProfile
 import SparkTrust
 import Testing
 
@@ -33,6 +34,7 @@ struct SparkRootViewTests {
                 searchRepository: MockSearchRepository(),
                 communityPostsRepository: MockCommunityPostsRepository(),
                 trustRepository: MockTrustRepository(),
+                userContextRepository: MockUserContextRepository(),
                 blockedActivityHostsStore: BlockedActivityHostsStore()
             ),
             paywallRouter: PaywallRouter(appRouter: router)

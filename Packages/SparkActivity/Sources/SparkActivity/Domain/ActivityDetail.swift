@@ -179,6 +179,7 @@ public struct ActivityDetail: Identifiable, Hashable, Sendable, Equatable {
             locationName: locationName,
             hostDisplayName: hostDisplayName,
             hostID: hostID,
+            hostTier: hostTier,
             attendeeCount: attendeeCount,
             capacity: capacity,
             rsvpStatus: rsvpStatus,

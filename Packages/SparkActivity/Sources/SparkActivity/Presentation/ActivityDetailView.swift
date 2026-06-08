@@ -19,6 +19,9 @@ public struct ActivityDetailView: View {
     private let onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)?
     private let onActivityRescheduled: ((ActivityDetail) async -> Void)?
     private let onCommunityRecap: ((ActivityDetail) -> Void)?
+    private let onOpenUserProfile: ((String) -> Void)?
+    private let canAccessHostTools: Bool
+    private let onHostToolsLocked: (() -> Void)?
     private let inviteCandidates: () -> [ActivityInviteCandidate]
 
     public init(
@@ -31,7 +34,10 @@ public struct ActivityDetailView: View {
         onActivityUpdated: ((ActivityDetail) async -> Void)? = nil,
         onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)? = nil,
         onActivityRescheduled: ((ActivityDetail) async -> Void)? = nil,
-        onCommunityRecap: ((ActivityDetail) -> Void)? = nil
+        onCommunityRecap: ((ActivityDetail) -> Void)? = nil,
+        onOpenUserProfile: ((String) -> Void)? = nil,
+        canAccessHostTools: Bool = true,
+        onHostToolsLocked: (() -> Void)? = nil
     ) {
         self.coordinator = coordinator
         _viewModel = State(
@@ -46,6 +52,9 @@ public struct ActivityDetailView: View {
         self.onHostAnnouncePosted = onHostAnnouncePosted
         self.onActivityRescheduled = onActivityRescheduled
         self.onCommunityRecap = onCommunityRecap
+        self.onOpenUserProfile = onOpenUserProfile
+        self.canAccessHostTools = canAccessHostTools
+        self.onHostToolsLocked = onHostToolsLocked
         self.inviteCandidates = inviteCandidates
     }
 
@@ -56,7 +65,10 @@ public struct ActivityDetailView: View {
         onOpenGroupChat: ((ActivityDetail) async -> Void)? = nil,
         onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)? = nil,
         onActivityRescheduled: ((ActivityDetail) async -> Void)? = nil,
-        onCommunityRecap: ((ActivityDetail) -> Void)? = nil
+        onCommunityRecap: ((ActivityDetail) -> Void)? = nil,
+        onOpenUserProfile: ((String) -> Void)? = nil,
+        canAccessHostTools: Bool = true,
+        onHostToolsLocked: (() -> Void)? = nil
     ) {
         self.coordinator = coordinator
         _viewModel = State(initialValue: viewModel)
@@ -64,6 +76,9 @@ public struct ActivityDetailView: View {
         self.onHostAnnouncePosted = onHostAnnouncePosted
         self.onActivityRescheduled = onActivityRescheduled
         self.onCommunityRecap = onCommunityRecap
+        self.onOpenUserProfile = onOpenUserProfile
+        self.canAccessHostTools = canAccessHostTools
+        self.onHostToolsLocked = onHostToolsLocked
         self.inviteCandidates = inviteCandidates
     }
 
@@ -99,6 +114,9 @@ public struct ActivityDetailView: View {
                         inviteCandidates: inviteCandidates(),
                         onOpenGroupChat: onOpenGroupChat,
                         onCommunityRecap: onCommunityRecap,
+                        onOpenUserProfile: onOpenUserProfile,
+                        canAccessHostTools: canAccessHostTools,
+                        onHostToolsLocked: onHostToolsLocked,
                         showEditActivity: $showEditActivity,
                         showAnnounceSheet: $showAnnounceSheet,
                         showHostAgainCreate: $showHostAgainCreate,

@@ -18,6 +18,7 @@ enum ActivityDTOMapper {
             locationName: dto.locationName ?? "",
             hostDisplayName: dto.hostDisplayName ?? "",
             hostID: dto.hostID,
+            hostTier: ActivityHostTier(wireValue: dto.hostTier),
             attendeeCount: dto.attendeeCount ?? 0,
             capacity: dto.capacity,
             rsvpStatus: rsvp,

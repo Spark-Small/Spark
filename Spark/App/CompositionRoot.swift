@@ -12,6 +12,7 @@ import SparkPersistence
 import SparkSearch
 import SparkTrust
 import SparkNotifications
+import SparkProfile
 import SparkAppShell
 
 enum CompositionRoot {
@@ -44,34 +45,7 @@ enum CompositionRoot {
             sessionStore: sessionStore,
             tokenProvider: tokenProvider
         )
-        let messagesCache = MessagesCache()
-        let messagesRepository = makeMessagesRepository(
-            configuration: apiConfiguration,
-            apiClient: apiClient,
-            cache: messagesCache
-        )
-        let blockedActivityHostsStore = BlockedActivityHostsStore()
-        let activityFeedRepository = makeActivityFeedRepository(
-            configuration: apiConfiguration,
-            apiClient: apiClient,
-            blockedHostsStore: blockedActivityHostsStore
-        )
-        let activityBrowseRepository = makeActivityBrowseRepository(
-            configuration: apiConfiguration,
-            apiClient: apiClient
-        )
-        let searchRepository = makeSearchRepository(
-            configuration: apiConfiguration,
-            apiClient: apiClient
-        )
-        let communityPostsRepository = makeCommunityPostsRepository(
-            configuration: apiConfiguration,
-            apiClient: apiClient
-        )
-        let trustRepository = makeTrustRepository(
-            configuration: apiConfiguration,
-            apiClient: apiClient
-        )
+        let repos = assembleTabRepositories(configuration: apiConfiguration, apiClient: apiClient)
         let storeKitService = makeStoreKitService(configuration: apiConfiguration)
         let entitlementManager = EntitlementManager(storeKit: storeKitService)
         let deviceTokenUploader = makeDeviceTokenUploader(
@@ -80,8 +54,74 @@ enum CompositionRoot {
         )
         let remoteImageCache = RemoteImageCache(httpClient: httpClient, configuration: .thumbnail)
         let authCoordinator = AuthCoordinator(authService: authService)
+
+        return AppDependencies(
+            apiConfiguration: apiConfiguration,
+            tokenProvider: tokenProvider,
+            sessionStore: sessionStore,
+            httpClient: httpClient,
+            apiClient: apiClient,
+            authService: authService,
+            authCoordinator: authCoordinator,
+            tabDependencies: repos.tabDependencies,
+            messagesRepository: repos.messagesRepository,
+            activityFeedRepository: repos.activityFeedRepository,
+            activityBrowseRepository: repos.activityBrowseRepository,
+            searchRepository: repos.searchRepository,
+            communityPostsRepository: repos.communityPostsRepository,
+            trustRepository: repos.trustRepository,
+            storeKitService: storeKitService,
+            entitlementManager: entitlementManager,
+            deviceTokenUploader: deviceTokenUploader,
+            blockedActivityHostsStore: repos.blockedActivityHostsStore,
+            remoteImageCache: remoteImageCache
+        )
+    }
+
+    private struct TabRepositories {
+        let tabDependencies: SparkTabDependencies
+        let messagesRepository: any MessagesRepository
+        let activityFeedRepository: any ActivityFeedRepository
+        let activityBrowseRepository: any ActivityBrowseRepository
+        let searchRepository: any SearchRepository
+        let communityPostsRepository: any CommunityPostsRepository
+        let trustRepository: any TrustRepository
+        let blockedActivityHostsStore: BlockedActivityHostsStore
+    }
+
+    @MainActor
+    private static func assembleTabRepositories(
+        configuration: APIConfiguration,
+        apiClient: APIClient
+    ) -> TabRepositories {
+        let messagesCache = MessagesCache()
+        let messagesRepository = makeMessagesRepository(
+            configuration: configuration,
+            apiClient: apiClient,
+            cache: messagesCache
+        )
+        let blockedActivityHostsStore = BlockedActivityHostsStore()
+        let activityFeedRepository = makeActivityFeedRepository(
+            configuration: configuration,
+            apiClient: apiClient,
+            blockedHostsStore: blockedActivityHostsStore
+        )
+        let activityBrowseRepository = makeActivityBrowseRepository(
+            configuration: configuration,
+            apiClient: apiClient
+        )
+        let searchRepository = makeSearchRepository(configuration: configuration, apiClient: apiClient)
+        let communityPostsRepository = makeCommunityPostsRepository(
+            configuration: configuration,
+            apiClient: apiClient
+        )
+        let trustRepository = makeTrustRepository(configuration: configuration, apiClient: apiClient)
+        let userContextRepository = makeUserContextRepository(
+            configuration: configuration,
+            apiClient: apiClient
+        )
         let prepareCommunityMediaUpload: any PrepareCommunityMediaUploadUseCaseProtocol =
-            apiConfiguration.usesMockBackend
+            configuration.usesMockBackend
                 ? PrepareCommunityMediaUploadUseCase()
                 : LivePrepareCommunityMediaUploadUseCase(apiClient: apiClient)
         let tabDependencies = SparkTabDependencies(
@@ -92,17 +132,10 @@ enum CompositionRoot {
             communityPostsRepository: communityPostsRepository,
             prepareCommunityMediaUpload: prepareCommunityMediaUpload,
             trustRepository: trustRepository,
+            userContextRepository: userContextRepository,
             blockedActivityHostsStore: blockedActivityHostsStore
         )
-
-        return AppDependencies(
-            apiConfiguration: apiConfiguration,
-            tokenProvider: tokenProvider,
-            sessionStore: sessionStore,
-            httpClient: httpClient,
-            apiClient: apiClient,
-            authService: authService,
-            authCoordinator: authCoordinator,
+        return TabRepositories(
             tabDependencies: tabDependencies,
             messagesRepository: messagesRepository,
             activityFeedRepository: activityFeedRepository,
@@ -110,11 +143,7 @@ enum CompositionRoot {
             searchRepository: searchRepository,
             communityPostsRepository: communityPostsRepository,
             trustRepository: trustRepository,
-            storeKitService: storeKitService,
-            entitlementManager: entitlementManager,
-            deviceTokenUploader: deviceTokenUploader,
-            blockedActivityHostsStore: blockedActivityHostsStore,
-            remoteImageCache: remoteImageCache
+            blockedActivityHostsStore: blockedActivityHostsStore
         )
     }
 
@@ -204,6 +233,16 @@ enum CompositionRoot {
             return MockTrustRepository(initialCompleted: [.phone, .realName])
         }
         return LiveTrustRepository(apiClient: apiClient)
+    }
+
+    private static func makeUserContextRepository(
+        configuration: APIConfiguration,
+        apiClient: APIClient
+    ) -> any UserContextRepository {
+        if configuration.usesMockBackend {
+            return MockUserContextRepository()
+        }
+        return LiveUserContextRepository(apiClient: apiClient)
     }
 
     private static func makeStoreKitService(configuration: APIConfiguration) -> any StoreKitServing {

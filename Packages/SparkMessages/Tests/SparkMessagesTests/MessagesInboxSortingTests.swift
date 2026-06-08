@@ -1,8 +1,8 @@
 // Module: SparkMessagesTests
 
 import Foundation
-import SparkMessages
 import Testing
+@testable import SparkMessages
 
 struct MessagesInboxSortingTests {
     @Test func conversationListOrderPrioritizesUnreadThenRecency() {
@@ -33,10 +33,12 @@ struct MessagesInboxSortingTests {
             displayName: "Upcoming",
             lastMessagePreview: "Hi",
             lastMessageAt: .now,
+            unreadCount: 0,
             activity: InboxActivitySummary(
                 id: "act_1",
                 title: "Upcoming",
                 startsAt: .now.addingTimeInterval(86_400),
+                attendeeCount: 6,
                 lifecycle: .upcoming
             )
         )
@@ -46,13 +48,15 @@ struct MessagesInboxSortingTests {
             displayName: "Ended",
             lastMessagePreview: "Done",
             lastMessageAt: .now,
-            isArchived: true,
+            unreadCount: 0,
             activity: InboxActivitySummary(
                 id: "act_2",
                 title: "Ended",
                 startsAt: .now.addingTimeInterval(-86_400),
+                attendeeCount: 4,
                 lifecycle: .ended
-            )
+            ),
+            isArchived: true
         )
         let visible = MessagesInboxSorting.visibleGroupChats([upcoming, ended])
         #expect(visible.count == 1)

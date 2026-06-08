@@ -9,7 +9,8 @@ import Testing
     @Test @MainActor func makeProfileViewModel() {
         let coordinator = ProfileCoordinator(
             trustRepository: MockTrustRepository(),
-            searchRepository: MockSearchRepository()
+            searchRepository: MockSearchRepository(),
+            userContextRepository: MockUserContextRepository()
         )
         _ = coordinator.makeProfileViewModel()
     }
@@ -17,7 +18,8 @@ import Testing
     @Test func makeSearchCoordinator() {
         let coordinator = ProfileCoordinator(
             trustRepository: MockTrustRepository(),
-            searchRepository: MockSearchRepository()
+            searchRepository: MockSearchRepository(),
+            userContextRepository: MockUserContextRepository()
         )
         _ = coordinator.makeSearchCoordinator()
     }

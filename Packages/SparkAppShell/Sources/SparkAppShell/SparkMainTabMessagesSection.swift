@@ -9,6 +9,7 @@ struct SparkMainTabMessagesSection: View {
     @Binding var pendingConversationThreadID: String?
     let onOpenActivity: (String) -> Void
     let onProposeMeetup: (String) -> Void
+    let onOpenUserProfile: (String) -> Void
     let onOpenActivityTab: () -> Void
     let onScannedPayload: (String) -> Void
 
@@ -18,6 +19,7 @@ struct SparkMainTabMessagesSection: View {
             pendingConversationThreadID: $pendingConversationThreadID,
             onOpenActivity: onOpenActivity,
             onProposeMeetup: onProposeMeetup,
+            onOpenUserProfile: onOpenUserProfile,
             onOpenActivityTab: onOpenActivityTab,
             onScannedPayload: onScannedPayload
         )

@@ -1,5 +1,6 @@
 // Module: SparkActivity — Activity detail list section builders.
 
+import SparkCore
 import SparkDesignSystem
 import SwiftUI
 
@@ -154,13 +155,14 @@ extension ActivityDetailLoadedList {
                 meetupInsetActionsGroup {
                     if let onCommunityRecap {
                         Button {
+                            IntegrationTelemetry.activityEndToRecap(activityID: activity.id)
                             onCommunityRecap(activity)
                         } label: {
                             Label(
                                 String(
-                                    localized: "activity.shareToCommunity.cta",
-                                    defaultValue: "分享到社区",
-                                    comment: "Share ended activity to community"
+                                    localized: "activity.shareToCommunity.cta.primary",
+                                    defaultValue: "发局后随拍到社区",
+                                    comment: "Primary post-event recap CTA"
                                 ),
                                 systemImage: "photo.on.rectangle.angled"
                             )
@@ -168,7 +170,9 @@ extension ActivityDetailLoadedList {
                             .padding(.horizontal, ActivityDetailMeetupLayout.horizontalPadding)
                             .padding(.vertical, SparkLayoutMetrics.compactVerticalPadding)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.borderedProminent)
+                        .padding(.horizontal, ActivityDetailMeetupLayout.horizontalPadding)
+                        .padding(.vertical, SparkLayoutMetrics.compactVerticalPadding)
                         meetupActionDivider()
                     }
 
@@ -238,10 +242,22 @@ extension ActivityDetailLoadedList {
                 }
                 meetupActionDivider()
 
-                NavigationLink {
-                    ActivityHostApprovalView(viewModel: viewModel, activity: activity)
-                } label: {
-                    hostActionLabel(
+                if canAccessHostTools {
+                    NavigationLink {
+                        ActivityHostApprovalView(viewModel: viewModel, activity: activity)
+                    } label: {
+                        hostActionLabel(
+                            title: String(
+                                localized: "activity.host.approval.entry",
+                                defaultValue: "审批与协办",
+                                comment: "Host approval entry"
+                            ),
+                            systemImage: "person.crop.circle.badge.checkmark"
+                        )
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    hostLockedActionButton(
                         title: String(
                             localized: "activity.host.approval.entry",
                             defaultValue: "审批与协办",
@@ -250,14 +266,20 @@ extension ActivityDetailLoadedList {
                         systemImage: "person.crop.circle.badge.checkmark"
                     )
                 }
-                .buttonStyle(.plain)
                 meetupActionDivider()
 
-                hostActionButton(
-                    title: String(localized: "activity.host.announce", defaultValue: "通知报名者", comment: "Host announce"),
-                    systemImage: "megaphone"
-                ) {
-                    showAnnounceSheet = true
+                if canAccessHostTools {
+                    hostActionButton(
+                        title: String(localized: "activity.host.announce", defaultValue: "通知报名者", comment: "Host announce"),
+                        systemImage: "megaphone"
+                    ) {
+                        showAnnounceSheet = true
+                    }
+                } else {
+                    hostLockedActionButton(
+                        title: String(localized: "activity.host.announce", defaultValue: "通知报名者", comment: "Host announce"),
+                        systemImage: "megaphone"
+                    )
                 }
                 meetupActionDivider()
 
@@ -279,6 +301,29 @@ extension ActivityDetailLoadedList {
             hostActionLabel(title: title, systemImage: systemImage)
         }
         .buttonStyle(.plain)
+    }
+
+    private func hostLockedActionButton(title: String, systemImage: String) -> some View {
+        Button {
+            onHostToolsLocked?()
+        } label: {
+            HStack {
+                hostActionLabel(title: title, systemImage: systemImage)
+                Spacer(minLength: 0)
+                Image(systemName: "lock.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(
+            String(
+                localized: "activity.host.tools.locked.hint",
+                defaultValue: "升级后可使用主办工具",
+                comment: "Host tools paywall hint"
+            )
+        )
     }
 
     private func hostActionLabel(title: String, systemImage: String) -> some View {

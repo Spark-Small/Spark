@@ -2,6 +2,18 @@
 
 import Foundation
 
+public struct SparkIdentityTimelineEntry: Identifiable, Equatable, Sendable {
+    public let id: String
+    public let title: String
+    public let detail: String?
+
+    public init(id: String, title: String, detail: String? = nil) {
+        self.id = id
+        self.title = title
+        self.detail = detail
+    }
+}
+
 public struct SparkUnifiedIdentityModel: Identifiable, Equatable, Sendable {
     public let id: String
     public let displayName: String
@@ -10,6 +22,7 @@ public struct SparkUnifiedIdentityModel: Identifiable, Equatable, Sendable {
     public let trustScore: Int?
     public let hasLiveness: Bool
     public let relationshipLabel: String?
+    public let timelineEntries: [SparkIdentityTimelineEntry]
 
     public init(
         id: String,
@@ -18,7 +31,8 @@ public struct SparkUnifiedIdentityModel: Identifiable, Equatable, Sendable {
         bio: String = "",
         trustScore: Int? = nil,
         hasLiveness: Bool = false,
-        relationshipLabel: String? = nil
+        relationshipLabel: String? = nil,
+        timelineEntries: [SparkIdentityTimelineEntry] = []
     ) {
         self.id = id
         self.displayName = displayName
@@ -27,5 +41,6 @@ public struct SparkUnifiedIdentityModel: Identifiable, Equatable, Sendable {
         self.trustScore = trustScore
         self.hasLiveness = hasLiveness
         self.relationshipLabel = relationshipLabel
+        self.timelineEntries = timelineEntries
     }
 }

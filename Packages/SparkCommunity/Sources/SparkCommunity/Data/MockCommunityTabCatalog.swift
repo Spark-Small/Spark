@@ -177,8 +177,31 @@ enum MockCommunityTabCatalog {
         ]
     }
 
+    static func discoveredPeople() -> [DiscoveredPerson] {
+        [
+            DiscoveredPerson(
+                id: "u_discover_1",
+                displayName: String(localized: "community.mock.discover.1", defaultValue: "小林", comment: "Person"),
+                avatarURL: URL(string: "https://picsum.photos/seed/u-discover-1/112/112"),
+                sharedTag: String(localized: "community.mock.tag.hike", defaultValue: "爬山", comment: "Tag"),
+                relationship: .sharedActivity(
+                    String(localized: "community.mock.activity.hike", defaultValue: "周末登山", comment: "Activity")
+                )
+            ),
+            DiscoveredPerson(
+                id: "u_discover_2",
+                displayName: String(localized: "community.mock.discover.2", defaultValue: "阿哲", comment: "Person"),
+                avatarURL: URL(string: "https://picsum.photos/seed/u-discover-2/112/112"),
+                sharedTag: String(localized: "community.mock.tag.coffee", defaultValue: "咖啡局", comment: "Tag"),
+                relationship: .sharedActivity(
+                    String(localized: "community.mock.activity.coffee", defaultValue: "午后咖啡", comment: "Activity")
+                )
+            )
+        ]
+    }
+
     static func feedItems() -> [CommunityFeedItem] {
-        feedPosts().map { .post($0) }
+        [.peopleDiscovery(discoveredPeople())] + feedPosts().map { .post($0) }
     }
 
     static func tabExperience(joinedIDs: Set<String>? = nil) -> CommunityTabExperience {

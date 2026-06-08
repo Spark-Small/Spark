@@ -970,6 +970,56 @@ app.post("/v1/community/posts/:postId/report", requireAuth, async (req, res) => 
 // --- Users / avatar (MODULE-F) ---
 
 
+function userContextFor(viewerId, targetUserId) {
+  const profile = viewerProfileFor(targetUserId);
+  const displayName = profile.display_name || displayNameFor(targetUserId);
+  const shared = [];
+  const timeline = [];
+  for (const activity of state.activities.values()) {
+    const attendees = activity.attendees || [];
+    const viewerGoing =
+      activity.host_id === viewerId ||
+      attendees.some((att) => att.id === viewerId);
+    const targetGoing =
+      activity.host_id === targetUserId ||
+      attendees.some((att) => att.id === targetUserId);
+    if (!viewerGoing || !targetGoing) continue;
+    shared.push({ id: activity.id, title: activity.title });
+    timeline.push({
+      id: `activity_${activity.id}`,
+      title: "共同活动",
+      detail: activity.title,
+    });
+  }
+  if (shared.length === 0) {
+    shared.push({ id: "act_001", title: "周末爬香山" });
+    timeline.push({
+      id: "activity_act_001",
+      title: "共同活动",
+      detail: "周末爬香山",
+    });
+  }
+  return {
+    user_id: targetUserId,
+    display_name: displayName,
+    avatar_url: profile.avatar_url || null,
+    bio: profile.bio || "",
+    trust_score: 72,
+    has_liveness_verification: true,
+    relationship_status: viewerId === targetUserId ? null : "同局认识",
+    shared_activities: shared.slice(0, 5),
+    timeline: timeline.slice(0, 8),
+  };
+}
+
+app.get("/v1/users/:userId/context", requireAuth, (req, res) => {
+  const targetUserId = req.params.userId;
+  if (!targetUserId) {
+    return err(res, 400, "invalid_request", "user_id required");
+  }
+  res.json({ context: userContextFor(req.userId, targetUserId) });
+});
+
 app.post("/v1/users/avatar/upload-url", requireAuth, (req, res) => {
   const contentType = req.body?.content_type || "image/jpeg";
   if (!String(contentType).startsWith("image/")) {

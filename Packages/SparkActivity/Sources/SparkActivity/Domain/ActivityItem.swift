@@ -13,6 +13,8 @@ public struct ActivityItem: Identifiable, Hashable, Sendable, Equatable {
     public let locationName: String
     public let hostDisplayName: String
     public let hostID: String?
+    /// Organizer reputation tier when returned by browse/feed APIs.
+    public let hostTier: ActivityHostTier
     public let attendeeCount: Int
     public let capacity: Int?
     public let rsvpStatus: ActivityRSVPStatus
@@ -30,6 +32,7 @@ public struct ActivityItem: Identifiable, Hashable, Sendable, Equatable {
         locationName: String = "",
         hostDisplayName: String = "",
         hostID: String? = nil,
+        hostTier: ActivityHostTier = .standard,
         attendeeCount: Int = 0,
         capacity: Int? = nil,
         rsvpStatus: ActivityRSVPStatus = .invited,
@@ -45,6 +48,7 @@ public struct ActivityItem: Identifiable, Hashable, Sendable, Equatable {
         self.locationName = locationName
         self.hostDisplayName = hostDisplayName
         self.hostID = hostID
+        self.hostTier = hostTier
         self.attendeeCount = attendeeCount
         self.capacity = capacity
         self.rsvpStatus = rsvpStatus

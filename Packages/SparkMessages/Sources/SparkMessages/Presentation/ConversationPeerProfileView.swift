@@ -3,6 +3,7 @@
 import SparkDesignSystem
 import SwiftUI
 
+@available(*, deprecated, message: "Use SparkProfile.UserContextSheet via onOpenUserProfile from the app shell.")
 public struct ConversationPeerProfileView: View {
     @Environment(PeerDisplayNameStore.self) private var peerDisplayNameStore
 

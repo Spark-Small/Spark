@@ -556,7 +556,8 @@ private func profilePreviewRoot() -> some View {
         viewModel: ProfileViewModel(trustRepository: MockTrustRepository()),
         profileCoordinator: ProfileCoordinator(
             trustRepository: MockTrustRepository(),
-            searchRepository: MockSearchRepository()
+            searchRepository: MockSearchRepository(),
+            userContextRepository: MockUserContextRepository()
         ),
         onSelectSearchResult: { _ in },
         onSignOut: {},

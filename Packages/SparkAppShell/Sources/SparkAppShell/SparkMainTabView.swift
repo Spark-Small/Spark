@@ -25,6 +25,7 @@ public struct SparkMainTabView: View {
     @State private var searchQuery: String = ""
     @State private var showPushPermissionGuide = false
     @State private var showDeepLinkFallback = false
+    @State var presentedUserContext: UserContextPresentation?
 
     public init(
         router: AppRouter,
@@ -60,6 +61,12 @@ public struct SparkMainTabView: View {
             GlobalSheetContent(presentation: presentation) {
                 router.dismissGlobalPresentation()
             }
+        }
+        .sheet(item: $presentedUserContext) { presentation in
+            UserContextSheet(
+                userID: presentation.userID,
+                fetchContext: tabDependencies.profileCoordinator.makeFetchUserContextUseCase()
+            )
         }
         .fullScreenCover(item: $router.globalFullScreenCover) { presentation in
             GlobalFullScreenContent(
@@ -169,7 +176,11 @@ public struct SparkMainTabView: View {
                     pendingConversationThreadID: $router.pendingConversationThreadID,
                     onOpenActivity: { router.openActivityDetail(activityID: $0) },
                     onProposeMeetup: { peerName in
+                        IntegrationTelemetry.matchToActivityIntent(source: "messages_tab")
                         router.openCreateActivity(draft: .matchCoffee(peerName: peerName))
+                    },
+                    onOpenUserProfile: { userID in
+                        presentedUserContext = UserContextPresentation(userID: userID)
                     },
                     onOpenActivityTab: { router.selectedTab = .activity },
                     onScannedPayload: { payload in

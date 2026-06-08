@@ -3,6 +3,6 @@
 import Foundation
 
 public enum PremiumFeature: Sendable {
-    /// Browse and open all activity rows (non-subscribers see only the first row).
-    case fullActivityFeed
+    /// Host tools: waitlist promote, mass announce, co-host management.
+    case hostTools
 }

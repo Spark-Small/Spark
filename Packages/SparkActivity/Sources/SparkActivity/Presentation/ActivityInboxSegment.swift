@@ -1,26 +1,26 @@
-// Module: SparkActivity — Inbox segmented pages (list vs map).
+// Module: SparkActivity — Inbox segmented pages (discover vs mine).
 
 import Foundation
 
 enum ActivityInboxSegment: String, CaseIterable, Identifiable, Sendable {
-    case activities
-    case map
+    case discover
+    case mine
 
     var id: String { rawValue }
 
     var localizedTitle: String {
         switch self {
-        case .activities:
+        case .discover:
             String(
-                localized: "activity.segment.list",
-                defaultValue: "活动",
-                comment: "Activity inbox list segment"
+                localized: "activity.segment.discover",
+                defaultValue: "发现",
+                comment: "Public activity browse segment"
             )
-        case .map:
+        case .mine:
             String(
-                localized: "activity.segment.map",
-                defaultValue: "地图",
-                comment: "Activity inbox map segment"
+                localized: "activity.segment.mine",
+                defaultValue: "我的",
+                comment: "Personal activity inbox segment"
             )
         }
     }

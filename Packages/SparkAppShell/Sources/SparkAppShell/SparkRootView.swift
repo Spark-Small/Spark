@@ -81,6 +81,7 @@ public struct SparkRootView: View {
             searchRepository: MockSearchRepository(),
             communityPostsRepository: MockCommunityPostsRepository(),
             trustRepository: MockTrustRepository(),
+            userContextRepository: MockUserContextRepository(),
             blockedActivityHostsStore: BlockedActivityHostsStore()
         ),
         paywallRouter: PaywallRouter(appRouter: router)

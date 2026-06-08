@@ -21,6 +21,9 @@ extension SparkMainTabView {
             onLikePerson: { _ in },
             onOpenLinkedActivity: { activityID in
                 router.openActivityDetail(activityID: activityID)
+            },
+            onOpenUserProfile: { userID in
+                presentedUserContext = UserContextPresentation(userID: userID)
             }
         )
         .tabItem { tabLabel(for: .community) }
@@ -41,11 +44,7 @@ extension SparkMainTabView {
                 await activityGroupChatCoordinator.onRSVPCompleted(detail)
                 await tabDependencies.orchestrator.syncActivityReminders(for: detail)
             },
-            isItemLocked: { index in
-                SparkFeatureFlags.isPremiumPaywallEnabled
-                    && !entitlementManager.canAccess(.fullActivityFeed)
-                    && index > 0
-            },
+            isItemLocked: { _ in false },
             onLockedItemTap: {
                 paywallRouter.presentPaywall(placement: .activity)
             },
@@ -58,18 +57,23 @@ extension SparkMainTabView {
             onCommunityRecap: { detail in
                 router.openCommunityRecap(activityID: detail.id)
             },
+            onOpenUserProfile: { userID in
+                presentedUserContext = UserContextPresentation(userID: userID)
+            },
+            canAccessHostTools: {
+                !SparkFeatureFlags.isPremiumPaywallEnabled
+                    || entitlementManager.canAccess(.hostTools)
+            },
+            onHostToolsLocked: {
+                paywallRouter.presentPaywall(placement: .activity)
+            },
             inviteCandidates: {
                 ActivityInviteCandidateBuilder.from(messagesViewModel: messagesViewModel)
             },
             actionItemsInset: { filter in
-                guard filter.showsInboxActionItems,
-                      let messagesViewModel,
-                      !messagesViewModel.actionItems.isEmpty
-                else {
-                    return AnyView(EmptyView())
-                }
-
-                return AnyView(
+                if filter.showsInboxActionItems,
+                   let messagesViewModel,
+                   !messagesViewModel.actionItems.isEmpty {
                     InboxActionItemsListSection(
                         items: messagesViewModel.actionItems,
                         onInviteAccept: { invite in
@@ -85,7 +89,7 @@ extension SparkMainTabView {
                             Task { await messagesViewModel.dismissActionItem(id: item.id) }
                         }
                     )
-                )
+                }
             },
             requestActivityIDs: { filter in
                 guard filter == .pendingReply, let messagesViewModel else { return [] }

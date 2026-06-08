@@ -41,6 +41,7 @@ struct ActivityItemDTO: Decodable, Sendable {
     let hostDisplayName: String?
     let hostID: String?
     let hostBio: String?
+    let hostTier: String?
     let attendeeCount: Int?
     let waitlistedCount: Int?
     let capacity: Int?
@@ -60,6 +61,7 @@ struct ActivityItemDTO: Decodable, Sendable {
         case hostDisplayName = "host_display_name"
         case hostID = "host_id"
         case hostBio = "host_bio"
+        case hostTier = "host_tier"
         case attendeeCount = "attendee_count"
         case waitlistedCount = "waitlisted_count"
         case capacity

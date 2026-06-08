@@ -6,6 +6,8 @@ import SwiftUI
 struct ActivityInboxListRow: View {
     let item: ActivityItem
     let isLocked: Bool
+    /// When true, surfaces host tier + RSVP count for browse discover cards (W7).
+    var showsBrowseTrustSignals: Bool = false
 
     private var horizontalPadding: CGFloat {
         SparkLayoutMetrics.standardHorizontalPadding
@@ -20,6 +22,9 @@ struct ActivityInboxListRow: View {
             VStack(alignment: .leading, spacing: SparkLayoutMetrics.activityCardContentSpacing) {
                 titleBlock
                 scheduleLine
+                if showsBrowseTrustSignals {
+                    browseTrustLine
+                }
                 metadataLine
                 if !isLocked {
                     attendeeFooter
@@ -80,6 +85,37 @@ struct ActivityInboxListRow: View {
                 .textCase(.uppercase)
                 .lineLimit(1)
         }
+    }
+
+    private var browseTrustLine: some View {
+        HStack(spacing: 8) {
+            if let tierBadge = item.hostTier.localizedBadgeLabel {
+                Label(tierBadge, systemImage: "checkmark.seal.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            if item.attendeeCount > 0 {
+                Text(
+                    String(
+                        format: String(
+                            localized: "activity.browse.going.format",
+                            defaultValue: "%lld 人已报名",
+                            comment: "Browse RSVP count; %lld is count"
+                        ),
+                        locale: .current,
+                        item.attendeeCount
+                    )
+                )
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            }
+            if !item.category.isEmpty {
+                Text(item.category)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .lineLimit(1)
     }
 
     private var metadataLine: some View {

@@ -7,6 +7,7 @@ import SwiftUI
 
 enum CommunityHomeSegment: String, CaseIterable, Identifiable, Sendable {
     case feed
+    case discover
     case groups
 
     var id: String { rawValue }
@@ -18,6 +19,12 @@ enum CommunityHomeSegment: String, CaseIterable, Identifiable, Sendable {
                 localized: "community.home.segment.feed",
                 defaultValue: "动态",
                 comment: "Community home feed segment"
+            )
+        case .discover:
+            String(
+                localized: "community.home.segment.discoverPeople",
+                defaultValue: "识人",
+                comment: "Community people discovery segment"
             )
         case .groups:
             String(
@@ -49,6 +56,7 @@ public struct CommunityRootView: View {
     private let fetchActivityShareContext: ((String) async -> ActivityShareContext?)?
     let onLikePerson: (String) -> Void
     let onOpenLinkedActivity: (String) -> Void
+    let onOpenUserProfile: ((String) -> Void)?
 
     public init(
         coordinator: CommunityCoordinator,
@@ -56,7 +64,8 @@ public struct CommunityRootView: View {
         pendingRecapActivityID: Binding<String?> = .constant(nil),
         fetchActivityShareContext: ((String) async -> ActivityShareContext?)? = nil,
         onLikePerson: @escaping (String) -> Void = { _ in },
-        onOpenLinkedActivity: @escaping (String) -> Void = { _ in }
+        onOpenLinkedActivity: @escaping (String) -> Void = { _ in },
+        onOpenUserProfile: ((String) -> Void)? = nil
     ) {
         self.coordinator = coordinator
         _pendingCommunityPostID = pendingCommunityPostID
@@ -65,6 +74,7 @@ public struct CommunityRootView: View {
         self.fetchActivityShareContext = fetchActivityShareContext
         self.onLikePerson = onLikePerson
         self.onOpenLinkedActivity = onOpenLinkedActivity
+        self.onOpenUserProfile = onOpenUserProfile
     }
 
     public init(
@@ -74,7 +84,8 @@ public struct CommunityRootView: View {
         pendingRecapActivityID: Binding<String?> = .constant(nil),
         fetchActivityShareContext: ((String) async -> ActivityShareContext?)? = nil,
         onLikePerson: @escaping (String) -> Void = { _ in },
-        onOpenLinkedActivity: @escaping (String) -> Void = { _ in }
+        onOpenLinkedActivity: @escaping (String) -> Void = { _ in },
+        onOpenUserProfile: ((String) -> Void)? = nil
     ) {
         self.coordinator = coordinator
         _pendingCommunityPostID = pendingCommunityPostID
@@ -83,6 +94,7 @@ public struct CommunityRootView: View {
         self.fetchActivityShareContext = fetchActivityShareContext
         self.onLikePerson = onLikePerson
         self.onOpenLinkedActivity = onOpenLinkedActivity
+        self.onOpenUserProfile = onOpenUserProfile
     }
 
     public var body: some View {

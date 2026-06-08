@@ -10,6 +10,9 @@ struct ActivityDetailLoadedList: View {
     let inviteCandidates: [ActivityInviteCandidate]
     let onOpenGroupChat: ((ActivityDetail) async -> Void)?
     let onCommunityRecap: ((ActivityDetail) -> Void)?
+    let onOpenUserProfile: ((String) -> Void)?
+    let canAccessHostTools: Bool
+    let onHostToolsLocked: (() -> Void)?
     @Binding var showEditActivity: Bool
     @Binding var showAnnounceSheet: Bool
     @Binding var showHostAgainCreate: Bool
@@ -151,6 +154,11 @@ struct ActivityDetailLoadedList: View {
         }
         .padding(.horizontal, ActivityDetailMeetupLayout.horizontalPadding)
         .padding(.vertical, SparkLayoutMetrics.compactVerticalPadding)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onOpenUserProfile?(attendee.id)
+        }
+        .accessibilityAddTraits(onOpenUserProfile == nil ? [] : .isButton)
     }
 
     @ViewBuilder
@@ -201,6 +209,9 @@ struct ActivityDetailLoadedList: View {
                 inviteCandidates: [],
                 onOpenGroupChat: nil,
                 onCommunityRecap: nil,
+                onOpenUserProfile: nil,
+                canAccessHostTools: true,
+                onHostToolsLocked: nil,
                 showEditActivity: .constant(false),
                 showAnnounceSheet: .constant(false),
                 showHostAgainCreate: .constant(false),

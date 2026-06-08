@@ -21,14 +21,18 @@ public struct ActivityRootView: View {
     let onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)?
     let onActivityRescheduled: ((ActivityDetail) async -> Void)?
     let onCommunityRecap: ((ActivityDetail) -> Void)?
+    let onOpenUserProfile: ((String) -> Void)?
+    let canAccessHostTools: () -> Bool
+    let onHostToolsLocked: (() -> Void)?
     let inviteCandidates: () -> [ActivityInviteCandidate]
     let actionItemsInset: (ActivityListFilter) -> AnyView
     let requestActivityIDs: (ActivityListFilter) -> Set<String>
 
     @State var showCreateActivity = false
     @State var showNotificationSettings = false
-    @State var showBrowse = false
-    @State var selectedInboxSegment: ActivityInboxSegment = .activities
+    @State var showMineMap = false
+    @State var browseViewModel: ActivityBrowseViewModel
+    @State var selectedInboxSegment: ActivityInboxSegment
     @State var activityFavoriteStore = ActivityFavoriteStore()
 
     public init<ActionItems: View>(
@@ -43,6 +47,9 @@ public struct ActivityRootView: View {
         onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)? = nil,
         onActivityRescheduled: ((ActivityDetail) async -> Void)? = nil,
         onCommunityRecap: ((ActivityDetail) -> Void)? = nil,
+        onOpenUserProfile: ((String) -> Void)? = nil,
+        canAccessHostTools: @escaping () -> Bool = { true },
+        onHostToolsLocked: (() -> Void)? = nil,
         inviteCandidates: @escaping () -> [ActivityInviteCandidate] = { [] },
         @ViewBuilder actionItemsInset: @escaping (ActivityListFilter) -> ActionItems = { _ in EmptyView() },
         requestActivityIDs: @escaping (ActivityListFilter) -> Set<String> = { _ in [] }
@@ -51,6 +58,10 @@ public struct ActivityRootView: View {
         _pendingActivityID = pendingActivityID
         _pendingCreateActivityDraft = pendingCreateActivityDraft
         _viewModel = State(initialValue: coordinator.makeInboxViewModel())
+        _browseViewModel = State(initialValue: coordinator.makeBrowseViewModel())
+        _selectedInboxSegment = State(
+            initialValue: coordinator.hasBrowseCatalog ? .discover : .mine
+        )
         self.onRSVPCompleted = onRSVPCompleted
         self.onOpenGroupChat = onOpenGroupChat
         self.onActivityCreated = onActivityCreated
@@ -59,6 +70,9 @@ public struct ActivityRootView: View {
         self.onHostAnnouncePosted = onHostAnnouncePosted
         self.onActivityRescheduled = onActivityRescheduled
         self.onCommunityRecap = onCommunityRecap
+        self.onOpenUserProfile = onOpenUserProfile
+        self.canAccessHostTools = canAccessHostTools
+        self.onHostToolsLocked = onHostToolsLocked
         self.inviteCandidates = inviteCandidates
         self.actionItemsInset = { filter in AnyView(actionItemsInset(filter)) }
         self.requestActivityIDs = requestActivityIDs
@@ -77,6 +91,9 @@ public struct ActivityRootView: View {
         onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)? = nil,
         onActivityRescheduled: ((ActivityDetail) async -> Void)? = nil,
         onCommunityRecap: ((ActivityDetail) -> Void)? = nil,
+        onOpenUserProfile: ((String) -> Void)? = nil,
+        canAccessHostTools: @escaping () -> Bool = { true },
+        onHostToolsLocked: (() -> Void)? = nil,
         inviteCandidates: @escaping () -> [ActivityInviteCandidate] = { [] },
         @ViewBuilder actionItemsInset: @escaping (ActivityListFilter) -> ActionItems = { _ in EmptyView() },
         requestActivityIDs: @escaping (ActivityListFilter) -> Set<String> = { _ in [] }
@@ -85,6 +102,10 @@ public struct ActivityRootView: View {
         _pendingActivityID = pendingActivityID
         _pendingCreateActivityDraft = pendingCreateActivityDraft
         _viewModel = State(initialValue: viewModel)
+        _browseViewModel = State(initialValue: coordinator.makeBrowseViewModel())
+        _selectedInboxSegment = State(
+            initialValue: coordinator.hasBrowseCatalog ? .discover : .mine
+        )
         self.onRSVPCompleted = onRSVPCompleted
         self.onOpenGroupChat = onOpenGroupChat
         self.onActivityCreated = onActivityCreated
@@ -93,6 +114,9 @@ public struct ActivityRootView: View {
         self.onHostAnnouncePosted = onHostAnnouncePosted
         self.onActivityRescheduled = onActivityRescheduled
         self.onCommunityRecap = onCommunityRecap
+        self.onOpenUserProfile = onOpenUserProfile
+        self.canAccessHostTools = canAccessHostTools
+        self.onHostToolsLocked = onHostToolsLocked
         self.inviteCandidates = inviteCandidates
         self.actionItemsInset = { filter in AnyView(actionItemsInset(filter)) }
         self.requestActivityIDs = requestActivityIDs
@@ -119,15 +143,22 @@ public struct ActivityRootView: View {
         .sheet(isPresented: $showNotificationSettings) {
             notificationSettingsSheet
         }
-        .sheet(isPresented: $showBrowse) {
-            if coordinator.hasBrowseCatalog {
-                ActivityBrowseListView(
-                    coordinator: coordinator,
-                    onRSVPCompleted: onRSVPCompleted,
-                    onOpenGroupChat: onOpenGroupChat
-                )
-                .environment(activityFavoriteStore)
+        .sheet(isPresented: $showMineMap) {
+            NavigationStack {
+                mineMapOverlay
+                    .navigationTitle(
+                        String(localized: "activity.segment.map", defaultValue: "地图", comment: "Map segment")
+                    )
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(String(localized: "action.done", defaultValue: "完成", comment: "Done")) {
+                                showMineMap = false
+                            }
+                        }
+                    }
             }
+            .presentationDetents([.large])
         }
         .sheet(isPresented: $showCreateActivity) {
             NavigationStack {

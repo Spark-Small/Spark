@@ -23,6 +23,7 @@ public struct SparkTabDependencies: Sendable {
         communityPostsRepository: any CommunityPostsRepository,
         prepareCommunityMediaUpload: (any PrepareCommunityMediaUploadUseCaseProtocol)? = nil,
         trustRepository: any TrustRepository,
+        userContextRepository: any UserContextRepository,
         blockedActivityHostsStore: BlockedActivityHostsStore,
         peerDisplayNameStorage: (any PeerDisplayNameStoring)? = nil
     ) {
@@ -39,7 +40,8 @@ public struct SparkTabDependencies: Sendable {
         )
         profileCoordinator = ProfileCoordinator(
             trustRepository: trustRepository,
-            searchRepository: searchRepository
+            searchRepository: searchRepository,
+            userContextRepository: userContextRepository
         )
         orchestrator = SparkTabOrchestrator(
             messagesCoordinator: messagesCoordinator,

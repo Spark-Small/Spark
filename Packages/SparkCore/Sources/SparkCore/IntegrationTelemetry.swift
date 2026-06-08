@@ -21,6 +21,11 @@ public enum IntegrationTelemetry {
         logger.info("integration_match_to_activity_intent source=\(source, privacy: .public)")
     }
 
+    /// Unified profile card opened from any tab (`profile_card_open_rate`).
+    public static func profileCardOpened(userID: String) {
+        logger.info("integration_profile_card_opened user_id=\(userID, privacy: .public)")
+    }
+
     /// RSVP completed with entry source.
     public static func rsvpCompleted(source: String, activityID: String) {
         logger.info(

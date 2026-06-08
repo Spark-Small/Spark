@@ -19,6 +19,15 @@ enum CommunityFeedRelevance {
         }
     }
 
+    /// People-discovery cards from tab feed (shown on dedicated「识人」segment, not home feed).
+    static func discoverPeople(from items: [CommunityFeedItem]) -> [DiscoveredPerson] {
+        items.compactMap { item in
+            if case .peopleDiscovery(let people) = item { return people }
+            return nil
+        }
+        .flatMap { $0 }
+    }
+
     static func discoverableCommunities(
         all: [CommunitySummary],
         joined: [CommunitySummary]

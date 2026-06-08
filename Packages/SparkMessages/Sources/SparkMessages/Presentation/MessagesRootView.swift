@@ -13,6 +13,7 @@ public struct MessagesRootView: View {
     var viewModel: MessagesViewModel
     var onOpenActivity: ((String) -> Void)?
     var onProposeMeetup: ((String) -> Void)?
+    var onOpenUserProfile: ((String) -> Void)?
     var onOpenActivityTab: (() -> Void)?
     var onScannedPayload: ((String) -> Void)?
 
@@ -36,6 +37,7 @@ public struct MessagesRootView: View {
         pendingConversationThreadID: Binding<String?> = .constant(nil),
         onOpenActivity: ((String) -> Void)? = nil,
         onProposeMeetup: ((String) -> Void)? = nil,
+        onOpenUserProfile: ((String) -> Void)? = nil,
         onOpenActivityTab: (() -> Void)? = nil,
         onScannedPayload: ((String) -> Void)? = nil
     ) {
@@ -43,6 +45,7 @@ public struct MessagesRootView: View {
         _pendingConversationThreadID = pendingConversationThreadID
         self.onOpenActivity = onOpenActivity
         self.onProposeMeetup = onProposeMeetup
+        self.onOpenUserProfile = onOpenUserProfile
         self.onOpenActivityTab = onOpenActivityTab
         self.onScannedPayload = onScannedPayload
     }

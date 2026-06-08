@@ -18,7 +18,10 @@ extension ActivityRootView {
                 onOpenGroupChat: onOpenGroupChat,
                 onHostAnnouncePosted: onHostAnnouncePosted,
                 onActivityRescheduled: onActivityRescheduled,
-                onCommunityRecap: onCommunityRecap
+                onCommunityRecap: onCommunityRecap,
+                onOpenUserProfile: onOpenUserProfile,
+                canAccessHostTools: canAccessHostTools(),
+                onHostToolsLocked: onHostToolsLocked
             )
         )
     }
@@ -37,7 +40,10 @@ extension ActivityRootView {
                 onOpenGroupChat: onOpenGroupChat,
                 onHostAnnouncePosted: onHostAnnouncePosted,
                 onActivityRescheduled: onActivityRescheduled,
-                onCommunityRecap: onCommunityRecap
+                onCommunityRecap: onCommunityRecap,
+                onOpenUserProfile: onOpenUserProfile,
+                canAccessHostTools: canAccessHostTools(),
+                onHostToolsLocked: onHostToolsLocked
             )
         )
     }

@@ -65,7 +65,7 @@ Spark **无自定义字体**；全部使用 SF Pro 语义 Text Style + Dynamic T
 | 辅助 | `.caption2` / `.footnote` | regular | `.secondary` | 时间、hint、脚注 |
 
 **Tab 根导航：** 默认 `.navigationBarTitleDisplayMode(.large)` via `SparkScreenContainer`  
-**例外 — 社区 Tab：** 无中间导航标题；`ToolbarItem(.principal)` 分段「动态 \| 我的社区」  
+**例外 — 社区 Tab：** 无中间导航标题；`ToolbarItem(.principal)` 分段「动态 \| 识人 \| 我的社区」  
 **沉浸 Tab（喜欢）：** `.toolbarBackground(.hidden)` + `.black` 背景  
 **搜索：** 全局入口在「我的」Toolbar 🔍（非社区 Tab）
 
@@ -292,23 +292,24 @@ VStack
 
 **进入时：** 若有未读 → 自动 `markConversationRead`
 
-**跨 Tab：** Banner 点活动 → `onOpenActivity(activityID)` → 活动 Tab
+**跨 Tab：** Banner 点活动 → `onOpenActivity(activityID)` → 活动 Tab · DM 点头像 → `UserContextSheet`（`onOpenUserProfile`）
 
 ---
 
 ## Tab 4 — 活动 `SparkTab.activity`
 
-**需登录** · Coordinator：`ActivityCoordinator` · Premium 锁定 Browse 第 2+ 条
+**需登录** · Coordinator：`ActivityCoordinator` · 双轴 **发现 | 我的**（无 Feed Premium 行锁）
 
 ### L1-1 活动 Inbox `ActivityRootView` → `activityListShell`
 
 | 区域 | 组件 | 说明 |
 |------|------|------|
 | 容器 | `SparkScreenContainer` | 无大标题 · `navigationTitle: ""` · `.inline` |
-| **即将行动** | `InboxActionItemsListSection` | 活动邀请 / 变更 / 候补 · 左滑移除 · 数据来自 `MessagesViewModel` |
-| 工具栏 Menu | 逛局 / 提醒设置 / 创建活动 | 见 Modal |
-| 筛选 | 横向 glass chips `ActivityListFilter` | Inbox 顶栏下滚动筛选 |
-| 列表 | `ActivityInboxListRow` | RSVP 状态角标；Premium 锁定遮罩（index>0） |
+| 工具栏 principal | 分段 `Picker` | 「发现 \| 我的」 |
+| **发现** | `ActivityBrowseSegmentContent` | 内联逛局列表；主办 tier / RSVP / 分类信任信号 |
+| **我的** | Inbox 列表 + 即将行动 | `InboxActionItemsListSection`；横向 chips `ActivityListFilter` |
+| 工具栏 Menu（我的） | 地图 / 提醒设置 / 创建活动 | 地图为 Sheet（非独立 Tab） |
+| 列表行 | `ActivityInboxListRow` | RSVP 状态角标；无 Premium 遮罩 |
 
 **compact：** `NavigationStack` push 详情  
 **regular：** `NavigationSplitView` 左列表右详情
@@ -339,20 +340,12 @@ VStack
 
 | ID | 视图 | 说明 |
 |----|------|------|
-| M-1 | `ActivityBrowseListView` | **逛局**；分类+时间筛选；列表/NavigationLink 详情 |
+| M-1 | 地图 Sheet | **我的** 分段工具栏；`ActivityMapView` |
 | M-2 | `CreateActivityView` | 创建表单；可预填 `CreateActivityDraft`（匹配咖啡局） |
 | M-3 | `notificationSettingsSheet` | `ActivityNotificationSettingsSection` |
 | M-4 | `EditActivityView` | 从详情编辑 |
 
-#### M-1 Browse 布局
-
-```
-NavigationStack（Sheet）
-├── categoryPicker + timeWindowPicker
-├── List / Grid 活动条目
-│   └── Premium 锁定：模糊遮罩 + Paywall tap
-└── navigationDestination → ActivityDetailView(context: .discover)
-```
+**Premium（主办工具）：** 审批 RSVP、群发通知等 Host 操作门控 `PremiumFeature.hostTools`（非浏览行锁）
 
 **RSVP 后链路：** 群聊 Thread（`ensureActivityGroupThread`）+ 本地提醒（`ActivityNotificationRegistrar`）
 
@@ -409,6 +402,7 @@ NavigationStack + List
 |------|------|------|
 | `LoginView` | 替换 Tab  shell | 未登录 / 登出后 |
 | `PaywallView` | fullScreenCover | Premium 门控 / Deep Link `paywall` |
+| `UserContextSheet` | Sheet | 活动/社区/消息点头像 · `GET /v1/users/{id}/context` |
 | `GlobalPresentation.authRequired` | Sheet | 未登录访问需登录 Tab 或 Deep Link |
 
 ### LoginView（App 级，非 Tab）

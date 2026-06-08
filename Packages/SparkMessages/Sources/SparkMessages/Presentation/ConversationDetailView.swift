@@ -10,18 +10,20 @@ public struct ConversationDetailView: View {
     @Bindable public var viewModel: ConversationViewModel
     public var onOpenActivity: ((String) -> Void)?
     public var onProposeMeetup: ((String) -> Void)?
+    public var onOpenUserProfile: ((String) -> Void)?
 
     @State private var selectedPhotoItem: PhotosPickerItem?
-    @State private var showPeerProfile = false
 
     public init(
         viewModel: ConversationViewModel,
         onOpenActivity: ((String) -> Void)? = nil,
-        onProposeMeetup: ((String) -> Void)? = nil
+        onProposeMeetup: ((String) -> Void)? = nil,
+        onOpenUserProfile: ((String) -> Void)? = nil
     ) {
         self.viewModel = viewModel
         self.onOpenActivity = onOpenActivity
         self.onProposeMeetup = onProposeMeetup
+        self.onOpenUserProfile = onOpenUserProfile
     }
 
     public var body: some View {
@@ -57,20 +59,6 @@ public struct ConversationDetailView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 conversationNavHeader
-            }
-        }
-        .navigationDestination(isPresented: $showPeerProfile) {
-            if let peerUserID = viewModel.peerUserID {
-                ConversationPeerProfileView(
-                    peerUserID: peerUserID,
-                    peerDisplayName: viewModel.dmPartner?.displayName ?? viewModel.thread.peerDisplayName,
-                    context: viewModel.context,
-                    onOpenActivity: onOpenActivity,
-                    onProposeMeetup: {
-                        let peerName = viewModel.dmPartner?.displayName ?? viewModel.thread.peerDisplayName
-                        onProposeMeetup?(peerName)
-                    }
-                )
             }
         }
         .safeAreaInset(edge: .bottom) {
@@ -113,8 +101,8 @@ public struct ConversationDetailView: View {
     @ViewBuilder
     private var conversationNavHeader: some View {
         Button {
-            if viewModel.isDirectMessage {
-                showPeerProfile = true
+            if viewModel.isDirectMessage, let peerUserID = viewModel.peerUserID {
+                onOpenUserProfile?(peerUserID)
             }
         } label: {
             HStack(spacing: 8) {
@@ -137,7 +125,7 @@ public struct ConversationDetailView: View {
             }
         }
         .buttonStyle(.plain)
-        .disabled(!viewModel.isDirectMessage)
+        .disabled(!viewModel.isDirectMessage || onOpenUserProfile == nil)
         .accessibilityLabel(viewModel.resolvedDisplayName)
         .accessibilityHint(
             viewModel.isDirectMessage

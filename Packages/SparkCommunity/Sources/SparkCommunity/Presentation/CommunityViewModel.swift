@@ -18,6 +18,7 @@ public final class CommunityViewModel {
     public private(set) var posts: [CommunityPost] = []
     public private(set) var joinedCommunities: [CommunitySummary] = []
     public private(set) var feedItems: [CommunityFeedItem] = []
+    public private(set) var discoverPeople: [DiscoveredPerson] = []
     public private(set) var allCommunities: [CommunitySummary] = []
     public private(set) var loadState: LoadState = .idle
     public private(set) var likedPostIDs: Set<String> = []
@@ -74,6 +75,7 @@ public final class CommunityViewModel {
             posts = fetchedPosts
             joinedCommunities = tab.joinedCommunities
             allCommunities = tab.allCommunities
+            discoverPeople = CommunityFeedRelevance.discoverPeople(from: tab.feedItems)
             feedItems = CommunityFeedRelevance.homeFeedItems(
                 from: tab.feedItems,
                 joinedCommunities: tab.joinedCommunities

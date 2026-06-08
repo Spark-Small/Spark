@@ -1024,6 +1024,34 @@ Staging returns `upload_url: null` and a ready `avatar_url` (no client upload). 
 
 **Response `200`:** `{ "display_name": "...", "has_photo": true, "avatar_url": "https://..." }`
 
+### `GET /v1/users/{user_id}/context` (W8/W9)
+
+Cross-tab relationship context for `UserContextSheet` (activity attendees, community discover, messages).
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response `200`:**
+
+```json
+{
+  "context": {
+    "user_id": "u_like_1",
+    "display_name": "李明",
+    "avatar_url": "https://cdn.example.com/u1.jpg",
+    "bio": "周末徒步",
+    "trust_score": 72,
+    "has_liveness_verification": true,
+    "relationship_status": "同局认识",
+    "shared_activities": [{ "id": "act_001", "title": "周末爬香山" }],
+    "timeline": [
+      { "id": "met", "title": "共同活动", "detail": "周末爬香山" }
+    ]
+  }
+}
+```
+
+**Response `404`:** Unknown user.
+
 ### Push payloads (APNs)
 
 | `type` | Action |

@@ -49,6 +49,32 @@ public struct SparkUnifiedIdentityContent<PrimaryAction: View>: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             }
+            if !model.timelineEntries.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(
+                        String(
+                            localized: "identity.timeline.title",
+                            defaultValue: "我们怎么认识的",
+                            comment: "Relationship timeline header"
+                        )
+                    )
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    ForEach(model.timelineEntries) { entry in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.title)
+                                .font(.footnote.weight(.medium))
+                            if let detail = entry.detail, !detail.isEmpty {
+                                Text(detail)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .padding(.horizontal)
+            }
             Spacer(minLength: 0)
             primaryAction
         }

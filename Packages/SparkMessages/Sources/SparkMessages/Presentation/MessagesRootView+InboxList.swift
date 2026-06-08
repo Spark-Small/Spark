@@ -1,5 +1,6 @@
 // Module: SparkMessages — Unified inbox list and navigation.
 
+import SparkCore
 import SparkDesignSystem
 import SwiftUI
 
@@ -83,12 +84,33 @@ extension MessagesRootView {
 
     @ViewBuilder
     func matchConversationRow(conversation: ConversationPreview, match: MatchPreview) -> some View {
-        let row = Button {
-            Task { await openMatchConversation(match) }
-        } label: {
-            ConversationRow(conversation: conversation, isNewMatch: true)
+        let content = VStack(alignment: .leading, spacing: 6) {
+            Button {
+                Task { await openMatchConversation(match) }
+            } label: {
+                ConversationRow(conversation: conversation, isNewMatch: true)
+            }
+            .buttonStyle(.sparkPressable)
+
+            if let onProposeMeetup {
+                Button {
+                    IntegrationTelemetry.matchToActivityIntent(source: "inbox_match_row")
+                    onProposeMeetup(match.user.displayName)
+                } label: {
+                    Label(
+                        String(
+                            localized: "messages.match.proposeActivity",
+                            defaultValue: "推荐一局",
+                            comment: "Propose activity from match row"
+                        ),
+                        systemImage: "calendar.badge.plus"
+                    )
+                    .font(.caption.weight(.semibold))
+                    .padding(.leading, 52)
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .buttonStyle(.sparkPressable)
         .sparkFlatTabListRow()
         .messagesConversationSwipeActions(
             conversation: conversation,
@@ -105,9 +127,9 @@ extension MessagesRootView {
         )
 
         if usesSplitInbox {
-            row.tag(conversation.threadID)
+            content.tag(conversation.threadID)
         } else {
-            row
+            content
         }
     }
 
@@ -172,7 +194,8 @@ extension MessagesRootView {
         ConversationDetailView(
             viewModel: viewModel.conversationViewModel(for: thread),
             onOpenActivity: onOpenActivity,
-            onProposeMeetup: onProposeMeetup
+            onProposeMeetup: onProposeMeetup,
+            onOpenUserProfile: onOpenUserProfile
         )
         .task(id: thread.threadID) {
             guard let conversation = viewModel.conversation(for: thread.threadID),

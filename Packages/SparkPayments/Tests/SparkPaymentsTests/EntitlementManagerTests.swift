@@ -15,7 +15,7 @@ struct EntitlementManagerTests {
         }
         await manager.purchase(product)
         #expect(manager.hasPremium)
-        #expect(manager.canAccess(.fullActivityFeed))
+        #expect(manager.canAccess(.hostTools))
     }
 
     @Test func restoreSyncsEntitlements() async {
@@ -30,6 +30,6 @@ struct EntitlementManagerTests {
     @Test func canAccessFullFeedWhenNotPremium() async {
         let manager = EntitlementManager(storeKit: MockStoreKitService())
         await manager.refresh()
-        #expect(!manager.canAccess(.fullActivityFeed))
+        #expect(!manager.canAccess(.hostTools))
     }
 }

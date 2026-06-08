@@ -29,15 +29,44 @@ extension ActivityRootView {
     @ViewBuilder
     private var inboxSegmentInstantContent: some View {
         switch selectedInboxSegment {
-        case .activities:
-            activitiesSegmentContent
-        case .map:
-            inboxMapContent
+        case .discover:
+            discoverSegmentContent
+        case .mine:
+            mineSegmentContent
         }
     }
 
     @ViewBuilder
-    var activitiesSegmentContent: some View {
+    var discoverSegmentContent: some View {
+        if coordinator.hasBrowseCatalog {
+            ActivityBrowseSegmentContent(
+                viewModel: browseViewModel,
+                onSelectActivity: { activityID in
+                    openActivity(activityID)
+                }
+            )
+        } else {
+            ContentUnavailableView(
+                String(
+                    localized: "activity.discover.unavailable.title",
+                    defaultValue: "发现暂不可用",
+                    comment: "Browse catalog missing"
+                ),
+                systemImage: "calendar.badge.exclamationmark",
+                description: Text(
+                    String(
+                        localized: "activity.discover.unavailable.subtitle",
+                        defaultValue: "请稍后再试，或查看「我的」活动。",
+                        comment: "Browse unavailable hint"
+                    )
+                )
+            )
+            .sparkContentUnavailableCanvas()
+        }
+    }
+
+    @ViewBuilder
+    var mineSegmentContent: some View {
         Group {
             switch viewModel.loadState {
         case .idle, .loading:
@@ -138,13 +167,13 @@ extension ActivityRootView {
         } actions: {
             if coordinator.hasBrowseCatalog {
                 Button {
-                    showBrowse = true
+                    selectedInboxSegment = .discover
                 } label: {
                     Text(
                         String(
-                            localized: "activity.browse.entry",
-                            defaultValue: "逛局",
-                            comment: "Browse public activities"
+                            localized: "activity.discover.entry",
+                            defaultValue: "去发现",
+                            comment: "Switch to discover segment"
                         )
                     )
                 }
@@ -162,7 +191,7 @@ extension ActivityRootView {
         .sparkContentUnavailableCanvas()
     }
 
-    var inboxMapContent: some View {
+    var mineMapOverlay: some View {
         ActivityInboxMapView(
             activities: viewModel.filteredItems,
             onOpenActivity: { activityID in

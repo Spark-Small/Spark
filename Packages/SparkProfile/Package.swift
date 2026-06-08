@@ -12,6 +12,7 @@ let package = Package(
     dependencies: [
         .package(path: "../SparkCore"),
         .package(path: "../SparkDesignSystem"),
+        .package(path: "../SparkNetworking"),
         .package(path: "../SparkTrust"),
         .package(path: "../SparkSearch"),
         .package(path: "../SparkPayments"),
@@ -23,6 +24,7 @@ let package = Package(
             dependencies: [
                 "SparkCore",
                 "SparkDesignSystem",
+                "SparkNetworking",
                 "SparkTrust",
                 "SparkSearch",
                 "SparkPayments",
