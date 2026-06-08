@@ -84,9 +84,10 @@ struct MessagesViewModelTests {
         viewModel.graduateMatch(match, to: threadID)
 
         #expect(viewModel.unmessagedMatches.contains { $0.id == match.id } == false)
+        // REASONING: Other unmessaged matches may still show pending rows; only this match should graduate.
         #expect(
             viewModel.dmConversations.contains {
-                viewModel.matchPreview(for: $0) != nil
+                viewModel.matchPreview(for: $0)?.id == match.id
             } == false
         )
         let conversation = try #require(viewModel.conversation(for: threadID))
