@@ -21,15 +21,18 @@ struct ActivityInboxListRow: View {
 
             VStack(alignment: .leading, spacing: SparkLayoutMetrics.activityCardContentSpacing) {
                 titleBlock
-                scheduleLine
                 if showsBrowseTrustSignals {
-                    browseTrustLine
-                }
-                metadataLine
-                if !isLocked {
-                    attendeeFooter
+                    browseSceneLine
+                    browseHostLine
+                    browseSocialProofLine
                 } else {
-                    lockedPreviewLine
+                    scheduleLine
+                    metadataLine
+                    if !isLocked {
+                        attendeeFooter
+                    } else {
+                        lockedPreviewLine
+                    }
                 }
             }
             .padding(.horizontal, horizontalPadding)
@@ -87,35 +90,44 @@ struct ActivityInboxListRow: View {
         }
     }
 
-    private var browseTrustLine: some View {
-        HStack(spacing: 8) {
+    private var browseSceneLine: some View {
+        Text(ActivityFormatting.browseSceneLine(category: item.category, startsAt: item.startsAt))
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+    }
+
+    private var browseHostLine: some View {
+        HStack(spacing: 6) {
+            Text(
+                String(
+                    format: String(
+                        localized: "activity.browse.host.format",
+                        defaultValue: "主办 %@",
+                        comment: "Browse host; %@ is name"
+                    ),
+                    locale: .current,
+                    item.hostDisplayName.isEmpty
+                        ? String(localized: "activity.browse.host.unknown", defaultValue: "主办人", comment: "Unknown host")
+                        : item.hostDisplayName
+                )
+            )
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
             if let tierBadge = item.hostTier.localizedBadgeLabel {
                 Label(tierBadge, systemImage: "checkmark.seal.fill")
-                    .font(.caption.weight(.semibold))
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
-            }
-            if item.attendeeCount > 0 {
-                Text(
-                    String(
-                        format: String(
-                            localized: "activity.browse.going.format",
-                            defaultValue: "%lld 人已报名",
-                            comment: "Browse RSVP count; %lld is count"
-                        ),
-                        locale: .current,
-                        item.attendeeCount
-                    )
-                )
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-            }
-            if !item.category.isEmpty {
-                Text(item.category)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
             }
         }
         .lineLimit(1)
+    }
+
+    private var browseSocialProofLine: some View {
+        Text(ActivityFormatting.browseSocialProofLine(attendeeCount: item.attendeeCount))
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.tertiary)
+            .lineLimit(1)
     }
 
     private var metadataLine: some View {

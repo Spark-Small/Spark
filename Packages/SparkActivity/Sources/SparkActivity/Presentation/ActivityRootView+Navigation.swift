@@ -4,12 +4,12 @@ import SparkDesignSystem
 import SwiftUI
 
 extension ActivityRootView {
-    func activityDetailView(activityID: String) -> some View {
+    func activityDetailView(activityID: String, context: ActivityDetailContext = .inbox) -> some View {
         activityDetailChrome(
             ActivityDetailView(
                 viewModel: coordinator.makeDetailViewModel(
                     activityID: activityID,
-                    context: .inbox,
+                    context: context,
                     onRSVPCompleted: onRSVPCompleted,
                     onActivityUpdated: { _ in await viewModel.load() }
                 ),
@@ -73,7 +73,7 @@ extension ActivityRootView {
             ActivityInboxListRow(item: item, isLocked: false)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    openActivity(item.id)
+                    openActivity(item.id, context: .inbox)
                 }
                 .sparkFlatTabListRow()
                 .accessibilityAddTraits(.isButton)
@@ -95,11 +95,14 @@ extension ActivityRootView {
         }
     }
 
-    func openActivity(_ activityID: String) {
+    func openActivity(_ activityID: String, context: ActivityDetailContext? = nil) {
+        let resolved = context ?? (selectedInboxSegment == .discover ? .discover : .inbox)
+        let route = ActivityDetailRoute(activityID: activityID, context: resolved)
         if usesSplitLayout {
             selectedActivityID = activityID
+            selectedDetailRoute = route
         } else {
-            navigationPath.append(activityID)
+            navigationPath.append(route)
         }
     }
 }

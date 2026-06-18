@@ -9,7 +9,7 @@ public final class MockAuthService: AuthService, @unchecked Sendable {
     private let sessionStore: AuthSessionStore
     private let tokenProvider: KeychainAccessTokenProvider
     public var simulatedDelayNanoseconds: UInt64 = 200_000_000
-    private var registeredEmails: Set<String> = []
+    private var pendingOTPs: [String: String] = [:]
 
     public init(sessionStore: AuthSessionStore, tokenProvider: KeychainAccessTokenProvider) {
         self.sessionStore = sessionStore
@@ -39,22 +39,43 @@ public final class MockAuthService: AuthService, @unchecked Sendable {
         let localPart = email.split(separator: "@").first.map(String.init) ?? "user"
         let session = AuthSession(userID: UserID(localPart), accessToken: "mock-email-token")
         try await persist(session)
-        registeredEmails.insert(email.lowercased())
         return session
     }
 
-    public func signUpWithEmail(email: String, password: String, displayName: String) async throws -> AuthSession {
+    public func requestPhoneOTP(phoneNumber: String) async throws {
         try await sleepIfNeeded()
-        guard email.contains("@") else { throw AuthError.invalidEmail }
-        guard password.count >= 6 else { throw AuthError.invalidCredentials }
-        guard !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw AuthError.invalidCredentials
+        let phone = PhoneNumberValidator.normalizedDigits(phoneNumber)
+        guard PhoneNumberValidator.isValidCNMobile(phone) else {
+            throw AuthError.invalidPhone
         }
-        let normalized = email.lowercased()
-        guard !registeredEmails.contains(normalized) else { throw AuthError.emailAlreadyRegistered }
-        registeredEmails.insert(normalized)
-        let localPart = email.split(separator: "@").first.map(String.init) ?? "user"
-        let session = AuthSession(userID: UserID(localPart), accessToken: "mock-signup-token")
+        // REASONING: Mock OTP for demos; staging uses server-generated codes.
+        pendingOTPs[phone] = "123456"
+    }
+
+    public func signInWithThirdParty(_ credential: ThirdPartyOAuthCredential) async throws -> AuthSession {
+        try await sleepIfNeeded()
+        guard credential.authorizationCode.isEmpty == false else {
+            throw AuthError.thirdPartySignInFailed(credential.provider)
+        }
+        let session = AuthSession(
+            userID: UserID("\(credential.provider.rawValue)-mock-user"),
+            accessToken: "mock-\(credential.provider.rawValue)-token"
+        )
+        try await persist(session)
+        return session
+    }
+
+    public func signInWithPhoneOTP(phoneNumber: String, code: String) async throws -> AuthSession {
+        try await sleepIfNeeded()
+        let phone = PhoneNumberValidator.normalizedDigits(phoneNumber)
+        guard PhoneNumberValidator.isValidCNMobile(phone) else {
+            throw AuthError.invalidPhone
+        }
+        guard code.count >= 4, pendingOTPs[phone] == code else {
+            throw AuthError.invalidOTP
+        }
+        pendingOTPs.removeValue(forKey: phone)
+        let session = AuthSession(userID: UserID("phone-\(phone.suffix(4))"), accessToken: "mock-phone-token")
         try await persist(session)
         return session
     }
@@ -62,6 +83,11 @@ public final class MockAuthService: AuthService, @unchecked Sendable {
     public func requestPasswordReset(email: String) async throws {
         try await sleepIfNeeded()
         guard email.contains("@") else { throw AuthError.invalidEmail }
+    }
+
+    public func clearLocalSession() async throws {
+        try await sessionStore.clear()
+        try await tokenProvider.clear()
     }
 
     public func signOut() async throws {

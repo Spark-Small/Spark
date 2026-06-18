@@ -31,6 +31,32 @@ extension ActivityDetailLoadedList {
         .padding(.top, ActivityDetailMeetupLayout.contentSpacing)
     }
 
+    // MARK: - Browse decision strip (discover / external entry)
+
+    @ViewBuilder
+    func meetupBrowseDecisionStrip(activity: ActivityDetail) -> some View {
+        if viewModel.context == .discover || viewModel.context == .externalEntry {
+            VStack(alignment: .leading, spacing: 6) {
+                Label {
+                    Text(ActivityFormatting.browseDecisionRulesLine)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                } icon: {
+                    Image(systemName: "checkmark.shield.fill")
+                        .foregroundStyle(.secondary)
+                }
+
+                Text(ActivityFormatting.browseSocialProofLine(attendeeCount: activity.attendeeCount))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, ActivityDetailMeetupLayout.horizontalPadding)
+            .padding(.top, ActivityDetailMeetupLayout.contentSpacing)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
     // MARK: - Host (Meetup: Hosted by …)
 
     @ViewBuilder
@@ -61,6 +87,23 @@ extension ActivityDetailLoadedList {
                     Text(tierBadge)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
+                }
+
+                if viewModel.context == .discover || viewModel.context == .externalEntry,
+                   !viewModel.hostOtherActivities.isEmpty {
+                    Text(
+                        String(
+                            format: String(
+                                localized: "activity.browse.host.events.format",
+                                defaultValue: "已主办 %lld 场活动",
+                                comment: "Host event count; %lld is count"
+                            ),
+                            locale: .current,
+                            viewModel.hostOtherActivities.count + 1
+                        )
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
                 } else if activity.rsvpStatus == .host {
                     Text(
                         String(

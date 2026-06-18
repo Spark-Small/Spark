@@ -1,7 +1,6 @@
-// Module: SparkAuth — Password reset request screen.
+// Module: SparkAuth — Password reset request screen (system Form).
 
 import SparkDesignSystem
-import SparkPersistence
 import SwiftUI
 
 public struct ForgotPasswordView: View {
@@ -12,26 +11,24 @@ public struct ForgotPasswordView: View {
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SparkLayoutMetrics.matchCardPadding) {
-                fieldsCard
-                if viewModel.passwordResetSent {
-                    sentConfirmation
-                }
-                resetButton
+        Form {
+            emailSection
+            if viewModel.passwordResetSent {
+                confirmationSection
             }
-            .padding(SparkLayoutMetrics.matchCardPadding)
+            submitSection
         }
-        .background(.background)
-        .sparkDismissesKeyboardOnScroll()
+        .sparkAuthFormChrome()
+        .sparkAuthReadableFormWidth()
         .navigationTitle(
-            String(localized: "auth.forgotPassword.title", defaultValue: "找回密码", comment: "Forgot password title")
+            String(localized: "auth.forgotPassword.title", defaultValue: "忘记密码", comment: "Forgot password title")
         )
         .navigationBarTitleDisplayMode(.inline)
+        .authFailureAlert(viewModel: viewModel, context: .passwordReset)
     }
 
-    private var fieldsCard: some View {
-        VStack(alignment: .leading, spacing: SparkLayoutMetrics.sectionVerticalPadding) {
+    private var emailSection: some View {
+        Section {
             TextField(
                 String(localized: "auth.login.email", defaultValue: "邮箱", comment: "Email field"),
                 text: $viewModel.passwordResetEmail
@@ -40,7 +37,10 @@ public struct ForgotPasswordView: View {
             .keyboardType(.emailAddress)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
-
+            .submitLabel(.go)
+            .sparkAuthFormCredentialRow()
+            .onSubmit { Task { await viewModel.requestPasswordResetTapped() } }
+        } footer: {
             Text(
                 String(
                     localized: "auth.forgotPassword.footer",
@@ -48,51 +48,58 @@ public struct ForgotPasswordView: View {
                     comment: "Forgot password footer"
                 )
             )
-            .font(.footnote)
+        }
+    }
+
+    private var confirmationSection: some View {
+        Section {
+            Label(
+                String(
+                    localized: "auth.forgotPassword.sent",
+                    defaultValue: "重置说明已发送，请查收邮件",
+                    comment: "Reset sent"
+                ),
+                systemImage: "envelope.badge"
+            )
             .foregroundStyle(.secondary)
         }
-        .padding(SparkLayoutMetrics.standardHorizontalPadding)
-        .sparkGlassSurface(RoundedRectangle.sparkCard)
     }
 
-    private var sentConfirmation: some View {
-        Label(
-            String(
-                localized: "auth.forgotPassword.sent",
-                defaultValue: "重置说明已发送，请查收邮件",
-                comment: "Reset sent"
-            ),
-            systemImage: "envelope.badge"
-        )
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(SparkLayoutMetrics.standardHorizontalPadding)
-        .sparkGlassSurface(RoundedRectangle.sparkCard)
-    }
-
-    private var resetButton: some View {
-        Button(
-            String(
-                localized: "auth.forgotPassword.button",
-                defaultValue: "发送重置说明",
-                comment: "Send reset"
-            )
-        ) {
-            Task { await viewModel.requestPasswordResetTapped() }
+    private var submitSection: some View {
+        Section {
+            Button {
+                Task { await viewModel.requestPasswordResetTapped() }
+            } label: {
+                Group {
+                    if viewModel.isRequestingPasswordReset {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text(
+                            String(
+                                localized: "auth.forgotPassword.button",
+                                defaultValue: "发送重置说明",
+                                comment: "Send reset"
+                            )
+                        )
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+            .disabled(!viewModel.canRequestPasswordReset || viewModel.isRequestingPasswordReset)
+            .sparkAuthFormPrimaryRow()
+            .sparkMinimumTouchTarget()
         }
-        .buttonStyle(.borderedProminent)
-        .frame(maxWidth: .infinity)
-        .sparkMinimumTouchTarget()
-        .disabled(!viewModel.canRequestPasswordReset || viewModel.isRequestingPasswordReset)
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationStack {
-        ForgotPasswordView(viewModel: AuthViewModel(authService: MockAuthService(
-            sessionStore: AuthSessionStore(),
-            tokenProvider: KeychainAccessTokenProvider()
-        )))
+        ForgotPasswordView(viewModel: AuthPreviewSupport.viewModel())
     }
 }
+#endif

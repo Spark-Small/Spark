@@ -36,6 +36,11 @@ struct ContentView: View {
         .environment(router)
         .environment(dependencies.entitlementManager)
         .environment(\.remoteImageCache, dependencies.remoteImageCache)
+        .task {
+            await dependencies.authSessionBroadcaster.setHandler { @MainActor in
+                await authViewModel.handleSessionInvalidated()
+            }
+        }
         .onOpenURL { url in
             router.handle(url: url, isAuthenticated: authViewModel.isAuthenticated)
         }

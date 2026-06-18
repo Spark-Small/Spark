@@ -14,7 +14,7 @@ Staging REST MVP aligned with [docs/API_CONTRACT.md](../../docs/API_CONTRACT.md)
 
 ## iOS Live endpoints (all implemented)
 
-- **Auth:** session, email, register, password-reset, apple, sign-out, account/delete
+- **Auth:** session, email, phone OTP, password-reset, apple, sign-out, account/delete
 - **Community:** feed, posts, **media/stage**, replies, report
 - **Messages:** inbox, unread-count, threads, messages, read, activity-threads, direct-threads
 - **Activities:** feed, **browse**, create, detail, patch, rsvp, waitlist, promote, cancel, report, announce, feedback

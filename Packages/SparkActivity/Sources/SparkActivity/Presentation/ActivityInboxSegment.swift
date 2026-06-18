@@ -19,8 +19,8 @@ enum ActivityInboxSegment: String, CaseIterable, Identifiable, Sendable {
         case .mine:
             String(
                 localized: "activity.segment.mine",
-                defaultValue: "我的",
-                comment: "Personal activity inbox segment"
+                defaultValue: "我的行程",
+                comment: "Personal activity itinerary segment"
             )
         }
     }

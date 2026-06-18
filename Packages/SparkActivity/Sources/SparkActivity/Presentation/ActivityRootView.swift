@@ -11,6 +11,7 @@ public struct ActivityRootView: View {
     @State var viewModel: ActivityViewModel
     @State var navigationPath = NavigationPath()
     @State var selectedActivityID: String?
+    @State var selectedDetailRoute: ActivityDetailRoute?
 
     let coordinator: ActivityCoordinator
     let onRSVPCompleted: ((ActivityDetail) async -> Void)?
@@ -146,9 +147,7 @@ public struct ActivityRootView: View {
         .sheet(isPresented: $showMineMap) {
             NavigationStack {
                 mineMapOverlay
-                    .navigationTitle(
-                        String(localized: "activity.segment.map", defaultValue: "地图", comment: "Map segment")
-                    )
+                    .navigationTitle(ActivityMapPresentation.itinerary.navigationTitle)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {

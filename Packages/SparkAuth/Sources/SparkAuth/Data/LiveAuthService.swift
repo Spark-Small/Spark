@@ -66,19 +66,60 @@ public struct LiveAuthService: AuthService, Sendable {
         }
     }
 
-    public func signUpWithEmail(email: String, password: String, displayName: String) async throws -> AuthSession {
-        let body = try JSONEncoder().encode(
-            EmailSignUpRequestDTO(email: email, password: password, displayName: displayName)
-        )
+    public func requestPhoneOTP(phoneNumber: String) async throws {
+        let phone = PhoneNumberValidator.normalizedDigits(phoneNumber)
+        guard PhoneNumberValidator.isValidCNMobile(phone) else {
+            throw AuthError.invalidPhone
+        }
+        let body = try JSONEncoder().encode(PhoneOTPRequestDTO(phone: phone))
         do {
-            let dto: AuthResponseDTO = try await apiClient.post("/v1/auth/register", body: body)
+            try await apiClient.post("/v1/auth/phone/otp", body: body)
+        } catch let error as AuthError {
+            throw error
+        } catch {
+            throw AuthError.underlying(map(error))
+        }
+    }
+
+    public func signInWithThirdParty(_ credential: ThirdPartyOAuthCredential) async throws -> AuthSession {
+        let path: String
+        switch credential.provider {
+        case .weChat:
+            path = "/v1/auth/wechat"
+        case .alipay:
+            path = "/v1/auth/alipay"
+        }
+        let body = try JSONEncoder().encode(ThirdPartySignInRequestDTO(code: credential.authorizationCode))
+        do {
+            let dto: AuthResponseDTO = try await apiClient.post(path, body: body)
             let session = AuthSession(userID: UserID(dto.userId), accessToken: dto.accessToken)
             try await persist(session)
             return session
-        } catch let error as AppError {
-            if case .server(let code, _) = error, code == 409 {
-                throw AuthError.emailAlreadyRegistered
-            }
+        } catch let error as AppError where error == .unauthorized {
+            throw AuthError.thirdPartySignInFailed(credential.provider)
+        } catch let error as AuthError {
+            throw error
+        } catch {
+            throw AuthError.underlying(map(error))
+        }
+    }
+
+    public func signInWithPhoneOTP(phoneNumber: String, code: String) async throws -> AuthSession {
+        let phone = PhoneNumberValidator.normalizedDigits(phoneNumber)
+        guard PhoneNumberValidator.isValidCNMobile(phone) else {
+            throw AuthError.invalidPhone
+        }
+        let body = try JSONEncoder().encode(PhoneSignInRequestDTO(phone: phone, code: code))
+        do {
+            let dto: AuthResponseDTO = try await apiClient.post("/v1/auth/phone", body: body)
+            let session = AuthSession(userID: UserID(dto.userId), accessToken: dto.accessToken)
+            try await persist(session)
+            return session
+        } catch let error as AppError where error == .unauthorized {
+            throw AuthError.invalidOTP
+        } catch let error as AuthError {
+            throw error
+        } catch {
             throw AuthError.underlying(map(error))
         }
     }
@@ -92,6 +133,11 @@ public struct LiveAuthService: AuthService, Sendable {
         } catch {
             throw AuthError.underlying(map(error))
         }
+    }
+
+    public func clearLocalSession() async throws {
+        try await sessionStore.clear()
+        try await tokenProvider.clear()
     }
 
     public func signOut() async throws {

@@ -19,9 +19,41 @@
 
 Cursor rules: `.cursor/rules/ios-product-philosophy.mdc` (always), `ios-liquid-glass.mdc`, `ios-foundation.mdc`.
 
-**UI 实现 Skill：** `.cursor/skills/spark-ui-spec/SKILL.md` — 生成/审查 Spark SwiftUI 页面时优先加载，并按 `references/` 下对应 Tab 规范输出。
+## Agent skills
 
-**产品设计 Skill：** `.cursor/skills/ios-product-design/SKILL.md` — 设计/规格/PRD/HIG 合规/功能规划时加载；产出 PRD、UX 流、组件清单与 Cursor 实现 Prompt。
+### Issue tracker
+
+GitHub issues on **Spark-Small/Spark** (`gh` CLI). See [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
+
+### Triage labels
+
+Five-role vocabulary for `/triage`. See [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
+
+### Domain docs
+
+Single-context repo — use `docs/ARCHITECTURE.md`, `docs/DESIGN_PHILOSOPHY.md`, `docs/adr/`. See [docs/agents/domain.md](docs/agents/domain.md).
+
+### [mattpocock/skills](https://github.com/mattpocock/skills) (skills.sh)
+
+Canonical copy: [`skills/`](skills/) · Cursor: [`.cursor/skills/`](.cursor/skills/) (symlinks). Update: `npx skills@latest update -p`.
+
+| Skill | Use when |
+|-------|----------|
+| `setup-matt-pocock-skills` | First-time or tracker/label/domain config change |
+| `tdd` | Red-green-refactor feature or bugfix |
+| `diagnose` | Hard bugs / performance regressions |
+| `grill-with-docs` | Stress-test a plan against domain docs + ADRs |
+| `grill-me` | Interview-style plan alignment (no doc writes) |
+| `to-prd` / `to-issues` | Turn context into PRD or vertical-slice GitHub issues |
+| `triage` | Issue intake and AFK-ready labeling |
+| `improve-codebase-architecture` | Deepening / module boundary review |
+| `zoom-out` | Unfamiliar code area — system context |
+| `review` | Standards + spec review since a branch point |
+
+**Spark UI skills** (project-specific, when present under `.cursor/skills/`):
+
+- `spark-ui-spec` — SwiftUI 实现/审查 Tab 页面
+- `ios-product-design` — PRD、UX 流、HIG 合规
 
 ## Do not
 

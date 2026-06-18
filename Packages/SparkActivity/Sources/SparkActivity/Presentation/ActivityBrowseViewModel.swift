@@ -21,6 +21,7 @@ public final class ActivityBrowseViewModel {
     var selectedCategory: String? {
         didSet {
             guard selectedCategory != oldValue else { return }
+            IntegrationTelemetry.browseCategorySelected(selectedCategory ?? "all")
             Task { await reload() }
         }
     }
@@ -35,7 +36,9 @@ public final class ActivityBrowseViewModel {
     static let categoryOptions: [String?] = [
         nil,
         String(localized: "activity.category.event", defaultValue: "活动", comment: "Activity category"),
-        String(localized: "activity.category.social", defaultValue: "社交", comment: "Social category")
+        String(localized: "activity.category.social", defaultValue: "社交", comment: "Social category"),
+        String(localized: "activity.category.outdoor", defaultValue: "户外", comment: "Outdoor category"),
+        String(localized: "activity.category.coffee", defaultValue: "咖啡", comment: "Coffee category")
     ]
 
     private let fetchBrowsePage: any FetchActivityBrowsePageUseCaseProtocol

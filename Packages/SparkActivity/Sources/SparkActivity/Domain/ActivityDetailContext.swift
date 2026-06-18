@@ -3,7 +3,7 @@
 import Foundation
 
 /// Drives invite-friends CTA vs inbox list entry.
-public enum ActivityDetailContext: Sendable, Equatable {
+public enum ActivityDetailContext: Sendable, Equatable, Hashable {
     /// Opened from Activity tab list.
     case inbox
     /// Universal link / search (path B entry without a dedicated tab).

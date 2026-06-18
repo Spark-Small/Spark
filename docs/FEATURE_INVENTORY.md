@@ -85,14 +85,19 @@ Data          →  DTO, Live*, Mock*, Mapper
 |------|------|-----|
 | Sign in with Apple | ✅ | `POST /v1/auth/apple` |
 | 邮箱 + 密码登录 | ✅ | `POST /v1/auth/email` |
-| 邮箱注册 | ✅ | `POST /v1/auth/register` |
+| 手机号 + 验证码登录 | ✅ | `POST /v1/auth/phone/otp` · `POST /v1/auth/phone` |
+| 手机验证码登录（新号自动注册） | ✅ | `POST /v1/auth/phone/otp` · `POST /v1/auth/phone` |
 | 忘记密码 | ✅（Staging 204 stub） | `POST /v1/auth/password-reset` |
 | 会话恢复 | ✅ Keychain | `GET /v1/auth/session` |
 | 登出 | ✅ | `POST /v1/auth/sign-out` |
 | 账号注销 | ✅ Profile 二次确认 | `POST /v1/auth/account/delete` |
 | 登录态门控 | ✅ Tab / Deep Link | — |
+| 微信 / 支付宝登录 | ✅ Mock + Staging API | `POST /v1/auth/wechat` · `/v1/auth/alipay` · MODULE-H SDK 生产待接入 |
+| 登录合规勾选 | ✅ | `LoginLegalConsentSection` · 协议 / 隐私 Link |
+| 全局 401 登出 | ✅ | `UnauthorizedSessionInterceptor` → `handleSessionInvalidated()` |
+| 登录埋点 | ✅ OSLog | `AuthTelemetry`（无 PII） |
 
-**UseCases:** `RestoreSession`, `SignInWithApple`, `SignInWithEmail`, `SignUpWithEmail`, `RequestPasswordReset`, `SignOut`, `DeleteAccount`
+**UseCases:** `RestoreSession`, `SignInWithApple`, `SignInWithEmail`, `RequestPhoneOTP`, `SignInWithPhoneOTP`, `SignInWithThirdParty`, `ClearLocalSession`, `RequestPasswordReset`, `SignOut`, `DeleteAccount`
 
 ---
 
@@ -255,7 +260,7 @@ Data          →  DTO, Live*, Mock*, Mapper
 
 | 域 | 主要端点 |
 |----|----------|
-| Auth | session, email, **register**, **password-reset**, apple, sign-out, **account/delete** |
+| Auth | session, email, phone OTP, **password-reset**, apple, sign-out, **account/delete** |
 | Messages | inbox, threads, messages, read, action-items, direct/activity threads |
 | Activities | feed, browse, CRUD, RSVP, waitlist, announce, feedback, report |
 | Community | feed, communities, posts, **media/stage**, replies, **report** |
@@ -275,12 +280,13 @@ Data          →  DTO, Live*, Mock*, Mapper
 
 ## 7. UseCase 完整列表（Domain 层）
 
-### SparkAuth（7）
+### SparkAuth（8）
 
 - `RestoreSessionUseCase`
 - `SignInWithAppleUseCase`
 - `SignInWithEmailUseCase`
-- `SignUpWithEmailUseCase`
+- `RequestPhoneOTPUseCase`
+- `SignInWithPhoneOTPUseCase`
 - `RequestPasswordResetUseCase`
 - `SignOutUseCase`
 - `DeleteAccountUseCase`

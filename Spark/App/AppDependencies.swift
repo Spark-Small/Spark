@@ -19,6 +19,7 @@ public struct AppDependencies {
     public let apiConfiguration: APIConfiguration
     public let tokenProvider: KeychainAccessTokenProvider
     public let sessionStore: AuthSessionStore
+    public let authSessionBroadcaster: AuthSessionInvalidationBroadcaster
     public let httpClient: HTTPClient
     public let apiClient: APIClient
     public let authService: any AuthService
@@ -41,6 +42,7 @@ public struct AppDependencies {
         apiConfiguration: APIConfiguration,
         tokenProvider: KeychainAccessTokenProvider,
         sessionStore: AuthSessionStore,
+        authSessionBroadcaster: AuthSessionInvalidationBroadcaster,
         httpClient: HTTPClient,
         apiClient: APIClient,
         authService: any AuthService,
@@ -61,6 +63,7 @@ public struct AppDependencies {
         self.apiConfiguration = apiConfiguration
         self.tokenProvider = tokenProvider
         self.sessionStore = sessionStore
+        self.authSessionBroadcaster = authSessionBroadcaster
         self.httpClient = httpClient
         self.apiClient = apiClient
         self.authService = authService

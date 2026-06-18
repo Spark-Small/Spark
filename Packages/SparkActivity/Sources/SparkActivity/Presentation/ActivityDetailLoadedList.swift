@@ -27,6 +27,7 @@ struct ActivityDetailLoadedList: View {
             VStack(alignment: .leading, spacing: 0) {
                 meetupCoverSection(activity: activity)
                 meetupTitleSection(activity: activity)
+                meetupBrowseDecisionStrip(activity: activity)
                 meetupHostSection(activity: activity)
                 meetupGroupSection(activity: activity)
                 meetupScheduleLocationSection(activity: activity)

@@ -70,31 +70,6 @@ extension SparkMainTabView {
             inviteCandidates: {
                 ActivityInviteCandidateBuilder.from(messagesViewModel: messagesViewModel)
             },
-            actionItemsInset: { filter in
-                if filter.showsInboxActionItems,
-                   let messagesViewModel,
-                   !messagesViewModel.actionItems.isEmpty {
-                    InboxActionItemsListSection(
-                        items: messagesViewModel.actionItems,
-                        onInviteAccept: { invite in
-                            Task { await messagesViewModel.handleInviteResponse(invite: invite, accept: true) }
-                        },
-                        onInviteDecline: { invite in
-                            Task { await messagesViewModel.handleInviteResponse(invite: invite, accept: false) }
-                        },
-                        onOpenActivity: { activityID in
-                            router.openActivityDetail(activityID: activityID)
-                        },
-                        onDismiss: { item in
-                            Task { await messagesViewModel.dismissActionItem(id: item.id) }
-                        }
-                    )
-                }
-            },
-            requestActivityIDs: { filter in
-                guard filter == .pendingReply, let messagesViewModel else { return [] }
-                return messagesViewModel.actionItems.coveredActivityIDs
-            }
         )
         .tabItem { tabLabel(for: .activity) }
         .tag(SparkTab.activity)

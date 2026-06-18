@@ -57,6 +57,7 @@ const state = {
   communityReports: [],
   inboxActionItems: [],
   dismissedInboxActionIds: new Set(),
+  phoneOtps: {},
   dirty: createDirtyTracker(),
 };
 
@@ -289,28 +290,6 @@ app.post("/v1/auth/email", (req, res) => {
   res.json({ access_token: tokenFor(user.user_id), user_id: user.user_id });
 });
 
-app.post("/v1/auth/register", (req, res) => {
-  const { email, password, display_name: displayName } = req.body || {};
-  const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
-  if (!normalizedEmail || !password || !displayName?.trim()) {
-    return err(res, 400, "invalid_request", "Missing required fields");
-  }
-  if (password.length < 6) {
-    return err(res, 400, "invalid_request", "Password too short");
-  }
-  if (state.users[normalizedEmail]) {
-    return err(res, 409, "email_already_registered", "Email already registered");
-  }
-  const userId = `u_${Date.now()}`;
-  state.users[normalizedEmail] = {
-    password,
-    user_id: userId,
-    name: displayName.trim(),
-  };
-  touchMeta();
-  res.json({ access_token: tokenFor(userId), user_id: userId });
-});
-
 app.post("/v1/auth/password-reset", (req, res) => {
   const { email } = req.body || {};
   if (!email || typeof email !== "string" || !email.includes("@")) {
@@ -318,6 +297,42 @@ app.post("/v1/auth/password-reset", (req, res) => {
   }
   // REASONING: Staging stub — always 204 to avoid email enumeration.
   res.status(204).send();
+});
+
+function normalizeCNPhone(raw) {
+  const digits = String(raw || "").replace(/\D/g, "");
+  if (digits.length !== 11 || digits[0] !== "1") return null;
+  return digits;
+}
+
+app.post("/v1/auth/phone/otp", (req, res) => {
+  const phone = normalizeCNPhone(req.body?.phone);
+  if (!phone) {
+    return err(res, 400, "invalid_phone", "Valid CN mobile required");
+  }
+  // REASONING: Staging fixed OTP for integration tests; production uses SMS provider.
+  state.phoneOtps[phone] = { code: "123456", expiresAt: Date.now() + 10 * 60 * 1000 };
+  res.status(204).send();
+});
+
+app.post("/v1/auth/phone", (req, res) => {
+  const phone = normalizeCNPhone(req.body?.phone);
+  const { code } = req.body || {};
+  if (!phone || !code) {
+    return err(res, 400, "invalid_request", "Missing phone or code");
+  }
+  const entry = state.phoneOtps[phone];
+  if (!entry || entry.code !== String(code) || entry.expiresAt < Date.now()) {
+    return err(res, 401, "invalid_otp", "Invalid or expired OTP");
+  }
+  delete state.phoneOtps[phone];
+  const userId = `u_phone_${phone.slice(-4)}`;
+  const key = `phone:${phone}`;
+  if (!state.users[key]) {
+    state.users[key] = { user_id: userId, name: `用户${phone.slice(-4)}` };
+    touchMeta();
+  }
+  res.json({ access_token: tokenFor(userId), user_id: userId });
 });
 
 app.get("/v1/auth/session", requireAuth, (req, res) => {
@@ -386,6 +401,27 @@ app.post("/v1/auth/apple", (_req, res) => {
   const userId = "u_staging_1";
   res.json({ access_token: tokenFor(userId), user_id: userId });
 });
+
+function thirdPartyOAuthSignIn(providerKey, displayName) {
+  return (req, res) => {
+    const code = typeof req.body?.code === "string" ? req.body.code.trim() : "";
+    if (!code) {
+      return err(res, 400, "invalid_request", "Missing code");
+    }
+    const userId = `u_${providerKey}_staging`;
+    const key = `${providerKey}:${code.slice(0, 32)}`;
+    if (!state.users[key]) {
+      state.users[key] = { user_id: userId, name: displayName };
+    }
+    res.json({
+      access_token: tokenFor(state.users[key].user_id),
+      user_id: state.users[key].user_id,
+    });
+  };
+}
+
+app.post("/v1/auth/wechat", thirdPartyOAuthSignIn("wechat", "微信用户"));
+app.post("/v1/auth/alipay", thirdPartyOAuthSignIn("alipay", "支付宝用户"));
 
 // --- Messages ---
 

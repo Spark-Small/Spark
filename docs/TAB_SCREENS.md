@@ -298,18 +298,19 @@ VStack
 
 ## Tab 4 — 活动 `SparkTab.activity`
 
-**需登录** · Coordinator：`ActivityCoordinator` · 双轴 **发现 | 我的**（无 Feed Premium 行锁）
+**需登录** · Coordinator：`ActivityCoordinator` · 双轴 **发现 | 我的行程**（无 Feed Premium 行锁）
 
 ### L1-1 活动 Inbox `ActivityRootView` → `activityListShell`
 
 | 区域 | 组件 | 说明 |
 |------|------|------|
 | 容器 | `SparkScreenContainer` | 无大标题 · `navigationTitle: ""` · `.inline` |
-| 工具栏 principal | 分段 `Picker` | 「发现 \| 我的」 |
-| **发现** | `ActivityBrowseSegmentContent` | 内联逛局列表；主办 tier / RSVP / 分类信任信号 |
-| **我的** | Inbox 列表 + 即将行动 | `InboxActionItemsListSection`；横向 chips `ActivityListFilter` |
-| 工具栏 Menu（我的） | 地图 / 提醒设置 / 创建活动 | 地图为 Sheet（非独立 Tab） |
-| 列表行 | `ActivityInboxListRow` | RSVP 状态角标；无 Premium 遮罩 |
+| 工具栏 principal | 分段 `Picker` | 「发现 \| 我的行程」 |
+| **发现** | `ActivityBrowseSegmentContent` | 子分段 **列表 \| 活动地图**；场景 chips + 时间窗；`ActivityBrowseViewModel.items` 驱动地图 |
+| **发现列表行** | `ActivityInboxListRow`（`showsBrowseTrustSignals`） | 三行：场景 · 主办+tier · 报名/早鸟 |
+| **我的行程** | Inbox 列表 only | 横向 chips `ActivityListFilter`；**无** Action Items（待办留在消息 Tab） |
+| 工具栏 Menu（我的行程） | 我的行程地图 / 提醒设置 / 创建活动 | 行程地图 Sheet 仅已报名/主办活动 |
+| 列表行（行程） | `ActivityInboxListRow` | RSVP 状态角标；无 Premium 遮罩 |
 
 **compact：** `NavigationStack` push 详情  
 **regular：** `NavigationSplitView` 左列表右详情
@@ -323,7 +324,8 @@ VStack
 | Section | 内容 |
 |---------|------|
 | 生命周期 | 已取消/已结束标签 |
-| 邀请信息 | 主办 · Bio · 时间 · 地点 · 人数 |
+| 发现决策条 | `meetupBrowseDecisionStrip`（`.discover` / `.externalEntry`）· 公开报名 · 群聊 · 可取消 |
+| 邀请信息 | 主办 · tier · 已主办 N 场 · Bio · 时间 · 地点 · 人数 |
 | 主办其他活动 | NavigationLink 列表 |
 | 参与者 | 头像列表 · Host 视角管理 |
 | 活动说明 | 描述正文 |
@@ -408,12 +410,10 @@ NavigationStack + List
 ### LoginView（App 级，非 Tab）
 
 ```
-NavigationStack + ScrollView
-├── 标题 / 说明
-├── 邮箱 + 密码
-├── 登录按钮
-├── Sign in with Apple
-└── #if DEBUG 演示 hint
+NavigationStack + 系统分组 Form（可滚动）
+├── 大标题「Nexus」
+├── Section: slogan · 手机号 / 验证码 · footer 忘记密码
+└── Section: 登录 · 取消
 ```
 
 ---
@@ -848,14 +848,31 @@ List .sparkScreenListStyle
 ### LoginView（非 Tab）
 
 ```
-NavigationStack large title「登录 Spark」
-ScrollView VStack spacing 24 pad 24
-  subtitle .title3.semibold
-  email/password fields spacing 12 · glass sparkCard
-  登录 borderedProminent
-  divider
-  Sign in with Apple
-背景 .background · sparkDismissesKeyboardOnScroll
+NavigationStack large title「Nexus」
+Form · scrollDismissesKeyboard · sparkAuthLoginScreenBackground（全屏 systemGroupedBackground）
+├─ Section header: slogan · subheadline secondary
+│   LoginPhoneNumberFieldRow · LoginOTPFieldRow（otpSent）
+│   Section footer: 忘记密码 · body tint · 左对齐
+Section: 登录 borderedProminent · 取消 bordered（sparkAuthFormPrimaryRow）
+safeAreaInset bottom: 第三方圆形登录 ×3 · 44pt · H20
+```
+
+| 元素 | 字号 | 尺寸 / 间距 | 备注 |
+|------|------|-------------|------|
+| 大标题 | `.largeTitle` bold | 系统导航 | `Nexus` |
+| Slogan | `.subheadline` secondary | Section header | `textCase(nil)` |
+| 手机号 / 验证码 | 系统 Form 默认 | grouped inset 行 | 原生 `TextField` |
+| 忘记密码 | `.body` tint | Section footer 左对齐 | `navigationDestination` |
+| 登录 / 取消 | borderedProminent / bordered | Form Section · capsule large · minH 44 | 紧跟凭证区；可随 Form 滚动 |
+| 第三方登录 | 圆形 `sparkGlassControl` | 44×44 · spacing 20 · pad V12 H16 | Apple · 支付宝 · 微信 · `sparkPressable` |
+
+### ForgotPasswordView（Login 子页）
+
+```
+NavigationStack inline title「忘记密码」
+Form · sparkAuthFormChrome
+  邮箱 · 发送重置说明 · 成功 Label
+共享 AuthViewModel · authFailureAlert
 ```
 
 ### PaywallView

@@ -19,6 +19,7 @@ let package = Package(
         .target(
             name: "SparkAuth",
             dependencies: ["SparkCore", "SparkNetworking", "SparkPersistence", "SparkDesignSystem"],
+            resources: [.process("Resources")],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
                 .enableExperimentalFeature("StrictConcurrency")

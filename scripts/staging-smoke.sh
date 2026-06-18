@@ -54,15 +54,30 @@ curl -sf -H "$AUTH" "$BASE_URL/v1/community/communities/cm_hike" \
   | python3 -c 'import sys,json; c=json.load(sys.stdin)["community"]; assert c["id"]=="cm_hike"; print("community ok")'
 pass "community detail cm_hike"
 
-echo "== auth register + password-reset =="
-SMOKE_EMAIL="smoke_$(date +%s)@staging.test"
-curl -sf -X POST "$BASE_URL/v1/auth/register" -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$SMOKE_EMAIL\",\"password\":\"staging123\",\"display_name\":\"Smoke\"}" \
-  | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d.get("access_token"); print("register ok")'
-pass "auth register"
+echo "== auth phone OTP + password-reset =="
+SMOKE_PHONE="1881234$(date +%s | tail -c 4)"
+curl -sf -o /dev/null -X POST -H 'Content-Type: application/json' \
+  -d "{\"phone\":\"$SMOKE_PHONE\"}" \
+  "$BASE_URL/v1/auth/phone/otp"
+pass "auth phone otp"
+SMOKE_TOKEN=$(curl -sf -X POST -H 'Content-Type: application/json' \
+  -d "{\"phone\":\"$SMOKE_PHONE\",\"code\":\"123456\"}" \
+  "$BASE_URL/v1/auth/phone" \
+  | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])')
+[[ -n "$SMOKE_TOKEN" ]] && pass "auth phone sign-in" || fail "auth phone sign-in"
 curl -sf -o /dev/null -w "%{http_code}" -X POST -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$SMOKE_EMAIL\"}" \
+  -d '{"email":"reset@staging.test"}' \
   "$BASE_URL/v1/auth/password-reset" | grep -q 204 && pass "password-reset" || fail "password-reset"
+WECHAT_TOKEN=$(curl -sf -X POST -H 'Content-Type: application/json' \
+  -d '{"code":"staging_wechat_oauth_code"}' \
+  "$BASE_URL/v1/auth/wechat" \
+  | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])')
+[[ -n "$WECHAT_TOKEN" ]] && pass "auth wechat sign-in" || fail "auth wechat sign-in"
+ALIPAY_TOKEN=$(curl -sf -X POST -H 'Content-Type: application/json' \
+  -d '{"code":"staging_alipay_oauth_code"}' \
+  "$BASE_URL/v1/auth/alipay" \
+  | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])')
+[[ -n "$ALIPAY_TOKEN" ]] && pass "auth alipay sign-in" || fail "auth alipay sign-in"
 
 echo "== community media stage =="
 MEDIA_URL=$(curl -sf -X POST -H "$AUTH" -H 'Content-Type: application/json' \

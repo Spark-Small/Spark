@@ -8,7 +8,10 @@ extension ActivityRootView {
         NavigationStack(path: $navigationPath) {
             activityListShell
                 .navigationDestination(for: ActivityItem.self) { item in
-                    activityDetailView(activityID: item.id)
+                    activityDetailView(activityID: item.id, context: .inbox)
+                }
+                .navigationDestination(for: ActivityDetailRoute.self) { route in
+                    activityDetailView(activityID: route.activityID, context: route.context)
                 }
                 .navigationDestination(for: String.self) { activityID in
                     externalActivityDetailView(activityID: activityID)
@@ -25,8 +28,10 @@ extension ActivityRootView {
                     max: 400
                 )
         } detail: {
-            if let activityID = selectedActivityID {
-                activityDetailView(activityID: activityID)
+            if let route = selectedDetailRoute {
+                activityDetailView(activityID: route.activityID, context: route.context)
+            } else if let activityID = selectedActivityID {
+                activityDetailView(activityID: activityID, context: .inbox)
             } else {
                 ContentUnavailableView {
                     Label(
@@ -76,11 +81,7 @@ extension ActivityRootView {
                             showMineMap = true
                         } label: {
                             Label(
-                                String(
-                                    localized: "activity.segment.map",
-                                    defaultValue: "地图",
-                                    comment: "Activity inbox map segment"
-                                ),
+                                ActivityMapPresentation.itinerary.navigationTitle,
                                 systemImage: "map"
                             )
                         }
@@ -164,14 +165,13 @@ extension ActivityRootView {
         let listItems = ActivityInboxListPresentation.listItems(
             from: viewModel.filteredItems,
             filter: viewModel.listFilter,
-            requestActivityIDs: requestActivityIDs(viewModel.listFilter)
+            requestActivityIDs: []
         )
         Group {
             if let selection {
                 List(selection: selection) {
                     ActivityInboxFilterBar(selection: $viewModel.listFilter)
                         .sparkInboxSearchListRow()
-                    actionItemsInset(viewModel.listFilter)
                     ForEach(listItems, id: \.id) { item in
                         let index = viewModel.items.firstIndex(where: { $0.id == item.id }) ?? 0
                         activityRow(for: item, at: index)
@@ -182,7 +182,6 @@ extension ActivityRootView {
                 List {
                     ActivityInboxFilterBar(selection: $viewModel.listFilter)
                         .sparkInboxSearchListRow()
-                    actionItemsInset(viewModel.listFilter)
                     ForEach(listItems, id: \.id) { item in
                         let index = viewModel.items.firstIndex(where: { $0.id == item.id }) ?? 0
                         activityRow(for: item, at: index)

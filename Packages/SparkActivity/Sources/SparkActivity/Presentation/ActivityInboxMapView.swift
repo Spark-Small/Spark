@@ -6,6 +6,7 @@ import SwiftUI
 
 struct ActivityInboxMapView: View {
     let activities: [ActivityItem]
+    var presentation: ActivityMapPresentation = .itinerary
     var onOpenActivity: ((String) -> Void)?
 
     @State private var pins: [ActivityMapPin] = []
@@ -43,19 +44,9 @@ struct ActivityInboxMapView: View {
                     )
             case .empty:
                 ContentUnavailableView(
-                    String(
-                        localized: "activity.inboxMap.empty.title",
-                        defaultValue: "暂无可显示的活动地点",
-                        comment: "Inbox map empty"
-                    ),
+                    presentation.emptyTitle,
                     systemImage: "mappin.slash",
-                    description: Text(
-                        String(
-                            localized: "activity.inboxMap.empty.subtitle",
-                            defaultValue: "活动需要填写地点后才会出现在地图上。",
-                            comment: "Inbox map empty hint"
-                        )
-                    )
+                    description: Text(presentation.emptySubtitle)
                 )
             case .failure:
                 SparkRetryUnavailableView(

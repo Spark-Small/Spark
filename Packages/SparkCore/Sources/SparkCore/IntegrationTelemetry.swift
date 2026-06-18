@@ -11,6 +11,16 @@ public enum IntegrationTelemetry {
         logger.info("integration_browse_impression count=\(itemCount, privacy: .public)")
     }
 
+    /// Discover segment toggled between list and map.
+    public static func discoverViewMode(_ mode: String) {
+        logger.info("integration_discover_view_mode mode=\(mode, privacy: .public)")
+    }
+
+    /// Browse category chip selected.
+    public static func browseCategorySelected(_ category: String) {
+        logger.info("integration_browse_category category=\(category, privacy: .public)")
+    }
+
     /// User RSVP'd from browse discover path.
     public static func browseToRSVP(activityID: String) {
         logger.info("integration_browse_to_rsvp activity_id=\(activityID, privacy: .public)")

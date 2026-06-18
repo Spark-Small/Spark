@@ -21,6 +21,56 @@ cloudrun/**/node_modules/
 .agents/
 skills-lock.json
 
+# skills.sh per-agent symlink folders (canonical copy: /skills)
+.adal/
+.aider-desk/
+.augment/
+.autohand/
+.bob/
+.claude/
+.codeartsdoer/
+.codebuddy/
+.codemaker/
+.codestudio/
+.commandcode/
+.continue/
+.cortex/
+.crush/
+.devin/
+.factory/
+.forge/
+.goose/
+.hermes/
+.iflow/
+.inferencesh/
+.jazz/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.lingma/
+.mcpjam/
+.moxby/
+.mux/
+.neovate/
+.ona/
+.openhands/
+.pi/
+.pochi/
+.qoder/
+.qwen/
+.reasonix/
+.roo/
+.rovodev/
+.tabnine/
+.terramind/
+.tinycloud/
+.trae/
+.vibe/
+.windsurf/
+.zencoder/
+/data/
+
 # CocoaPods (not used; guard against accidental add)
 Pods/
 Podfile.lock
@@ -38,10 +88,12 @@ Secrets/
 .LSOverride
 Thumbs.db
 
-# Editor (commit shared Cursor rules; ignore local IDE state)
+# Editor (commit shared Cursor rules + project skills; ignore local IDE state)
 .cursor/*
 !.cursor/rules/
 !.cursor/rules/**
+!.cursor/skills/
+!.cursor/skills/**
 .vscode/
 *.swp
 *~

@@ -1,178 +1,161 @@
-// Module: SparkAuth — Login screen (Apple + email).
+// Module: SparkAuth — Login screen (phone-first · native Form · CN).
 
-import AuthenticationServices
 import SparkDesignSystem
-import SparkPersistence
 import SwiftUI
 
 public struct LoginView: View {
     @Bindable var viewModel: AuthViewModel
+    @State private var isForgotPasswordPresented = false
+    @FocusState private var focusedField: LoginFormField?
+    /// Optional hook when `LoginView` is presented modally; root shell omits this.
+    private let onDismiss: (() -> Void)?
 
-    public init(viewModel: AuthViewModel) {
+    public init(viewModel: AuthViewModel, onDismiss: (() -> Void)? = nil) {
         self.viewModel = viewModel
+        self.onDismiss = onDismiss
     }
 
     public var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    header
-                    emailFields
-                    signInButton
-                    divider
-                    appleButton
-                    authLinks
+            loginForm
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    LoginThirdPartySignInBar(
+                        viewModel: viewModel,
+                        isDisabled: !viewModel.canUseThirdPartySignIn
+                    )
                 }
-                .padding(24)
-            }
-            .navigationTitle(
-                String(localized: "auth.login.title", defaultValue: "登录 Spark", comment: "Login title")
+                .navigationTitle(
+                    String(localized: "auth.login.brand", defaultValue: "Nexus", comment: "Login brand name")
+                )
+                .navigationBarTitleDisplayMode(.large)
+                .authFailureAlert(viewModel: viewModel)
+                .navigationDestination(isPresented: $isForgotPasswordPresented) {
+                    ForgotPasswordView(viewModel: viewModel)
+                }
+        }
+        .sparkAuthLoginScreenBackground()
+    }
+
+    private var loginForm: some View {
+        Form {
+            legalConsentSection
+            credentialsSection
+            LoginPrimaryActionSection(
+                isSigningIn: viewModel.isSigningIn,
+                isCancelEnabled: !viewModel.isSigningIn && !viewModel.isRequestingOTP,
+                isLoginEnabled: viewModel.canSignInWithOTP,
+                onLogin: { Task { await viewModel.signInWithPhoneOTPTapped() } },
+                onCancel: cancelLoginTapped
             )
-            .navigationBarTitleDisplayMode(.large)
-            .background(.background)
-            .sparkDismissesKeyboardOnScroll()
-            .alert(
-                String(localized: "auth.login.error.title", defaultValue: "无法登录", comment: "Login error title"),
-                isPresented: failureBinding
-            ) {
-                Button(String(localized: "auth.login.error.ok", defaultValue: "好", comment: "OK")) {
-                    viewModel.dismissFailure()
-                }
-            } message: {
-                if case let .failure(message) = viewModel.authState {
-                    Text(message)
-                }
-            }
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .onChange(of: viewModel.otpSent) { _, sent in
+            if sent { focusedField = .otp }
         }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(
-                String(
-                    localized: "auth.login.subtitle",
-                    defaultValue: "登录后继续活动与消息",
-                    comment: "Login subtitle"
+    // MARK: - Sections
+
+    private func cancelLoginTapped() {
+        focusedField = nil
+        viewModel.cancelLoginTapped()
+        onDismiss?()
+    }
+
+    private var legalConsentSection: some View {
+        Section {
+            LoginLegalConsentSection(
+                isAccepted: Binding(
+                    get: { viewModel.hasAcceptedLegalTerms },
+                    set: { viewModel.setLegalTermsAccepted($0) }
                 )
             )
-            .font(.title3.weight(.semibold))
-#if DEBUG
+        } footer: {
             Text(
                 String(
-                    localized: "auth.login.hint",
-                    defaultValue: "演示环境可使用任意有效邮箱与 6 位以上密码",
-                    comment: "Login hint"
+                    localized: "auth.login.newUser.footer",
+                    defaultValue: "未注册手机号验证通过后将自动创建账号",
+                    comment: "New user auto-registration note"
+                )
+            )
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    private var credentialsSection: some View {
+        Section {
+            LoginPhoneNumberFieldRow(viewModel: viewModel, focusedField: $focusedField)
+
+            if viewModel.otpSent {
+                LoginOTPFieldRow(viewModel: viewModel, focusedField: $focusedField)
+            }
+        } header: {
+            Text(
+                String(
+                    localized: "auth.login.slogan",
+                    defaultValue: "有些关系，从一句你好开始",
+                    comment: "Login brand slogan"
                 )
             )
             .font(.subheadline)
             .foregroundStyle(.secondary)
+            .textCase(nil)
+        } footer: {
+            forgotPasswordLink
+        }
+    }
+
+    private var forgotPasswordLink: some View {
+        Button {
+            isForgotPasswordPresented = true
+        } label: {
+            Text(
+                String(
+                    localized: "auth.login.forgotPassword",
+                    defaultValue: "忘记密码",
+                    comment: "Forgot password link"
+                )
+            )
+            .font(.body)
+            .foregroundStyle(.tint)
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityHint(
+            String(
+                localized: "auth.login.forgotPassword.hint",
+                defaultValue: "通过邮箱找回密码",
+                comment: "Forgot password link hint"
+            )
+        )
+    }
+}
+
+#if DEBUG
+#Preview("Phone login") {
+    LoginView(viewModel: AuthPreviewSupport.viewModel())
+}
+
+#Preview("Phone login — OTP expanded") {
+    LoginView(viewModel: AuthPreviewSupport.phoneOTPExpandedViewModel())
+}
+
+#Preview("Login — Dark") {
+    LoginView(viewModel: AuthPreviewSupport.viewModel())
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Login — Accessibility XL") {
+    LoginView(viewModel: AuthPreviewSupport.viewModel())
+        .environment(\.sizeCategory, .accessibilityExtraExtraLarge)
+}
+
+#Preview("Login — Signing in") {
+    LoginView(viewModel: AuthPreviewSupport.signingInViewModel())
+}
+
+#Preview("Login — Failure") {
+    LoginView(viewModel: AuthPreviewSupport.failureViewModel())
+}
 #endif
-        }
-    }
-
-    private var emailFields: some View {
-        VStack(spacing: 12) {
-            TextField(
-                String(localized: "auth.login.email", defaultValue: "邮箱", comment: "Email field"),
-                text: $viewModel.email
-            )
-            .textContentType(.emailAddress)
-            .keyboardType(.emailAddress)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-
-            SecureField(
-                String(localized: "auth.login.password", defaultValue: "密码", comment: "Password field"),
-                text: $viewModel.password
-            )
-            .textContentType(.password)
-        }
-        .padding(16)
-        .sparkGlassSurface(RoundedRectangle.sparkCard)
-    }
-
-    private var signInButton: some View {
-        Button(
-            String(localized: "auth.login.email.button", defaultValue: "邮箱登录", comment: "Email sign in")
-        ) {
-            Task { await viewModel.signInWithEmailTapped() }
-        }
-        .buttonStyle(.borderedProminent)
-        .disabled(viewModel.email.isEmpty || viewModel.password.count < 6)
-    }
-
-    private var divider: some View {
-        HStack {
-            Rectangle().frame(height: 1).foregroundStyle(.tertiary)
-            Text(String(localized: "auth.login.or", defaultValue: "或", comment: "Divider"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Rectangle().frame(height: 1).foregroundStyle(.tertiary)
-        }
-    }
-
-    private var appleButton: some View {
-        SignInWithAppleButton(.signIn) { request in
-            request.requestedScopes = [.fullName, .email]
-        } onCompletion: { result in
-            Task { await viewModel.handleAppleSignInResult(result) }
-        }
-        .signInWithAppleButtonStyle(.black)
-        .frame(height: 48)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .accessibilityLabel(
-            String(localized: "auth.login.apple", defaultValue: "通过 Apple 登录", comment: "Apple sign in")
-        )
-    }
-
-    private var authLinks: some View {
-        VStack(spacing: 12) {
-            NavigationLink {
-                SignUpView(viewModel: viewModel)
-            } label: {
-                Text(
-                    String(
-                        localized: "auth.login.signUpLink",
-                        defaultValue: "没有账号？注册",
-                        comment: "Sign up link"
-                    )
-                )
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-
-            NavigationLink {
-                ForgotPasswordView(viewModel: viewModel)
-            } label: {
-                Text(
-                    String(
-                        localized: "auth.login.forgotPasswordLink",
-                        defaultValue: "忘记密码",
-                        comment: "Forgot password link"
-                    )
-                )
-                .font(.subheadline)
-            }
-            .buttonStyle(.borderless)
-        }
-    }
-
-    private var failureBinding: Binding<Bool> {
-        Binding(
-            get: {
-                if case .failure = viewModel.authState { return true }
-                return false
-            },
-            set: { isPresented in
-                if !isPresented { viewModel.dismissFailure() }
-            }
-        )
-    }
-}
-
-#Preview {
-    let store = AuthSessionStore()
-    let tokenProvider = KeychainAccessTokenProvider()
-    let service = MockAuthService(sessionStore: store, tokenProvider: tokenProvider)
-    LoginView(viewModel: AuthViewModel(authService: service))
-}

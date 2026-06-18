@@ -34,9 +34,13 @@ enum CompositionRoot {
     private static func assemble(apiConfiguration: APIConfiguration) -> AppDependencies {
         let tokenProvider = KeychainAccessTokenProvider()
         let sessionStore = AuthSessionStore()
+        let authSessionBroadcaster = AuthSessionInvalidationBroadcaster()
         let httpClient = HTTPClient(
             configuration: apiConfiguration,
-            interceptors: [AuthorizationInterceptor(tokenProvider: tokenProvider)]
+            interceptors: [
+                AuthorizationInterceptor(tokenProvider: tokenProvider),
+                UnauthorizedSessionInterceptor(invalidator: authSessionBroadcaster),
+            ]
         )
         let apiClient = APIClient(http: httpClient)
         let authService = makeAuthService(
@@ -53,12 +57,18 @@ enum CompositionRoot {
             apiClient: apiClient
         )
         let remoteImageCache = RemoteImageCache(httpClient: httpClient, configuration: .thumbnail)
-        let authCoordinator = AuthCoordinator(authService: authService)
+        let authCoordinator = AuthCoordinator(
+            authService: authService,
+            thirdPartySignInCoordinator: ThirdPartySignInCoordinator(
+                policy: apiConfiguration.usesMockBackend ? .mockOAuthCode : .stagingOAuthCode
+            )
+        )
 
         return AppDependencies(
             apiConfiguration: apiConfiguration,
             tokenProvider: tokenProvider,
             sessionStore: sessionStore,
+            authSessionBroadcaster: authSessionBroadcaster,
             httpClient: httpClient,
             apiClient: apiClient,
             authService: authService,

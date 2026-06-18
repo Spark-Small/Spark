@@ -42,7 +42,7 @@ extension ActivityRootView {
             ActivityBrowseSegmentContent(
                 viewModel: browseViewModel,
                 onSelectActivity: { activityID in
-                    openActivity(activityID)
+                    openActivity(activityID, context: .discover)
                 }
             )
         } else {
@@ -56,7 +56,7 @@ extension ActivityRootView {
                 description: Text(
                     String(
                         localized: "activity.discover.unavailable.subtitle",
-                        defaultValue: "请稍后再试，或查看「我的」活动。",
+                        defaultValue: "请稍后再试，或查看「我的行程」。",
                         comment: "Browse unavailable hint"
                     )
                 )
@@ -94,7 +94,7 @@ extension ActivityRootView {
     private var loadedActivitiesListContent: some View {
         @Bindable var viewModel = viewModel
         Group {
-            if viewModel.showsFilterEmptyState, !hasVisibleInboxRequests(for: viewModel.listFilter) {
+            if viewModel.showsFilterEmptyState {
                 activityFilterEmptyContent
             } else if usesSplitLayout {
                 activityInboxList(selection: $selectedActivityID)
@@ -105,10 +105,6 @@ extension ActivityRootView {
         .refreshable {
             await viewModel.load()
         }
-    }
-
-    private func hasVisibleInboxRequests(for filter: ActivityListFilter) -> Bool {
-        filter.showsInboxActionItems && !requestActivityIDs(filter).isEmpty
     }
 
     private var activityFilterEmptyContent: some View {
@@ -153,8 +149,8 @@ extension ActivityRootView {
     private var activitiesEmptyState: some View {
         ContentUnavailableView {
             Label(
-                String(localized: "activity.empty.title", defaultValue: "暂无活动", comment: "Empty activity list"),
-                systemImage: "calendar.badge.clock"
+                String(localized: "activity.empty.title", defaultValue: "暂无行程", comment: "Empty itinerary list"),
+                systemImage: "figure.walk"
             )
         } description: {
             Text(
@@ -194,8 +190,9 @@ extension ActivityRootView {
     var mineMapOverlay: some View {
         ActivityInboxMapView(
             activities: viewModel.filteredItems,
+            presentation: .itinerary,
             onOpenActivity: { activityID in
-                openActivity(activityID)
+                openActivity(activityID, context: .inbox)
             }
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -40,6 +40,58 @@ enum ActivityFormatting {
         startsAt.formatted(.dateTime.day())
     }
 
+    /// Discover browse scene line (category · weekday time).
+    static func browseSceneLine(category: String, startsAt: Date?) -> String {
+        var parts: [String] = []
+        let trimmedCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedCategory.isEmpty {
+            parts.append(trimmedCategory)
+        }
+        if let startsAt {
+            let when = startsAt.formatted(
+                .dateTime.weekday(.wide).hour().minute().locale(Locale.current)
+            )
+            parts.append(when)
+        }
+        if parts.isEmpty {
+            return String(
+                localized: "activity.browse.scene.fallback",
+                defaultValue: "公开活动",
+                comment: "Browse scene fallback"
+            )
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// Browse social proof when headcount is zero.
+    static func browseSocialProofLine(attendeeCount: Int) -> String {
+        if attendeeCount > 0 {
+            return String(
+                format: String(
+                    localized: "activity.browse.going.format",
+                    defaultValue: "%lld 人已报名",
+                    comment: "Browse RSVP count; %lld is count"
+                ),
+                locale: .current,
+                attendeeCount
+            )
+        }
+        return String(
+            localized: "activity.browse.earlyBird",
+            defaultValue: "新开局 · 早鸟",
+            comment: "Zero RSVP social proof"
+        )
+    }
+
+    /// Public signup expectations for discover detail decision strip.
+    static var browseDecisionRulesLine: String {
+        String(
+            localized: "activity.browse.decision.rules",
+            defaultValue: "公开报名 · 活动群聊 · 可随时取消",
+            comment: "Browse decision rules"
+        )
+    }
+
     /// Meetup browse card schedule (e.g. FRI, JUN 12 • 7:00 PM to 9:00 PM).
     static func listCardScheduleLine(startsAt: Date, endsAt: Date? = nil) -> String {
         let weekday = startsAt.formatted(.dateTime.weekday(.abbreviated)).uppercased()

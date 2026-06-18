@@ -1,16 +1,19 @@
-// Module: SparkActivity — Inline browse list for Activity Tab discover segment (W7).
+// Module: SparkActivity — Inline browse list + map for Activity Tab discover segment.
 
+import SparkCore
 import SparkDesignSystem
 import SwiftUI
 
 struct ActivityBrowseSegmentContent: View {
     @Bindable var viewModel: ActivityBrowseViewModel
+    @State private var viewMode: ActivityDiscoverViewMode = .list
     let onSelectActivity: (String) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: 8) {
-                categoryPicker
+                discoverViewModePicker
+                sceneCategoryChips
                 timeWindowPicker
             }
             .padding(.horizontal, SparkLayoutMetrics.standardHorizontalPadding)
@@ -20,6 +23,13 @@ struct ActivityBrowseSegmentContent: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .task { await viewModel.loadIfNeeded() }
+        .onChange(of: viewMode) { _, mode in
+            IntegrationTelemetry.discoverViewMode(mode.rawValue)
+            // REASONING: Map users usually care about near-term events; default to this week.
+            if mode == .map, viewModel.selectedTimeWindow == .all {
+                viewModel.selectedTimeWindow = .thisWeek
+            }
+        }
     }
 
     @ViewBuilder
@@ -46,7 +56,7 @@ struct ActivityBrowseSegmentContent: View {
                 description: Text(
                     String(
                         localized: "activity.browse.empty.subtitle",
-                        defaultValue: "稍后再来看看，或创建自己的活动。",
+                        defaultValue: "换个分类或时间试试，或创建自己的活动。",
                         comment: "Browse empty hint"
                     )
                 )
@@ -64,40 +74,85 @@ struct ActivityBrowseSegmentContent: View {
                 Task { await viewModel.reload() }
             }
         case .loaded:
-            List(viewModel.items) { item in
-                ActivityInboxListRow(item: item, isLocked: false, showsBrowseTrustSignals: true)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        onSelectActivity(item.id)
-                    }
-                    .sparkFlatTabListRow()
-                    .accessibilityAddTraits(.isButton)
-                    .onAppear {
-                        Task { await viewModel.loadMoreIfNeeded(currentItemID: item.id) }
-                    }
-            }
-            .sparkFlatTabListStyle()
-            .refreshable {
-                await viewModel.reload()
+            if viewMode == .map {
+                ActivityInboxMapView(
+                    activities: viewModel.items,
+                    presentation: .discover,
+                    onOpenActivity: onSelectActivity
+                )
+            } else {
+                browseList
             }
         }
     }
 
-    private var categoryPicker: some View {
-        Picker(
-            String(localized: "activity.browse.category", defaultValue: "分类", comment: "Category filter"),
-            selection: Binding(
-                get: { viewModel.selectedCategory },
-                set: { viewModel.selectedCategory = $0 }
-            )
-        ) {
-            Text(String(localized: "activity.browse.category.all", defaultValue: "全部", comment: "All categories"))
-                .tag(String?.none)
-            ForEach(Array(ActivityBrowseViewModel.categoryOptions.compactMap { $0 }.enumerated()), id: \.offset) { _, category in
-                Text(category).tag(Optional(category))
+    private var browseList: some View {
+        List(viewModel.items) { item in
+            ActivityInboxListRow(item: item, isLocked: false, showsBrowseTrustSignals: true)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onSelectActivity(item.id)
+                }
+                .sparkFlatTabListRow()
+                .accessibilityAddTraits(.isButton)
+                .onAppear {
+                    Task { await viewModel.loadMoreIfNeeded(currentItemID: item.id) }
+                }
+        }
+        .sparkFlatTabListStyle()
+        .refreshable {
+            await viewModel.reload()
+        }
+    }
+
+    private var discoverViewModePicker: some View {
+        Picker("", selection: $viewMode) {
+            ForEach(ActivityDiscoverViewMode.allCases) { mode in
+                Text(mode.localizedTitle).tag(mode)
             }
         }
         .pickerStyle(.segmented)
+        .accessibilityLabel(
+            String(
+                localized: "activity.discover.mode.a11y",
+                defaultValue: "发现视图",
+                comment: "Discover view mode picker"
+            )
+        )
+    }
+
+    private var sceneCategoryChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                sceneChip(
+                    title: String(
+                        localized: "activity.browse.category.all",
+                        defaultValue: "全部",
+                        comment: "All categories"
+                    ),
+                    isSelected: viewModel.selectedCategory == nil
+                ) {
+                    viewModel.selectedCategory = nil
+                }
+                ForEach(Array(ActivityBrowseViewModel.categoryOptions.compactMap { $0 }.enumerated()), id: \.offset) { _, category in
+                    sceneChip(title: category, isSelected: viewModel.selectedCategory == category) {
+                        viewModel.selectedCategory = category
+                    }
+                }
+            }
+        }
+    }
+
+    private func sceneChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(isSelected ? .semibold : .regular))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .sparkGlassControl(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private var timeWindowPicker: some View {

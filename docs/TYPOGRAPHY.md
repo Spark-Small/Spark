@@ -168,6 +168,20 @@ Text(metadata)
 
 见 [TAB_SCREENS.md](TAB_SCREENS.md) Tab 5 L3；遵循上表语义层级。
 
+### 认证（Login / ForgotPassword）
+
+| 元素 | 样式 |
+|------|------|
+| 屏幕大标题 | `.largeTitle` bold · 品牌名 `Nexus` |
+| Slogan | `.subheadline` + `.secondary` · Section header |
+| 表单字段 | 系统 Form 默认 `.body` · grouped inset |
+| 脚注 / OTP 提示 | `.footnote` + `.secondary` |
+| 手机号发送箭头 | `.title2` hierarchical · accent |
+| 冷却倒计时 | `.subheadline` + `.secondary` · monospacedDigit |
+| 忘记密码链接 | `.body` + `.tint` | 左对齐 · 输入框下 |
+| 第三方登录图标 | `.title3` semibold · hierarchical（Apple） | 44pt 圆 · `sparkGlassControl` · spacing 20 |
+| 主按钮 | borderedProminent capsule large |
+
 ---
 
 ## PR / 审查清单

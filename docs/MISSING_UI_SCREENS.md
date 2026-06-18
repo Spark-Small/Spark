@@ -27,10 +27,10 @@
 
 | 建议页面 | 状态 | 已有底层 | 现状 | 优先级 |
 |----------|------|----------|------|--------|
-| **注册页** `SignUpView` | **已落地** | `SignUpWithEmailUseCase` · Mock + Live `/v1/auth/register` | `LoginView` → NavigationLink | P1 |
+| **注册** | **手机 OTP 即注册** | `POST /v1/auth/phone` · 无独立注册页 | 登录页验证码 | P1 |
 | **忘记密码** `ForgotPasswordView` | **已落地** | `RequestPasswordResetUseCase` · Mock + Live stub | `LoginView` → NavigationLink | P2 |
 
-**已有 UI：** `LoginView`（Apple + 邮箱 + 注册/找回密码）
+**已有 UI：** `LoginView`（手机 OTP 主路径 · 忘记密码子页）
 
 ---
 

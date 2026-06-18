@@ -14,8 +14,20 @@ public protocol SignInWithEmailUseCaseProtocol: Sendable {
     func callAsFunction(email: String, password: String) async throws -> AuthSession
 }
 
-public protocol SignUpWithEmailUseCaseProtocol: Sendable {
-    func callAsFunction(email: String, password: String, displayName: String) async throws -> AuthSession
+public protocol RequestPhoneOTPUseCaseProtocol: Sendable {
+    func callAsFunction(phoneNumber: String) async throws
+}
+
+public protocol SignInWithPhoneOTPUseCaseProtocol: Sendable {
+    func callAsFunction(phoneNumber: String, code: String) async throws -> AuthSession
+}
+
+public protocol SignInWithThirdPartyUseCaseProtocol: Sendable {
+    func callAsFunction(_ credential: ThirdPartyOAuthCredential) async throws -> AuthSession
+}
+
+public protocol ClearLocalSessionUseCaseProtocol: Sendable {
+    func callAsFunction() async throws
 }
 
 public protocol RequestPasswordResetUseCaseProtocol: Sendable {
@@ -33,7 +45,10 @@ public protocol DeleteAccountUseCaseProtocol: Sendable {
 extension RestoreSessionUseCase: RestoreSessionUseCaseProtocol {}
 extension SignInWithAppleUseCase: SignInWithAppleUseCaseProtocol {}
 extension SignInWithEmailUseCase: SignInWithEmailUseCaseProtocol {}
-extension SignUpWithEmailUseCase: SignUpWithEmailUseCaseProtocol {}
+extension RequestPhoneOTPUseCase: RequestPhoneOTPUseCaseProtocol {}
+extension SignInWithPhoneOTPUseCase: SignInWithPhoneOTPUseCaseProtocol {}
+extension SignInWithThirdPartyUseCase: SignInWithThirdPartyUseCaseProtocol {}
+extension ClearLocalSessionUseCase: ClearLocalSessionUseCaseProtocol {}
 extension RequestPasswordResetUseCase: RequestPasswordResetUseCaseProtocol {}
 extension SignOutUseCase: SignOutUseCaseProtocol {}
 extension DeleteAccountUseCase: DeleteAccountUseCaseProtocol {}

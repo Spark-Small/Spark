@@ -4,9 +4,16 @@ import Foundation
 
 public struct AuthCoordinator: Sendable {
     private let authService: any AuthService
+    private let thirdPartySignInCoordinator: ThirdPartySignInCoordinator
 
-    public init(authService: any AuthService) {
+    public init(
+        authService: any AuthService,
+        thirdPartySignInCoordinator: ThirdPartySignInCoordinator = ThirdPartySignInCoordinator(
+            policy: .mockOAuthCode
+        )
+    ) {
         self.authService = authService
+        self.thirdPartySignInCoordinator = thirdPartySignInCoordinator
     }
 
     @MainActor
@@ -15,7 +22,8 @@ public struct AuthCoordinator: Sendable {
     ) -> AuthViewModel {
         AuthViewModel(
             authService: authService,
-            appleSignInCoordinator: appleSignInCoordinator
+            appleSignInCoordinator: appleSignInCoordinator,
+            thirdPartySignInCoordinator: thirdPartySignInCoordinator
         )
     }
 }

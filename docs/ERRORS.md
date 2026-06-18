@@ -19,3 +19,4 @@
 
 - Invalid credentials → `AuthError.invalidCredentials` with localized message.
 - Apple Sign In cancel → silent return (no failure banner).
+- Authenticated `401` → `UnauthorizedSessionInterceptor` invokes `AuthSessionInvalidating`, then `AuthViewModel.handleSessionInvalidated()` clears Keychain (see `ClearLocalSessionUseCase`). Login attempts without `Authorization` header do not trigger invalidation.

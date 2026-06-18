@@ -22,13 +22,6 @@ struct AuthUseCaseTests {
         #expect(session == nil)
     }
 
-    @Test func signUpWithEmailUseCasePersistsSession() async throws {
-        let service = makeService()
-        let useCase = SignUpWithEmailUseCase(authService: service)
-        let session = try await useCase(email: "new@spark.app", password: "secret1", displayName: "Nova")
-        #expect(session.userID.rawValue == "new")
-    }
-
     @Test func requestPasswordResetUseCaseSucceedsForValidEmail() async throws {
         let service = makeService()
         try await RequestPasswordResetUseCase(authService: service)(email: "reset@spark.app")
@@ -64,5 +57,37 @@ struct AuthUseCaseTests {
         let credential = AppleSignInCredential(identityToken: Data("token".utf8), authorizationCode: nil)
         let session = try await SignInWithAppleUseCase(authService: service)(credential)
         #expect(session.userID.rawValue == "apple-mock-user")
+    }
+
+    @Test func requestPhoneOTPUseCaseSucceedsForValidPhone() async throws {
+        let service = makeService()
+        try await RequestPhoneOTPUseCase(authService: service)(phoneNumber: "18812345678")
+    }
+
+    @Test func signInWithThirdPartyUseCasePersistsSession() async throws {
+        let service = makeService()
+        let credential = ThirdPartyOAuthCredential(provider: .weChat, authorizationCode: "mock_wechat_oauth_code")
+        let session = try await SignInWithThirdPartyUseCase(authService: service)(credential)
+        #expect(session.userID.rawValue == "wechat-mock-user")
+        let restored = try await RestoreSessionUseCase(authService: service)()
+        #expect(restored?.accessToken == session.accessToken)
+    }
+
+    @Test func clearLocalSessionUseCaseClearsPersistedSession() async throws {
+        let service = makeService()
+        _ = try await SignInWithEmailUseCase(authService: service)(email: "a@b.co", password: "secret1")
+        try await ClearLocalSessionUseCase(authService: service)()
+        let restored = try await RestoreSessionUseCase(authService: service)()
+        #expect(restored == nil)
+    }
+
+    @Test func signInWithPhoneOTPUseCasePersistsSession() async throws {
+        let service = makeService()
+        try await RequestPhoneOTPUseCase(authService: service)(phoneNumber: "18812345678")
+        let session = try await SignInWithPhoneOTPUseCase(authService: service)(
+            phoneNumber: "18812345678",
+            code: "123456"
+        )
+        #expect(session.userID.rawValue == "phone-5678")
     }
 }

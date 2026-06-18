@@ -65,27 +65,7 @@ Validates/refreshes the current session.
 
 **Response `401`:** Invalid credentials → iOS `AuthError.invalidCredentials`.
 
----
-
-### `POST /v1/auth/register`
-
-Email sign-up (`SignUpWithEmailUseCase`).
-
-**Request:**
-
-```json
-{
-  "email": "user@example.com",
-  "password": "secret",
-  "display_name": "Alex"
-}
-```
-
-**Response `200`:** Same as session response.
-
-**Response `409`:** Email already registered → iOS `AuthError.emailAlreadyRegistered`.
-
-**Response `400`:** Missing or invalid fields.
+> **Note:** New accounts use `POST /v1/auth/phone` (OTP). Email registration (`/v1/auth/register`) was removed.
 
 ---
 
@@ -105,6 +85,43 @@ Request a password reset email (`RequestPasswordResetUseCase`). Staging returns 
 
 ---
 
+### `POST /v1/auth/phone/otp`
+
+Request SMS one-time password (`RequestPhoneOTPUseCase`). Staging stores a fixed code server-side.
+
+**Request:**
+
+```json
+{
+  "phone": "18812345678"
+}
+```
+
+**Response `204`:** Empty body.
+
+**Response `400`:** Invalid phone → iOS `AuthError.invalidPhone`.
+
+---
+
+### `POST /v1/auth/phone`
+
+Phone + OTP sign-in (`SignInWithPhoneOTPUseCase`).
+
+**Request:**
+
+```json
+{
+  "phone": "18812345678",
+  "code": "123456"
+}
+```
+
+**Response `200`:** Same as session response.
+
+**Response `401`:** Invalid or expired OTP → iOS `AuthError.invalidOTP`.
+
+---
+
 ### `POST /v1/auth/apple`
 
 **Request:**
@@ -117,6 +134,42 @@ Request a password reset email (`RequestPasswordResetUseCase`). Staging returns 
 ```
 
 **Response `200`:** Same as session response.
+
+---
+
+### `POST /v1/auth/wechat`
+
+WeChat OAuth code exchange (`SignInWithThirdPartyUseCase` · MODULE-H SDK supplies `code` on device).
+
+**Request:**
+
+```json
+{
+  "code": "<oauth_authorization_code>"
+}
+```
+
+**Response `200`:** Same as session response.
+
+**Response `401`:** Invalid or expired code → iOS `AuthError.thirdPartySignInFailed(.weChat)`.
+
+---
+
+### `POST /v1/auth/alipay`
+
+Alipay OAuth code exchange (`SignInWithThirdPartyUseCase`).
+
+**Request:**
+
+```json
+{
+  "code": "<oauth_authorization_code>"
+}
+```
+
+**Response `200`:** Same as session response.
+
+**Response `401`:** Invalid or expired code → iOS `AuthError.thirdPartySignInFailed(.alipay)`.
 
 ---
 
