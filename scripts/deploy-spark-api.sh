@@ -27,7 +27,7 @@ if command -v tcb >/dev/null 2>&1; then
 elif command -v cloudbase >/dev/null 2>&1; then
   deploy_with_tcb cloudbase
 else
-  printf '\n' | npx --yes @cloudbase/cli@latest tcb fn code update "$FN_NAME" \
+  printf '\n' | npx --yes -p @cloudbase/cli@latest tcb fn code update "$FN_NAME" \
     -e "$ENV_ID" \
     --dir . \
     --deployMode zip \
