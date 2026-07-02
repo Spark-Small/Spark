@@ -44,6 +44,15 @@ public struct BuddyCoordinator: Sendable {
     }
 
     @MainActor
+    public func makeReviewListViewModel(listingID: String, reviewCount: Int) -> BuddyReviewListViewModel {
+        BuddyReviewListViewModel(
+            listingID: listingID,
+            reviewCount: reviewCount,
+            fetchReviews: FetchBuddyReviewsUseCase(repository: repository)
+        )
+    }
+
+    @MainActor
     public func makeProviderHubViewModel() -> BuddyProviderHubViewModel {
         BuddyProviderHubViewModel(
             fetchStatus: FetchBuddyProviderStatusUseCase(repository: repository)

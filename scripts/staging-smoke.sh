@@ -8,6 +8,7 @@ PASSWORD="${SPARK_STAGING_PASSWORD:-staging123}"
 
 echo "== health =="
 curl -sf "$BASE_URL/health" | tee /tmp/spark-health.json
+python3 -c 'import json; h=json.load(open("/tmp/spark-health.json")); assert h.get("ok") is True; assert "apns_configured" in h; print("apns_configured=", h["apns_configured"])'
 echo
 
 TOKEN=$(curl -sf -X POST "$BASE_URL/v1/auth/email" \
@@ -86,6 +87,13 @@ MEDIA_COUNT=$(curl -sf -H "$AUTH" "$BASE_URL/v1/community/posts/$POST_ID" \
   | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["post"].get("media",[])))')
 [[ "$MEDIA_COUNT" -ge 1 ]] && pass "post media=$MEDIA_COUNT" || fail "post media missing"
 
+echo "== community moderation =="
+MOD_STATUS=$(curl -s -o /tmp/spark-mod.json -w "%{http_code}" -X POST -H "$AUTH" -H 'Content-Type: application/json' \
+  -d '{"title":"Smoke blocked","body":"加微信引流"}' \
+  "$BASE_URL/v1/community/posts")
+[[ "$MOD_STATUS" == "422" ]] && python3 -c 'import json; d=json.load(open("/tmp/spark-mod.json")); assert d["error"]["code"]=="content_rejected"; print("moderation ok")' \
+  && pass "community moderation 422" || fail "community moderation status=$MOD_STATUS"
+
 echo "== trust profile =="
 curl -sf -H "$AUTH" "$BASE_URL/v1/trust/profile" \
   | python3 -c 'import sys,json; p=json.load(sys.stdin)["profile"]; assert "trust_score" in p; print("trust ok")'
@@ -132,7 +140,7 @@ echo "== notifications stub =="
 curl -sf -X POST -H "$AUTH" -H 'Content-Type: application/json' \
   -d '{"user_id":"u_staging_1","type":"messages.new","payload":{"thread_id":"th_dm_u_like_1"}}' \
   "$BASE_URL/v1/notifications/send" \
-  | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d.get("queued") is True; print("queued ok")'
+  | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d.get("queued") is True; assert "apns_configured" in d; print("queued ok apns_configured=", d["apns_configured"])'
 pass "notifications"
 
 echo "== buddy browse =="
@@ -144,6 +152,11 @@ echo "== buddy detail =="
 curl -sf -H "$AUTH" "$BASE_URL/v1/buddies/buddy_city_1" \
   | python3 -c 'import sys,json; item=json.load(sys.stdin); assert item["id"]=="buddy_city_1"; assert item.get("reviewSnapshot"); print("buddy detail ok")'
 pass "buddy detail buddy_city_1"
+
+echo "== buddy reviews page =="
+curl -sf -H "$AUTH" "$BASE_URL/v1/buddies/buddy_city_1/reviews?page=1&page_size=10" \
+  | python3 -c 'import sys,json; d=json.load(sys.stdin); assert len(d.get("items",[]))>=3; assert d.get("totalCount",0)>=54; assert d.get("hasMore") is True; print("reviews page1=", len(d["items"]))'
+pass "buddy reviews pagination"
 
 echo "== buddy order =="
 ORDER_ID=$(curl -sf -X POST -H "$AUTH" -H 'Content-Type: application/json' \

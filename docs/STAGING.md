@@ -65,6 +65,15 @@ After login on a Staging build:
 APNs 真机：云函数配置 `APNS_*` 后消息/活动/回复会自动触发 Push（MODULE-B.4）。见 [ADR-0005](adr/0005-apns-http2-delivery.md)。
 
 ```bash
+# Upload APNs key to CloudBase (paid Team + .p8 required)
+APNS_KEY_PATH=~/AuthKey_XXX.p8 APNS_KEY_ID=XXX APNS_TEAM_ID=YYY \
+  APNS_BUNDLE_ID=com.spark.app APNS_USE_SANDBOX=true \
+  ./scripts/configure-apns-env.sh
+```
+
+Then on a physical device (Staging scheme + `SPARK_ENABLE_PUSH`): allow notifications → open app → verify `POST /v1/devices` returns `204`.
+
+```bash
 # Deploy latest spark-api, then full HTTP smoke (auth + browse + trust + recap + …)
 ./scripts/deploy-spark-api.sh
 

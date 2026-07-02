@@ -28,6 +28,6 @@
 	<key>SPARKLegalTermsURL</key>
 	<string>https://spark.app/legal/terms</string>
 	<key>SPARKICPRecordNumber</key>
-	<string>ICP 备案号待更新</string>
+	<string>$(SPARK_ICP_RECORD_NUMBER)</string>
 </dict>
 </plist>

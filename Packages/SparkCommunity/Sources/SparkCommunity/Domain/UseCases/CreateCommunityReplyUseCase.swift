@@ -10,6 +10,7 @@ struct CreateCommunityReplyUseCase: Sendable {
     }
 
     func callAsFunction(postID: String, body: String) async throws -> CommunityPostReply {
-        try await repository.createReply(postID: postID, body: body)
+        try CommunityContentModeration.validateReplyBody(body)
+        return try await repository.createReply(postID: postID, body: body)
     }
 }

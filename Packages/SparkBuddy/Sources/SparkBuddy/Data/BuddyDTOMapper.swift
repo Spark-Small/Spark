@@ -50,6 +50,19 @@ enum BuddyDTOMapper {
         return BuddyListPage(items: items, nextCursor: dto.nextCursor)
     }
 
+    static func reviewPage(from dto: BuddyReviewPageDTO) -> BuddyReviewPage {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        let items = dto.items.map { review(from: $0, formatter: formatter) }
+        return BuddyReviewPage(
+            items: items,
+            page: dto.page,
+            pageSize: dto.pageSize,
+            totalCount: dto.totalCount,
+            hasMore: dto.hasMore
+        )
+    }
+
     static func orderConfirmation(from dto: BuddyOrderConfirmationDTO) -> BuddyOrderConfirmation {
         BuddyOrderConfirmation(
             id: dto.id,

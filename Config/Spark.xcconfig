@@ -3,5 +3,8 @@
 
 SPARK_API_BASE_URL = https://mock.spark.local
 
+// CN App Store — replace when Legal provides filing number (About → ICP 备案号).
+SPARK_ICP_RECORD_NUMBER = ICP 备案号待更新
+
 // Personal Apple ID / free team: do NOT set CODE_SIGN_ENTITLEMENTS (no Push / Associated Domains).
 // Paid Apple Developer Program: see Config/Secrets.xcconfig.example

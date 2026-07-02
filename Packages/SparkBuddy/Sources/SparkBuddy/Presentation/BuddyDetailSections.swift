@@ -285,17 +285,15 @@ struct BuddyPackagesSection: View {
 // MARK: - Reviews
 
 struct BuddyReviewSection: View {
+    let listingID: String
     let rating: Double?
     let reviewCount: Int
     let snapshot: BuddyReviewSnapshot?
+    let makeReviewListViewModel: () -> BuddyReviewListViewModel
     @State private var showAllReviews = false
 
     private var hasSummary: Bool {
         rating != nil && reviewCount > 0
-    }
-
-    private var allReviews: [BuddyReview] {
-        snapshot?.reviews ?? []
     }
 
     var body: some View {
@@ -348,7 +346,7 @@ struct BuddyReviewSection: View {
         }
         .sparkInboxModuleSurface()
         .sheet(isPresented: $showAllReviews) {
-            BuddyReviewListSheet(reviewCount: reviewCount, reviews: allReviews)
+            BuddyReviewListSheet(viewModel: makeReviewListViewModel())
         }
     }
 }

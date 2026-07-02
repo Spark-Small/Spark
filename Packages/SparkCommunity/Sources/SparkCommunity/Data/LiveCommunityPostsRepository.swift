@@ -83,24 +83,32 @@ public struct LiveCommunityPostsRepository: CommunityPostsRepository, Sendable {
                 media: Self.mediaRequestItems(from: draft.mediaItems)
             )
         )
-        let dto: CreateCommunityPostResponseDTO = try await apiClient.post(
-            CommunityAPIPath.posts,
-            body: body,
-            as: CreateCommunityPostResponseDTO.self
-        )
-        return CommunityDTOMapper.post(from: dto.post)
+        do {
+            let dto: CreateCommunityPostResponseDTO = try await apiClient.post(
+                CommunityAPIPath.posts,
+                body: body,
+                as: CreateCommunityPostResponseDTO.self
+            )
+            return CommunityDTOMapper.post(from: dto.post)
+        } catch {
+            throw CommunityAPIErrorMapping.map(error)
+        }
     }
 
     public func createReply(postID: String, body: String) async throws -> CommunityPostReply {
         let payload = try JSONEncoder().encode(
             CreateCommunityReplyRequestDTO(body: body.trimmingCharacters(in: .whitespacesAndNewlines))
         )
-        let dto: CreateCommunityReplyResponseDTO = try await apiClient.post(
-            CommunityAPIPath.replies(postID: postID),
-            body: payload,
-            as: CreateCommunityReplyResponseDTO.self
-        )
-        return CommunityDTOMapper.reply(from: dto.reply)
+        do {
+            let dto: CreateCommunityReplyResponseDTO = try await apiClient.post(
+                CommunityAPIPath.replies(postID: postID),
+                body: payload,
+                as: CreateCommunityReplyResponseDTO.self
+            )
+            return CommunityDTOMapper.reply(from: dto.reply)
+        } catch {
+            throw CommunityAPIErrorMapping.map(error)
+        }
     }
 
     public func reportPost(
@@ -128,12 +136,14 @@ public struct LiveCommunityPostsRepository: CommunityPostsRepository, Sendable {
             )
             return CommunityDTOMapper.likeResult(from: dto)
         } catch {
-            throw CommunityError.underlying(mapToAppError(error))
+            throw CommunityAPIErrorMapping.map(error)
         }
     }
 
     public func createRecapPost(_ draft: CommunityRecapDraft) async throws -> CommunityPostDetail {
         try CommunityRecapDraft.validate(draft)
+        try CommunityContentModeration.validatePublishableText(draft.postTitle)
+        try CommunityContentModeration.validatePublishableText(draft.normalizedBody)
         let body = try JSONEncoder().encode(
             CreateCommunityRecapRequestDTO(
                 title: draft.postTitle,
@@ -143,12 +153,16 @@ public struct LiveCommunityPostsRepository: CommunityPostsRepository, Sendable {
                 imageURL: draft.shareImageURL?.absoluteString
             )
         )
-        let dto: CommunityPostDetailResponseDTO = try await apiClient.post(
-            CommunityAPIPath.posts,
-            body: body,
-            as: CommunityPostDetailResponseDTO.self
-        )
-        return CommunityDTOMapper.postDetail(from: dto.post)
+        do {
+            let dto: CommunityPostDetailResponseDTO = try await apiClient.post(
+                CommunityAPIPath.posts,
+                body: body,
+                as: CommunityPostDetailResponseDTO.self
+            )
+            return CommunityDTOMapper.postDetail(from: dto.post)
+        } catch {
+            throw CommunityAPIErrorMapping.map(error)
+        }
     }
 
     private static func mediaRequestItems(
@@ -192,7 +206,7 @@ public struct LiveCommunityPostsRepository: CommunityPostsRepository, Sendable {
         do {
             return try await apiClient.get(path)
         } catch {
-            throw CommunityError.underlying(mapToAppError(error))
+            throw CommunityAPIErrorMapping.map(error)
         }
     }
 

@@ -10,6 +10,7 @@ struct CreateCommunityPostUseCase: Sendable {
     }
 
     func callAsFunction(_ draft: CreateCommunityPostDraft) async throws -> CommunityPost {
-        try await repository.createPost(draft)
+        try CommunityContentModeration.validatePostDraft(draft)
+        return try await repository.createPost(draft)
     }
 }

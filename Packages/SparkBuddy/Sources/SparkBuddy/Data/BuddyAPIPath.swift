@@ -35,6 +35,18 @@ enum BuddyAPIPath {
         return "\(buddies)/\(trimmed)"
     }
 
+    static func reviews(listingID: String, page: Int, pageSize: Int) -> String? {
+        guard let base = listing(id: listingID) else { return nil }
+        var components = URLComponents()
+        components.path = "\(base)/reviews"
+        components.queryItems = [
+            URLQueryItem(name: "page", value: String(max(1, page))),
+            URLQueryItem(name: "page_size", value: String(min(50, max(1, pageSize))))
+        ]
+        guard let path = components.string else { return nil }
+        return path.hasPrefix("/") ? String(path) : "/\(path)"
+    }
+
     static let createOrder = "/v1/buddy-orders"
     static let providerStatus = "/v1/buddy-provider/status"
     static let providerApplication = "/v1/buddy-provider/application"

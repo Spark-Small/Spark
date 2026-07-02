@@ -31,12 +31,14 @@ const {
   dismissInboxActionItem,
 } = require("./lib/messages-helpers");
 const phoneOTP = require("./lib/phone-otp");
+const { moderateFields } = require("./lib/content-moderation");
 const {
   buildBuddyListings,
   browseBuddies,
   serializeBuddyListing,
   defaultProviderStatus,
   serializeProviderStatus,
+  paginateBuddyReviews,
 } = require("./lib/buddy-helpers");
 const PORT = Number(process.env.PORT) || 9000;
 
@@ -996,6 +998,10 @@ app.post("/v1/community/posts", requireAuth, (req, res) => {
   if (kind === "activity_recap" && !activityID) {
     return err(res, 400, "invalid_request", "activity_id required for activity_recap");
   }
+  const moderation = moderateFields({ title, body });
+  if (!moderation.ok) {
+    return err(res, 422, moderation.code, moderation.message);
+  }
   state.counters.post_counter += 1;
   const id = `cp_${String(state.counters.post_counter).padStart(3, "0")}`;
   const post = {
@@ -1031,6 +1037,10 @@ app.post("/v1/community/posts/:postId/replies", requireAuth, async (req, res) =>
   if (!post) return err(res, 404, "not_found", "Post not found");
   const body = (req.body?.body || "").trim();
   if (!body) return err(res, 400, "invalid_request", "body required");
+  const moderation = moderateFields({ body });
+  if (!moderation.ok) {
+    return err(res, 422, moderation.code, moderation.message);
+  }
 
   state.counters.reply_counter += 1;
   const replyId = `cpr_${String(state.counters.reply_counter).padStart(3, "0")}`;
@@ -1177,6 +1187,12 @@ app.get("/v1/buddies", optionalAuth, (req, res) => {
     items: page.map(serializeBuddyListing),
     nextCursor,
   });
+});
+
+app.get("/v1/buddies/:buddyId/reviews", optionalAuth, (req, res) => {
+  const listing = state.buddies.get(req.params.buddyId);
+  if (!listing) return err(res, 404, "not_found", "Buddy listing not found");
+  res.json(paginateBuddyReviews(listing, req.query));
 });
 
 app.get("/v1/buddies/:buddyId", optionalAuth, (req, res) => {

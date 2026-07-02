@@ -10,6 +10,10 @@ public protocol FetchBuddyListingDetailUseCaseProtocol: Sendable {
     func callAsFunction(id: String) async throws -> BuddyListing
 }
 
+public protocol FetchBuddyReviewsUseCaseProtocol: Sendable {
+    func callAsFunction(query: BuddyReviewQuery) async throws -> BuddyReviewPage
+}
+
 public protocol CreateBuddyOrderUseCaseProtocol: Sendable {
     func callAsFunction(draft: BuddyOrderDraft) async throws -> BuddyOrderConfirmation
 }

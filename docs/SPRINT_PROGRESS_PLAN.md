@@ -124,21 +124,29 @@ SPARK_API_BASE_URL=https://<team-host> ./scripts/staging-smoke.sh
 
 ## P3 — APNs 真机（外部依赖，不阻塞 P0）
 
-| 前置 | 动作 |
-|------|------|
-| Apple Developer Program 付费 Team | 配置云函数 `APNS_KEY_ID` / `APNS_TEAM_ID` / `APNS_PRIVATE_KEY` / `APNS_BUNDLE_ID` |
-| TestFlight 或 Debug 真机 | 沙箱 Push：match → 对话；`messages.new` → 线程 |
-| 文档 | [ADR-0005](adr/0005-apns-http2-delivery.md) · [STAGING.md](STAGING.md) § APNs |
+| 前置 | 动作 | 状态 |
+|------|------|------|
+| Apple Developer Program 付费 Team | 配置云函数 `APNS_KEY_ID` / `APNS_TEAM_ID` / `APNS_PRIVATE_KEY` / `APNS_BUNDLE_ID` | ☐ 需凭证 |
+| 配置脚本 | `./scripts/configure-apns-env.sh`（从 `.p8` 上传 env） | ☑ |
+| Staging smoke | `/health` 含 `apns_configured`；`notifications/send` 返回 `apns_configured` | ☑ |
+| TestFlight 或 Debug 真机 | 沙箱 Push：match → 对话；`messages.new` → 线程 | ☐ 需真机 |
+| 文档 | [ADR-0005](adr/0005-apns-http2-delivery.md) · [STAGING.md](STAGING.md) § APNs | ☑ |
+
+**搭子评价分页（P3 增量）：** `GET /v1/buddies/{id}/reviews?page=` + iOS `BuddyReviewListSheet` 滚动加载 — ☑
 
 ---
 
 ## P4 — Community UGC 合规（外部依赖，不阻塞 P0）
 
-| 前置 | 动作 |
-|------|------|
-| E.0 合规清单签字 | [COMMUNITY_UGC_COMPLIANCE.md](COMMUNITY_UGC_COMPLIANCE.md) |
-| ICP / 内容审核 pipeline | E.3 图文帖 + 自动审核 |
-| 微信 SDK | MODULE-H 维持 No-Go |
+| 前置 | 动作 | 状态 |
+|------|------|------|
+| E.0 合规清单 | [COMMUNITY_UGC_COMPLIANCE.md](COMMUNITY_UGC_COMPLIANCE.md) + [ADR-0007](adr/0007-community-ugc-moderation.md) | ☑ 工程项 |
+| 文本审核 | `content-moderation.js` + `UGCModeration` + `422 content_rejected` | ☑ |
+| 举报入口 | 帖子详情工具栏 → `CommunityReportSheet` | ☑ |
+| ICP 备案号 | `SPARK_ICP_RECORD_NUMBER` in xcconfig → About | 🔄 待 Legal 提供正式号 |
+| 隐私政策 UGC 章节 | `docs/legal/PRIVACY_UGC_ADDENDUM.md` 模板 | ☑ 待 Legal 签字 |
+| E.3 图文 + 第三方审核 | 易盾/天御 | ☐ |
+| 微信 SDK | MODULE-H 维持 No-Go | — |
 
 ---
 

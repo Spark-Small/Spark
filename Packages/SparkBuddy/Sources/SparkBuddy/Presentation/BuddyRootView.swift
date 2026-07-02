@@ -60,6 +60,9 @@ public struct BuddyRootView: View {
                     .navigationDestination(item: $pushedListingID) { listingID in
                         BuddyDetailView(
                             viewModel: coordinator.makeDetailViewModel(listingID: listingID),
+                            makeReviewListViewModel: { id, count in
+                                coordinator.makeReviewListViewModel(listingID: id, reviewCount: count)
+                            },
                             onOpenMessages: onOpenMessages,
                             fetchRecommendedActivity: fetchRecommendedActivity,
                             onOpenActivity: onOpenActivity

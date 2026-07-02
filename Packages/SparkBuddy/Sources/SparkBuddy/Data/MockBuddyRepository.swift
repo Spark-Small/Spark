@@ -29,6 +29,13 @@ public struct MockBuddyRepository: BuddyRepository, Sendable {
         return listing
     }
 
+    public func fetchReviews(query: BuddyReviewQuery) async throws -> BuddyReviewPage {
+        guard let listing = MockBuddyCatalog.listings.first(where: { $0.id == query.listingID }) else {
+            throw BuddyError.invalidListingID
+        }
+        return MockBuddyReviewPagination.page(for: listing, query: query)
+    }
+
     public func createOrder(draft: BuddyOrderDraft) async throws -> BuddyOrderConfirmation {
         guard let listing = MockBuddyCatalog.listings.first(where: { $0.id == draft.listingID }) else {
             throw BuddyError.invalidListingID

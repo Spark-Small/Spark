@@ -1,14 +1,11 @@
 // Module: SparkActivity — Client-side publish guard (Phase 23; server is source of truth).
 
 import Foundation
+import SparkCore
 
 enum ActivityContentModeration {
-    private static let blockedSubstrings = ["违禁", "赌博", "色情"]
-
     static func validatePublishableText(_ text: String) throws {
-        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !normalized.isEmpty else { return }
-        for token in blockedSubstrings where normalized.contains(token) {
+        if UGCModeration.firstViolation(in: text) != nil {
             throw ActivityError.contentRejected
         }
     }

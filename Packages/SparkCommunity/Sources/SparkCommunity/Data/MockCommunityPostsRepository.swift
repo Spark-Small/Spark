@@ -97,6 +97,7 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
     }
 
     public func createPost(_ draft: CreateCommunityPostDraft) async throws -> CommunityPost {
+        try CommunityContentModeration.validatePostDraft(draft)
         var body = draft.body
         if !draft.mediaItems.isEmpty {
             let note = String(
@@ -130,6 +131,8 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
 
     public func createRecapPost(_ draft: CommunityRecapDraft) async throws -> CommunityPostDetail {
         try CommunityRecapDraft.validate(draft)
+        try CommunityContentModeration.validatePublishableText(draft.postTitle)
+        try CommunityContentModeration.validatePublishableText(draft.normalizedBody)
         let detail = CommunityPostDetail(
             id: "cp_recap_\(userCreatedPosts.count + 1)",
             title: draft.postTitle,
@@ -153,6 +156,7 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
         guard !trimmed.isEmpty else {
             throw CommunityError.underlying(.unknown(message: "body required"))
         }
+        try CommunityContentModeration.validateReplyBody(trimmed)
         let reply = CommunityPostReply(
             id: "cpr_mock_\(replyStore[postID, default: []].count + 1)",
             body: trimmed,

@@ -75,6 +75,14 @@ struct BuddyReviewDTO: Decodable, Sendable {
     let createdAt: String?
 }
 
+struct BuddyReviewPageDTO: Decodable, Sendable {
+    let items: [BuddyReviewDTO]
+    let page: Int
+    let pageSize: Int
+    let totalCount: Int
+    let hasMore: Bool
+}
+
 struct BuddyListPageDTO: Decodable, Sendable {
     let items: [BuddyListingDTO]
     let nextCursor: String?

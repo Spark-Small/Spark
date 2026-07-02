@@ -31,6 +31,7 @@ public struct BuddyListPage: Sendable, Equatable {
 public protocol BuddyRepository: Sendable {
     func fetchListings(query: BuddyListQuery) async throws -> BuddyListPage
     func fetchListing(id: String) async throws -> BuddyListing
+    func fetchReviews(query: BuddyReviewQuery) async throws -> BuddyReviewPage
     func createOrder(draft: BuddyOrderDraft) async throws -> BuddyOrderConfirmation
 
     func fetchProviderStatus() async throws -> BuddyProviderStatus

@@ -882,6 +882,39 @@ Trust-first local companion listings (`SparkBuddy` → `LiveBuddyRepository`). E
 
 Single listing detail. Same item shape as `items[]` above.
 
+### `GET /v1/buddies/{buddy_id}/reviews`
+
+Paginated user reviews for a listing (`BuddyReviewListSheet` → `LiveBuddyRepository.fetchReviews`).
+
+**Headers:** `Authorization: Bearer <access_token>` — optional.
+
+**Query**
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `page` | int | No | 1-based page (default `1`) |
+| `page_size` | int | No | Page size 1–50 (default `10`) |
+
+**Response `200`:**
+
+```json
+{
+  "items": [
+    {
+      "id": "rv_city_1",
+      "authorDisplayName": "小林",
+      "rating": 5,
+      "comment": "路线规划很贴心…",
+      "createdAt": "2026-06-01T10:00:00Z"
+    }
+  ],
+  "page": 1,
+  "pageSize": 10,
+  "totalCount": 54,
+  "hasMore": true
+}
+```
+
 ### `POST /v1/buddy-orders`
 
 Create escrow-held booking (`CreateBuddyOrderUseCase`).
@@ -916,6 +949,7 @@ Create escrow-held booking (`CreateBuddyOrderUseCase`).
 |--------|------|
 | GET | `/v1/buddies` (built in `BuddyAPIPath`) |
 | GET | `/v1/buddies/{id}` |
+| GET | `/v1/buddies/{id}/reviews` |
 | POST | `/v1/buddy-orders` |
 | GET | `/v1/buddy-provider/status` |
 | POST | `/v1/buddy-provider/application` |
@@ -1160,7 +1194,7 @@ For `kind: "video"`, response includes `poster_url`.
 
 ### `POST /v1/community/posts` (MODULE-E)
 
-Create a text post or activity recap (Staging: no moderation queue).
+Create a text post or activity recap. Text is scanned by `lib/content-moderation.js` (ADR-0007).
 
 **Request (discussion):** `{ "title": "...", "body": "..." }`
 
@@ -1181,6 +1215,8 @@ Create a text post or activity recap (Staging: no moderation queue).
 
 **Response `201`:** `{ "post": CommunityPostDetail }` — includes `kind`, `linked_activity` when recap, `media` when attached.
 
+**Response `422`:** `{ "error": { "code": "content_rejected", "message": "..." } }` — text failed `lib/content-moderation.js` scan (ADR-0007).
+
 ### `POST /v1/community/posts/{post_id}/replies` (MODULE-E.2)
 
 Add a text reply to a post thread.
@@ -1188,6 +1224,8 @@ Add a text reply to a post thread.
 **Request:** `{ "body": "..." }`
 
 **Response `201`:** `{ "reply": { "id", "body", "author_display_name", "created_at" } }`
+
+**Response `422`:** `{ "error": { "code": "content_rejected", "message": "..." } }`
 
 **Response `404`:** Unknown post id.
 

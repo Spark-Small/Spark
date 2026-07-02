@@ -6,17 +6,20 @@ import SwiftUI
 
 public struct BuddyDetailView: View {
     @State private var viewModel: BuddyDetailViewModel
+    private let makeReviewListViewModel: ((String, Int) -> BuddyReviewListViewModel)?
     private let onOpenMessages: ((String) -> Void)?
     private let fetchRecommendedActivity: (() async -> (id: String, title: String)?)?
     private let onOpenActivity: ((String) -> Void)?
 
     public init(
         viewModel: BuddyDetailViewModel,
+        makeReviewListViewModel: ((String, Int) -> BuddyReviewListViewModel)? = nil,
         onOpenMessages: ((String) -> Void)? = nil,
         fetchRecommendedActivity: (() async -> (id: String, title: String)?)? = nil,
         onOpenActivity: ((String) -> Void)? = nil
     ) {
         _viewModel = State(initialValue: viewModel)
+        self.makeReviewListViewModel = makeReviewListViewModel
         self.onOpenMessages = onOpenMessages
         self.fetchRecommendedActivity = fetchRecommendedActivity
         self.onOpenActivity = onOpenActivity
@@ -70,9 +73,20 @@ public struct BuddyDetailView: View {
                 }
                 if listing.reviewCount > 0 || listing.reviewSnapshot != nil {
                     BuddyReviewSection(
+                        listingID: listing.id,
                         rating: listing.rating,
                         reviewCount: listing.reviewCount,
-                        snapshot: listing.reviewSnapshot
+                        snapshot: listing.reviewSnapshot,
+                        makeReviewListViewModel: {
+                            if let makeReviewListViewModel {
+                                return makeReviewListViewModel(listing.id, listing.reviewCount)
+                            }
+                            return BuddyReviewListViewModel(
+                                listingID: listing.id,
+                                reviewCount: listing.reviewCount,
+                                fetchReviews: FetchBuddyReviewsUseCase(repository: MockBuddyRepository())
+                            )
+                        }
                     )
                 }
                 serviceSection(listing)

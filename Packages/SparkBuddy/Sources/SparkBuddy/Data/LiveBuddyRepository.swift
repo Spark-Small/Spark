@@ -39,6 +39,22 @@ public struct LiveBuddyRepository: BuddyRepository, Sendable {
         }
     }
 
+    public func fetchReviews(query: BuddyReviewQuery) async throws -> BuddyReviewPage {
+        guard let path = BuddyAPIPath.reviews(
+            listingID: query.listingID,
+            page: query.page,
+            pageSize: query.pageSize
+        ) else {
+            throw BuddyError.invalidListingID
+        }
+        do {
+            let dto: BuddyReviewPageDTO = try await apiClient.get(path)
+            return BuddyDTOMapper.reviewPage(from: dto)
+        } catch {
+            throw BuddyError.underlying(mapToAppError(error))
+        }
+    }
+
     public func createOrder(draft: BuddyOrderDraft) async throws -> BuddyOrderConfirmation {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]

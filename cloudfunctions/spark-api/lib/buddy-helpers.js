@@ -298,10 +298,45 @@ function serializeProviderStatus(status) {
   };
 }
 
+const STAGING_REVIEW_AUTHORS = ["小林", "Mia", "阿哲", "Coco", "Leo"];
+
+function allReviewsForListing(listing) {
+  const base = listing.reviewSnapshot?.reviews || [];
+  const total = listing.reviewCount || base.length;
+  if (base.length >= total) {
+    return base;
+  }
+  const expanded = [...base];
+  while (expanded.length < total) {
+    const index = expanded.length;
+    expanded.push({
+      id: `rv_gen_${listing.id}_${index}`,
+      authorDisplayName: STAGING_REVIEW_AUTHORS[index % STAGING_REVIEW_AUTHORS.length],
+      rating: index % 5 === 0 ? 4 : 5,
+      comment: `用户评价 #${index + 1}：体验稳定可靠，值得推荐。`,
+      createdAt: new Date(Date.now() - index * 86_400_000).toISOString(),
+    });
+  }
+  return expanded;
+}
+
+function paginateBuddyReviews(listing, query) {
+  const page = Math.max(1, parseInt(query.page, 10) || 1);
+  const pageSize = Math.min(50, Math.max(1, parseInt(query.page_size, 10) || 10));
+  const all = allReviewsForListing(listing);
+  const totalCount = listing.reviewCount || all.length;
+  const start = (page - 1) * pageSize;
+  const items = all.slice(start, start + pageSize);
+  const hasMore = start + items.length < totalCount;
+  return { items, page, pageSize, totalCount, hasMore };
+}
+
 module.exports = {
   buildBuddyListings,
   serializeBuddyListing,
   browseBuddies,
   defaultProviderStatus,
   serializeProviderStatus,
+  allReviewsForListing,
+  paginateBuddyReviews,
 };
