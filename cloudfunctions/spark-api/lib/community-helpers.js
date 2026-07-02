@@ -107,7 +107,8 @@ function communityById(id) {
   return COMMUNITIES.find((c) => c.id === id) || null;
 }
 
-function feedPostFromListPost(post) {
+function feedPostFromListPost(post, viewerUserId) {
+  const likers = Array.isArray(post.likers) ? post.likers : [];
   return {
     id: post.id,
     author_display_name: post.author_display_name,
@@ -115,7 +116,8 @@ function feedPostFromListPost(post) {
     community_name: "社区",
     content: post.excerpt || post.body || post.title,
     image_url: null,
-    like_count: 0,
+    like_count: post.like_count ?? likers.length,
+    viewer_has_liked: viewerUserId ? likers.includes(viewerUserId) : false,
     comment_count: post.reply_count || 0,
     tags: [],
     created_at: new Date().toISOString(),
@@ -128,8 +130,8 @@ function feedPostFromListPost(post) {
   };
 }
 
-function buildCommunityFeed(state) {
-  const posts = [...state.communityPosts.values()].map(feedPostFromListPost);
+function buildCommunityFeed(state, viewerUserId) {
+  const posts = [...state.communityPosts.values()].map((post) => feedPostFromListPost(post, viewerUserId));
   const items = [];
   posts.forEach((post, index) => {
     items.push({ type: "post", post, people: null });

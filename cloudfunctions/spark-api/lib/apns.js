@@ -83,6 +83,18 @@ function buildNotificationBody(type, payload = {}) {
         post_id: payload.post_id,
         ...data,
       };
+    case "community.like":
+      return {
+        aps: {
+          alert: {
+            title: payload.title || "新赞",
+            body: payload.body || "有人赞了你的帖子",
+          },
+          sound: "default",
+        },
+        post_id: payload.post_id,
+        ...data,
+      };
     case "messages.new":
       return {
         aps: {

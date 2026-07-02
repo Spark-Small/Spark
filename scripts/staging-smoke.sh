@@ -135,4 +135,26 @@ curl -sf -X POST -H "$AUTH" -H 'Content-Type: application/json' \
   | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d.get("queued") is True; print("queued ok")'
 pass "notifications"
 
+echo "== buddy browse =="
+BUDDY_COUNT=$(curl -sf -H "$AUTH" "$BASE_URL/v1/buddies" \
+  | python3 -c 'import sys,json; print(len(json.load(sys.stdin).get("items",[])))')
+[[ "$BUDDY_COUNT" -ge 3 ]] && pass "buddy listings=$BUDDY_COUNT" || fail "buddy listings=$BUDDY_COUNT"
+
+echo "== buddy detail =="
+curl -sf -H "$AUTH" "$BASE_URL/v1/buddies/buddy_city_1" \
+  | python3 -c 'import sys,json; item=json.load(sys.stdin); assert item["id"]=="buddy_city_1"; assert item.get("reviewSnapshot"); print("buddy detail ok")'
+pass "buddy detail buddy_city_1"
+
+echo "== buddy order =="
+ORDER_ID=$(curl -sf -X POST -H "$AUTH" -H 'Content-Type: application/json' \
+  -d '{"listingID":"buddy_city_1","packageID":"pkg_city_half_day","scheduledAt":"2026-07-10T10:00:00Z","paymentMethod":"wechat_pay"}' \
+  "$BASE_URL/v1/buddy-orders" \
+  | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d.get("escrowHeld") is True; print(d["id"])')
+[[ -n "$ORDER_ID" ]] && pass "buddy order $ORDER_ID" || fail "buddy order"
+
+echo "== buddy provider =="
+curl -sf -H "$AUTH" "$BASE_URL/v1/buddy-provider/status" \
+  | python3 -c 'import sys,json; assert json.load(sys.stdin).get("state") in ("none","pending","approved","rejected","suspended"); print("provider status ok")'
+pass "buddy provider status"
+
 echo "All staging smoke checks passed."

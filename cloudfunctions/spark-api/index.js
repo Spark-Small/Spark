@@ -4,6 +4,7 @@
  */
 
 const express = require("express");
+const crypto = require("crypto");
 const {
   hydrate,
   createDirtyTracker,
@@ -29,6 +30,14 @@ const {
   dismissActionItemForInvite,
   dismissInboxActionItem,
 } = require("./lib/messages-helpers");
+const phoneOTP = require("./lib/phone-otp");
+const {
+  buildBuddyListings,
+  browseBuddies,
+  serializeBuddyListing,
+  defaultProviderStatus,
+  serializeProviderStatus,
+} = require("./lib/buddy-helpers");
 const PORT = Number(process.env.PORT) || 9000;
 
 const USER_DISPLAY_NAMES = {
@@ -53,10 +62,15 @@ const state = {
     post_counter: 3,
     reply_counter: 3,
     community_report_counter: 0,
+    buddy_order_counter: 0,
   },
   communityReports: [],
   inboxActionItems: [],
   dismissedInboxActionIds: new Set(),
+  phoneOtps: new Map(),
+  phoneUsers: new Map(),
+  buddies: buildBuddyListings(),
+  buddyProviders: new Map(),
   dirty: createDirtyTracker(),
 };
 
@@ -73,7 +87,8 @@ function serializeReply(reply) {
   };
 }
 
-function serializePostDetail(post) {
+function serializePostDetail(post, viewerUserId) {
+  const likers = Array.isArray(post.likers) ? post.likers : [];
   const detail = {
     id: post.id,
     title: post.title,
@@ -81,6 +96,8 @@ function serializePostDetail(post) {
     author_display_name: post.author_display_name,
     author_user_id: post.author_id || null,
     reply_count: post.reply_count,
+    like_count: post.like_count ?? likers.length,
+    viewer_has_liked: viewerUserId ? likers.includes(viewerUserId) : false,
     replies: communityRepliesFor(post).map(serializeReply),
     kind: post.kind || "discussion",
   };
@@ -191,6 +208,17 @@ function requireAuth(req, res, next) {
   }
   req.userId = userId;
   next();
+}
+
+function optionalAuth(req, _res, next) {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  req.userId = userIdFromToken(token);
+  next();
+}
+
+function buddyProviderFor(userId) {
+  return state.buddyProviders.get(userId) || defaultProviderStatus();
 }
 
 function activityFeedItem(a) {
@@ -320,6 +348,52 @@ app.post("/v1/auth/password-reset", (req, res) => {
   res.status(204).send();
 });
 
+function isValidCNMobilePhone(phone) {
+  return phoneOTP.isValidCNMobilePhone(phone);
+}
+
+app.post("/v1/auth/phone/otp", (req, res) => {
+  const { phone } = req.body || {};
+  const result = phoneOTP.sendPhoneOTP(state, phone);
+  if (result.status !== 204) {
+    return err(res, result.status, result.code, result.message);
+  }
+  touchMeta();
+  res.status(204).send();
+});
+
+app.post("/v1/auth/phone/verify", (req, res) => {
+  const { phone, code } = req.body || {};
+  if (!isValidCNMobilePhone(phone) || !code) {
+    return err(res, 400, "invalid_request", "Valid phone and code required");
+  }
+  if (!phoneOTP.verifyPhoneOTP(state, phone, code)) {
+    return err(res, 401, "invalid_code", "Invalid verification code");
+  }
+  const user = phoneOTP.ensurePhoneUser(state, phone);
+  touchMeta();
+  res.json({ access_token: tokenFor(user.user_id), user_id: user.user_id });
+});
+
+app.post("/v1/auth/phone/password-reset", (req, res) => {
+  const { phone, code, new_password: newPassword } = req.body || {};
+  if (
+    !isValidCNMobilePhone(phone)
+    || !code
+    || String(code).length !== phoneOTP.OTP_CODE_LENGTH
+    || !newPassword
+    || String(newPassword).length < 6
+  ) {
+    return err(res, 400, "invalid_request", "Valid phone, code, and password required");
+  }
+  if (!phoneOTP.verifyPhoneOTP(state, phone, code)) {
+    return err(res, 401, "invalid_code", "Invalid verification code");
+  }
+  const user = phoneOTP.setPhoneUserPassword(state, phone, String(newPassword));
+  touchMeta();
+  res.json({ access_token: tokenFor(user.user_id), user_id: user.user_id });
+});
+
 app.get("/v1/auth/session", requireAuth, (req, res) => {
   res.json({ access_token: tokenFor(req.userId), user_id: req.userId });
 });
@@ -375,6 +449,8 @@ function purgeUserAccount(userId) {
   for (const [key, match] of state.mutualMatches.entries()) {
     if (key.includes(userId)) state.mutualMatches.delete(key);
   }
+
+  phoneOTP.purgePhoneAccount(state, userId);
 }
 
 app.post("/v1/auth/account/delete", requireAuth, (req, res) => {
@@ -382,8 +458,13 @@ app.post("/v1/auth/account/delete", requireAuth, (req, res) => {
   res.status(204).send();
 });
 
-app.post("/v1/auth/apple", (_req, res) => {
-  const userId = "u_staging_1";
+app.post("/v1/auth/apple", (req, res) => {
+  const { identity_token: identityToken } = req.body || {};
+  if (!identityToken || typeof identityToken !== "string" || identityToken.length < 10) {
+    return err(res, 401, "invalid_apple_token", "Apple identity token required");
+  }
+  const digest = crypto.createHash("sha256").update(identityToken).digest("hex").slice(0, 16);
+  const userId = `apple_${digest}`;
   res.json({ access_token: tokenFor(userId), user_id: userId });
 });
 
@@ -809,8 +890,8 @@ app.get("/v1/search", requireAuth, (req, res) => {
 
 // --- Community ---
 
-app.get("/v1/community/feed", requireAuth, (_req, res) => {
-  res.json(buildCommunityFeed(state));
+app.get("/v1/community/feed", requireAuth, (req, res) => {
+  res.json(buildCommunityFeed(state, req.userId));
 });
 
 app.get("/v1/community/communities/:communityId", requireAuth, (req, res) => {
@@ -845,7 +926,37 @@ app.get("/v1/community/posts", requireAuth, (_req, res) => {
 app.get("/v1/community/posts/:postId", requireAuth, (req, res) => {
   const p = state.communityPosts.get(req.params.postId);
   if (!p) return err(res, 404, "not_found", "Post not found");
-  res.json({ post: serializePostDetail(p) });
+  res.json({ post: serializePostDetail(p, req.userId) });
+});
+
+app.post("/v1/community/posts/:postId/like", requireAuth, async (req, res) => {
+  const post = state.communityPosts.get(req.params.postId);
+  if (!post) return err(res, 404, "not_found", "Post not found");
+  const liked = req.body?.liked === true;
+  if (!Array.isArray(post.likers)) post.likers = [];
+  const hadLiked = post.likers.includes(req.userId);
+  if (liked && !hadLiked) {
+    post.likers.push(req.userId);
+    post.like_count = (post.like_count ?? post.likers.length - 1) + 1;
+  } else if (!liked && hadLiked) {
+    post.likers = post.likers.filter((id) => id !== req.userId);
+    post.like_count = Math.max(0, (post.like_count ?? 1) - 1);
+  }
+  touchCommunityPost(post.id);
+  touchMeta();
+
+  if (liked && !hadLiked && post.author_id && post.author_id !== req.userId) {
+    void sendPushToUser(state.devices, post.author_id, "community.like", {
+      post_id: post.id,
+      title: "有人赞了你的帖子",
+      body: `${displayNameFor(req.userId)} 赞了你的局后随拍`.slice(0, 120),
+    });
+  }
+
+  res.json({
+    liked: post.likers.includes(req.userId),
+    like_count: post.like_count ?? post.likers.length,
+  });
 });
 
 app.post("/v1/community/media/stage", requireAuth, (req, res) => {
@@ -911,7 +1022,7 @@ app.post("/v1/community/posts", requireAuth, (req, res) => {
   touchCommunityPost(id);
   touchMeta();
   res.status(201).json({
-    post: serializePostDetail(post),
+    post: serializePostDetail(post, req.userId),
   });
 });
 
@@ -1057,6 +1168,99 @@ app.post("/v1/notifications/send", requireAuth, async (req, res) => {
 });
 
 // --- Trust (Nexus W4 staging MVP) ---
+
+// --- Buddy (搭子) ---
+
+app.get("/v1/buddies", optionalAuth, (req, res) => {
+  const { page, nextCursor } = browseBuddies(state.buddies, req.query);
+  res.json({
+    items: page.map(serializeBuddyListing),
+    nextCursor,
+  });
+});
+
+app.get("/v1/buddies/:buddyId", optionalAuth, (req, res) => {
+  const listing = state.buddies.get(req.params.buddyId);
+  if (!listing) return err(res, 404, "not_found", "Buddy listing not found");
+  res.json(serializeBuddyListing(listing));
+});
+
+app.post("/v1/buddy-orders", requireAuth, (req, res) => {
+  const { listingID, packageID, scheduledAt } = req.body || {};
+  const trimmedListingID = (listingID || "").trim();
+  const trimmedPackageID = (packageID || "").trim();
+  if (!trimmedListingID || !trimmedPackageID || !scheduledAt) {
+    return err(res, 400, "invalid_request", "listingID, packageID, and scheduledAt required");
+  }
+  const listing = state.buddies.get(trimmedListingID);
+  if (!listing) return err(res, 404, "not_found", "Buddy listing not found");
+  const pkg = (listing.packages || []).find((item) => item.id === trimmedPackageID);
+  if (!pkg) return err(res, 400, "invalid_request", "Unknown packageID");
+  state.counters.buddy_order_counter += 1;
+  const orderId = `buddy_order_${state.counters.buddy_order_counter}`;
+  res.status(201).json({
+    id: orderId,
+    listingID: trimmedListingID,
+    packageID: trimmedPackageID,
+    escrowHeld: true,
+  });
+});
+
+app.get("/v1/buddy-provider/status", requireAuth, (req, res) => {
+  res.json(serializeProviderStatus(buddyProviderFor(req.userId)));
+});
+
+app.post("/v1/buddy-provider/application", requireAuth, (req, res) => {
+  const { displayName, city, serviceCategory, bio } = req.body || {};
+  if (!(displayName || "").trim() || !(city || "").trim() || !(serviceCategory || "").trim()) {
+    return err(res, 400, "invalid_request", "displayName, city, and serviceCategory required");
+  }
+  if (!(bio || "").trim()) {
+    return err(res, 400, "invalid_request", "bio required");
+  }
+  const now = new Date().toISOString();
+  const status = {
+    state: "approved",
+    submittedAt: now,
+    reviewedAt: now,
+    rejectionReason: null,
+  };
+  state.buddyProviders.set(req.userId, status);
+  res.json(serializeProviderStatus(status));
+});
+
+app.get("/v1/buddy-provider/earnings", requireAuth, (req, res) => {
+  const status = buddyProviderFor(req.userId);
+  if (status.state !== "approved") {
+    return err(res, 403, "forbidden", "Provider approval required");
+  }
+  res.json({
+    availableBalance: "1280.00",
+    pendingEscrow: "399.00",
+    currencyCode: "CNY",
+    completedOrderCount: 12,
+    monthEarnings: "2450.00",
+  });
+});
+
+app.get("/v1/buddy-provider/orders", requireAuth, (req, res) => {
+  const status = buddyProviderFor(req.userId);
+  if (status.state !== "approved") {
+    return err(res, 403, "forbidden", "Provider approval required");
+  }
+  res.json([
+    {
+      id: "provider_order_1",
+      guestDisplayName: "Staging User",
+      packageTitle: "城市漫游",
+      scheduledAt: "2026-07-10T10:00:00Z",
+      amount: "299",
+      currencyCode: "CNY",
+      state: "confirmed",
+    },
+  ]);
+});
+
 app.get("/v1/trust/profile", requireAuth, (req, res) => {
   res.json({
     profile: {

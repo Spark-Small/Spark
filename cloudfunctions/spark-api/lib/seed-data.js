@@ -77,6 +77,8 @@ function buildSeed() {
         author_display_name: "阿乐",
         author_id: "u_host_1",
         reply_count: 2,
+        like_count: 6,
+        likers: [],
         replies: [
           {
             id: "cpr_001",
@@ -105,6 +107,8 @@ function buildSeed() {
         author_display_name: "小雨",
         author_id: "u_host_2",
         reply_count: 5,
+        like_count: 3,
+        likers: [],
         replies: [],
       },
     ],
@@ -118,6 +122,8 @@ function buildSeed() {
         author_display_name: "Nova",
         author_id: "u_host_1",
         reply_count: 0,
+        like_count: 9,
+        likers: [],
         replies: [],
         kind: "activity_recap",
         activity_id: "act_browse_2",
