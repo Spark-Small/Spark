@@ -86,7 +86,7 @@ struct MessagesViewModelTests {
         #expect(viewModel.unmessagedMatches.contains { $0.id == match.id } == false)
         #expect(
             viewModel.dmConversations.contains {
-                viewModel.matchPreview(for: $0) != nil
+                viewModel.matchPreview(for: $0)?.id == match.id
             } == false
         )
         let conversation = try #require(viewModel.conversation(for: threadID))

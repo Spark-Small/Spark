@@ -15,7 +15,8 @@ let package = Package(
         .package(path: "../SparkTrust"),
         .package(path: "../SparkSearch"),
         .package(path: "../SparkPayments"),
-        .package(path: "../SparkNotifications")
+        .package(path: "../SparkNotifications"),
+        .package(path: "../SparkBuddy")
     ],
     targets: [
         .target(
@@ -26,7 +27,8 @@ let package = Package(
                 "SparkTrust",
                 "SparkSearch",
                 "SparkPayments",
-                "SparkNotifications"
+                "SparkNotifications",
+                "SparkBuddy"
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6),

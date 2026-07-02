@@ -1,6 +1,7 @@
 // Module: SparkAppShell — Bundled tab-level dependencies (constructor injection).
 
 import SparkActivity
+import SparkBuddy
 import SparkCommunity
 import SparkMessages
 import SparkProfile
@@ -13,6 +14,7 @@ public struct SparkTabDependencies: Sendable {
     public let activityCoordinator: ActivityCoordinator
     public let communityCoordinator: CommunityCoordinator
     public let profileCoordinator: ProfileCoordinator
+    public let buddyCoordinator: BuddyCoordinator
     public let orchestrator: SparkTabOrchestrator
 
     public init(
@@ -20,6 +22,7 @@ public struct SparkTabDependencies: Sendable {
         activityFeedRepository: any ActivityFeedRepository,
         activityBrowseRepository: any ActivityBrowseRepository,
         searchRepository: any SearchRepository,
+        buddyRepository: any BuddyRepository,
         communityPostsRepository: any CommunityPostsRepository,
         prepareCommunityMediaUpload: (any PrepareCommunityMediaUploadUseCaseProtocol)? = nil,
         trustRepository: any TrustRepository,
@@ -41,9 +44,11 @@ public struct SparkTabDependencies: Sendable {
             trustRepository: trustRepository,
             searchRepository: searchRepository
         )
+        buddyCoordinator = BuddyCoordinator(repository: buddyRepository)
         orchestrator = SparkTabOrchestrator(
             messagesCoordinator: messagesCoordinator,
-            activityCoordinator: activityCoordinator
+            activityCoordinator: activityCoordinator,
+            buddyCoordinator: buddyCoordinator
         )
     }
 }

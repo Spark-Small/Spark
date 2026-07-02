@@ -30,7 +30,7 @@
 - [ ] New tappable elements meet 44×44pt minimum touch target
 - [ ] New animations respect Reduce Motion (`accessibilityReduceMotion`)
 - [ ] New icons/images have `accessibilityLabel` (or are hidden if decorative)
-- [ ] Verified on iPhone SE (smallest) and iPad (largest) layouts
+- [ ] Verified on iPhone SE (smallest) layout
 
 ## Spark guardrails
 

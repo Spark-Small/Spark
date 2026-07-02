@@ -4,8 +4,6 @@ import SparkDesignSystem
 import SwiftUI
 
 struct ArchivedChatsDisclosure<Row: View>: View {
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-
     let chats: [ConversationPreview]
     @ViewBuilder let row: (ConversationPreview) -> Row
 
@@ -26,11 +24,6 @@ struct ArchivedChatsDisclosure<Row: View>: View {
             )
             .font(.subheadline.weight(.medium))
             .foregroundStyle(.secondary)
-        }
-        .onAppear {
-            if horizontalSizeClass == .regular {
-                isExpanded = true
-            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(
@@ -76,20 +69,4 @@ struct ArchivedChatsDisclosure<Row: View>: View {
         }
         .sparkFlatTabListStyle()
     }
-}
-
-#Preview("Archived chats — iPad expanded") {
-    let inbox = MockMessagesInboxCatalog.inbox(unreadCount: 0)
-    NavigationStack {
-        List {
-            ArchivedChatsDisclosure(chats: inbox.archivedGroupChats) { chat in
-                NavigationLink(value: chat.asMessageThread()) {
-                    ConversationRow(conversation: chat)
-                }
-                .sparkFlatTabListRow()
-            }
-        }
-        .sparkFlatTabListStyle()
-    }
-    .environment(\.horizontalSizeClass, .regular)
 }

@@ -7,6 +7,7 @@ import SparkCommunity
 import SparkMessages
 import SparkPayments
 import SparkPersistence
+import SparkBuddy
 import SparkSearch
 import SparkTrust
 import Testing
@@ -31,6 +32,7 @@ struct SparkRootViewTests {
                 activityFeedRepository: MockActivityFeedRepository(),
                 activityBrowseRepository: MockActivityBrowseRepository(),
                 searchRepository: MockSearchRepository(),
+            buddyRepository: MockBuddyRepository(),
                 communityPostsRepository: MockCommunityPostsRepository(),
                 trustRepository: MockTrustRepository(),
                 blockedActivityHostsStore: BlockedActivityHostsStore()

@@ -9,6 +9,7 @@ import SparkMessages
 import SparkNetworking
 import SparkPayments
 import SparkPersistence
+import SparkBuddy
 import SparkSearch
 import SparkTrust
 import SparkNotifications
@@ -64,6 +65,10 @@ enum CompositionRoot {
             configuration: apiConfiguration,
             apiClient: apiClient
         )
+        let buddyRepository = makeBuddyRepository(
+            configuration: apiConfiguration,
+            apiClient: apiClient
+        )
         let communityPostsRepository = makeCommunityPostsRepository(
             configuration: apiConfiguration,
             apiClient: apiClient
@@ -89,6 +94,7 @@ enum CompositionRoot {
             activityFeedRepository: activityFeedRepository,
             activityBrowseRepository: activityBrowseRepository,
             searchRepository: searchRepository,
+            buddyRepository: buddyRepository,
             communityPostsRepository: communityPostsRepository,
             prepareCommunityMediaUpload: prepareCommunityMediaUpload,
             trustRepository: trustRepository,
@@ -108,6 +114,7 @@ enum CompositionRoot {
             activityFeedRepository: activityFeedRepository,
             activityBrowseRepository: activityBrowseRepository,
             searchRepository: searchRepository,
+            buddyRepository: buddyRepository,
             communityPostsRepository: communityPostsRepository,
             trustRepository: trustRepository,
             storeKitService: storeKitService,
@@ -184,6 +191,16 @@ enum CompositionRoot {
             return MockSearchRepository()
         }
         return LiveSearchRepository(apiClient: apiClient)
+    }
+
+    private static func makeBuddyRepository(
+        configuration: APIConfiguration,
+        apiClient: APIClient
+    ) -> any BuddyRepository {
+        if configuration.usesMockBackend {
+            return MockBuddyRepository()
+        }
+        return LiveBuddyRepository(apiClient: apiClient)
     }
 
     private static func makeCommunityPostsRepository(

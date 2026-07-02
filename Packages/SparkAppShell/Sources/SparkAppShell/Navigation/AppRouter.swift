@@ -20,6 +20,12 @@ public final class AppRouter {
     public var pendingCommunityRecapActivityID: String?
     /// Activity to push on the Activity tab (consumed by `ActivityRootView`).
     public var pendingActivityID: String?
+    /// Buddy listing to push on the Buddy tab (consumed by `BuddyRootView`).
+    public var pendingBuddyListingID: String?
+    /// Discover join sheet to reopen after auth (consumed by `ActivityBrowseContent`).
+    public var pendingBrowseJoinActivityID: String?
+    /// Detail entry context for the next `pendingActivityID` push (consumed by `ActivityRootView`).
+    public var pendingActivityDetailContext: ActivityDetailContext?
     /// Pre-filled create form after match → coffee activity (Nexus W3).
     public var pendingCreateActivityDraft: CreateActivityDraft?
     public var pendingUnrecognizedURL: URL?
@@ -50,14 +56,47 @@ public final class AppRouter {
                 presentAuthRequired()
                 return
             }
-        case .paywall, .conversation, .communityPost, .communityRecap, .activityDetail:
+            apply(route)
+        case .activityDetail, .communityPost, .buddyDetail:
+            apply(route)
+        case .paywall, .conversation, .communityRecap:
             if !isAuthenticated {
                 pendingDeepLinkAfterAuth = route
                 presentAuthRequired()
                 return
             }
+            apply(route)
         }
-        apply(route)
+    }
+
+    /// Presents sign-in and resumes on the pending activity detail after authentication.
+    public func requireSignInForActivity(activityID: String) {
+        pendingDeepLinkAfterAuth = .activityDetail(activityID: activityID)
+        presentAuthRequired()
+    }
+
+    /// Presents sign-in and reopens the discover join confirmation sheet after authentication.
+    public func requireSignInForBrowseJoin(activityID: String) {
+        pendingBrowseJoinActivityID = activityID
+        pendingDeepLinkAfterAuth = .tab(.activity, query: nil)
+        presentAuthRequired()
+    }
+
+    public func clearPendingBrowseJoin() {
+        pendingBrowseJoinActivityID = nil
+    }
+
+    /// Presents sign-in for create-activity or other write actions on the Activity tab.
+    public func requireSignInForCreateActivity(draft: CreateActivityDraft? = nil) {
+        pendingCreateActivityDraft = draft
+        pendingDeepLinkAfterAuth = .tab(.activity, query: nil)
+        presentAuthRequired()
+    }
+
+    /// Presents sign-in before community compose flows.
+    public func requireSignInForCommunityCompose() {
+        pendingDeepLinkAfterAuth = .tab(.community, query: nil)
+        presentAuthRequired()
     }
 
     public func apply(_ route: DeepLinkRoute) {
@@ -77,20 +116,42 @@ public final class AppRouter {
             openCommunityRecap(activityID: activityID)
         case let .activityDetail(activityID):
             IntegrationTelemetry.inviteLinkOpened(activityID: activityID)
-            openActivityDetail(activityID: activityID)
+            openActivityDetail(activityID: activityID, context: .externalEntry)
+        case let .buddyDetail(listingID):
+            openBuddyDetail(listingID: listingID)
         }
     }
 
     /// Opens activity detail on the Activity tab (universal links, search, inbox).
-    public func openActivityDetail(activityID: String, preferredTab: SparkTab = .activity) {
-        selectedTab = preferredTab == .activity ? preferredTab : .activity
+    public func openActivityDetail(
+        activityID: String,
+        context: ActivityDetailContext = .discover,
+        preferredTab: SparkTab = .activity
+    ) {
+        selectedTab = preferredTab
         pendingActivityID = activityID
+        pendingActivityDetailContext = context
     }
 
-    /// Opens create-activity sheet on the Activity tab with a pre-filled draft.
+    public func clearPendingBuddyNavigation() {
+        pendingBuddyListingID = nil
+    }
+
+    /// Opens buddy listing detail on the Buddy tab (universal links, search).
+    public func openBuddyDetail(listingID: String) {
+        selectedTab = .buddy
+        pendingBuddyListingID = listingID
+    }
+
+    /// Opens create-activity sheet on the Activity tab with a pre-filled draft (caller must gate auth).
     public func openCreateActivity(draft: CreateActivityDraft) {
         selectedTab = .activity
         pendingCreateActivityDraft = draft
+    }
+
+    public func clearPendingActivityNavigation() {
+        pendingActivityID = nil
+        pendingActivityDetailContext = nil
     }
 
     public func clearPendingCreateActivity() {
@@ -152,6 +213,25 @@ public final class AppRouter {
         globalFullScreenCover = nil
     }
 
+    public func cancelAuthPresentation() {
+        pendingDeepLinkAfterAuth = nil
+        pendingBrowseJoinActivityID = nil
+        dismissGlobalPresentation()
+    }
+
+    /// Applies a deferred deep link after sign-in, or lands on the Activity home tab.
+    public func finishAuthentication() {
+        if globalSheet == .authRequired {
+            dismissGlobalPresentation()
+        }
+        if let pending = pendingDeepLinkAfterAuth {
+            apply(pending)
+            pendingDeepLinkAfterAuth = nil
+        } else {
+            selectedTab = .activity
+        }
+    }
+
     public func resetAfterSignOut() {
         selectedTab = .activity
         pendingSearchQuery = nil
@@ -159,8 +239,12 @@ public final class AppRouter {
         pendingCommunityPostID = nil
         pendingCommunityRecapActivityID = nil
         pendingActivityID = nil
+        pendingBuddyListingID = nil
+        pendingActivityDetailContext = nil
+        pendingBrowseJoinActivityID = nil
         pendingCreateActivityDraft = nil
         pendingUnrecognizedURL = nil
+        pendingDeepLinkAfterAuth = nil
         dismissGlobalPresentation()
     }
 }

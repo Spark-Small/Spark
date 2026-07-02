@@ -9,7 +9,7 @@ enum SparkMainTabRouting {
         case .community:
             router.openCommunityPost(postID: item.id)
         case .activity:
-            router.openActivityDetail(activityID: item.id)
+            router.openActivityDetail(activityID: item.id, context: .externalEntry)
         case .person:
             router.openConversation(threadID: directThreadID(for: item.id))
         case .none:

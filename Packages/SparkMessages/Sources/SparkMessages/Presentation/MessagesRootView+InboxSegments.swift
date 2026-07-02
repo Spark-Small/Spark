@@ -5,15 +5,11 @@ import SwiftUI
 
 extension MessagesRootView {
     var inboxSegmentToolbarPicker: some View {
-        Picker("", selection: $selectedInboxSegment) {
-            ForEach(MessagesInboxSegment.allCases) { segment in
-                Text(segment.localizedTitle).tag(segment)
-            }
-        }
-        .pickerStyle(.segmented)
-        .frame(maxWidth: SparkLayoutMetrics.segmentedControlMaxWidth)
-        .accessibilityLabel(
-            String(
+        SparkToolbarSegmentedPicker(
+            options: Array(MessagesInboxSegment.allCases),
+            selection: $selectedInboxSegment,
+            title: \.localizedTitle,
+            accessibilityLabel: String(
                 localized: "messages.inbox.segment.a11y",
                 defaultValue: "消息分类",
                 comment: "Messages inbox segment picker"
@@ -23,17 +19,21 @@ extension MessagesRootView {
 
     @ViewBuilder
     var loadedInboxSegmentContent: some View {
-        // REASONING: TabView paging isolates scroll views from NavigationStack scroll-edge chrome.
         inboxSegmentInstantContent
     }
 
     @ViewBuilder
     private var inboxSegmentInstantContent: some View {
-        switch selectedInboxSegment {
-        case .dm:
-            dmInboxSegmentPage
-        case .groupChats:
-            groupChatsInboxSegmentPage
+        SparkPreservedSegmentStack(
+            selection: selectedInboxSegment,
+            segments: Array(MessagesInboxSegment.allCases)
+        ) { segment in
+            switch segment {
+            case .dm:
+                dmInboxSegmentPage
+            case .groupChats:
+                groupChatsInboxSegmentPage
+            }
         }
     }
 

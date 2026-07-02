@@ -9,6 +9,7 @@ import SparkMessages
 import SparkNetworking
 import SparkPayments
 import SparkPersistence
+import SparkBuddy
 import SparkSearch
 import SparkTrust
 import SparkNotifications
@@ -28,6 +29,7 @@ public struct AppDependencies {
     public let activityFeedRepository: any ActivityFeedRepository
     public let activityBrowseRepository: any ActivityBrowseRepository
     public let searchRepository: any SearchRepository
+    public let buddyRepository: any BuddyRepository
     public let communityPostsRepository: any CommunityPostsRepository
     public let trustRepository: any TrustRepository
     public let storeKitService: any StoreKitServing
@@ -50,6 +52,7 @@ public struct AppDependencies {
         activityFeedRepository: any ActivityFeedRepository,
         activityBrowseRepository: any ActivityBrowseRepository,
         searchRepository: any SearchRepository,
+        buddyRepository: any BuddyRepository,
         communityPostsRepository: any CommunityPostsRepository,
         trustRepository: any TrustRepository,
         storeKitService: any StoreKitServing,
@@ -70,6 +73,7 @@ public struct AppDependencies {
         self.activityFeedRepository = activityFeedRepository
         self.activityBrowseRepository = activityBrowseRepository
         self.searchRepository = searchRepository
+        self.buddyRepository = buddyRepository
         self.communityPostsRepository = communityPostsRepository
         self.trustRepository = trustRepository
         self.storeKitService = storeKitService

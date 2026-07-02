@@ -38,10 +38,12 @@ public enum DeepLinkParser: Sendable {
             return parseCommunityRoute(path: url.path, query: url)
         case "activity":
             return parseActivityRoute(path: url.path, query: url)
+        case "buddy", "buddies":
+            return parseBuddyRoute(path: url.path, query: url)
         case "likes":
             return .tab(.community, query: url.queryValue(for: "q"))
         default:
-            guard let tab = SparkTab(rawValue: host) else { return nil }
+            guard let tab = SparkTab.fromDeepLinkName(host) else { return nil }
             return .tab(tab, query: url.queryValue(for: "q"))
         }
     }
@@ -57,7 +59,13 @@ public enum DeepLinkParser: Sendable {
         if path == "likes" || path == "likes/inbound" || path.hasPrefix("likes/") {
             return .tab(.community, query: url.queryValue(for: "q"))
         }
-        guard !path.isEmpty, let tab = SparkTab(rawValue: path) else { return nil }
+        if path == "search" || path.hasPrefix("search/") {
+            return .tab(.profile, query: url.queryValue(for: "q"))
+        }
+        if path == "buddy" || path == "buddies" || path.hasPrefix("buddy/") || path.hasPrefix("buddies/") {
+            return parseBuddyRoute(path: "/" + path, query: url)
+        }
+        guard !path.isEmpty, let tab = SparkTab.fromDeepLinkName(path) else { return nil }
         return .tab(tab, query: url.queryValue(for: "q"))
     }
 
@@ -88,6 +96,12 @@ public enum DeepLinkParser: Sendable {
             let placement = placementName.flatMap(PaywallPlacement.init(rawValue:)) ?? .activity
             return .paywall(placement)
         }
+        if first == "buddies", components.count >= 2 {
+            return .buddyDetail(listingID: components[1])
+        }
+        if first == "buddy", components.count >= 2 {
+            return .buddyDetail(listingID: components[1])
+        }
         return parseUniversalTabRoute(components, query: url)
     }
 
@@ -108,8 +122,25 @@ public enum DeepLinkParser: Sendable {
         if tabName == "likes" {
             return .tab(.community, query: query.queryValue(for: "q"))
         }
-        guard let tab = SparkTab(rawValue: tabName) else { return nil }
+        if tabName == "search" {
+            return .tab(.profile, query: query.queryValue(for: "q"))
+        }
+        guard let tab = SparkTab.fromDeepLinkName(tabName) else { return nil }
         return .tab(tab, query: query.queryValue(for: "q"))
+    }
+
+    private static func parseBuddyRoute(path: String, query: URL) -> DeepLinkRoute? {
+        var segments = path.split(separator: "/").map(String.init).filter { !$0.isEmpty }
+        if segments.first == "buddy" || segments.first == "buddies" {
+            segments.removeFirst()
+        }
+        if let last = segments.last, !last.isEmpty {
+            return .buddyDetail(listingID: last)
+        }
+        if let listingID = query.queryValue(for: "buddy_id"), !listingID.isEmpty {
+            return .buddyDetail(listingID: listingID)
+        }
+        return .tab(.buddy, query: query.queryValue(for: "q"))
     }
 
     private static func parseActivityRoute(path: String, query: URL) -> DeepLinkRoute? {

@@ -1,7 +1,8 @@
-// Module: SparkAppShell — Five-tab primary interface (Nexus + W0).
+// Module: SparkAppShell — Primary tab interface (Nexus + W0).
 
 import SparkActivity
 import SparkAuth
+import SparkBuddy
 import SparkCommunity
 import SparkCore
 import SparkMessages
@@ -21,10 +22,14 @@ public struct SparkMainTabView: View {
 
     @State var messagesViewModel: MessagesViewModel?
     @State private var peerDisplayNameStore: PeerDisplayNameStore?
-    @State private var profileViewModel: ProfileViewModel?
-    @State private var searchQuery: String = ""
+    @State var profileViewModel: ProfileViewModel?
+    @State var isProfileSearchPresented = false
+    @State var searchQuery: String = ""
+    @State var searchViewModel: SearchViewModel?
     @State private var showPushPermissionGuide = false
     @State private var showDeepLinkFallback = false
+    @State var activityTabChrome = ActivityTabChrome()
+    @State var communityTabChrome = CommunityTabChrome()
 
     public init(
         router: AppRouter,
@@ -41,29 +46,42 @@ public struct SparkMainTabView: View {
     }
 
     public var body: some View {
-        TabView(selection: tabSelection) {
-            tabContent
+        Group {
+            if #available(iOS 18.0, *) {
+                modernTabView
+            } else {
+                legacyTabView
+            }
         }
         .onChange(of: authViewModel.isAuthenticated) { _, isAuthenticated in
-            if !isAuthenticated {
+            if isAuthenticated {
+                if !SparkPushPermissionPreferences.hasSeenGuide {
+                    showPushPermissionGuide = true
+                }
+            } else {
+                searchQuery = ""
+                searchViewModel = nil
+                isProfileSearchPresented = false
                 router.resetAfterSignOut()
             }
         }
         .onChange(of: router.pendingSearchQuery) { _, query in
             if let query {
-                searchQuery = query
-                router.selectedTab = .profile
-                router.pendingSearchQuery = nil
+                applyPendingSearchQuery(query)
             }
         }
         .sheet(item: $router.globalSheet) { presentation in
-            GlobalSheetContent(presentation: presentation) {
-                router.dismissGlobalPresentation()
+            GlobalSheetContent(
+                presentation: presentation,
+                authViewModel: authViewModel
+            ) {
+                router.cancelAuthPresentation()
             }
         }
         .fullScreenCover(item: $router.globalFullScreenCover) { presentation in
             GlobalFullScreenContent(
                 presentation: presentation,
+                authViewModel: authViewModel,
                 entitlementManager: entitlementManager
             ) {
                 router.dismissGlobalPresentation()
@@ -72,16 +90,21 @@ public struct SparkMainTabView: View {
         .onAppear {
             ensureMessagesViewModel()
             ensureProfileViewModel()
+            activityTabChrome.navigation.isActivityTabSelected = router.selectedTab == .activity
+            activityTabChrome.reconcile()
             if let query = router.pendingSearchQuery {
-                searchQuery = query
-                router.selectedTab = .profile
-                router.pendingSearchQuery = nil
+                applyPendingSearchQuery(query)
             }
-            if !SparkPushPermissionPreferences.hasSeenGuide {
+            if authViewModel.isAuthenticated, !SparkPushPermissionPreferences.hasSeenGuide {
                 showPushPermissionGuide = true
             }
         }
         .onChange(of: router.selectedTab) { _, tab in
+            activityTabChrome.navigation.isActivityTabSelected = tab == .activity
+            activityTabChrome.reconcile()
+            if tab != .community {
+                communityTabChrome.sync(tabSelected: false)
+            }
             guard tab == .messages || tab == .activity else { return }
             Task { await messagesViewModel?.load() }
         }
@@ -101,40 +124,6 @@ public struct SparkMainTabView: View {
                     showDeepLinkFallback = false
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    var profileTab: some View {
-        if let profileViewModel {
-            ProfileRootView(
-                viewModel: profileViewModel,
-                profileCoordinator: tabDependencies.profileCoordinator,
-                onSelectSearchResult: handleSearchResult,
-                onSignOut: {
-                    Task {
-                        await authViewModel.signOutTapped()
-                        router.resetAfterSignOut()
-                    }
-                },
-                onDeleteAccount: {
-                    await authViewModel.deleteAccountTapped()
-                    router.resetAfterSignOut()
-                },
-                onOpenPaywall: {
-                    paywallRouter.presentPaywall(placement: .activity)
-                },
-                onOpenPersonMessages: { userID in
-                    router.openConversation(threadID: SparkMainTabRouting.directThreadID(for: userID))
-                }
-            )
-            .tabItem { tabLabel(for: .profile) }
-            .tag(SparkTab.profile)
-        } else {
-            ProgressView()
-                .task { ensureProfileViewModel() }
-                .tabItem { tabLabel(for: .profile) }
-                .tag(SparkTab.profile)
         }
     }
 
@@ -169,7 +158,7 @@ public struct SparkMainTabView: View {
                     pendingConversationThreadID: $router.pendingConversationThreadID,
                     onOpenActivity: { router.openActivityDetail(activityID: $0) },
                     onProposeMeetup: { peerName in
-                        router.openCreateActivity(draft: .matchCoffee(peerName: peerName))
+                        presentCreateActivity(draft: .matchCoffee(peerName: peerName))
                     },
                     onOpenActivityTab: { router.selectedTab = .activity },
                     onScannedPayload: { payload in
@@ -184,7 +173,7 @@ public struct SparkMainTabView: View {
         }
     }
 
-    private var tabSelection: Binding<SparkTab> {
+    var tabSelection: Binding<SparkTab> {
         Binding(
             get: { router.selectedTab },
             set: { newTab in
@@ -211,13 +200,13 @@ public struct SparkMainTabView: View {
         ensureMessagesTabState()
     }
 
-    private func ensureProfileViewModel() {
+    func ensureProfileViewModel() {
         if profileViewModel == nil {
             profileViewModel = tabDependencies.profileCoordinator.makeProfileViewModel()
         }
     }
 
-    private func handleSearchResult(_ item: SearchResultItem) {
+    func handleSearchResult(_ item: SearchResultItem) {
         SparkMainTabRouting.handleSearchResult(item, router: router)
     }
 
