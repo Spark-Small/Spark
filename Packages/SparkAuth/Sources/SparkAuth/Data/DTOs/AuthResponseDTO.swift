@@ -42,3 +42,24 @@ struct AppleSignInRequestDTO: Encodable, Sendable {
         case authorizationCode = "authorization_code"
     }
 }
+
+struct PhoneOTPRequestDTO: Encodable, Sendable {
+    let phone: String
+}
+
+struct PhoneOTPVerifyRequestDTO: Encodable, Sendable {
+    let phone: String
+    let code: String
+}
+
+struct PhonePasswordResetRequestDTO: Encodable, Sendable {
+    let phone: String
+    let code: String
+    let newPassword: String
+
+    enum CodingKeys: String, CodingKey {
+        case phone
+        case code
+        case newPassword = "new_password"
+    }
+}

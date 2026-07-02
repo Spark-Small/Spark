@@ -1,178 +1,214 @@
-// Module: SparkAuth — Login screen (Apple + email).
+// Module: SparkAuth — Login screen (phone OTP + Apple).
 
-import AuthenticationServices
+import SparkCore
 import SparkDesignSystem
-import SparkPersistence
 import SwiftUI
 
 public struct LoginView: View {
     @Bindable var viewModel: AuthViewModel
+    @Environment(\.colorScheme) private var colorScheme
+    @FocusState private var focusedField: AuthPhoneOTPFocusField?
 
-    public init(viewModel: AuthViewModel) {
+    private let onCancel: (() -> Void)?
+
+    public init(viewModel: AuthViewModel, onCancel: (() -> Void)? = nil) {
         self.viewModel = viewModel
+        self.onCancel = onCancel
     }
+
+    private var isPresentedModally: Bool { onCancel != nil }
 
     public var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    header
-                    emailFields
-                    signInButton
-                    divider
-                    appleButton
-                    authLinks
-                }
-                .padding(24)
-            }
-            .navigationTitle(
-                String(localized: "auth.login.title", defaultValue: "登录 Spark", comment: "Login title")
-            )
-            .navigationBarTitleDisplayMode(.large)
-            .background(.background)
-            .sparkDismissesKeyboardOnScroll()
-            .alert(
-                String(localized: "auth.login.error.title", defaultValue: "无法登录", comment: "Login error title"),
-                isPresented: failureBinding
-            ) {
-                Button(String(localized: "auth.login.error.ok", defaultValue: "好", comment: "OK")) {
-                    viewModel.dismissFailure()
-                }
-            } message: {
-                if case let .failure(message) = viewModel.authState {
-                    Text(message)
-                }
-            }
-        }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(
-                String(
-                    localized: "auth.login.subtitle",
-                    defaultValue: "登录后继续活动与消息",
-                    comment: "Login subtitle"
-                )
-            )
-            .font(.title3.weight(.semibold))
-#if DEBUG
-            Text(
-                String(
-                    localized: "auth.login.hint",
-                    defaultValue: "演示环境可使用任意有效邮箱与 6 位以上密码",
-                    comment: "Login hint"
-                )
-            )
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-#endif
-        }
-    }
-
-    private var emailFields: some View {
-        VStack(spacing: 12) {
-            TextField(
-                String(localized: "auth.login.email", defaultValue: "邮箱", comment: "Email field"),
-                text: $viewModel.email
-            )
-            .textContentType(.emailAddress)
-            .keyboardType(.emailAddress)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-
-            SecureField(
-                String(localized: "auth.login.password", defaultValue: "密码", comment: "Password field"),
-                text: $viewModel.password
-            )
-            .textContentType(.password)
-        }
-        .padding(16)
-        .sparkGlassSurface(RoundedRectangle.sparkCard)
-    }
-
-    private var signInButton: some View {
-        Button(
-            String(localized: "auth.login.email.button", defaultValue: "邮箱登录", comment: "Email sign in")
+        SparkScreenContainer(
+            navigationTitle: LoginCopy.navigationTitle,
+            titleDisplayMode: isPresentedModally ? .inline : .large
         ) {
-            Task { await viewModel.signInWithEmailTapped() }
-        }
-        .buttonStyle(.borderedProminent)
-        .disabled(viewModel.email.isEmpty || viewModel.password.count < 6)
-    }
-
-    private var divider: some View {
-        HStack {
-            Rectangle().frame(height: 1).foregroundStyle(.tertiary)
-            Text(String(localized: "auth.login.or", defaultValue: "或", comment: "Divider"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Rectangle().frame(height: 1).foregroundStyle(.tertiary)
-        }
-    }
-
-    private var appleButton: some View {
-        SignInWithAppleButton(.signIn) { request in
-            request.requestedScopes = [.fullName, .email]
-        } onCompletion: { result in
-            Task { await viewModel.handleAppleSignInResult(result) }
-        }
-        .signInWithAppleButtonStyle(.black)
-        .frame(height: 48)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .accessibilityLabel(
-            String(localized: "auth.login.apple", defaultValue: "通过 Apple 登录", comment: "Apple sign in")
-        )
-    }
-
-    private var authLinks: some View {
-        VStack(spacing: 12) {
-            NavigationLink {
-                SignUpView(viewModel: viewModel)
-            } label: {
-                Text(
-                    String(
-                        localized: "auth.login.signUpLink",
-                        defaultValue: "没有账号？注册",
-                        comment: "Sign up link"
-                    )
-                )
-                .frame(maxWidth: .infinity)
+            Form {
+                subtitleSection
+                phoneCredentialsSection
+                phoneLoginActionsSection
+                appleSignInSection
+                legalSection
             }
-            .buttonStyle(.bordered)
-
-            NavigationLink {
-                ForgotPasswordView(viewModel: viewModel)
-            } label: {
-                Text(
-                    String(
-                        localized: "auth.login.forgotPasswordLink",
-                        defaultValue: "忘记密码",
-                        comment: "Forgot password link"
-                    )
-                )
-                .font(.subheadline)
-            }
-            .buttonStyle(.borderless)
+            .formStyle(.grouped)
+            .sparkDismissesKeyboardOnScroll()
+            .toolbar { loginToolbar }
+            .authFailureAlert(viewModel: viewModel)
         }
-    }
-
-    private var failureBinding: Binding<Bool> {
-        Binding(
-            get: {
-                if case .failure = viewModel.authState { return true }
-                return false
-            },
-            set: { isPresented in
-                if !isPresented { viewModel.dismissFailure() }
-            }
-        )
+        .presentationDragIndicator(isPresentedModally ? .visible : .automatic)
     }
 }
 
-#Preview {
-    let store = AuthSessionStore()
-    let tokenProvider = KeychainAccessTokenProvider()
-    let service = MockAuthService(sessionStore: store, tokenProvider: tokenProvider)
-    LoginView(viewModel: AuthViewModel(authService: service))
+// MARK: - Sections
+
+private extension LoginView {
+    var subtitleSection: some View {
+        Section {
+            Text(LoginCopy.subtitle)
+                .font(.title2.weight(.semibold))
+                .accessibilityAddTraits(.isHeader)
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 12, trailing: 0))
+                .listRowBackground(Color.clear)
+        }
+    }
+
+    var phoneCredentialsSection: some View {
+        Section {
+            AuthPhoneOTPFields(
+                phone: $viewModel.loginPhone,
+                verificationCode: $viewModel.loginVerificationCode,
+                focusedField: $focusedField,
+                phonePlaceholder: LoginCopy.phonePlaceholder,
+                verificationCodePlaceholder: LoginCopy.verificationCodePlaceholder,
+                sendCodeAccessibilityLabel: LoginCopy.sendVerificationCode,
+                otpSent: viewModel.loginOTPSent,
+                showsSendArrow: viewModel.showsPhoneLoginArrow,
+                isSendingOTP: viewModel.isSendingLoginOTP,
+                resendSecondsRemaining: viewModel.loginOTPResendSecondsRemaining,
+                isInteractionDisabled: viewModel.isSignInInProgress,
+                onPhoneChange: { viewModel.loginPhoneDidChange() },
+                onVerificationCodeChange: { viewModel.loginVerificationCodeDidChange() },
+                onSendOTP: { await viewModel.sendLoginPhoneOTPTapped() }
+            )
+        } footer: {
+            NavigationLink {
+                ForgotPasswordView(viewModel: viewModel)
+            } label: {
+                Text(LoginCopy.forgotPassword)
+                    .font(.footnote)
+            }
+            .accessibilityHint(LoginCopy.forgotPasswordHint)
+        }
+        .onChange(of: viewModel.loginOTPSent) { _, otpSent in
+            guard otpSent else { return }
+            focusedField = .verificationCode
+        }
+        .onChange(of: viewModel.loginVerificationCode) { _, _ in
+            guard viewModel.shouldAutoSubmitLoginOTP else { return }
+            focusedField = nil
+            Task { await viewModel.signInWithPhoneOTPTapped() }
+        }
+    }
+
+    var phoneLoginActionsSection: some View {
+        Section {
+            VStack(spacing: SparkAuthLayout.signInButtonSpacing) {
+                Button {
+                    focusedField = nil
+                    Task { await viewModel.signInWithPhoneOTPTapped() }
+                } label: {
+                    Group {
+                        if viewModel.isLoading(for: .phoneOtp) {
+                            ProgressView()
+                                .controlSize(.regular)
+                        } else {
+                            Text(LoginCopy.signIn)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .loginPrimaryButtonChrome()
+                .disabled(!viewModel.canSignInWithPhoneOTP)
+
+                if showsFlowCancelButton {
+                    Button(role: .cancel, action: cancelLoginFlow) {
+                        Text(LoginCopy.cancel)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .loginSecondaryButtonChrome()
+                    .disabled(viewModel.isSignInInProgress)
+                    .accessibilityHint(LoginCopy.cancelHint)
+                }
+            }
+            .loginActionRowChrome()
+        }
+    }
+
+    var appleSignInSection: some View {
+        Section {
+            Button {
+                focusedField = nil
+                Task { await viewModel.signInWithAppleTapped() }
+            } label: {
+                Group {
+                    if viewModel.isLoading(for: .apple) {
+                        ProgressView()
+                            .controlSize(.regular)
+                            .tint(AuthBrandColor.appleSignInForeground(for: colorScheme))
+                    } else {
+                        Label(LoginCopy.appleSignIn, systemImage: "apple.logo")
+                            .font(.body.weight(.semibold))
+                            .labelStyle(.titleAndIcon)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .loginAppleSignInButtonChrome(colorScheme: colorScheme)
+            .disabled(viewModel.isSignInInProgress)
+            .opacity(viewModel.isLoading(for: .apple) ? 0.65 : 1)
+            .accessibilityLabel(LoginCopy.appleSignIn)
+            .loginActionRowChrome()
+        }
+    }
+
+    var legalSection: some View {
+        Section {
+            AuthLegalFooter()
+                .frame(maxWidth: .infinity, alignment: .center)
+                .multilineTextAlignment(.center)
+                .listRowInsets(SparkAuthLayout.legalRowInsets)
+                .listRowBackground(Color.clear)
+        }
+    }
+}
+
+// MARK: - Toolbar
+
+private extension LoginView {
+    @ToolbarContentBuilder
+    var loginToolbar: some ToolbarContent {
+        if isPresentedModally {
+            ToolbarItem(placement: .cancellationAction) {
+                Button(LoginCopy.cancel, role: .cancel, action: cancelLoginFlow)
+                    .disabled(viewModel.isSignInInProgress)
+            }
+        }
+    }
+
+    var showsFlowCancelButton: Bool {
+        viewModel.loginOTPSent
+            || !viewModel.loginPhone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    func cancelLoginFlow() {
+        focusedField = nil
+        viewModel.cancelPhoneLoginTapped()
+        onCancel?()
+    }
+}
+
+// MARK: - Previews
+
+#Preview("Light") {
+    LoginView(viewModel: AuthPreviewSupport.makeViewModel())
+}
+
+#Preview("Dark") {
+    SparkPreviewSupport.darkMode {
+        LoginView(viewModel: AuthPreviewSupport.makeViewModel())
+    }
+}
+
+#Preview("Accessibility XL") {
+    SparkPreviewSupport.accessibilityXL {
+        LoginView(viewModel: AuthPreviewSupport.makeViewModel())
+    }
+}
+
+#Preview("OTP sent") {
+    LoginView(viewModel: AuthPreviewSupport.makeViewModelWithOTPSent())
+}
+
+#Preview("Modal") {
+    LoginView(viewModel: AuthPreviewSupport.makeViewModel(), onCancel: {})
 }

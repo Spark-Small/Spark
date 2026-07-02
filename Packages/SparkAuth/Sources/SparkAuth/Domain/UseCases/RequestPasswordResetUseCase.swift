@@ -1,7 +1,8 @@
-// Module: SparkAuth — Password reset request.
+// Module: SparkAuth — Legacy email password reset request (API stub only).
 
 import Foundation
 
+@available(*, deprecated, message: "Use ResetPasswordWithPhoneOTPUseCase; email reset is legacy API only.")
 public struct RequestPasswordResetUseCase: Sendable {
     private let authService: any AuthService
 
