@@ -18,6 +18,7 @@ Staging REST MVP aligned with [docs/API_CONTRACT.md](../../docs/API_CONTRACT.md)
 - **Community:** feed, posts, **media/stage**, replies, report
 - **Messages:** inbox, unread-count, threads, messages, read, activity-threads, direct-threads
 - **Activities:** feed, **browse**, create, detail, patch, rsvp, waitlist, promote, cancel, report, announce, feedback
+- **Buddy:** `GET /v1/buddies`, detail, `POST /v1/buddy-orders`, provider status/application/earnings/orders
 - **Search, Community** (posts + replies + `activity_recap`), **Users** (avatar upload-url, profile), **Trust** (`/v1/trust/*`), **devices**, **notifications/send**
 
 **iOS wired:** Activity browse ([ADR-0003](../../docs/adr/0003-activities-browse-placement.md)), Community compose + reply thread, avatar upload-url.

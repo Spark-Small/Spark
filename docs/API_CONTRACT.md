@@ -120,6 +120,69 @@ Request a password reset email (`RequestPasswordResetUseCase`). Staging returns 
 
 ---
 
+### `POST /v1/auth/phone/otp`
+
+Send an SMS one-time password for phone login, registration, or password reset (`SendPhoneOTPUseCase`).
+
+**Request:**
+
+```json
+{
+  "phone": "13800138000"
+}
+```
+
+`phone` must be a valid mainland China mobile number (11 digits, leading `1`). Staging may accept any valid format and skip real SMS. Verification codes are **6 digits**.
+
+**Response `204`:** Empty body — code dispatched (rate limits apply server-side).
+
+**Response `400`:** Invalid phone → iOS `AuthError.invalidPhone`.
+
+**Response `429`:** Too many requests — client should surface retry messaging.
+
+---
+
+### `POST /v1/auth/phone/verify`
+
+Verify SMS code and establish a session (`SignInWithPhoneOTPUseCase`). Creates the user on first successful verification.
+
+**Request:**
+
+```json
+{
+  "phone": "13800138000",
+  "code": "123456"
+}
+```
+
+`code` must be exactly **6 digits**.
+
+**Response `200`:** Same as session response.
+
+**Response `401`:** Invalid or expired code → iOS `AuthError.invalidVerificationCode`.
+
+---
+
+### `POST /v1/auth/phone/password-reset`
+
+Verify SMS code and set a new password (`ResetPasswordWithPhoneOTPUseCase`). Returns a session on success.
+
+**Request:**
+
+```json
+{
+  "phone": "13800138000",
+  "code": "123456",
+  "new_password": "secret"
+}
+```
+
+**Response `200`:** Same as session response.
+
+**Response `401`:** Invalid or expired code → iOS `AuthError.invalidVerificationCode`.
+
+---
+
 ### `POST /v1/auth/sign-out`
 
 **Headers:** `Authorization: Bearer <token>`
@@ -420,9 +483,9 @@ Signed-in user's activity feed for the Activity tab (`SparkActivity` → `LiveAc
 
 ### `GET /v1/activities/browse`
 
-**Status:** **Backend + iOS shipped** (`spark-api` MODULE-A.2, `SparkActivity` MODULE-D). Entry: Activity Tab toolbar「逛局」— [ADR-0003](adr/0003-activities-browse-placement.md).
+**Status:** **Backend + iOS shipped** (`spark-api` MODULE-A.2, `SparkActivity` MODULE-D). Entry: Activity Tab **发现** 分段（游客可读）— [ADR-0003](adr/0003-activities-browse-placement.md).
 
-**Headers:** `Authorization: Bearer <access_token>` (required)
+**Headers:** `Authorization: Bearer <access_token>` — **optional for public browse** (Live: planned; iOS Mock works without token). RSVP / host actions still require auth.
 
 **Query:**
 
@@ -539,7 +602,10 @@ Host creates a new activity (`CreateActivityUseCase`).
   "description": "集合后统一出发。",
   "location_name": "城郊步道北门",
   "starts_at": "2026-06-07T09:30:00Z",
-  "capacity": 8
+  "capacity": 8,
+  "cover_url": "https://example.com/cover.jpg",
+  "cover_poster_url": "https://example.com/cover-poster.jpg",
+  "cover_is_video": false
 }
 ```
 
@@ -713,11 +779,172 @@ Documented for `MessagesAPIPath` in `SparkMessages`:
 
 ---
 
+## Buddy (搭子)
+
+### `GET /v1/buddies`
+
+Trust-first local companion listings (`SparkBuddy` → `LiveBuddyRepository`). Entry: **搭子** Tab.
+
+**Headers:** `Authorization: Bearer <access_token>` — optional for public browse (Mock works without token).
+
+**Query**
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `category` | string | No | `city_walk` \| `food` \| `photography` \| `sports` \| `nightlife` \| `culture` |
+| `billing` | string | No | `hourly` \| `daily` \| `per_project` |
+| `cursor` | string | No | Pagination cursor |
+
+**Response `200`:**
+
+```json
+{
+  "items": [
+    {
+      "id": "buddy_city_1",
+      "displayName": "阿Ken",
+      "avatarURL": "https://cdn.example/avatar.jpg",
+      "coverURL": "https://cdn.example/cover.jpg",
+      "introVideoURL": null,
+      "headline": "城市探店 · 展览同行",
+      "description": "北京本地向导…",
+      "city": "北京",
+      "serviceCategory": "city_walk",
+      "billingKind": "daily",
+      "priceAmount": "599",
+      "priceCurrencyCode": "CNY",
+      "tags": ["CityWalk达人", "探店"],
+      "rating": 4.8,
+      "reviewCount": 54,
+      "completedOrderCount": 128,
+      "isVerified": true,
+      "supportsOfflineMeetup": true,
+      "supportsPaidCompanion": false,
+      "trust": {
+        "hasIdentityVerified": true,
+        "hasPhoneVerified": true,
+        "hasFaceVerified": true,
+        "hasEmergencyContact": true,
+        "authenticityScore": 92,
+        "socialScore": 85,
+        "talkativenessScore": 88,
+        "photographyScore": 90,
+        "localFamiliarityScore": 95
+      },
+      "matchInsight": {
+        "matchPercent": 89,
+        "reason": "你们都喜欢 CityWalk 与咖啡文化。"
+      },
+      "packages": [
+        {
+          "id": "pkg_city_half_day",
+          "title": "城市漫游",
+          "durationHours": 4,
+          "priceAmount": "299",
+          "priceCurrencyCode": "CNY",
+          "inclusions": ["本地人陪同讲解"],
+          "exclusions": ["餐饮与门票费用", "私下加价（平台禁止）"]
+        }
+      ],
+      "reviewSnapshot": {
+        "punctuality": 4.9,
+        "communication": 4.8,
+        "expertise": 4.9,
+        "safety": 5.0,
+        "fun": 4.7,
+        "recommend": 4.9,
+        "reviews": [
+          {
+            "id": "rv_city_1",
+            "authorDisplayName": "小林",
+            "rating": 5,
+            "comment": "路线规划很贴心，拍照也很会找角度。",
+            "createdAt": "2026-06-01T10:00:00Z"
+          }
+        ],
+        "highlightReviews": [
+          {
+            "id": "rv_city_1",
+            "authorDisplayName": "小林",
+            "rating": 5,
+            "comment": "路线规划很贴心，拍照也很会找角度。",
+            "createdAt": "2026-06-01T10:00:00Z"
+          }
+        ]
+      }
+    }
+  ],
+  "nextCursor": null
+}
+```
+
+### `GET /v1/buddies/{buddy_id}`
+
+Single listing detail. Same item shape as `items[]` above.
+
+### `POST /v1/buddy-orders`
+
+Create escrow-held booking (`CreateBuddyOrderUseCase`).
+
+**Headers:** `Authorization: Bearer <access_token>` (required)
+
+**Body:**
+
+```json
+{
+  "listingID": "buddy_city_1",
+  "packageID": "pkg_city_half_day",
+  "scheduledAt": "2026-07-03T10:00:00Z",
+  "paymentMethod": "wechat_pay"
+}
+```
+
+**Response `201`:**
+
+```json
+{
+  "id": "order_abc123",
+  "listingID": "buddy_city_1",
+  "packageID": "pkg_city_half_day",
+  "escrowHeld": true
+}
+```
+
+### Buddy API path literals (iOS Live)
+
+| Method | Path |
+|--------|------|
+| GET | `/v1/buddies` (built in `BuddyAPIPath`) |
+| GET | `/v1/buddies/{id}` |
+| POST | `/v1/buddy-orders` |
+| GET | `/v1/buddy-provider/status` |
+| POST | `/v1/buddy-provider/application` |
+| GET | `/v1/buddy-provider/earnings` (approved providers only) |
+| GET | `/v1/buddy-provider/orders` (approved providers only) |
+
+### `GET /v1/buddy-provider/status`
+
+Returns current user's companion provider approval state.
+
+**Response `200`:** `{ "state": "none|pending|approved|rejected|suspended", "submittedAt": "...", "reviewedAt": "...", "rejectionReason": null }`
+
+### `POST /v1/buddy-provider/application`
+
+Submit companion certification application (Profile → 陪玩认证申请).
+
+**Body:** `{ "displayName", "city", "serviceCategory", "bio", "capabilityTags": [] }`
+
+### `GET /v1/buddy-provider/earnings`
+
+**403** if `state != approved`. Returns `{ availableBalance, pendingEscrow, currencyCode, completedOrderCount, monthEarnings }`.
+
+---
+
 ## Search
 
 ### `GET /v1/search?q={query}`
 
-Full-text search for the Search tab (`SparkSearch` → `LiveSearchRepository`).
+Full-text search from **我的** toolbar (`SparkSearch` → `LiveSearchRepository`; formerly a Tab, now Profile sheet).
 
 **Headers:** `Authorization: Bearer <access_token>` (required)
 
@@ -964,6 +1191,27 @@ Add a text reply to a post thread.
 
 **Response `404`:** Unknown post id.
 
+### `POST /v1/community/posts/{post_id}/like`
+
+Set the authenticated viewer's like state on a post (`LiveCommunityPostsRepository.setPostLike`).
+
+**Request:** `{ "liked": true }` or `{ "liked": false }`
+
+**Response `200`:**
+
+```json
+{ "liked": true, "like_count": 10 }
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `liked` | boolean | Yes | Whether the viewer now likes the post |
+| `like_count` | integer | Yes | Total likes after mutation |
+
+**Side effects:** When `liked` transitions to `true` and the viewer is not the author, server sends push type `community.like` to the post author.
+
+**Feed/detail fields:** `viewer_has_liked` (boolean) and `like_count` (integer) on feed posts and post detail.
+
 ### `POST /v1/community/posts/{post_id}/report` (MODULE-E.4)
 
 **Request:** `{ "reason": "spam" }` (optional, max 500 chars)
@@ -980,6 +1228,7 @@ Add a text reply to a post thread.
 | POST | `/v1/community/communities/{community_id}/join` |
 | GET | `/v1/community/posts/{post_id}` (built in `CommunityAPIPath.post`) |
 | POST | `/v1/community/posts/{post_id}/replies` (built in `CommunityAPIPath.replies`) |
+| POST | `/v1/community/posts/{post_id}/like` (built in `CommunityAPIPath.like`) |
 | POST | `/v1/community/posts/{post_id}/report` |
 
 **Deep links (iOS):** `spark://community/post/{post_id}` · `spark://community?post_id={id}` · `spark://community?activity_id={id}` (recap draft)
@@ -1031,8 +1280,9 @@ Staging returns `upload_url: null` and a ready `avatar_url` (no client upload). 
 | `messages.new` | Open thread (`thread_id`) |
 | `activity.updated` / `activity.cancelled` | Open activity detail (`activity_id`) |
 | `community.reply` | Open community post (`post_id`) |
+| `community.like` | Open community post (`post_id`) |
 
-**MODULE-B.4 triggers (server):** DM message → `messages.new`; host patch/cancel/announce → `activity.*`; reply → `community.reply`.
+**MODULE-B.4 triggers (server):** DM message → `messages.new`; host patch/cancel/announce → `activity.*`; reply → `community.reply`; like → `community.like`.
 
 **Legacy deep links:** `spark://likes` and `/tab/likes` redirect to Community tab (iOS app shell).
 
