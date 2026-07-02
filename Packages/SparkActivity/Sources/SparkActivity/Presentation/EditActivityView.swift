@@ -31,53 +31,17 @@ public struct EditActivityView: View {
         @Bindable var viewModel = viewModel
 
         Form {
-            Section {
-                TextField(
-                    String(localized: "activity.create.title", defaultValue: "活动名称", comment: "Create field"),
-                    text: $viewModel.draft.title
-                )
-                TextField(
-                    String(localized: "activity.create.location", defaultValue: "地点", comment: "Create field"),
-                    text: $viewModel.draft.locationName
-                )
-                DatePicker(
-                    String(localized: "activity.create.startsAt", defaultValue: "开始时间", comment: "Create field"),
-                    selection: $viewModel.draft.startsAt
-                )
-                Stepper(
-                    capacityLabel,
-                    value: Binding(
-                        get: { viewModel.draft.capacity ?? 10 },
-                        set: { viewModel.draft.capacity = $0 }
-                    ),
-                    in: 2 ... 99
-                )
-            } header: {
-                Text(
-                    String(localized: "activity.create.section.basics", defaultValue: "基本信息", comment: "Create section")
-                )
-            }
-
-            Section {
-                TextField(
-                    String(localized: "activity.create.description", defaultValue: "活动说明", comment: "Create field"),
-                    text: $viewModel.draft.description,
-                    axis: .vertical
-                )
-                .lineLimit(4 ... 8)
-            } header: {
-                Text(
-                    String(localized: "activity.create.section.about", defaultValue: "说明", comment: "Create section")
-                )
-            }
-
-            if case .failure(let message) = viewModel.submitState {
-                Section {
-                    Text(message)
-                        .foregroundStyle(.red)
-                        .font(.footnote)
-                }
-            }
+            ActivityCreateFormFields(
+                draft: $viewModel.draft,
+                selectedCoverItems: .constant([]),
+                coverPreviewImage: nil,
+                coverIsVideo: false,
+                submitErrorMessage: submitErrorMessage,
+                showsValidationGuidance: viewModel.showsValidationGuidance,
+                showsQuickTemplates: false,
+                showsCoverPicker: false,
+                showsProgress: false
+            )
         }
         .sparkDismissesKeyboardOnScroll()
         .accessibilityElement(children: .contain)
@@ -92,10 +56,26 @@ public struct EditActivityView: View {
                 }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(String(localized: "action.save", defaultValue: "保存", comment: "Save")) {
+                Button {
                     Task { await save() }
+                } label: {
+                    if isSubmitting {
+                        ProgressView()
+                            .accessibilityLabel(
+                                String(
+                                    localized: "activity.edit.saving.a11y",
+                                    defaultValue: "正在保存活动",
+                                    comment: "Saving a11y"
+                                )
+                            )
+                    } else {
+                        Text(String(localized: "action.save", defaultValue: "保存", comment: "Save"))
+                    }
                 }
-                .disabled(!viewModel.draft.isValid || isSubmitting)
+                .disabled(!viewModel.draft.isValid || isSubmitting || !viewModel.hasChanges)
+                .accessibilityHint(
+                    saveAccessibilityHint
+                )
             }
         }
         .disabled(isSubmitting)
@@ -106,11 +86,38 @@ public struct EditActivityView: View {
         return false
     }
 
-    private var capacityLabel: String {
-        String(localized: "activity.create.capacity", defaultValue: "人数上限", comment: "Capacity stepper")
+    private var submitErrorMessage: String? {
+        if case .failure(let message) = viewModel.submitState {
+            return message
+        }
+        return nil
+    }
+
+    private var saveAccessibilityHint: String {
+        if !viewModel.hasChanges {
+            return String(
+                localized: "activity.edit.save.unchanged",
+                defaultValue: "内容未修改",
+                comment: "Save unchanged hint"
+            )
+        }
+        if viewModel.draft.isValid {
+            return String(
+                localized: "activity.edit.save.hint",
+                defaultValue: "保存后参加者将看到更新内容",
+                comment: "Save hint"
+            )
+        }
+        return viewModel.draft.validationError?.errorDescription
+            ?? String(
+                localized: "activity.create.publish.disabled",
+                defaultValue: "填好局名和集合地点即可预览",
+                comment: "Publish disabled hint"
+            )
     }
 
     private func save() async {
+        viewModel.markSaveAttempted()
         guard let detail = await viewModel.submit() else { return }
         onSaved(detail)
         dismiss()
@@ -127,4 +134,17 @@ public struct EditActivityView: View {
             )
         }
     }
+}
+
+#Preview("Dark") {
+    NavigationStack {
+        if let activity = MockActivityCatalog.detail(id: "act_1") {
+            EditActivityView(
+                activity: activity,
+                coordinator: ActivityCoordinator(feedRepository: MockActivityFeedRepository()),
+                onSaved: { _ in }
+            )
+        }
+    }
+    .preferredColorScheme(.dark)
 }

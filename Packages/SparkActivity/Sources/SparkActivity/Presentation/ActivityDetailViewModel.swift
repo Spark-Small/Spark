@@ -27,10 +27,15 @@ public final class ActivityDetailViewModel {
     public private(set) var calendarFeedbackMessage: String?
     public private(set) var reportFeedbackMessage: String?
     public private(set) var hostOtherActivities: [ActivityItem] = []
+    public private(set) var hostPastActivities: [ActivityItem] = []
     public private(set) var hostOtherActivitiesLoadFailed = false
+    public private(set) var similarActivities: [ActivityItem] = []
+    public private(set) var similarActivitiesLoadFailed = false
     public private(set) var feedbackSubmitted = false
 
     private let fetchDetail: any FetchActivityDetailUseCaseProtocol
+    private let fetchFeed: (any FetchActivityFeedUseCaseProtocol)?
+    private let fetchBrowsePage: (any FetchActivityBrowsePageUseCaseProtocol)?
     private let updateRSVP: any UpdateActivityRSVPUseCaseProtocol
     private let cancelActivity: any CancelActivityUseCaseProtocol
     private let reportActivity: any ReportActivityUseCaseProtocol
@@ -45,6 +50,7 @@ public final class ActivityDetailViewModel {
     private let calendarExporter: any ActivityCalendarExporting
     private let onRSVPCompleted: ((ActivityDetail) async -> Void)?
     private let onActivityUpdated: ((ActivityDetail) async -> Void)?
+    private let onHostBlocked: (() async -> Void)?
     private let logger = Logger(subsystem: SparkLog.subsystem, category: "ActivityDetail")
     private var loadGeneration = 0
 
@@ -61,11 +67,14 @@ public final class ActivityDetailViewModel {
         announceActivity: any AnnounceActivityUseCaseProtocol,
         submitHostFeedback: any SubmitHostFeedbackUseCaseProtocol,
         fetchHostActivities: any FetchActivitiesByHostUseCaseProtocol,
+        fetchFeed: (any FetchActivityFeedUseCaseProtocol)? = nil,
+        fetchBrowsePage: (any FetchActivityBrowsePageUseCaseProtocol)? = nil,
         context: ActivityDetailContext = .inbox,
         blockedHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
         calendarExporter: (any ActivityCalendarExporting)? = nil,
         onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
-        onActivityUpdated: ((ActivityDetail) async -> Void)? = nil
+        onActivityUpdated: ((ActivityDetail) async -> Void)? = nil,
+        onHostBlocked: (() async -> Void)? = nil
     ) {
         self.activityID = activityID
         self.context = context
@@ -81,9 +90,12 @@ public final class ActivityDetailViewModel {
         self.announceActivity = announceActivity
         submitHostFeedbackUseCase = submitHostFeedback
         self.fetchHostActivities = fetchHostActivities
+        self.fetchFeed = fetchFeed
+        self.fetchBrowsePage = fetchBrowsePage
         self.calendarExporter = calendarExporter ?? ActivityCalendarExportService()
         self.onRSVPCompleted = onRSVPCompleted
         self.onActivityUpdated = onActivityUpdated
+        self.onHostBlocked = onHostBlocked
     }
 
     public convenience init(
@@ -93,7 +105,8 @@ public final class ActivityDetailViewModel {
         blockedHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore(),
         calendarExporter: (any ActivityCalendarExporting)? = nil,
         onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
-        onActivityUpdated: ((ActivityDetail) async -> Void)? = nil
+        onActivityUpdated: ((ActivityDetail) async -> Void)? = nil,
+        onHostBlocked: (() async -> Void)? = nil
     ) {
         self.init(
             activityID: activityID,
@@ -108,11 +121,14 @@ public final class ActivityDetailViewModel {
             announceActivity: AnnounceActivityUseCase(repository: repository),
             submitHostFeedback: SubmitHostFeedbackUseCase(repository: repository),
             fetchHostActivities: FetchActivitiesByHostUseCase(repository: repository),
+            fetchFeed: FetchActivityFeedUseCase(repository: repository),
+            fetchBrowsePage: nil,
             context: context,
             blockedHostsStore: blockedHostsStore,
             calendarExporter: calendarExporter,
             onRSVPCompleted: onRSVPCompleted,
-            onActivityUpdated: onActivityUpdated
+            onActivityUpdated: onActivityUpdated,
+            onHostBlocked: onHostBlocked
         )
     }
 
@@ -122,13 +138,19 @@ public final class ActivityDetailViewModel {
         loadState = .loading
         rsvpErrorMessage = nil
         hostOtherActivitiesLoadFailed = false
+        similarActivitiesLoadFailed = false
         do {
-            activity = try await fetchDetail(activityID: activityID)
+            let fetched = try await fetchDetail(activityID: activityID)
+            activity = await normalizedDetailForEntryContext(fetched)
             guard generation == loadGeneration else { return }
-            await loadHostOtherActivities(generation: generation)
+            async let hostMore: Void = loadHostOtherActivities(generation: generation)
+            async let similar: Void = loadSimilarActivities(generation: generation)
+            _ = await (hostMore, similar)
             guard generation == loadGeneration else { return }
             loadState = .loaded
         } catch is CancellationError {
+            guard generation == loadGeneration else { return }
+            loadState = activity == nil ? .idle : .loaded
             return
         } catch {
             guard generation == loadGeneration else { return }
@@ -145,6 +167,14 @@ public final class ActivityDetailViewModel {
             localized: "activity.invite.copied",
             defaultValue: "邀请文案已复制",
             comment: "Copy feedback"
+        )
+    }
+
+    public func notifyLocationCopied() {
+        hostFeedbackMessage = String(
+            localized: "activity.location.copied",
+            defaultValue: "集合地点已复制",
+            comment: "Location copy feedback"
         )
     }
 
@@ -228,6 +258,7 @@ public final class ActivityDetailViewModel {
             let result = try await reportActivity(activityID: activityID, reason: reason)
             if blockHost, let hostID = activity?.hostID {
                 await blockedHostsStore.block(hostID: hostID)
+                await onHostBlocked?()
             }
             let format = String(
                 localized: "activity.report.submitted.withId",
@@ -379,17 +410,75 @@ public final class ActivityDetailViewModel {
     private func loadHostOtherActivities(generation: Int) async {
         guard let hostID = activity?.hostID else {
             hostOtherActivities = []
+            hostPastActivities = []
             hostOtherActivitiesLoadFailed = false
             return
         }
         do {
-            hostOtherActivities = try await fetchHostActivities(hostID: hostID, excludingActivityID: activityID)
+            let items = try await fetchHostActivities(hostID: hostID, excludingActivityID: activityID)
+            guard generation == loadGeneration else { return }
+            let now = Date()
+            hostOtherActivities = items.filter { item in
+                item.lifecycleStatus == .scheduled
+                    && (item.startsAt ?? .distantFuture) >= now
+            }
+            hostPastActivities = Array(
+                items.filter { item in
+                    item.lifecycleStatus == .ended
+                        || (item.startsAt ?? .distantPast) < now
+                }
+                .prefix(5)
+            )
             hostOtherActivitiesLoadFailed = false
         } catch {
             guard generation == loadGeneration else { return }
             hostOtherActivities = []
+            hostPastActivities = []
             hostOtherActivitiesLoadFailed = true
             logger.error("loadHostOtherActivities failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func loadSimilarActivities(generation: Int) async {
+        guard let activity else {
+            similarActivities = []
+            return
+        }
+        similarActivitiesLoadFailed = false
+        do {
+            if let fetchBrowsePage {
+                let query = ActivityBrowseQuery(
+                    category: activity.category.isEmpty ? nil : activity.category,
+                    startsAfter: Date()
+                )
+                let page = try await fetchBrowsePage(query: query)
+                guard generation == loadGeneration else { return }
+                similarActivities = Array(
+                    page.items
+                        .filter { $0.id != activityID }
+                        .prefix(5)
+                )
+            } else if let fetchFeed {
+                let items = try await fetchFeed()
+                guard generation == loadGeneration else { return }
+                similarActivities = Array(
+                    items
+                        .filter {
+                            $0.id != activityID
+                                && $0.lifecycleStatus == .scheduled
+                                && (activity.category.isEmpty || $0.category == activity.category)
+                                && ($0.startsAt ?? .distantFuture) >= Date()
+                        }
+                        .prefix(5)
+                )
+            } else {
+                similarActivities = []
+            }
+        } catch {
+            guard generation == loadGeneration else { return }
+            similarActivities = []
+            similarActivitiesLoadFailed = true
+            logger.error("loadSimilarActivities failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -416,6 +505,17 @@ public final class ActivityDetailViewModel {
             )
         case let .failed(description):
             description
+        }
+    }
+
+    /// Browse / deep-link entry always offers RSVP; inbox keeps the viewer's feed relationship.
+    private func normalizedDetailForEntryContext(_ detail: ActivityDetail) async -> ActivityDetail {
+        switch context {
+        case .inbox:
+            return detail
+        case .discover, .externalEntry:
+            guard detail.rsvpStatus != .host else { return detail }
+            return detail.updatingRSVP(.invited)
         }
     }
 }

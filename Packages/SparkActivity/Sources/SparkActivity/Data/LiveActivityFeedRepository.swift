@@ -52,7 +52,10 @@ public struct LiveActivityFeedRepository: ActivityFeedRepository, Sendable {
                 description: draft.description.trimmingCharacters(in: .whitespacesAndNewlines),
                 locationName: draft.locationName.trimmingCharacters(in: .whitespacesAndNewlines),
                 startsAt: ActivityFormatting.iso8601String(from: draft.startsAt),
-                capacity: draft.capacity
+                capacity: draft.capacity,
+                coverURL: draft.coverURL?.absoluteString,
+                coverPosterURL: draft.coverPosterURL?.absoluteString,
+                coverIsVideo: draft.coverIsVideo ? true : nil
             )
             let body = try JSONEncoder().encode(request)
             let dto: ActivityDetailResponseDTO = try await apiClient.post(ActivityAPIPath.create, body: body)
@@ -90,7 +93,10 @@ public struct LiveActivityFeedRepository: ActivityFeedRepository, Sendable {
                 description: draft.description.trimmingCharacters(in: .whitespacesAndNewlines),
                 locationName: draft.locationName.trimmingCharacters(in: .whitespacesAndNewlines),
                 startsAt: ActivityFormatting.iso8601String(from: draft.startsAt),
-                capacity: draft.capacity
+                capacity: draft.capacity,
+                coverURL: draft.coverURL?.absoluteString,
+                coverPosterURL: draft.coverPosterURL?.absoluteString,
+                coverIsVideo: draft.coverIsVideo ? true : nil
             )
             let body = try JSONEncoder().encode(request)
             let dto: ActivityDetailResponseDTO = try await apiClient.patch(

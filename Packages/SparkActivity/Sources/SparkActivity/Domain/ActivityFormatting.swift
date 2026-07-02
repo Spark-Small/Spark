@@ -20,6 +20,13 @@ enum ActivityFormatting {
         return plain.date(from: iso8601)
     }
 
+    /// Detail line 2: calendar date · weekday (e.g. 6月19日 · 周五).
+    static func detailDateDotWeekdayLine(startsAt: Date) -> String {
+        let datePart = startsAt.formatted(.dateTime.month(.abbreviated).day())
+        let weekdayPart = startsAt.formatted(.dateTime.weekday(.wide))
+        return "\(datePart) · \(weekdayPart)"
+    }
+
     /// Meetup-style long date for detail hero (e.g. Saturday, June 7).
     static func detailWeekdayDateLine(startsAt: Date) -> String {
         startsAt.formatted(.dateTime.weekday(.wide).month(.wide).day())
@@ -38,6 +45,63 @@ enum ActivityFormatting {
     /// Meetup-style day number for inbox date tile.
     static func listDayNumber(startsAt: Date) -> String {
         startsAt.formatted(.dateTime.day())
+    }
+
+    /// Browse card line 1: title / time / weekday (e.g. 周末徒步 / 19:00 / 周六).
+    static func listCardPrimaryInfoLine(title: String, startsAt: Date?) -> String {
+        let info = ActivityListCardDisplayInfo(title: title, startsAt: startsAt)
+        if info.scheduleLine.isEmpty {
+            return info.title
+        }
+        return [info.title, info.scheduleLine]
+            .filter { !$0.isEmpty }
+            .joined(separator: " · ")
+    }
+
+    /// Browse card line 2: location / host / attendee count.
+    static func listCardSecondaryInfoLine(
+        locationName: String,
+        hostDisplayName: String,
+        attendeeCount: Int,
+        capacity: Int? = nil
+    ) -> String {
+        let info = ActivityListCardDisplayInfo(
+            title: "",
+            startsAt: nil,
+            locationName: locationName,
+            hostDisplayName: hostDisplayName,
+            attendeeCount: attendeeCount,
+            capacity: capacity
+        )
+        return info.metadataLine
+    }
+
+    static func listCardDisplayInfo(from item: ActivityItem) -> ActivityListCardDisplayInfo {
+        ActivityListCardDisplayInfo(
+            title: item.title,
+            startsAt: item.startsAt,
+            locationName: item.locationName,
+            hostDisplayName: item.hostDisplayName,
+            attendeeCount: max(item.attendeeCount, 0),
+            capacity: item.capacity
+        )
+    }
+
+    static func listCardAttendeeCountLine(attendeeCount: Int, capacity: Int?) -> String {
+        if let capacity {
+            let format = String(
+                localized: "activity.row.attendees.compact.capacity.format",
+                defaultValue: "%lld/%lld 人",
+                comment: "Compact attendee count with capacity; first %lld is count, second is capacity"
+            )
+            return String(format: format, locale: .current, attendeeCount, capacity)
+        }
+        let format = String(
+            localized: "activity.row.attendees.compact.format",
+            defaultValue: "%lld 人参加",
+            comment: "Compact attendee count; %lld is count"
+        )
+        return String(format: format, locale: .current, attendeeCount)
     }
 
     /// Meetup browse card schedule (e.g. FRI, JUN 12 • 7:00 PM to 9:00 PM).

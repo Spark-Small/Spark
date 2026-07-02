@@ -1,4 +1,4 @@
-// Module: SparkDesignSystem — Shared #Preview helpers (HIG: dark / XL / iPad).
+// Module: SparkDesignSystem — Shared #Preview helpers (HIG: dark / XL).
 
 import SwiftUI
 
@@ -9,10 +9,5 @@ public enum SparkPreviewSupport {
 
     public static func accessibilityXL<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         content().environment(\.sizeCategory, .accessibilityExtraExtraLarge)
-    }
-
-    /// Simulates iPad regular width for NavigationSplitView previews.
-    public static func iPadRegular<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        content().environment(\.horizontalSizeClass, .regular)
     }
 }

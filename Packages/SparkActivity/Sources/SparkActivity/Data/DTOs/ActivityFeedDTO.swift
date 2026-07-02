@@ -123,6 +123,10 @@ struct ActivityDetailDTO: Decodable, Sendable {
     let threadId: String?
     let lifecycleStatus: String?
     let attendees: [ActivityAttendeeDTO]?
+    let hostGroupName: String?
+    let hostRating: Double?
+    let hostReviewCount: Int?
+    let priceLabel: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -145,6 +149,10 @@ struct ActivityDetailDTO: Decodable, Sendable {
         case threadId = "thread_id"
         case lifecycleStatus = "lifecycle_status"
         case attendees
+        case hostGroupName = "host_group_name"
+        case hostRating = "host_rating"
+        case hostReviewCount = "host_review_count"
+        case priceLabel = "price_label"
     }
 }
 

@@ -7,6 +7,7 @@ import SwiftUI
 struct ActivityMeetupMapPreview: View {
     let activityTitle: String
     let locationName: String
+    let onOpenMap: () -> Void
 
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var coordinate: CLLocationCoordinate2D?
@@ -20,9 +21,7 @@ struct ActivityMeetupMapPreview: View {
     }
 
     var body: some View {
-        NavigationLink {
-            ActivityMeetupMapView(activityTitle: activityTitle, locationName: locationName)
-        } label: {
+        Button(action: onOpenMap) {
             Group {
                 switch loadState {
                 case .idle, .loading:
@@ -58,7 +57,7 @@ struct ActivityMeetupMapPreview: View {
             .frame(height: 140)
             .clipShape(RoundedRectangle(cornerRadius: SparkLayoutMetrics.sparkCardCornerRadius, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.sparkPressable)
         .accessibilityLabel(locationName)
         .accessibilityHint(
             String(

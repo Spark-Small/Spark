@@ -11,6 +11,24 @@ struct CreateActivityDraftValidationTests {
         }
     }
 
+    @Test func emptyLocationThrows() {
+        let draft = CreateActivityDraft(title: "Hike", description: "", locationName: "   ")
+        #expect(throws: ActivityError.emptyInput) {
+            try CreateActivityDraft.validate(draft)
+        }
+    }
+
+    @Test func emptyDescriptionPasses() throws {
+        let draft = CreateActivityDraft(title: "Hike", description: "", locationName: "North gate")
+        try CreateActivityDraft.validate(draft)
+    }
+
+    @Test func normalizedDraftFillsDescription() {
+        let draft = CreateActivityDraft(title: "Hike", description: "", locationName: "North gate")
+        let normalized = draft.normalizedForPublish()
+        #expect(!normalized.description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
     @Test func titleTooLongThrows() {
         let draft = CreateActivityDraft(
             title: String(repeating: "a", count: CreateActivityDraft.maxTitleLength + 1),

@@ -11,6 +11,7 @@ struct CreateActivityUseCase: Sendable {
 
     func callAsFunction(draft: CreateActivityDraft) async throws -> ActivityDetail {
         try CreateActivityDraft.validate(draft)
-        return try await repository.createActivity(draft)
+        let publishDraft = draft.normalizedForPublish()
+        return try await repository.createActivity(publishDraft)
     }
 }

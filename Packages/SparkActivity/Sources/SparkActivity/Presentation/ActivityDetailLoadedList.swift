@@ -8,58 +8,75 @@ struct ActivityDetailLoadedList: View {
     @Bindable var viewModel: ActivityDetailViewModel
     let activity: ActivityDetail
     let inviteCandidates: [ActivityInviteCandidate]
+    let isAuthenticated: Bool
+    let onSignInRequired: (() -> Void)?
     let onOpenGroupChat: ((ActivityDetail) async -> Void)?
     let onCommunityRecap: ((ActivityDetail) -> Void)?
-    @Binding var showEditActivity: Bool
-    @Binding var showAnnounceSheet: Bool
+    let fetchBuddyRecommendation: ((String) async -> (listingID: String, title: String, subtitle: String)?)?
+    let onOpenBuddyListing: ((String) -> Void)?
+    let onRequestAddToCalendar: () -> Void
+    let onReportTapped: (() -> Void)?
+    let tabAccessoryBottomInset: CGFloat
+    @Binding var meetupMapRoute: ActivityMeetupMapRoute?
     @Binding var showHostAgainCreate: Bool
-    @Binding var showCancelActivityConfirm: Bool
 
-    private var usesBottomRSVPBar: Bool {
-        activity.canChangeRSVP && activity.rsvpStatus == .invited
+    @State private var showsAllHostUpcomingEvents = false
+
+    init(
+        viewModel: ActivityDetailViewModel,
+        activity: ActivityDetail,
+        inviteCandidates: [ActivityInviteCandidate],
+        isAuthenticated: Bool,
+        onSignInRequired: (() -> Void)?,
+        onOpenGroupChat: ((ActivityDetail) async -> Void)?,
+        onCommunityRecap: ((ActivityDetail) -> Void)?,
+        fetchBuddyRecommendation: ((String) async -> (listingID: String, title: String, subtitle: String)?)? = nil,
+        onOpenBuddyListing: ((String) -> Void)? = nil,
+        onRequestAddToCalendar: @escaping () -> Void,
+        onReportTapped: (() -> Void)?,
+        tabAccessoryBottomInset: CGFloat,
+        meetupMapRoute: Binding<ActivityMeetupMapRoute?>,
+        showHostAgainCreate: Binding<Bool>
+    ) {
+        self.viewModel = viewModel
+        self.activity = activity
+        self.inviteCandidates = inviteCandidates
+        self.isAuthenticated = isAuthenticated
+        self.onSignInRequired = onSignInRequired
+        self.onOpenGroupChat = onOpenGroupChat
+        self.onCommunityRecap = onCommunityRecap
+        self.fetchBuddyRecommendation = fetchBuddyRecommendation
+        self.onOpenBuddyListing = onOpenBuddyListing
+        self.onRequestAddToCalendar = onRequestAddToCalendar
+        self.onReportTapped = onReportTapped
+        self.tabAccessoryBottomInset = tabAccessoryBottomInset
+        _meetupMapRoute = meetupMapRoute
+        _showHostAgainCreate = showHostAgainCreate
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 meetupCoverSection(activity: activity)
-                meetupTitleSection(activity: activity)
-                meetupHostSection(activity: activity)
-                meetupGroupSection(activity: activity)
-                meetupScheduleLocationSection(activity: activity)
-                meetupAttendeesPreviewSection(activity: activity)
-                meetupDetailsSection(activity: activity)
-                meetupRelatedTopicsSection(activity: activity)
-                meetupHostOtherEventsSection()
+                meetupPrimaryInfoSection(activity: activity)
+                meetupDecisionNoticesSection(activity: activity)
 
-                if !activity.attendees.isEmpty {
-                    meetupFullAttendeesSection(activity: activity)
-                }
+                meetupClubSection(activity: activity)
+                meetupDescriptionSection(activity: activity)
+                meetupGroupChatSection(activity: activity, onOpenGroupChat: onOpenGroupChat)
+                ActivityDetailPhotosSection()
+                ActivityDetailCommentsSection(
+                    isAuthenticated: isAuthenticated,
+                    canParticipate: activity.rsvpStatus.hasGroupChatAccess,
+                    onSignInRequired: onSignInRequired
+                )
 
-                if showsInviteFriendsSection(for: activity) {
-                    meetupInviteFriendsSection(activity: activity)
-                }
-
-                postEventScrollSection(activity: activity)
-
-                if activity.showsHostManagement {
-                    hostManagementScrollSection(activity: activity)
-                } else if activity.canChangeRSVP, !usesBottomRSVPBar {
-                    registrationScrollSection(activity: activity, showsRSVPButtons: true)
-                } else if activity.rsvpStatus == .waitlisted {
-                    registrationScrollSection(activity: activity, showsRSVPButtons: false)
-                } else if let blocked = activity.registrationBlockedMessage {
-                    meetupNoticeBlock(blocked)
-                }
-
-                registrantActionsScrollSection(activity: activity)
-                groupChatScrollSection(activity: activity)
-
-                if let hostMessage = viewModel.hostFeedbackMessage {
-                    meetupNoticeBlock(hostMessage)
-                }
+                meetupSupplementalSections(activity: activity)
             }
-            .padding(.bottom, usesBottomRSVPBar ? 120 : SparkLayoutMetrics.sectionVerticalPadding)
+            .padding(
+                .bottom,
+                SparkLayoutMetrics.sectionVerticalPadding + tabAccessoryBottomInset
+            )
         }
         .background(.background)
         .disabled(viewModel.isUpdatingRSVP || viewModel.isPerformingHostAction)
@@ -74,21 +91,56 @@ struct ActivityDetailLoadedList: View {
     }
 
     @ViewBuilder
-    private func meetupFullAttendeesSection(activity: ActivityDetail) -> some View {
+    private func meetupSupplementalSections(activity: ActivityDetail) -> some View {
+        meetupHostingGoingSection(activity: activity)
+        meetupRelatedTopicsSection(activity: activity)
+        buddyRecommendationSection(activity: activity)
+
+        if activity.rsvpStatus == .host, !activity.attendees.isEmpty {
+            meetupAttendeesSection(activity: activity)
+        }
+
+        meetupHostUpcomingCarouselSection(showsAll: $showsAllHostUpcomingEvents)
+        meetupHostPastCarouselSection()
+        meetupSimilarCarouselSection(activity: activity)
+
+        if showsInviteFriendsSection(for: activity) {
+            meetupInviteFriendsSection(activity: activity)
+        }
+
+        postEventScrollSection(activity: activity)
+        meetupReportFooterSection(activity: activity, onReportTapped: onReportTapped)
+        meetupSecondaryNoticesSection()
+    }
+
+    @ViewBuilder
+    private func buddyRecommendationSection(activity: ActivityDetail) -> some View {
+        if let fetchBuddyRecommendation, let onOpenBuddyListing {
+            ActivityDetailBuddyRecommendationSection(
+                activityCategory: activity.category,
+                fetchRecommendation: { category in
+                    guard let recommendation = await fetchBuddyRecommendation(category) else { return nil }
+                    return ActivityBuddyRecommendation(
+                        listingID: recommendation.listingID,
+                        title: recommendation.title,
+                        subtitle: recommendation.subtitle
+                    )
+                },
+                onOpenListing: onOpenBuddyListing
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func meetupAttendeesSection(activity: ActivityDetail) -> some View {
         let isHostView = activity.rsvpStatus == .host
         VStack(alignment: .leading, spacing: SparkLayoutMetrics.compactVerticalPadding) {
             meetupDetailSubsectionHeader(
-                isHostView
-                    ? String(
-                        localized: "activity.host.roster.section",
-                        defaultValue: "报名名单",
-                        comment: "Host roster"
-                    )
-                    : String(
-                        localized: "activity.detail.attendees.section",
-                        defaultValue: "参加者",
-                        comment: "Attendees section"
-                    )
+                String(
+                    localized: "activity.host.roster.section",
+                    defaultValue: "报名名单",
+                    comment: "Host roster"
+                )
             )
 
             meetupInsetActionsGroup {
@@ -186,27 +238,68 @@ struct ActivityDetailLoadedList: View {
             }
         }
     }
-
 }
 
-#Preview {
+#Preview("Loaded — act_1") {
+    @Previewable @State var meetupMapRoute: ActivityMeetupMapRoute?
+    @Previewable @State var viewModel = ActivityDetailViewModel(
+        activityID: "act_1",
+        repository: MockActivityFeedRepository()
+    )
+
     if let activity = MockActivityCatalog.detail(id: "act_1") {
         NavigationStack {
             ActivityDetailLoadedList(
-                viewModel: ActivityDetailViewModel(
-                    activityID: activity.id,
-                    repository: MockActivityFeedRepository()
-                ),
+                viewModel: viewModel,
                 activity: activity,
                 inviteCandidates: [],
+                isAuthenticated: true,
+                onSignInRequired: nil,
                 onOpenGroupChat: nil,
                 onCommunityRecap: nil,
-                showEditActivity: .constant(false),
-                showAnnounceSheet: .constant(false),
-                showHostAgainCreate: .constant(false),
-                showCancelActivityConfirm: .constant(false)
+                onRequestAddToCalendar: {},
+                onReportTapped: {},
+                tabAccessoryBottomInset: 0,
+                meetupMapRoute: $meetupMapRoute,
+                showHostAgainCreate: .constant(false)
             )
             .environment(ActivityFavoriteStore())
+            .task {
+                await viewModel.load()
+            }
         }
+    }
+}
+
+#Preview("Loaded — Dark XL") {
+    @Previewable @State var meetupMapRoute: ActivityMeetupMapRoute?
+    @Previewable @State var viewModel = ActivityDetailViewModel(
+        activityID: "act_1",
+        repository: MockActivityFeedRepository()
+    )
+
+    if let activity = MockActivityCatalog.detail(id: "act_1") {
+        NavigationStack {
+            ActivityDetailLoadedList(
+                viewModel: viewModel,
+                activity: activity,
+                inviteCandidates: [],
+                isAuthenticated: true,
+                onSignInRequired: nil,
+                onOpenGroupChat: nil,
+                onCommunityRecap: nil,
+                onRequestAddToCalendar: {},
+                onReportTapped: nil,
+                tabAccessoryBottomInset: 72,
+                meetupMapRoute: $meetupMapRoute,
+                showHostAgainCreate: .constant(false)
+            )
+            .environment(ActivityFavoriteStore())
+            .task {
+                await viewModel.load()
+            }
+        }
+        .preferredColorScheme(.dark)
+        .environment(\.dynamicTypeSize, .accessibility3)
     }
 }

@@ -38,15 +38,35 @@ extension View {
             .background(.background)
     }
 
-    /// Pinned toolbar inset (search / filter) — single `.bar` layer; chips keep glass.
-    /// Prefer `sparkTransparentPinnedInset()` under Phone-style scroll-edge navigation bars.
+    /// Opaque pinned inset — legacy stacked layout only.
     public func sparkPinnedControlBar() -> some View {
         background(.bar)
     }
 
-    /// Inset row without opaque fill — list/scroll content remains visible behind controls.
+    /// Transparent inset chrome — pair with `sparkScrollUnderTopInset`.
     public func sparkTransparentPinnedInset() -> some View {
         background(.clear)
+    }
+
+    /// Pins chrome above scroll content via `safeAreaInset(edge: .top)` — immersive tabs only (e.g. Likes intent bar).
+    /// Activity/Message filters use `sparkTabTopAccessory` under the navigation bar instead.
+    public func sparkScrollUnderTopInset<Inset: View>(
+        @ViewBuilder inset: () -> Inset
+    ) -> some View {
+        modifier(SparkScrollUnderTopInsetModifier(inset: inset()))
+    }
+
+    /// Keeps pinned inset mounted; toggles visibility without removing layout space.
+    public func sparkScrollUnderTopInset<Inset: View>(
+        isVisible: Bool,
+        @ViewBuilder inset: () -> Inset
+    ) -> some View {
+        sparkScrollUnderTopInset {
+            inset()
+                .opacity(isVisible ? 1 : 0)
+                .allowsHitTesting(isVisible)
+                .accessibilityHidden(!isVisible)
+        }
     }
 
     /// Phone Recents-style navigation bar: transparent at scroll edge, bar material when scrolled.
@@ -68,11 +88,7 @@ extension View {
 
     /// Primary tab flat list (Profile / Community / Messages / Activity) — scrolls under transparent nav bar.
     public func sparkFlatTabListStyle() -> some View {
-        listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(SparkFlatTabCanvas.color)
-            .contentMargins(.top, 0, for: .scrollContent)
-            .contentMargins(.top, 0, for: .scrollIndicators)
+        modifier(SparkFlatTabListStyleModifier())
     }
 
     /// Row chrome for `sparkFlatTabListStyle()` lists — semantic `systemBackground` per row.
@@ -92,6 +108,33 @@ extension View {
     /// Inbox search / filter row chrome (pairs with `sparkFlatTabRowBackground()` on content).
     public func sparkInboxSearchListRow() -> some View {
         sparkFlatTabListRow()
+    }
+}
+
+// MARK: - Flat tab list style
+
+private struct SparkFlatTabListStyleModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(SparkFlatTabCanvas.color)
+            .contentMargins(.top, 0, for: .scrollContent)
+            .contentMargins(.top, 0, for: .scrollIndicators)
+    }
+}
+
+// MARK: - Pinned top filter inset
+
+private struct SparkScrollUnderTopInsetModifier<Inset: View>: ViewModifier {
+    let inset: Inset
+
+    func body(content: Content) -> some View {
+        content.safeAreaInset(edge: .top, spacing: 0) {
+            inset
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .sparkTransparentPinnedInset()
+        }
     }
 }
 

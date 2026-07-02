@@ -38,6 +38,13 @@ public enum IntegrationTelemetry {
         logger.info("integration_activity_end_to_recap activity_id=\(activityID, privacy: .public)")
     }
 
+    /// Viewer liked a community post (`community_post_liked`); linked recap boosts Activity funnel.
+    public static func communityPostLiked(postID: String, hasLinkedActivity: Bool) {
+        logger.info(
+            "integration_community_post_liked post_id=\(postID, privacy: .public) has_linked_activity=\(hasLinkedActivity, privacy: .public)"
+        )
+    }
+
     /// Universal link / invite opened (`invite_link_to_rsvp` denominator).
     public static func inviteLinkOpened(activityID: String) {
         logger.info("integration_invite_link_opened activity_id=\(activityID, privacy: .public)")

@@ -17,7 +17,14 @@ public actor MockActivityFeedRepository: ActivityFeedRepository {
     }
 
     public func fetchActivities() async throws -> [ActivityItem] {
-        mergedDetails().map { $0.asListItem() }
+        let items = mergedDetails().map { $0.asListItem() }
+        var visible: [ActivityItem] = []
+        for item in items {
+            if await !blockedHostsStore.isBlocked(hostID: item.hostID) {
+                visible.append(item)
+            }
+        }
+        return visible
     }
 
     public func fetchActivitiesByHost(hostID: String, excludingActivityID: String?) async throws -> [ActivityItem] {
@@ -72,11 +79,14 @@ public actor MockActivityFeedRepository: ActivityFeedRepository {
         }
         let id = "act_\(UUID().uuidString.prefix(8))"
         let hostName = String(localized: "activity.host.you", defaultValue: "你", comment: "Current user as host")
+        let category = draft.category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? String(localized: "activity.category.event", defaultValue: "活动", comment: "Activity category")
+            : draft.category.trimmingCharacters(in: .whitespacesAndNewlines)
         let detail = ActivityDetail(
             id: id,
             title: trimmedTitle,
             summary: ActivityFormatting.scheduleLine(startsAt: draft.startsAt, locationName: draft.locationName),
-            category: String(localized: "activity.category.event", defaultValue: "活动", comment: "Activity category"),
+            category: category,
             description: draft.description.trimmingCharacters(in: .whitespacesAndNewlines),
             startsAt: draft.startsAt,
             locationName: draft.locationName.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -88,7 +98,10 @@ public actor MockActivityFeedRepository: ActivityFeedRepository {
             rsvpStatus: .host,
             lifecycleStatus: .scheduled,
             attendees: MockActivityAttendees.roster(host: hostName, members: [String]()),
-            conversationThreadID: ActivityThreadID.make(for: id)
+            conversationThreadID: ActivityThreadID.make(for: id),
+            coverURL: draft.coverURL,
+            coverPosterURL: draft.coverPosterURL,
+            coverIsVideo: draft.coverIsVideo
         )
         hostCreated.insert(detail, at: 0)
         return detail

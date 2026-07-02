@@ -12,7 +12,7 @@ alwaysApply: false
 - Semantic system colors only; `.tint()` at app root for accent
 - **Typography:** system semantic text styles only — see `docs/TYPOGRAPHY.md` (no custom font families)
 - Dynamic Type everywhere — no fixed `font(.system(size:))` for body text
-- Light + Dark + RTL; adaptive iPhone + iPad layouts
+- Light + Dark + RTL; iPhone layouts
 - SF Symbols for icons; custom bitmaps only for brand assets
 
 ## Accessibility (mandatory)

@@ -1,5 +1,5 @@
 ---
-description: SwiftUI layout engineer — Presentation layer, design system, Tab/split navigation
+description: SwiftUI layout engineer — Presentation layer, design system, Tab navigation
 globs: "**/Presentation/**/*.swift,**/*View*.swift"
 alwaysApply: false
 ---
@@ -29,11 +29,10 @@ alwaysApply: false
 
 Do not hand-roll glass (opacity fills, manual blur, shadow depth). See `ios-liquid-glass.mdc`.
 
-## Platform adaptation (iOS 17+ / Swift 6)
+## Platform layout (iOS 17+ / Swift 6)
 
-- **compact width:** `NavigationStack` + `.navigationDestination` / sheets.
-- **regular width (iPad):** `NavigationSplitView` for list–detail (Community, Messages, Activity patterns).
-- Gate split vs compact with `@Environment(\.horizontalSizeClass)` — do not duplicate business logic between layouts.
+- **iPhone-first:** `NavigationStack` + `.navigationDestination` / sheets on all tabs.
+- Do not branch layout on `horizontalSizeClass` or `NavigationSplitView` — one navigation path per tab.
 
 ## Tabs & cross-tab flow
 

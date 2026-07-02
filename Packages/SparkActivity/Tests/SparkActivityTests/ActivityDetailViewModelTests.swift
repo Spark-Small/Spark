@@ -14,6 +14,16 @@ struct ActivityDetailViewModelTests {
         #expect(viewModel.activity?.locationName.isEmpty == false)
     }
 
+    @Test func discoverEntryNormalizesCatalogRSVPToInvited() async {
+        let viewModel = ActivityDetailViewModel(
+            activityID: "act_1",
+            repository: MockActivityFeedRepository(),
+            context: .discover
+        )
+        await viewModel.load()
+        #expect(viewModel.activity?.rsvpStatus == .invited)
+    }
+
     @Test func submitRSVPUpdatesStatusWithMaybeWhenFull() async {
         let repository = MockActivityFeedRepository()
         let viewModel = ActivityDetailViewModel(activityID: "act_2", repository: repository)

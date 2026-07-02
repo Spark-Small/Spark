@@ -4,96 +4,71 @@ import SparkDesignSystem
 import SwiftUI
 
 extension ActivityRootView {
-    func activityDetailView(activityID: String) -> some View {
-        activityDetailChrome(
-            ActivityDetailView(
-                viewModel: coordinator.makeDetailViewModel(
-                    activityID: activityID,
-                    context: .inbox,
-                    onRSVPCompleted: onRSVPCompleted,
-                    onActivityUpdated: { _ in await viewModel.load() }
-                ),
-                coordinator: coordinator,
-                inviteCandidates: inviteCandidates,
-                onOpenGroupChat: onOpenGroupChat,
-                onHostAnnouncePosted: onHostAnnouncePosted,
-                onActivityRescheduled: onActivityRescheduled,
-                onCommunityRecap: onCommunityRecap
-            )
+    func activityDetailView(activityID: String, usesTabAccessory: Bool = true) -> some View {
+        let context: ActivityDetailContext = {
+            if externalEntryActivityID == activityID {
+                return .externalEntry
+            }
+            return selectedHomeSegment == .discover ? .discover : .inbox
+        }()
+        return ActivityDetailView(
+            activityID: activityID,
+            coordinator: coordinator,
+            context: context,
+            tabChrome: usesTabAccessory ? tabChrome : nil,
+            isActivityTabSelected: isActivityTabSelected,
+            isAuthenticated: isAuthenticated,
+            onSignInRequired: { onSignInRequiredForActivity?(activityID) },
+            inviteCandidates: inviteCandidates,
+            onRSVPCompleted: onRSVPCompleted,
+            onOpenGroupChat: onOpenGroupChat,
+            onActivityUpdated: { _ in await reloadVisibleCatalogs() },
+            onHostBlocked: { await reloadVisibleCatalogs() },
+            onHostAnnouncePosted: onHostAnnouncePosted,
+            onActivityRescheduled: onActivityRescheduled,
+            onCommunityRecap: onCommunityRecap,
+            fetchBuddyRecommendation: fetchBuddyRecommendation,
+            onOpenBuddyListing: onOpenBuddyListing
         )
-    }
-
-    func externalActivityDetailView(activityID: String) -> some View {
-        activityDetailChrome(
-            ActivityDetailView(
-                viewModel: coordinator.makeDetailViewModel(
-                    activityID: activityID,
-                    context: .externalEntry,
-                    onRSVPCompleted: onRSVPCompleted,
-                    onActivityUpdated: { _ in await viewModel.load() }
-                ),
-                coordinator: coordinator,
-                inviteCandidates: inviteCandidates,
-                onOpenGroupChat: onOpenGroupChat,
-                onHostAnnouncePosted: onHostAnnouncePosted,
-                onActivityRescheduled: onActivityRescheduled,
-                onCommunityRecap: onCommunityRecap
-            )
-        )
-    }
-
-    private func activityDetailChrome<Content: View>(_ content: Content) -> some View {
-        content.environment(activityFavoriteStore)
     }
 
     @ViewBuilder
     func activityRow(for item: ActivityItem, at index: Int) -> some View {
-        let locked = isItemLocked(index)
-        if locked, let onLockedItemTap {
-            Button(action: onLockedItemTap) {
-                ActivityInboxListRow(item: item, isLocked: true)
-            }
-            .buttonStyle(.sparkPressable)
-            .sparkFlatTabListRow()
-            .accessibilityHint(
-                String(
-                    localized: "activity.row.premium.hint",
-                    defaultValue: "订阅后可查看",
-                    comment: "Locked activity row"
-                )
-            )
-        } else {
-            // REASONING: ShareLink + favorite live inside the row hero; NavigationLink swallows row taps.
-            ActivityInboxListRow(item: item, isLocked: false)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    openActivity(item.id)
-                }
-                .sparkFlatTabListRow()
-                .accessibilityAddTraits(.isButton)
-                .accessibilityHint(
-                    String(
-                        localized: "activity.row.openDetail.hint",
-                        defaultValue: "查看活动邀请详情",
-                        comment: "Activity row opens detail"
-                    )
-                )
+        ActivityInboxListRow.listRow(
+            item: item,
+            at: index,
+            isItemLocked: isItemLocked,
+            onLockedItemTap: onLockedItemTap
+        ) {
+            openActivity(item.id)
         }
     }
 
     func openPendingActivity(activityID: String) async {
-        openActivity(activityID)
+        let entryContext = pendingActivityDetailContext
+        pendingActivityDetailContext = nil
+        openActivity(activityID, entryContext: entryContext)
         pendingActivityID = nil
-        if viewModel.loadState == .idle {
+        if isAuthenticated, viewModel.loadState == .idle {
             await viewModel.load()
         }
     }
 
-    func openActivity(_ activityID: String) {
-        if usesSplitLayout {
-            selectedActivityID = activityID
-        } else {
-            navigationPath.append(activityID)
+    func openActivity(_ activityID: String, entryContext: ActivityDetailContext? = nil) {
+        switch entryContext {
+        case .externalEntry:
+            externalEntryActivityID = activityID
+        case .discover, .inbox, .none:
+            externalEntryActivityID = nil
         }
+        if showMyActivities {
+            myActivitiesNavigationPath.append(activityID)
+            return
+        }
+        navigationPath.append(activityID)
+    }
+
+    func openHostProfile(hostID: String, displayName: String) {
+        hostProfileRoute = ActivityHostProfileRoute(hostID: hostID, displayName: displayName)
     }
 }

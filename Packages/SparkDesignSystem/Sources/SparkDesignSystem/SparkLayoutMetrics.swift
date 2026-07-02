@@ -10,6 +10,16 @@ public enum SparkLayoutMetrics {
     public static let compactVerticalPadding: CGFloat = 8
     public static let sectionVerticalPadding: CGFloat = 12
 
+    /// Estimated single chip row height for layout docs and previews.
+    public static let floatingChipBarRowHeight: CGFloat = compactVerticalPadding * 2 + minimumTouchTarget
+
+    // MARK: - Filter chips (App Store / TAB_SCREENS L3)
+
+    public static let filterChipHorizontalPadding: CGFloat = 14
+    public static let filterChipVerticalPadding: CGFloat = 10
+    public static let filterChipSpacing: CGFloat = 8
+    public static let filterChipStrokeWidth: CGFloat = 2
+
     // MARK: - Touch targets (HIG minimum)
 
     public static let minimumTouchTarget: CGFloat = 44
@@ -85,8 +95,12 @@ public enum SparkLayoutMetrics {
     public static let composeMediaThumbnailCornerRadius: CGFloat = 12
     public static let composerFieldHorizontalPadding: CGFloat = 16
     public static let composerFieldVerticalPadding: CGFloat = 10
-    public static let navigationSplitSidebarIdealWidth: CGFloat = 320
     public static let segmentedControlMaxWidth: CGFloat = 280
+
+    // MARK: - Tab accessories (iOS 26+)
+
+    /// Extra list bottom inset when tab bottom accessory (create / RSVP) is expanded above the tab bar.
+    public static let tabBottomAccessoryScrollInset: CGFloat = 88
 
     // MARK: - Messages
 
@@ -126,10 +140,13 @@ public enum SparkLayoutMetrics {
     public static let activityCardHeroAspectRatio: CGFloat = 16 / 9
     public static let activityCardContentSpacing: CGFloat = 8
     public static let activityCardBottomPadding: CGFloat = 16
+    public static let activityStageBadgeHorizontalPadding: CGFloat = 10
+    public static let activityStageBadgeVerticalPadding: CGFloat = 6
+    public static let activityStageBadgeInnerCornerRadius: CGFloat = 10
+    public static let activityCardFrameStrokeWidth: CGFloat = 0.5
+    public static let activityCardOverlayVerticalPadding: CGFloat = 14
     public static let activityCardAttendeeAvatarSize: CGFloat = 28
     public static let activityCardAttendeeOverlap: CGFloat = 10
-    public static let activityCardHeroActionSize: CGFloat = 36
-    public static let activityCardHeroActionPadding: CGFloat = 12
 
     public static let newMatchAvatarOuter: CGFloat = 64
     public static let newMatchAvatarInner: CGFloat = 56
