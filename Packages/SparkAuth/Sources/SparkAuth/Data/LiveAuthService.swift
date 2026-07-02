@@ -66,6 +66,45 @@ public struct LiveAuthService: AuthService, Sendable {
         }
     }
 
+    public func sendPhoneOTP(phone: String) async throws {
+        let body = try JSONEncoder().encode(PhoneOTPRequestDTO(phone: phone))
+        do {
+            try await apiClient.post("/v1/auth/phone/otp", body: body)
+        } catch {
+            throw LiveAuthErrorMapper.mapPhoneOTP(error)
+        }
+    }
+
+    public func signInWithPhoneOTP(phone: String, code: String) async throws -> AuthSession {
+        let body = try JSONEncoder().encode(PhoneOTPVerifyRequestDTO(phone: phone, code: code))
+        do {
+            let dto: AuthResponseDTO = try await apiClient.post("/v1/auth/phone/verify", body: body)
+            let session = AuthSession(userID: UserID(dto.userId), accessToken: dto.accessToken)
+            try await persist(session)
+            return session
+        } catch {
+            throw LiveAuthErrorMapper.mapPhoneVerification(error)
+        }
+    }
+
+    public func resetPasswordWithPhoneOTP(
+        phone: String,
+        code: String,
+        newPassword: String
+    ) async throws -> AuthSession {
+        let body = try JSONEncoder().encode(
+            PhonePasswordResetRequestDTO(phone: phone, code: code, newPassword: newPassword)
+        )
+        do {
+            let dto: AuthResponseDTO = try await apiClient.post("/v1/auth/phone/password-reset", body: body)
+            let session = AuthSession(userID: UserID(dto.userId), accessToken: dto.accessToken)
+            try await persist(session)
+            return session
+        } catch {
+            throw LiveAuthErrorMapper.mapPhoneVerification(error)
+        }
+    }
+
     public func signUpWithEmail(email: String, password: String, displayName: String) async throws -> AuthSession {
         let body = try JSONEncoder().encode(
             EmailSignUpRequestDTO(email: email, password: password, displayName: displayName)

@@ -29,6 +29,14 @@ struct AuthUseCaseTests {
         #expect(session.userID.rawValue == "new")
     }
 
+    @Test func resetPasswordWithPhoneOTPUseCasePersistsSession() async throws {
+        let service = makeService()
+        try await service.sendPhoneOTP(phone: "13800138000")
+        let useCase = ResetPasswordWithPhoneOTPUseCase(authService: service)
+        let session = try await useCase(phone: "13800138000", code: MockAuthService.mockVerificationCode, newPassword: "secret1")
+        #expect(session.userID.rawValue == "phone-13800138000")
+    }
+
     @Test func requestPasswordResetUseCaseSucceedsForValidEmail() async throws {
         let service = makeService()
         try await RequestPasswordResetUseCase(authService: service)(email: "reset@spark.app")

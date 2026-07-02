@@ -1,7 +1,6 @@
 // Module: SparkAuth — Email registration screen.
 
 import SparkDesignSystem
-import SparkPersistence
 import SwiftUI
 
 public struct SignUpView: View {
@@ -12,73 +11,84 @@ public struct SignUpView: View {
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SparkLayoutMetrics.matchCardPadding) {
-                fieldsCard
-                signUpButton
-            }
-            .padding(SparkLayoutMetrics.matchCardPadding)
+        Form {
+            fieldsSection
+            actionSection
+            legalSection
         }
-        .background(.background)
+        .formStyle(.grouped)
         .sparkDismissesKeyboardOnScroll()
-        .navigationTitle(
-            String(localized: "auth.signUp.title", defaultValue: "注册", comment: "Sign up title")
-        )
+        .navigationTitle(SignUpCopy.title)
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private var fieldsCard: some View {
-        VStack(spacing: SparkLayoutMetrics.sectionVerticalPadding) {
-            TextField(
-                String(localized: "auth.signUp.displayName", defaultValue: "昵称", comment: "Display name"),
-                text: $viewModel.signUpDisplayName
-            )
-            TextField(
-                String(localized: "auth.login.email", defaultValue: "邮箱", comment: "Email field"),
-                text: $viewModel.signUpEmail
-            )
-            .textContentType(.emailAddress)
-            .keyboardType(.emailAddress)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            SecureField(
-                String(localized: "auth.login.password", defaultValue: "密码", comment: "Password field"),
-                text: $viewModel.signUpPassword
-            )
-            .textContentType(.newPassword)
-
-            Text(
-                String(
-                    localized: "auth.signUp.footer",
-                    defaultValue: "密码至少 6 位。注册即表示同意用户协议与隐私政策。",
-                    comment: "Sign up footer"
-                )
-            )
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-        }
-        .padding(SparkLayoutMetrics.standardHorizontalPadding)
-        .sparkGlassSurface(RoundedRectangle.sparkCard)
-    }
-
-    private var signUpButton: some View {
-        Button(
-            String(localized: "auth.signUp.button", defaultValue: "创建账号", comment: "Sign up button")
-        ) {
-            Task { await viewModel.signUpWithEmailTapped() }
-        }
-        .buttonStyle(.borderedProminent)
-        .frame(maxWidth: .infinity)
-        .sparkMinimumTouchTarget()
-        .disabled(!viewModel.canSignUp)
+        .authFailureAlert(viewModel: viewModel)
     }
 }
 
-#Preview {
+// MARK: - Sections
+
+private extension SignUpView {
+    var fieldsSection: some View {
+        Section {
+            TextField(SignUpCopy.displayNamePlaceholder, text: $viewModel.signUpDisplayName)
+                .textContentType(.name)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+
+            TextField(SignUpCopy.emailPlaceholder, text: $viewModel.signUpEmail)
+                .textContentType(.emailAddress)
+                .keyboardType(.emailAddress)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+
+            SecureField(SignUpCopy.passwordPlaceholder, text: $viewModel.signUpPassword)
+                .textContentType(.newPassword)
+        } footer: {
+            Text(SignUpCopy.passwordFooter)
+        }
+    }
+
+    var actionSection: some View {
+        Section {
+            Button {
+                Task { await viewModel.signUpWithEmailTapped() }
+            } label: {
+                Group {
+                    if viewModel.isSigningUp {
+                        ProgressView()
+                            .controlSize(.regular)
+                    } else {
+                        Text(SignUpCopy.signUpButton)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .loginPrimaryButtonChrome()
+            .disabled(!viewModel.canSignUp || viewModel.isSigningUp)
+            .loginActionRowChrome()
+        }
+    }
+
+    var legalSection: some View {
+        Section {
+            AuthLegalFooter()
+                .frame(maxWidth: .infinity, alignment: .center)
+                .multilineTextAlignment(.center)
+                .listRowInsets(SparkAuthLayout.legalRowInsets)
+                .listRowBackground(Color.clear)
+        }
+    }
+}
+
+#Preview("Default") {
     NavigationStack {
-        SignUpView(viewModel: AuthViewModel(authService: MockAuthService(
-            sessionStore: AuthSessionStore(),
-            tokenProvider: KeychainAccessTokenProvider()
-        )))
+        SignUpView(viewModel: AuthPreviewSupport.makeViewModel())
+    }
+}
+
+#Preview("Dark") {
+    NavigationStack {
+        SparkPreviewSupport.darkMode {
+            SignUpView(viewModel: AuthPreviewSupport.makeViewModel())
+        }
     }
 }
