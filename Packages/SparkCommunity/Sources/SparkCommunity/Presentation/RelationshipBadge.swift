@@ -22,6 +22,17 @@ struct RelationshipBadge: View {
             )
             .font(.footnote)
             .foregroundStyle(Color.accentColor)
+        case .attendedLinkedActivity:
+            Label(
+                String(
+                    localized: "community.relationship.attendedLinkedActivity",
+                    defaultValue: "已参加",
+                    comment: "Attended linked activity badge"
+                ),
+                systemImage: "checkmark.circle.fill"
+            )
+            .font(.footnote)
+            .foregroundStyle(Color.accentColor)
         case .matched:
             Label(
                 String(localized: "community.relationship.matched", defaultValue: "已配对", comment: "Matched"),
@@ -53,6 +64,7 @@ struct RelationshipBadge: View {
                     String(localized: "community.mock.activity.hike", defaultValue: "周末爬香山", comment: "Activity")
                 )
             )
+            RelationshipBadge(context: .attendedLinkedActivity)
         }
         .padding()
     }

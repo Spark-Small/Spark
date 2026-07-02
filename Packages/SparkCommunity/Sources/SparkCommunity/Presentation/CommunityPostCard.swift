@@ -8,17 +8,15 @@ struct CommunityPostCard: View {
     let post: CommunityFeedPost
     let isLiked: Bool
     let likeCount: Int
+    let isLikePending: Bool
     let onToggleLike: () -> Void
     let onOpen: () -> Void
     var onOpenAuthor: (() -> Void)?
+    var onOpenLinkedActivity: ((String) -> Void)?
 
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var isExpanded = false
-    @State private var likeScale: CGFloat = 1
-
-    private var usesInsetMedia: Bool { horizontalSizeClass == .regular }
 
     private var contentHorizontalPadding: CGFloat {
         SparkLayoutMetrics.standardHorizontalPadding
@@ -48,6 +46,7 @@ struct CommunityPostCard: View {
     private var textOnlyPostBody: some View {
         VStack(alignment: .leading, spacing: SparkLayoutMetrics.communityFeedBlockSpacing) {
             postBodyText
+            linkedActivitySummaryCard
             CommunityPostTagsRow(tags: post.tags)
             actionRow
         }
@@ -59,7 +58,7 @@ struct CommunityPostCard: View {
         VStack(alignment: .leading, spacing: 0) {
             CommunityPostMediaPager(
                 mediaItems: post.galleryMedia,
-                usesInsetMedia: usesInsetMedia,
+                usesInsetMedia: false,
                 horizontalPadding: contentHorizontalPadding,
                 onOpen: onOpen
             )
@@ -191,7 +190,7 @@ struct CommunityPostCard: View {
 
     private var showsActivityContextRow: Bool {
         if post.kind == .activityRecap { return true }
-        if let linked = post.linkedActivity, !isLinkedActivityRedundantWithShared { return true }
+        if post.linkedActivity != nil, !isLinkedActivityRedundantWithShared { return true }
         return false
     }
 
@@ -200,6 +199,20 @@ struct CommunityPostCard: View {
               let linked = post.linkedActivity
         else { return false }
         return shared.id == linked.id || shared.name == linked.name
+    }
+
+    @ViewBuilder
+    private var linkedActivitySummaryCard: some View {
+        if showsLinkedActivitySummaryCard, let linked = post.linkedActivity {
+            CommunityPostLinkedActivitySummaryCard(activity: linked) {
+                onOpenLinkedActivity?(linked.id)
+            }
+            .disabled(onOpenLinkedActivity == nil)
+        }
+    }
+
+    private var showsLinkedActivitySummaryCard: Bool {
+        post.linkedActivity != nil && !isLinkedActivityRedundantWithShared
     }
 
     private var metadataSeparator: some View {
@@ -308,6 +321,7 @@ struct CommunityPostCard: View {
         VStack(alignment: .leading, spacing: SparkLayoutMetrics.communityFeedBlockSpacing) {
             feedContextLines
             captionBody
+            linkedActivitySummaryCard
             if !isExpanded, post.content.count > 100 {
                 Button(
                     String(localized: "community.post.readMore", defaultValue: "更多", comment: "Read more")
@@ -345,33 +359,11 @@ struct CommunityPostCard: View {
 
     private var actionRow: some View {
         HStack(spacing: 20) {
-            Button {
-                if reduceMotion {
-                    onToggleLike()
-                } else {
-                    withAnimation(.spring(response: 0.3)) {
-                        likeScale = 1.25
-                        onToggleLike()
-                    }
-                    withAnimation(.spring(response: 0.3).delay(0.12)) {
-                        likeScale = 1
-                    }
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: isLiked ? "heart.fill" : "heart")
-                        .foregroundStyle(isLiked ? .pink : .primary)
-                    if likeCount > 0 {
-                        Text("\(likeCount)")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .scaleEffect(likeScale)
-            }
-            .buttonStyle(.plain)
-            .sparkMinimumTouchTarget()
-            .accessibilityLabel(
-                String(localized: "community.post.like.a11y", defaultValue: "点赞", comment: "Like")
+            CommunityPostLikeControl(
+                isLiked: isLiked,
+                likeCount: likeCount,
+                isPending: isLikePending,
+                onToggle: onToggleLike
             )
 
             Button(action: onOpen) {
@@ -432,6 +424,7 @@ struct CommunityPostCard: View {
         ),
         isLiked: false,
         likeCount: 9,
+        isLikePending: false,
         onToggleLike: {},
         onOpen: {}
     )
@@ -464,6 +457,7 @@ struct CommunityPostCard: View {
         ),
         isLiked: true,
         likeCount: 25,
+        isLikePending: false,
         onToggleLike: {},
         onOpen: {}
     )
@@ -487,6 +481,7 @@ struct CommunityPostCard: View {
         ),
         isLiked: false,
         likeCount: 11,
+        isLikePending: false,
         onToggleLike: {},
         onOpen: {}
     )
@@ -511,6 +506,7 @@ struct CommunityPostCard: View {
                 ),
                 isLiked: false,
                 likeCount: 9,
+                isLikePending: false,
                 onToggleLike: {},
                 onOpen: {}
             )

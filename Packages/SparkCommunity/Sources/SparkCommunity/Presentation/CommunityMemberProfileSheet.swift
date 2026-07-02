@@ -60,6 +60,12 @@ struct CommunityMemberProfileSheet: View {
             String(localized: "community.relationship.matched", defaultValue: "已配对", comment: "Matched")
         case .liked:
             String(localized: "community.relationship.liked", defaultValue: "你喜欢过 TA", comment: "Liked")
+        case .attendedLinkedActivity:
+            String(
+                localized: "community.relationship.attendedLinkedActivity",
+                defaultValue: "已参加",
+                comment: "Attended linked activity badge"
+            )
         case .none:
             nil
         }
@@ -79,7 +85,7 @@ struct CommunityMemberProfileSheet: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
-        case .liked, .sharedActivity, .none:
+        case .liked, .sharedActivity, .attendedLinkedActivity, .none:
             Button(action: onLike) {
                 Text(
                     isLiked

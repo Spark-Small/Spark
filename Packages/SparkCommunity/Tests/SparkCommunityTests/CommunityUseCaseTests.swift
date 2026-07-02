@@ -62,12 +62,28 @@ struct CommunityUseCaseTests {
         )
     }
 
-    @Test func joinCommunityUseCaseMarksJoined() async throws {
+    @Test func joinCommunityMarksJoined() async throws {
         let detail = try await JoinCommunityUseCase(repository: MockCommunityPostsRepository())(
             communityID: "cm_run"
         )
         #expect(detail.isJoined)
         #expect(detail.id == "cm_run")
+    }
+
+    @Test func setCommunityPostLikeUseCasePersistsLike() async throws {
+        let repository = MockCommunityPostsRepository()
+        let useCase = SetCommunityPostLikeUseCase(repository: repository)
+        let liked = try await useCase(postID: "cp_recap_mock", liked: true)
+        #expect(liked.viewerHasLiked)
+        #expect(liked.likeCount == 10)
+
+        let tab = try await FetchCommunityTabExperienceUseCase(repository: repository)()
+        let post = tab.feedItems.compactMap { item -> CommunityFeedPost? in
+            guard case .post(let post) = item, post.id == "cp_recap_mock" else { return nil }
+            return post
+        }.first
+        #expect(post?.viewerHasLiked == true)
+        #expect(post?.likeCount == 10)
     }
 
     @Test func feedPostsExposeAuthorAvatarURL() async throws {

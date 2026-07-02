@@ -20,7 +20,8 @@ public struct CommunityCoordinator: Sendable {
             fetchPosts: FetchCommunityPostsUseCase(repository: repository),
             fetchTabExperience: FetchCommunityTabExperienceUseCase(repository: repository),
             createRecap: CreateCommunityRecapUseCase(repository: repository),
-            createPost: CreateCommunityPostUseCase(repository: repository)
+            createPost: CreateCommunityPostUseCase(repository: repository),
+            setPostLike: SetCommunityPostLikeUseCase(repository: repository)
         )
     }
 
@@ -47,7 +48,8 @@ public struct CommunityCoordinator: Sendable {
             postID: postID,
             fetchPost: FetchCommunityPostUseCase(repository: repository),
             createReply: CreateCommunityReplyUseCase(repository: repository),
-            reportPost: ReportCommunityPostUseCase(repository: repository)
+            reportPost: ReportCommunityPostUseCase(repository: repository),
+            setPostLike: SetCommunityPostLikeUseCase(repository: repository)
         )
     }
 }

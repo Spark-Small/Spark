@@ -51,6 +51,28 @@ enum MockCommunityTabCatalog {
         feedPostsBatchOne() + feedPostsBatchTwo()
     }
 
+    private static func recapLinkedActivity() -> LinkedActivityContext {
+        LinkedActivityContext(
+            id: "act_browse_2",
+            name: String(
+                localized: "community.mock.activity.book",
+                defaultValue: "咖啡聊天局",
+                comment: "Activity"
+            ),
+            scheduleLine: String(
+                localized: "community.mock.activity.schedule",
+                defaultValue: "周六 9:30",
+                comment: "Schedule"
+            ),
+            coverURL: URL(string: "https://picsum.photos/seed/feed-recap/112/112"),
+            attendeeSummary: String(
+                localized: "community.mock.activity.attendees",
+                defaultValue: "12 人参加",
+                comment: "Attendee summary"
+            )
+        )
+    }
+
     private static func feedPostsBatchOne() -> [CommunityFeedPost] {
         let hikeActivity = SharedActivityContext(
             id: "act_001",
@@ -74,10 +96,7 @@ enum MockCommunityTabCatalog {
                 likeCount: 9,
                 commentCount: 2,
                 createdAt: now.addingTimeInterval(-7_200),
-                linkedActivity: LinkedActivityContext(
-                    id: "act_browse_2",
-                    name: String(localized: "community.mock.activity.book", defaultValue: "咖啡聊天局", comment: "Activity")
-                ),
+                linkedActivity: recapLinkedActivity(),
                 kind: .activityRecap
             ),
             CommunityFeedPost(
@@ -218,7 +237,8 @@ enum MockCommunityTabCatalog {
             replies: replies,
             linkedActivity: feedPost.linkedActivity,
             mediaItems: feedPost.galleryMedia,
-            tags: feedPost.tags
+            tags: feedPost.tags,
+            kind: feedPost.kind
         )
     }
 }

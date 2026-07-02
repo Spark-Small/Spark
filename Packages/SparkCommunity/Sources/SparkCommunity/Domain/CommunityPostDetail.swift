@@ -14,6 +14,9 @@ public struct CommunityPostDetail: Identifiable, Hashable, Sendable, Equatable {
     public let linkedActivity: LinkedActivityContext?
     public let mediaItems: [SparkGalleryMedia]
     public let tags: [String]
+    public let kind: CommunityPostKind
+    public let likeCount: Int
+    public let viewerHasLiked: Bool
 
     public init(
         id: String,
@@ -25,7 +28,10 @@ public struct CommunityPostDetail: Identifiable, Hashable, Sendable, Equatable {
         replies: [CommunityPostReply] = [],
         linkedActivity: LinkedActivityContext? = nil,
         mediaItems: [SparkGalleryMedia] = [],
-        tags: [String] = []
+        tags: [String] = [],
+        kind: CommunityPostKind = .discussion,
+        likeCount: Int = 0,
+        viewerHasLiked: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -37,6 +43,9 @@ public struct CommunityPostDetail: Identifiable, Hashable, Sendable, Equatable {
         self.linkedActivity = linkedActivity
         self.mediaItems = mediaItems
         self.tags = tags
+        self.kind = kind
+        self.likeCount = max(0, likeCount)
+        self.viewerHasLiked = viewerHasLiked
     }
 
     public var galleryMedia: [SparkGalleryMedia] { mediaItems }

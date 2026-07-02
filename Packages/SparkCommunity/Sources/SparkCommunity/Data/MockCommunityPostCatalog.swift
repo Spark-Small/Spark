@@ -19,7 +19,8 @@ enum MockCommunityPostCatalog {
                         defaultValue: "小雨",
                         comment: "Author"
                     ),
-                    createdAt: Date().addingTimeInterval(-3_600)
+                    createdAt: Date().addingTimeInterval(-3_600),
+                    relationshipToViewer: .attendedLinkedActivity
                 ),
                 CommunityPostReply(
                     id: "cpr_recap_2",
@@ -100,6 +101,11 @@ enum MockCommunityPostCatalog {
                         localized: "community.mock.activity.hike",
                         defaultValue: "周末爬香山",
                         comment: "Activity"
+                    ),
+                    scheduleLine: String(
+                        localized: "community.mock.activity.schedule",
+                        defaultValue: "周六 9:30",
+                        comment: "Schedule"
                     )
                 ),
                 mediaItems: SparkGalleryMediaFactory.mockActivityGallery(activityID: "act_001"),

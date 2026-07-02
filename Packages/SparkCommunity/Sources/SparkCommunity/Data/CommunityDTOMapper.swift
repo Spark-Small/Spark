@@ -32,8 +32,15 @@ enum CommunityDTOMapper {
             replies: (dto.replies ?? []).map(reply),
             linkedActivity: dto.linkedActivity.map(linkedActivityContext),
             mediaItems: galleryMedia(from: dto.media),
-            tags: dto.tags ?? []
+            tags: dto.tags ?? [],
+            kind: postKind(from: dto.kind),
+            likeCount: dto.likeCount ?? 0,
+            viewerHasLiked: dto.viewerHasLiked ?? false
         )
+    }
+
+    static func likeResult(from dto: CommunityPostLikeResponseDTO) -> CommunityPostLikeResult {
+        CommunityPostLikeResult(viewerHasLiked: dto.liked, likeCount: dto.likeCount)
     }
 
     static func reply(from dto: CommunityPostReplyDTO) -> CommunityPostReply {
@@ -41,7 +48,8 @@ enum CommunityDTOMapper {
             id: dto.id,
             body: dto.body,
             authorDisplayName: dto.authorDisplayName,
-            createdAt: dto.createdAt.flatMap(parseISO8601)
+            createdAt: dto.createdAt.flatMap(parseISO8601),
+            relationshipToViewer: relationship(from: dto.relationshipToViewer)
         )
     }
 
@@ -125,7 +133,8 @@ enum CommunityDTOMapper {
             sharedActivityWithViewer: dto.sharedActivityWithViewer.map(sharedActivity),
             relationshipToViewer: relationship(from: dto.relationshipToViewer),
             linkedActivity: dto.linkedActivity.map(linkedActivityContext),
-            kind: postKind(from: dto.kind)
+            kind: postKind(from: dto.kind),
+            viewerHasLiked: dto.viewerHasLiked ?? false
         )
     }
 
@@ -151,13 +160,21 @@ enum CommunityDTOMapper {
     }
 
     private static func linkedActivityContext(from dto: LinkedActivityDTO) -> LinkedActivityContext {
-        LinkedActivityContext(id: dto.id, name: dto.name)
+        LinkedActivityContext(
+            id: dto.id,
+            name: dto.name,
+            scheduleLine: dto.scheduleLine,
+            coverURL: dto.coverURL.flatMap(URL.init(string:)),
+            attendeeSummary: dto.attendeeSummary
+        )
     }
 
     private static func relationship(from raw: String?) -> RelationshipContext {
         switch raw {
         case "shared_activity":
             .sharedActivity("")
+        case "attended_linked_activity":
+            .attendedLinkedActivity
         case "matched":
             .matched
         case "liked":

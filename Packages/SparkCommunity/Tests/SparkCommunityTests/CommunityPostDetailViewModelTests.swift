@@ -62,4 +62,26 @@ struct CommunityPostDetailViewModelTests {
         await viewModel.submitReport(reason: .spam, detail: nil)
         #expect(viewModel.reportState == .submitted)
     }
+
+    @Test func displayedRepliesPrioritizeLinkedActivityParticipants() async {
+        let viewModel = CommunityPostDetailViewModel(
+            postID: "cp_recap_mock",
+            repository: MockCommunityPostsRepository()
+        )
+        await viewModel.load()
+        viewModel.replySortMode = .participantsFirst
+        #expect(viewModel.displayedReplies.first?.relationshipToViewer == .attendedLinkedActivity)
+    }
+
+    @Test func toggleLikeUpdatesDetailState() async {
+        let viewModel = CommunityPostDetailViewModel(
+            postID: "cp_recap_mock",
+            repository: MockCommunityPostsRepository()
+        )
+        await viewModel.load()
+        let baseCount = viewModel.post?.likeCount ?? 0
+        await viewModel.toggleLike()
+        #expect(viewModel.post?.viewerHasLiked == true)
+        #expect(viewModel.post?.likeCount == baseCount + 1)
+    }
 }

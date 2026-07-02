@@ -20,6 +20,7 @@ public struct CommunityFeedPost: Identifiable, Sendable, Equatable, Hashable {
     public let relationshipToViewer: RelationshipContext
     public let linkedActivity: LinkedActivityContext?
     public let kind: CommunityPostKind
+    public let viewerHasLiked: Bool
 
     public init(
         id: String,
@@ -37,7 +38,8 @@ public struct CommunityFeedPost: Identifiable, Sendable, Equatable, Hashable {
         sharedActivityWithViewer: SharedActivityContext? = nil,
         relationshipToViewer: RelationshipContext = .none,
         linkedActivity: LinkedActivityContext? = nil,
-        kind: CommunityPostKind = .discussion
+        kind: CommunityPostKind = .discussion,
+        viewerHasLiked: Bool = false
     ) {
         self.id = id
         self.authorDisplayName = authorDisplayName
@@ -55,6 +57,7 @@ public struct CommunityFeedPost: Identifiable, Sendable, Equatable, Hashable {
         self.relationshipToViewer = relationshipToViewer
         self.linkedActivity = linkedActivity
         self.kind = kind
+        self.viewerHasLiked = viewerHasLiked
     }
 
     /// Swipeable gallery; falls back to legacy `image_url` when `media` is absent.
