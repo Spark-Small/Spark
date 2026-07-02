@@ -58,4 +58,13 @@ public enum ActivityRSVPStatus: String, Sendable, Equatable, CaseIterable {
     public var registrationSectionTitle: String {
         String(localized: "activity.registration.section", defaultValue: "报名", comment: "Registration section")
     }
+
+    /// Guest CTA before sign-in (tab accessory + scroll fallback).
+    public static var guestSignInToRSVPLabel: String {
+        String(
+            localized: "activity.guest.rsvp.signIn.going",
+            defaultValue: "登录后参加",
+            comment: "Sign in to RSVP going"
+        )
+    }
 }

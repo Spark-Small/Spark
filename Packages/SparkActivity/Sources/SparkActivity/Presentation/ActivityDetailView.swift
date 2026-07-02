@@ -4,164 +4,155 @@ import SparkDesignSystem
 import SwiftUI
 
 public struct ActivityDetailView: View {
-    @State private var viewModel: ActivityDetailViewModel
-    @State private var showEditActivity = false
-    @State private var showReportSheet = false
-    @State private var showCancelActivityConfirm = false
-    @State private var selectedReportReason: ActivityReportReason = .safety
-    @State private var blockHostOnReport = true
-    @State private var showHostAgainCreate = false
-    @State private var showAnnounceSheet = false
-    @State private var announceMessage = ""
+    @Environment(ActivityCreateTemplateStore.self) var createTemplateStore
+    @Environment(ActivityFavoriteStore.self) var favoriteStore
+    @State var viewModel: ActivityDetailViewModel
+    @State var showEditActivity = false
+    @State var showReportSheet = false
+    @State var showCancelActivityConfirm = false
+    @State var showCancelAttendanceConfirm = false
+    @State var showCalendarConfirm = false
+    @State var showHostApproval = false
+    @State var selectedReportReason: ActivityReportReason = .safety
+    @State var blockHostOnReport = true
+    @State var showHostAgainCreate = false
+    @State var showAnnounceSheet = false
+    @State var announceMessage = ""
+    @State var meetupMapRoute: ActivityMeetupMapRoute?
+    @State var templateFavoriteFeedback: String?
 
-    private let coordinator: ActivityCoordinator
-    private let onOpenGroupChat: ((ActivityDetail) async -> Void)?
-    private let onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)?
-    private let onActivityRescheduled: ((ActivityDetail) async -> Void)?
-    private let onCommunityRecap: ((ActivityDetail) -> Void)?
-    private let inviteCandidates: () -> [ActivityInviteCandidate]
+    let coordinator: ActivityCoordinator
+    let tabChrome: ActivityTabChrome?
+    let isActivityTabSelected: Bool
+    let isAuthenticated: Bool
+    let onSignInRequired: (() -> Void)?
+    let onOpenGroupChat: ((ActivityDetail) async -> Void)?
+    let onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)?
+    let onActivityRescheduled: ((ActivityDetail) async -> Void)?
+    let onCommunityRecap: ((ActivityDetail) -> Void)?
+    let fetchBuddyRecommendation: ((String) async -> (listingID: String, title: String, subtitle: String)?)?
+    let onOpenBuddyListing: ((String) -> Void)?
+    let inviteCandidates: () -> [ActivityInviteCandidate]
 
     public init(
         activityID: String,
         coordinator: ActivityCoordinator,
         context: ActivityDetailContext = .inbox,
+        tabChrome: ActivityTabChrome? = nil,
+        isActivityTabSelected: Bool = true,
+        isAuthenticated: Bool = true,
+        onSignInRequired: (() -> Void)? = nil,
         inviteCandidates: @escaping () -> [ActivityInviteCandidate] = { [] },
         onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
         onOpenGroupChat: ((ActivityDetail) async -> Void)? = nil,
         onActivityUpdated: ((ActivityDetail) async -> Void)? = nil,
+        onHostBlocked: (() async -> Void)? = nil,
         onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)? = nil,
         onActivityRescheduled: ((ActivityDetail) async -> Void)? = nil,
-        onCommunityRecap: ((ActivityDetail) -> Void)? = nil
+        onCommunityRecap: ((ActivityDetail) -> Void)? = nil,
+        fetchBuddyRecommendation: ((String) async -> (listingID: String, title: String, subtitle: String)?)? = nil,
+        onOpenBuddyListing: ((String) -> Void)? = nil
     ) {
         self.coordinator = coordinator
+        self.tabChrome = tabChrome
+        self.isActivityTabSelected = isActivityTabSelected
+        self.isAuthenticated = isAuthenticated
+        self.onSignInRequired = onSignInRequired
         _viewModel = State(
             initialValue: coordinator.makeDetailViewModel(
                 activityID: activityID,
                 context: context,
                 onRSVPCompleted: onRSVPCompleted,
-                onActivityUpdated: onActivityUpdated
+                onActivityUpdated: onActivityUpdated,
+                onHostBlocked: onHostBlocked
             )
         )
         self.onOpenGroupChat = onOpenGroupChat
         self.onHostAnnouncePosted = onHostAnnouncePosted
         self.onActivityRescheduled = onActivityRescheduled
         self.onCommunityRecap = onCommunityRecap
+        self.fetchBuddyRecommendation = fetchBuddyRecommendation
+        self.onOpenBuddyListing = onOpenBuddyListing
         self.inviteCandidates = inviteCandidates
     }
 
     public init(
         viewModel: ActivityDetailViewModel,
         coordinator: ActivityCoordinator,
+        tabChrome: ActivityTabChrome? = nil,
+        isActivityTabSelected: Bool = true,
+        isAuthenticated: Bool = true,
+        onSignInRequired: (() -> Void)? = nil,
         inviteCandidates: @escaping () -> [ActivityInviteCandidate] = { [] },
         onOpenGroupChat: ((ActivityDetail) async -> Void)? = nil,
         onHostAnnouncePosted: ((ActivityDetail, String) async -> Void)? = nil,
         onActivityRescheduled: ((ActivityDetail) async -> Void)? = nil,
-        onCommunityRecap: ((ActivityDetail) -> Void)? = nil
+        onCommunityRecap: ((ActivityDetail) -> Void)? = nil,
+        fetchBuddyRecommendation: ((String) async -> (listingID: String, title: String, subtitle: String)?)? = nil,
+        onOpenBuddyListing: ((String) -> Void)? = nil
     ) {
         self.coordinator = coordinator
+        self.tabChrome = tabChrome
+        self.isActivityTabSelected = isActivityTabSelected
+        self.isAuthenticated = isAuthenticated
+        self.onSignInRequired = onSignInRequired
         _viewModel = State(initialValue: viewModel)
         self.onOpenGroupChat = onOpenGroupChat
         self.onHostAnnouncePosted = onHostAnnouncePosted
         self.onActivityRescheduled = onActivityRescheduled
         self.onCommunityRecap = onCommunityRecap
+        self.fetchBuddyRecommendation = fetchBuddyRecommendation
+        self.onOpenBuddyListing = onOpenBuddyListing
         self.inviteCandidates = inviteCandidates
     }
 
     public var body: some View {
-        Group {
-            switch viewModel.loadState {
-            case .idle, .loading:
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .sparkLoadingAccessibilityLabel(
-                        String(
-                            localized: "activity.detail.loading.a11y",
-                            defaultValue: "正在加载活动",
-                            comment: "Activity detail loading"
-                        )
-                    )
-            case .failure(let message):
-                SparkRetryUnavailableView(
-                    title: String(
-                        localized: "activity.detail.error.title",
-                        defaultValue: "无法加载活动",
-                        comment: "Activity detail error"
-                    ),
-                    description: message
-                ) {
-                    Task { await viewModel.load() }
-                }
-            case .loaded:
-                if let activity = viewModel.activity {
-                    ActivityDetailLoadedList(
-                        viewModel: viewModel,
-                        activity: activity,
-                        inviteCandidates: inviteCandidates(),
-                        onOpenGroupChat: onOpenGroupChat,
-                        onCommunityRecap: onCommunityRecap,
-                        showEditActivity: $showEditActivity,
-                        showAnnounceSheet: $showAnnounceSheet,
-                        showHostAgainCreate: $showHostAgainCreate,
-                        showCancelActivityConfirm: $showCancelActivityConfirm
-                    )
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        if activity.canChangeRSVP, activity.rsvpStatus == .invited {
-                            ActivityDetailRSVPBar(viewModel: viewModel, activity: activity)
-                        }
-                    }
-                } else {
-                    ProgressView()
-                        .sparkLoadingAccessibilityLabel(
-                            String(
-                                localized: "activity.detail.loading.a11y",
-                                defaultValue: "正在加载活动",
-                                comment: "Activity detail loading"
-                            )
-                        )
-                }
+        withDetailAlertsAndDialogs(detailNavigationAndSheets)
+        .onAppear {
+            refreshTabAccessory()
+        }
+        .onDisappear {
+            tabChrome?.clearDetailAccessory()
+            tabChrome?.reconcile()
+        }
+        .onChange(of: viewModel.loadState) { _, _ in
+            refreshTabAccessory()
+        }
+        .onChange(of: viewModel.isUpdatingRSVP) { _, _ in
+            refreshTabAccessory()
+        }
+        .onChange(of: viewModel.activity?.rsvpStatus) { _, _ in
+            refreshTabAccessory()
+        }
+        .onChange(of: isAuthenticated) { _, _ in
+            refreshTabAccessory()
+        }
+        .onChange(of: isActivityTabSelected) { _, _ in
+            refreshTabAccessory()
+        }
+        .task {
+            if viewModel.loadState == .idle {
+                await viewModel.load()
             }
         }
+    }
+
+    private var detailNavigationAndSheets: some View {
+        detailStateRoot
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(item: $meetupMapRoute) { route in
+            ActivityMeetupMapView(route: route)
+        }
+        .navigationDestination(isPresented: $showHostApproval) {
+            if let activity = viewModel.activity {
+                ActivityHostApprovalView(viewModel: viewModel, activity: activity)
+            }
+        }
         .toolbar {
             if let activity = viewModel.activity {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        ShareLink(
-                            item: ActivityInviteURL.shareLink(activityID: activity.id),
-                            subject: Text(activity.title),
-                            message: Text(ActivityInviteURL.inviteCopyText(activity: activity))
-                        ) {
-                            Label(
-                                String(localized: "activity.share.menu", defaultValue: "分享邀请", comment: "Share"),
-                                systemImage: "square.and.arrow.up"
-                            )
-                        }
-                        Button {
-                            ActivityPasteboard.copy(ActivityInviteURL.inviteCopyText(activity: activity))
-                            viewModel.notifyInviteCopied()
-                        } label: {
-                            Label(
-                                String(localized: "activity.copyInvite", defaultValue: "复制邀请文案", comment: "Copy invite"),
-                                systemImage: "doc.on.doc"
-                            )
-                        }
-                        if activity.rsvpStatus != .host {
-                            Button(role: .destructive) {
-                                showReportSheet = true
-                            } label: {
-                                Label(
-                                    String(localized: "activity.report.menu", defaultValue: "举报活动", comment: "Report"),
-                                    systemImage: "exclamationmark.bubble"
-                                )
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
-                    .accessibilityLabel(
-                        String(localized: "activity.detail.more.a11y", defaultValue: "更多操作", comment: "More a11y")
-                    )
+                    activityDetailToolbarMenu(activity: activity)
                 }
             }
         }
@@ -192,7 +183,8 @@ public struct ActivityDetailView: View {
                 NavigationStack {
                     CreateActivityView(
                         viewModel: coordinator.makeCreateViewModel(
-                            initialDraft: CreateActivityDraft(hostAgainFrom: activity)
+                            initialDraft: CreateActivityDraft(hostAgainFrom: activity),
+                            templateStore: createTemplateStore
                         ),
                         onCreated: { detail in
                             viewModel.applyUpdatedDetail(detail)
@@ -202,132 +194,71 @@ public struct ActivityDetailView: View {
                 }
             }
         }
-        .confirmationDialog(
-            String(
-                localized: "activity.host.cancel.confirm.title",
-                defaultValue: "取消这场活动？",
-                comment: "Cancel confirm"
-            ),
-            isPresented: $showCancelActivityConfirm,
-            titleVisibility: .visible
-        ) {
-            Button(
-                String(localized: "activity.host.cancel.confirm.action", defaultValue: "取消活动", comment: "Cancel action"),
-                role: .destructive
-            ) {
-                Task { await viewModel.cancelActivityAsHost() }
-            }
-            Button(String(localized: "action.cancel", defaultValue: "返回", comment: "Dismiss"), role: .cancel) {}
-        } message: {
-            Text(
-                String(
-                    localized: "activity.host.cancel.confirm.message",
-                    defaultValue: "报名者会看到活动已取消，群聊仍可查看历史消息。",
-                    comment: "Cancel confirm message"
+    }
+
+    @ViewBuilder
+    private var detailStateRoot: some View {
+        switch viewModel.loadState {
+        case .idle, .loading:
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .sparkLoadingAccessibilityLabel(
+                    String(
+                        localized: "activity.detail.loading.a11y",
+                        defaultValue: "正在加载活动",
+                        comment: "Activity detail loading"
+                    )
                 )
-            )
-        }
-        .task {
-            if viewModel.loadState == .idle {
-                await viewModel.load()
+        case .failure(let message):
+            SparkRetryUnavailableView(
+                title: String(
+                    localized: "activity.detail.error.title",
+                    defaultValue: "无法加载活动",
+                    comment: "Activity detail error"
+                ),
+                description: message
+            ) {
+                Task { await viewModel.load() }
             }
-        }
-    }
-
-    private var announceSheet: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField(
+        case .loaded:
+            if let activity = viewModel.activity {
+                ActivityDetailLoadedList(
+                    viewModel: viewModel,
+                    activity: activity,
+                    inviteCandidates: inviteCandidates(),
+                    isAuthenticated: isAuthenticated,
+                    onSignInRequired: onSignInRequired,
+                    onOpenGroupChat: onOpenGroupChat,
+                    onCommunityRecap: onCommunityRecap,
+                    fetchBuddyRecommendation: fetchBuddyRecommendation,
+                    onOpenBuddyListing: onOpenBuddyListing,
+                    onRequestAddToCalendar: { showCalendarConfirm = true },
+                    onReportTapped: activity.rsvpStatus != .host ? { showReportSheet = true } : nil,
+                    tabAccessoryBottomInset: detailBottomScrollInset,
+                    meetupMapRoute: $meetupMapRoute,
+                    showHostAgainCreate: $showHostAgainCreate
+                )
+                .modifier(DetailRSVPFallbackModifier(
+                    isVisible: showsDetailRSVPFallback,
+                    forceInline: tabChrome == nil,
+                    kind: detailRSVPFallbackKind,
+                    isLoading: viewModel.isUpdatingRSVP,
+                    onSignIn: { onSignInRequired?() },
+                    onSubmitGoing: {
+                        Task { await viewModel.submitRSVP(.going) }
+                    }
+                ))
+            } else {
+                ProgressView()
+                    .sparkLoadingAccessibilityLabel(
                         String(
-                            localized: "activity.host.announce.placeholder",
-                            defaultValue: "通知内容",
-                            comment: "Announce placeholder"
-                        ),
-                        text: $announceMessage,
-                        axis: .vertical
+                            localized: "activity.detail.loading.a11y",
+                            defaultValue: "正在加载活动",
+                            comment: "Activity detail loading"
+                        )
                     )
-                    .lineLimit(3 ... 6)
-                }
-            }
-            .sparkDismissesKeyboardOnScroll()
-            .navigationTitle(
-                String(localized: "activity.host.announce.title", defaultValue: "通知报名者", comment: "Announce title")
-            )
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(String(localized: "action.cancel", defaultValue: "取消", comment: "Cancel")) {
-                        showAnnounceSheet = false
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(String(localized: "activity.host.announce.send", defaultValue: "发送", comment: "Send announce")) {
-                        Task {
-                            guard let activity = viewModel.activity else { return }
-                            await viewModel.announceToAttendees(message: announceMessage)
-                            await onHostAnnouncePosted?(activity, announceMessage)
-                            showAnnounceSheet = false
-                            announceMessage = ""
-                        }
-                    }
-                    .disabled(announceMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
             }
         }
-        .presentationDetents([.medium])
-    }
-
-    private var reportSheet: some View {
-        NavigationStack {
-            Form {
-                Picker(
-                    String(localized: "activity.report.reason", defaultValue: "举报原因", comment: "Report picker"),
-                    selection: $selectedReportReason
-                ) {
-                    ForEach(ActivityReportReason.allCases) { reason in
-                        Text(reason.localizedLabel).tag(reason)
-                    }
-                }
-                if viewModel.activity?.hostID != nil {
-                    Toggle(
-                        String(
-                            localized: "activity.report.blockHost",
-                            defaultValue: "同时不再看到该主办的活动",
-                            comment: "Block host toggle"
-                        ),
-                        isOn: $blockHostOnReport
-                    )
-                }
-                if let message = viewModel.reportFeedbackMessage {
-                    Section {
-                        Text(message)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .sparkDismissesKeyboardOnScroll()
-            .navigationTitle(
-                String(localized: "activity.report.title", defaultValue: "举报活动", comment: "Report title")
-            )
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(String(localized: "action.cancel", defaultValue: "取消", comment: "Cancel")) {
-                        showReportSheet = false
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(String(localized: "activity.report.submit", defaultValue: "提交", comment: "Submit report")) {
-                        Task {
-                            await viewModel.submitReport(selectedReportReason, blockHost: blockHostOnReport)
-                        }
-                    }
-                }
-            }
-        }
-        .presentationDetents([.medium])
     }
 }
 

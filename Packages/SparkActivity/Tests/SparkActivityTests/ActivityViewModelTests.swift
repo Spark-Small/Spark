@@ -9,7 +9,7 @@ struct ActivityViewModelTests {
         let viewModel = ActivityViewModel(repository: MockActivityFeedRepository())
         await viewModel.load()
         #expect(viewModel.loadState == .loaded)
-        #expect(viewModel.items.count == 5)
+        #expect(viewModel.items.count == 7)
     }
 
     @Test func loadEmptySetsEmptyState() async {

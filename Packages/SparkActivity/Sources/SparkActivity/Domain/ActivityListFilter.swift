@@ -1,4 +1,4 @@
-// Module: SparkActivity — Activity tab list segments (joiner + host).
+// Module: SparkActivity — Inbox list filters (my-activities sheet).
 
 import Foundation
 

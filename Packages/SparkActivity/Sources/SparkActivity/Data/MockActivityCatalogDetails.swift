@@ -16,7 +16,128 @@ extension MockActivityCatalog {
     }
 
     private static func hikeAndCoffeeDetails(saturday: Date, tonight: Date) -> [ActivityDetail] {
-        [hikeDetail(startsAt: saturday), coffeeDetail(startsAt: tonight)]
+        [hikeDetail(startsAt: saturday)]
+            + hikeHostCompanionDetails(baseSaturday: saturday)
+            + [coffeeDetail(startsAt: tonight)]
+    }
+
+    private static func hikeHostCompanionDetails(baseSaturday: Date) -> [ActivityDetail] {
+        let hikeHost = String(
+            localized: "activity.item.1.host",
+            defaultValue: "阿乐",
+            comment: "Activity host"
+        )
+        let nextMonth = Calendar.current.date(byAdding: .day, value: 21, to: baseSaturday) ?? baseSaturday
+        let lastMonth = Calendar.current.date(byAdding: .day, value: -28, to: baseSaturday) ?? baseSaturday
+
+        return [
+            ActivityDetail(
+                id: "act_hike_2",
+                title: String(
+                    localized: "activity.item.hike2.title",
+                    defaultValue: "夜爬观景台",
+                    comment: "Second hike from same host"
+                ),
+                summary: String(
+                    localized: "activity.item.hike2.summary",
+                    defaultValue: "轻爬 · 看夜景",
+                    comment: "Hike 2 summary"
+                ),
+                category: String(
+                    localized: "activity.category.event",
+                    defaultValue: "活动",
+                    comment: "Activity category"
+                ),
+                description: String(
+                    localized: "activity.item.hike2.description",
+                    defaultValue: "傍晚集合，慢爬登顶看城市夜景。请穿防滑鞋。",
+                    comment: "Hike 2 description"
+                ),
+                startsAt: nextMonth,
+                locationName: String(
+                    localized: "activity.item.hike2.location",
+                    defaultValue: "观景台山门",
+                    comment: "Hike 2 location"
+                ),
+                hostDisplayName: hikeHost,
+                hostID: "host_hike",
+                hostBio: String(
+                    localized: "activity.item.1.hostBio",
+                    defaultValue: "周末户外局常客，带队 3 年。",
+                    comment: "Host bio"
+                ),
+                hostTier: .superOrganizer,
+                attendeeCount: 9,
+                capacity: 15,
+                rsvpStatus: .invited,
+                lifecycleStatus: .scheduled,
+                attendees: MockActivityAttendees.roster(
+                    host: hikeHost,
+                    members: ["小北", "阿哲", "Mia", "橙子", "Han", "Luna", "Ken", "小鱼"]
+                ),
+                conversationThreadID: ActivityThreadID.make(for: "act_hike_2"),
+                hostGroupName: String(
+                    localized: "activity.item.1.hostGroup",
+                    defaultValue: "阿乐户外俱乐部",
+                    comment: "Host group name"
+                ),
+                hostRating: 4.8,
+                hostReviewCount: 32
+            ),
+            ActivityDetail(
+                id: "act_hike_past",
+                title: String(
+                    localized: "activity.item.hikePast.title",
+                    defaultValue: "春季赏花徒步",
+                    comment: "Past hike from same host"
+                ),
+                summary: String(
+                    localized: "activity.item.hikePast.summary",
+                    defaultValue: "上月 · 已结束",
+                    comment: "Past hike summary"
+                ),
+                category: String(
+                    localized: "activity.category.event",
+                    defaultValue: "活动",
+                    comment: "Activity category"
+                ),
+                description: String(
+                    localized: "activity.item.hikePast.description",
+                    defaultValue: "沿湖轻徒步，赏花拍照。",
+                    comment: "Past hike description"
+                ),
+                startsAt: lastMonth,
+                locationName: String(
+                    localized: "activity.item.hikePast.location",
+                    defaultValue: "湖滨步道",
+                    comment: "Past hike location"
+                ),
+                hostDisplayName: hikeHost,
+                hostID: "host_hike",
+                hostBio: String(
+                    localized: "activity.item.1.hostBio",
+                    defaultValue: "周末户外局常客，带队 3 年。",
+                    comment: "Host bio"
+                ),
+                hostTier: .superOrganizer,
+                attendeeCount: 11,
+                capacity: 12,
+                rsvpStatus: .going,
+                lifecycleStatus: .ended,
+                attendees: MockActivityAttendees.roster(
+                    host: hikeHost,
+                    members: ["小林", "阿哲", "Mia", "橙子", "Han", "Luna", "Ken", "小鱼", "大K", "Amy"]
+                ),
+                conversationThreadID: ActivityThreadID.make(for: "act_hike_past"),
+                hostGroupName: String(
+                    localized: "activity.item.1.hostGroup",
+                    defaultValue: "阿乐户外俱乐部",
+                    comment: "Host group name"
+                ),
+                hostRating: 4.8,
+                hostReviewCount: 32
+            )
+        ]
     }
 
     private static func hikeDetail(startsAt: Date) -> ActivityDetail {
@@ -45,7 +166,12 @@ extension MockActivityCatalog {
                 ),
                 description: String(
                     localized: "activity.item.1.description",
-                    defaultValue: "城郊步道轻徒步，约 8km。集合后统一出发，自备饮水。雨天顺延。",
+                    defaultValue: """
+                    城郊步道轻徒步，约 8km。集合后统一出发，自备饮水。雨天顺延。
+
+                    路线以平路为主，适合新手。中途会在观景台休息 15 分钟，可以拍照交流。 \
+                    请穿舒适运动鞋，建议带防晒与少量零食。活动结束后可在附近咖啡馆小坐，自愿参加。
+                    """,
                     comment: "Activity description"
                 ),
                 startsAt: startsAt,
@@ -61,6 +187,7 @@ extension MockActivityCatalog {
                     defaultValue: "周末户外局常客，带队 3 年。",
                     comment: "Host bio"
                 ),
+                hostTier: .superOrganizer,
                 attendeeCount: 5,
                 capacity: 8,
                 rsvpStatus: .going,
@@ -69,7 +196,14 @@ extension MockActivityCatalog {
                     host: hikeHost,
                     members: [("小林", true), ("阿哲", false), ("Mia", true), ("橙子", false)]
                 ),
-                conversationThreadID: ActivityThreadID.make(for: "act_1")
+                conversationThreadID: ActivityThreadID.make(for: "act_1"),
+                hostGroupName: String(
+                    localized: "activity.item.1.hostGroup",
+                    defaultValue: "阿乐户外俱乐部",
+                    comment: "Host group name"
+                ),
+                hostRating: 4.8,
+                hostReviewCount: 32
             )
     }
 

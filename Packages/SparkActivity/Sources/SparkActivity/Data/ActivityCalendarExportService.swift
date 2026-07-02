@@ -2,6 +2,7 @@
 
 @preconcurrency import EventKit
 import Foundation
+import SparkCore
 
 public enum ActivityCalendarExportResult: Sendable, Equatable {
     case added
@@ -45,10 +46,39 @@ public final class ActivityCalendarExportService: ActivityCalendarExporting {
     }
 
     private func requestAccess() async -> Bool {
+        let source = SparkPermissionTelemetry.Source.activityAddToCalendar
+        let status = EKEventStore.authorizationStatus(for: .event)
+        SparkPermissionTelemetry.statusChecked(
+            permission: .calendar,
+            source: source,
+            status: SparkPermissionTelemetry.calendarStatus(from: status)
+        )
+
         if #available(iOS 17.0, *) {
+            if status == .notDetermined {
+                SparkPermissionTelemetry.promptRequested(permission: .calendar, source: source)
+            }
             do {
-                return try await eventStore.requestFullAccessToEvents()
+                let granted = try await eventStore.requestFullAccessToEvents()
+                if status == .notDetermined {
+                    SparkPermissionTelemetry.promptResult(
+                        permission: .calendar,
+                        source: source,
+                        outcome: SparkPermissionTelemetry.calendarOutcome(
+                            granted: granted,
+                            status: EKEventStore.authorizationStatus(for: .event)
+                        )
+                    )
+                }
+                return granted
             } catch {
+                if status == .notDetermined {
+                    SparkPermissionTelemetry.promptResult(
+                        permission: .calendar,
+                        source: source,
+                        outcome: .denied
+                    )
+                }
                 return false
             }
         }

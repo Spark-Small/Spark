@@ -9,6 +9,7 @@ public enum ActivityError: LocalizedError, Sendable, Equatable {
     case contentRejected
     case emptyInput
     case fieldTooLong(field: Field)
+    case invalidCapacity
 
     public enum Field: String, Sendable {
         case title
@@ -37,6 +38,12 @@ public enum ActivityError: LocalizedError, Sendable, Equatable {
                 localized: "activity.error.emptyInput",
                 defaultValue: "请填写内容后再继续。",
                 comment: "Empty input"
+            )
+        case .invalidCapacity:
+            return String(
+                localized: "activity.error.invalidCapacity",
+                defaultValue: "人数需在 2–99 人之间。",
+                comment: "Invalid capacity"
             )
         case let .fieldTooLong(field):
             return fieldTooLongDefault(field)

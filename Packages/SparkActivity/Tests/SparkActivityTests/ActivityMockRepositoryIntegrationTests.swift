@@ -35,6 +35,7 @@ struct ActivityMockRepositoryIntegrationTests {
 
         let page = try await browse.fetchBrowse(query: ActivityBrowseQuery())
         #expect(!page.items.isEmpty)
+        #expect(page.items.allSatisfy { $0.rsvpStatus == .invited })
     }
 }
 

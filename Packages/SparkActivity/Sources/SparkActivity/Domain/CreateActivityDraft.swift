@@ -6,25 +6,41 @@ public struct CreateActivityDraft: Sendable, Equatable {
     public static let maxTitleLength = 80
     public static let maxDescriptionLength = 2_000
     public static let maxLocationLength = 120
+    public static let defaultCapacity = 6
+    public static let smallGroupCapacityPresets = [3, 6, 12]
+    public static let minCapacity = 2
+    public static let maxCapacity = 99
 
     public var title: String
     public var description: String
     public var locationName: String
+    public var category: String
     public var startsAt: Date
     public var capacity: Int?
+    public var coverURL: URL?
+    public var coverPosterURL: URL?
+    public var coverIsVideo: Bool
 
     public init(
         title: String = "",
         description: String = "",
         locationName: String = "",
+        category: String = "",
         startsAt: Date = Date().addingTimeInterval(86_400),
-        capacity: Int? = 10
+        capacity: Int? = defaultCapacity,
+        coverURL: URL? = nil,
+        coverPosterURL: URL? = nil,
+        coverIsVideo: Bool = false
     ) {
         self.title = title
         self.description = description
         self.locationName = locationName
+        self.category = category
         self.startsAt = startsAt
         self.capacity = capacity
+        self.coverURL = coverURL
+        self.coverPosterURL = coverPosterURL
+        self.coverIsVideo = coverIsVideo
     }
 
     public var isValid: Bool {
@@ -47,8 +63,12 @@ public struct CreateActivityDraft: Sendable, Equatable {
         title = activity.title
         description = activity.description
         locationName = activity.locationName
+        category = activity.category
         startsAt = max(Date().addingTimeInterval(86_400), activity.startsAt.addingTimeInterval(604_800))
         capacity = activity.capacity
+        coverURL = activity.coverURL
+        coverPosterURL = activity.coverPosterURL
+        coverIsVideo = activity.coverIsVideo
     }
 
     /// Pre-fills a lightweight 3-person coffee meetup after a mutual match (Nexus W3).
@@ -73,18 +93,54 @@ public struct CreateActivityDraft: Sendable, Equatable {
         )
     }
 
+    /// Publishes with a short fallback description when the host skips the optional field.
+    public func normalizedForPublish() -> CreateActivityDraft {
+        var copy = self
+        let trimmedDescription = copy.description.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedDescription.isEmpty {
+            copy.description = Self.fallbackDescription(title: copy.title)
+        }
+        return copy
+    }
+
     public static func validate(_ draft: CreateActivityDraft) throws {
         let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
         let description = draft.description.trimmingCharacters(in: .whitespacesAndNewlines)
         let location = draft.locationName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty, !description.isEmpty, !location.isEmpty else {
+        guard !title.isEmpty, !location.isEmpty else {
             throw ActivityError.emptyInput
         }
         if title.count > maxTitleLength { throw ActivityError.fieldTooLong(field: .title) }
-        if description.count > maxDescriptionLength { throw ActivityError.fieldTooLong(field: .description) }
+        if !description.isEmpty, description.count > maxDescriptionLength {
+            throw ActivityError.fieldTooLong(field: .description)
+        }
         if location.count > maxLocationLength { throw ActivityError.fieldTooLong(field: .location) }
+        if let capacity = draft.capacity {
+            guard capacity >= minCapacity, capacity <= maxCapacity else {
+                throw ActivityError.invalidCapacity
+            }
+        }
         try ActivityContentModeration.validatePublishableText(title)
-        try ActivityContentModeration.validatePublishableText(description)
+        if !description.isEmpty {
+            try ActivityContentModeration.validatePublishableText(description)
+        }
         try ActivityContentModeration.validatePublishableText(location)
+    }
+
+    private static func fallbackDescription(title: String) -> String {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty else {
+            return String(
+                localized: "activity.create.description.fallback.generic",
+                defaultValue: "主办稍后补充说明。",
+                comment: "Generic fallback description"
+            )
+        }
+        let format = String(
+            localized: "activity.create.description.fallback.format",
+            defaultValue: "一起参加「%@」——细节现场沟通。",
+            comment: "Fallback description; %@ is title"
+        )
+        return String(format: format, locale: .current, trimmedTitle)
     }
 }

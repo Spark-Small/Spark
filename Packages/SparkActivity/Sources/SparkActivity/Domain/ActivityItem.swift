@@ -19,6 +19,9 @@ public struct ActivityItem: Identifiable, Hashable, Sendable, Equatable {
     public let lifecycleStatus: ActivityLifecycleStatus
     /// When set, detail screen can open this messages thread (`MessageThreadID` raw value).
     public let conversationThreadID: String?
+    public let coverURL: URL?
+    public let coverPosterURL: URL?
+    public let coverIsVideo: Bool
 
     public init(
         id: String,
@@ -34,7 +37,10 @@ public struct ActivityItem: Identifiable, Hashable, Sendable, Equatable {
         capacity: Int? = nil,
         rsvpStatus: ActivityRSVPStatus = .invited,
         lifecycleStatus: ActivityLifecycleStatus = .scheduled,
-        conversationThreadID: String? = nil
+        conversationThreadID: String? = nil,
+        coverURL: URL? = nil,
+        coverPosterURL: URL? = nil,
+        coverIsVideo: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -50,6 +56,9 @@ public struct ActivityItem: Identifiable, Hashable, Sendable, Equatable {
         self.rsvpStatus = rsvpStatus
         self.lifecycleStatus = lifecycleStatus
         self.conversationThreadID = conversationThreadID
+        self.coverURL = coverURL
+        self.coverPosterURL = coverPosterURL
+        self.coverIsVideo = coverIsVideo
     }
 
     public var scheduleLine: String {
@@ -63,18 +72,27 @@ public struct ActivityItem: Identifiable, Hashable, Sendable, Equatable {
         ActivityRegistrationRules.isAtCapacity(attendeeCount: attendeeCount, capacity: capacity)
     }
 
-    public var lifecycleBadge: String? {
-        switch lifecycleStatus {
-        case .scheduled:
-            if isAtCapacity, rsvpStatus == .invited || rsvpStatus == .waitlisted {
-                return String(localized: "activity.badge.full", defaultValue: "已满", comment: "List badge")
-            }
-            if rsvpStatus == .waitlisted {
-                return ActivityRSVPStatus.waitlisted.localizedLabel
-            }
-            return nil
-        case .cancelled, .ended:
-            return lifecycleStatus.localizedLabel
-        }
+    /// Returns a copy with an updated viewer RSVP state.
+    public func withRSVPStatus(_ rsvpStatus: ActivityRSVPStatus) -> ActivityItem {
+        ActivityItem(
+            id: id,
+            title: title,
+            summary: summary,
+            category: category,
+            startsAt: startsAt,
+            endsAt: endsAt,
+            locationName: locationName,
+            hostDisplayName: hostDisplayName,
+            hostID: hostID,
+            attendeeCount: attendeeCount,
+            capacity: capacity,
+            rsvpStatus: rsvpStatus,
+            lifecycleStatus: lifecycleStatus,
+            conversationThreadID: conversationThreadID,
+            coverURL: coverURL,
+            coverPosterURL: coverPosterURL,
+            coverIsVideo: coverIsVideo
+        )
     }
+
 }

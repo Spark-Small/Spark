@@ -1,29 +1,46 @@
-// Module: SparkActivity — Shared cover image with share / favorite overlay (list + detail).
+// Module: SparkActivity — Shared cover image (list + detail).
 
 import SparkDesignSystem
 import SwiftUI
+import UIKit
 
 struct ActivityCoverHeroView: View {
     let activityID: String
     let title: String
-    let showsOverlayActions: Bool
+    var coverURL: URL?
+    var coverPosterURL: URL?
+    var coverIsVideo: Bool = false
+    var appliesCornerClip: Bool
+    var onCoverImageLoaded: ((UIImage) -> Void)?
 
-    @Environment(ActivityFavoriteStore.self) private var favoriteStore
-
-    init(activityID: String, title: String, showsOverlayActions: Bool = true) {
+    init(
+        activityID: String,
+        title: String,
+        coverURL: URL? = nil,
+        coverPosterURL: URL? = nil,
+        coverIsVideo: Bool = false,
+        appliesCornerClip: Bool = true,
+        onCoverImageLoaded: ((UIImage) -> Void)? = nil
+    ) {
         self.activityID = activityID
         self.title = title
-        self.showsOverlayActions = showsOverlayActions
-    }
-
-    private var isFavorite: Bool {
-        favoriteStore.isFavorite(activityID: activityID)
+        self.coverURL = coverURL
+        self.coverPosterURL = coverPosterURL
+        self.coverIsVideo = coverIsVideo
+        self.appliesCornerClip = appliesCornerClip
+        self.onCoverImageLoaded = onCoverImageLoaded
     }
 
     var body: some View {
         SparkCachedRemoteImage(
-            url: ActivityCoverImage.url(activityID: activityID),
+            url: ActivityCoverImage.url(
+                activityID: activityID,
+                coverURL: coverURL,
+                coverPosterURL: coverPosterURL,
+                coverIsVideo: coverIsVideo
+            ),
             maxPixelSize: 800,
+            onImageLoaded: onCoverImageLoaded,
             content: { image in
                 image
                     .resizable()
@@ -36,81 +53,48 @@ struct ActivityCoverHeroView: View {
         )
         .frame(maxWidth: .infinity)
         .aspectRatio(SparkLayoutMetrics.activityCardHeroAspectRatio, contentMode: .fill)
-        .clipShape(
-            RoundedRectangle(
-                cornerRadius: SparkLayoutMetrics.activityCardHeroCornerRadius,
-                style: .continuous
-            )
-        )
-        .overlay(alignment: .topTrailing) {
-            if showsOverlayActions {
-                overlayActions
+        .modifier(ActivityCoverHeroClipModifier(appliesCornerClip: appliesCornerClip))
+        .overlay {
+            if coverIsVideo {
+                Image(systemName: "play.circle.fill")
+                    .font(.largeTitle)
+                    .foregroundStyle(.white)
+                    .symbolRenderingMode(.hierarchical)
+                    .accessibilityHidden(true)
             }
         }
         .accessibilityHidden(true)
     }
 
-    private var overlayActions: some View {
-        HStack(spacing: 8) {
-            ShareLink(
-                item: ActivityInviteURL.shareLink(activityID: activityID),
-                subject: Text(title),
-                message: Text(ActivityInviteURL.shareMessage(title: title))
-            ) {
-                heroActionIcon(systemName: "square.and.arrow.up")
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel(
-                String(localized: "activity.row.share.a11y", defaultValue: "分享活动", comment: "Share activity")
-            )
-
-            Button {
-                favoriteStore.toggle(activityID: activityID)
-            } label: {
-                heroActionIcon(
-                    systemName: isFavorite ? "heart.fill" : "heart",
-                    tint: isFavorite ? .pink : .primary
-                )
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel(
-                isFavorite
-                    ? String(
-                        localized: "activity.row.unfavorite.a11y",
-                        defaultValue: "取消收藏",
-                        comment: "Remove favorite"
-                    )
-                    : String(
-                        localized: "activity.row.favorite.a11y",
-                        defaultValue: "收藏活动",
-                        comment: "Favorite activity"
-                    )
-            )
-        }
-        .padding(SparkLayoutMetrics.activityCardHeroActionPadding)
-    }
-
-    private func heroActionIcon(systemName: String, tint: Color = .primary) -> some View {
-        Image(systemName: systemName)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(tint)
-            .frame(
-                width: SparkLayoutMetrics.activityCardHeroActionSize,
-                height: SparkLayoutMetrics.activityCardHeroActionSize
-            )
-            .background(.ultraThinMaterial, in: Circle())
-    }
-
     private var heroPlaceholder: some View {
-        RoundedRectangle(
-            cornerRadius: SparkLayoutMetrics.activityCardHeroCornerRadius,
-            style: .continuous
-        )
-        .fill(.quaternary)
-        .overlay {
-            Image(systemName: "photo")
-                .font(.title2)
-                .foregroundStyle(.tertiary)
+        RoundedRectangle(cornerRadius: SparkLayoutMetrics.activityCardHeroCornerRadius, style: .continuous)
+            .fill(.quaternary)
+            .overlay {
+                Image(systemName: coverIsVideo ? "video.fill" : "photo")
+                    .font(.title2)
+                    .foregroundStyle(.tertiary)
+            }
+    }
+}
+
+private struct ActivityCoverHeroClipModifier: ViewModifier {
+    let appliesCornerClip: Bool
+
+    func body(content: Content) -> some View {
+        if appliesCornerClip {
+            content.clipShape(
+                RoundedRectangle(
+                    cornerRadius: SparkLayoutMetrics.activityCardHeroCornerRadius,
+                    style: .continuous
+                )
+            )
+        } else {
+            content
         }
     }
+}
+
+#Preview("List hero") {
+    ActivityCoverHeroView(activityID: "act_1", title: "周末徒步")
+        .padding()
 }

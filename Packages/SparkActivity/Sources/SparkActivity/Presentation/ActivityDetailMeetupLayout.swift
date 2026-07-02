@@ -59,4 +59,8 @@ extension ActivityDetailLoadedList {
             .padding(.horizontal, ActivityDetailMeetupLayout.horizontalPadding)
             .padding(.top, ActivityDetailMeetupLayout.blockSpacing)
     }
+
+    func meetupShowsGroupChat(for activity: ActivityDetail) -> Bool {
+        activity.conversationThreadID != nil && activity.lifecycleStatus == .scheduled
+    }
 }

@@ -9,6 +9,7 @@ public struct SparkCachedRemoteImage<Content: View, Placeholder: View>: View {
     private let maxPixelSize: CGFloat
     private let content: (Image) -> Content
     private let placeholder: () -> Placeholder
+    private let onImageLoaded: ((UIImage) -> Void)?
 
     @Environment(\.remoteImageCache) private var cache
     @State private var loadedImage: UIImage?
@@ -16,11 +17,13 @@ public struct SparkCachedRemoteImage<Content: View, Placeholder: View>: View {
     public init(
         url: URL?,
         maxPixelSize: CGFloat = 512,
+        onImageLoaded: ((UIImage) -> Void)? = nil,
         @ViewBuilder content: @escaping (Image) -> Content,
         @ViewBuilder placeholder: @escaping () -> Placeholder
     ) {
         self.url = url
         self.maxPixelSize = maxPixelSize
+        self.onImageLoaded = onImageLoaded
         self.content = content
         self.placeholder = placeholder
     }
@@ -39,6 +42,7 @@ public struct SparkCachedRemoteImage<Content: View, Placeholder: View>: View {
             guard let image = try? await cache.image(for: url, maxPixelSize: maxPixelSize) else { return }
             guard !Task.isCancelled else { return }
             loadedImage = image
+            onImageLoaded?(image)
         }
     }
 }

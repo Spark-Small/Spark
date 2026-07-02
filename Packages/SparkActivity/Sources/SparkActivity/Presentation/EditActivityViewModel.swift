@@ -14,19 +14,23 @@ public final class EditActivityViewModel {
 
     public var draft: CreateActivityDraft
     public private(set) var submitState: SubmitState = .idle
+    public private(set) var hasAttemptedSave = false
 
     private let activityID: String
+    private let originalDraft: CreateActivityDraft
     private let updateActivity: any UpdateActivityUseCaseProtocol
 
     public init(activity: ActivityDetail, updateActivity: any UpdateActivityUseCaseProtocol) {
         activityID = activity.id
-        draft = CreateActivityDraft(
+        let initial = CreateActivityDraft(
             title: activity.title,
             description: activity.description,
             locationName: activity.locationName,
             startsAt: activity.startsAt,
             capacity: activity.capacity
         )
+        draft = initial
+        originalDraft = initial
         self.updateActivity = updateActivity
     }
 
@@ -34,8 +38,20 @@ public final class EditActivityViewModel {
         self.init(activity: activity, updateActivity: UpdateActivityUseCase(repository: repository))
     }
 
+    public var hasChanges: Bool {
+        draft != originalDraft
+    }
+
+    public var showsValidationGuidance: Bool {
+        hasAttemptedSave || hasPartialDraft
+    }
+
+    public func markSaveAttempted() {
+        hasAttemptedSave = true
+    }
+
     public func submit() async -> ActivityDetail? {
-        guard draft.isValid else { return nil }
+        guard draft.isValid, hasChanges else { return nil }
         submitState = .submitting
         do {
             let detail = try await updateActivity(activityID: activityID, draft: draft)
@@ -51,5 +67,11 @@ public final class EditActivityViewModel {
             submitState = .failure(error.localizedDescription)
             return nil
         }
+    }
+
+    private var hasPartialDraft: Bool {
+        !draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !draft.description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !draft.locationName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }

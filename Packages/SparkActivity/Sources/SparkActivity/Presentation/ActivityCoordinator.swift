@@ -30,7 +30,8 @@ public struct ActivityCoordinator: Sendable {
         activityID: String,
         context: ActivityDetailContext = .inbox,
         onRSVPCompleted: ((ActivityDetail) async -> Void)? = nil,
-        onActivityUpdated: ((ActivityDetail) async -> Void)? = nil
+        onActivityUpdated: ((ActivityDetail) async -> Void)? = nil,
+        onHostBlocked: (() async -> Void)? = nil
     ) -> ActivityDetailViewModel {
         ActivityDetailViewModel(
             activityID: activityID,
@@ -45,10 +46,21 @@ public struct ActivityCoordinator: Sendable {
             announceActivity: AnnounceActivityUseCase(repository: feedRepository),
             submitHostFeedback: SubmitHostFeedbackUseCase(repository: feedRepository),
             fetchHostActivities: FetchActivitiesByHostUseCase(repository: feedRepository),
+            fetchFeed: FetchActivityFeedUseCase(repository: feedRepository),
+            fetchBrowsePage: browseRepository.map { FetchActivityBrowsePageUseCase(repository: $0) },
             context: context,
             blockedHostsStore: blockedHostsStore,
             onRSVPCompleted: onRSVPCompleted,
-            onActivityUpdated: onActivityUpdated
+            onActivityUpdated: onActivityUpdated,
+            onHostBlocked: onHostBlocked
+        )
+    }
+
+    @MainActor
+    func makeBrowseJoinViewModel(item: ActivityItem) -> ActivityBrowseJoinViewModel {
+        ActivityBrowseJoinViewModel(
+            item: item,
+            updateRSVP: UpdateActivityRSVPUseCase(repository: feedRepository)
         )
     }
 
@@ -57,12 +69,21 @@ public struct ActivityCoordinator: Sendable {
         guard let browseRepository else {
             preconditionFailure("ActivityCoordinator.browseRepository is required for browse")
         }
-        return ActivityBrowseViewModel(fetchBrowsePage: FetchActivityBrowsePageUseCase(repository: browseRepository))
+        return ActivityBrowseViewModel(
+            fetchBrowsePage: FetchActivityBrowsePageUseCase(repository: browseRepository),
+            blockedHostsStore: blockedHostsStore
+        )
     }
 
     @MainActor
-    public func makeCreateViewModel(initialDraft: CreateActivityDraft? = nil) -> CreateActivityViewModel {
-        let viewModel = CreateActivityViewModel(createActivity: CreateActivityUseCase(repository: feedRepository))
+    public func makeCreateViewModel(
+        initialDraft: CreateActivityDraft? = nil,
+        templateStore: ActivityCreateTemplateStore = ActivityCreateTemplateStore()
+    ) -> CreateActivityViewModel {
+        let viewModel = CreateActivityViewModel(
+            createActivity: CreateActivityUseCase(repository: feedRepository),
+            templateStore: templateStore
+        )
         if let initialDraft {
             viewModel.draft = initialDraft
         }

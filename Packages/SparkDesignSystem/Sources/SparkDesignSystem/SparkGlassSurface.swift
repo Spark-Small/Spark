@@ -13,6 +13,17 @@ extension View {
         }
     }
 
+    /// Maximum-transparency glass plate (photo overlays, legibility bands).
+    /// iOS 26: default `glassEffect(in:)`; iOS 17–25: `ultraThinMaterial`.
+    @ViewBuilder
+    public func sparkThinGlassSurface<S: InsettableShape>(_ shape: S) -> some View {
+        if #available(iOS 26, *) {
+            glassEffect(in: shape)
+        } else {
+            background(.ultraThinMaterial, in: shape)
+        }
+    }
+
     /// Thin glass for compact controls (toolbar chips, circular actions).
     @ViewBuilder
     public func sparkGlassControl<S: InsettableShape>(_ shape: S) -> some View {

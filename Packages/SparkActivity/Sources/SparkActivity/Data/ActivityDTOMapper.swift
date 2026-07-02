@@ -54,7 +54,11 @@ enum ActivityDTOMapper {
             rsvpStatus: rsvp,
             lifecycleStatus: lifecycle,
             attendees: (dto.attendees ?? []).map(attendee(from:)),
-            conversationThreadID: dto.threadId
+            conversationThreadID: dto.threadId,
+            hostGroupName: dto.hostGroupName,
+            hostRating: dto.hostRating,
+            hostReviewCount: dto.hostReviewCount,
+            priceLabel: dto.priceLabel
         )
     }
 

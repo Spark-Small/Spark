@@ -8,7 +8,7 @@ public struct MockActivityBrowseRepository: ActivityBrowseRepository, Sendable {
     public func fetchBrowse(query: ActivityBrowseQuery) async throws -> ActivityBrowsePage {
         var items = MockActivityCatalog.allDetails()
             .filter { $0.lifecycleStatus != .cancelled && $0.lifecycleStatus != .ended }
-            .map { $0.asListItem() }
+            .map { $0.asBrowseListItem() }
 
         if let category = query.category, !category.isEmpty {
             items = items.filter { $0.category == category }

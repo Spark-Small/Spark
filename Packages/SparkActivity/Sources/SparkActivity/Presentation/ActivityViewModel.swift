@@ -47,6 +47,8 @@ public final class ActivityViewModel {
             items = fetched
             loadState = items.isEmpty ? .empty : .loaded
         } catch is CancellationError {
+            guard generation == loadGeneration else { return }
+            loadState = items.isEmpty ? .idle : .loaded
             return
         } catch {
             guard generation == loadGeneration else { return }

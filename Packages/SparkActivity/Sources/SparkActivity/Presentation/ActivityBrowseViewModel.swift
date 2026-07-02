@@ -18,35 +18,34 @@ public final class ActivityBrowseViewModel {
     private(set) var items: [ActivityItem] = []
     private(set) var isLoadingMore = false
 
-    var selectedCategory: String? {
+    var selectedFilter: ActivityBrowseFilter = .all {
         didSet {
-            guard selectedCategory != oldValue else { return }
+            guard selectedFilter != oldValue else { return }
             Task { await reload() }
         }
     }
-
-    var selectedTimeWindow: ActivityBrowseTimeWindow = .all {
-        didSet {
-            guard selectedTimeWindow != oldValue else { return }
-            Task { await reload() }
-        }
-    }
-
-    static let categoryOptions: [String?] = [
-        nil,
-        String(localized: "activity.category.event", defaultValue: "活动", comment: "Activity category"),
-        String(localized: "activity.category.social", defaultValue: "社交", comment: "Social category")
-    ]
 
     private let fetchBrowsePage: any FetchActivityBrowsePageUseCaseProtocol
+    private let blockedHostsStore: BlockedActivityHostsStore
     private var nextCursor: String?
+    private var loadGeneration = 0
 
-    public init(fetchBrowsePage: any FetchActivityBrowsePageUseCaseProtocol) {
+    public init(
+        fetchBrowsePage: any FetchActivityBrowsePageUseCaseProtocol,
+        blockedHostsStore: BlockedActivityHostsStore
+    ) {
         self.fetchBrowsePage = fetchBrowsePage
+        self.blockedHostsStore = blockedHostsStore
     }
 
-    public convenience init(repository: any ActivityBrowseRepository) {
-        self.init(fetchBrowsePage: FetchActivityBrowsePageUseCase(repository: repository))
+    public convenience init(
+        repository: any ActivityBrowseRepository,
+        blockedHostsStore: BlockedActivityHostsStore = BlockedActivityHostsStore()
+    ) {
+        self.init(
+            fetchBrowsePage: FetchActivityBrowsePageUseCase(repository: repository),
+            blockedHostsStore: blockedHostsStore
+        )
     }
 
     func loadIfNeeded() async {
@@ -55,18 +54,24 @@ public final class ActivityBrowseViewModel {
     }
 
     func reload() async {
+        loadGeneration += 1
+        let generation = loadGeneration
         loadState = .loading
         nextCursor = nil
         do {
             let query = browseQuery(cursor: nil)
             let page = try await fetchBrowsePage(query: query)
-            items = page.items
+            guard generation == loadGeneration else { return }
+            items = await filterBlockedHosts(page.items)
             nextCursor = page.nextCursor
-            loadState = page.items.isEmpty ? .empty : .loaded
-            IntegrationTelemetry.browseImpression(itemCount: page.items.count)
+            loadState = items.isEmpty ? .empty : .loaded
+            IntegrationTelemetry.browseImpression(itemCount: items.count)
         } catch is CancellationError {
+            guard generation == loadGeneration else { return }
+            loadState = items.isEmpty ? .idle : .loaded
             return
         } catch {
+            guard generation == loadGeneration else { return }
             loadState = .failure(error.localizedDescription)
         }
     }
@@ -79,19 +84,35 @@ public final class ActivityBrowseViewModel {
         do {
             let query = browseQuery(cursor: cursor)
             let page = try await fetchBrowsePage(query: query)
-            items.append(contentsOf: page.items)
+            items.append(contentsOf: await filterBlockedHosts(page.items))
             nextCursor = page.nextCursor
         } catch {
             // REASONING: Pagination failure is non-fatal; user can pull to reload later.
         }
     }
 
+    /// Updates a browse row after a successful discover-sheet RSVP.
+    func applyJoinedDetail(_ detail: ActivityDetail) {
+        guard let index = items.firstIndex(where: { $0.id == detail.id }) else { return }
+        items[index] = detail.asListItem()
+    }
+
     private func browseQuery(cursor: String?) -> ActivityBrowseQuery {
         ActivityBrowseQuery(
-            category: selectedCategory,
-            startsAfter: selectedTimeWindow.startsAfter,
-            startsBefore: selectedTimeWindow.startsBefore,
+            category: selectedFilter.apiCategoryValue,
+            startsAfter: selectedFilter.startsAfter,
+            startsBefore: selectedFilter.startsBefore,
             cursor: cursor
         )
+    }
+
+    private func filterBlockedHosts(_ items: [ActivityItem]) async -> [ActivityItem] {
+        var visible: [ActivityItem] = []
+        for item in items {
+            if await !blockedHostsStore.isBlocked(hostID: item.hostID) {
+                visible.append(item)
+            }
+        }
+        return visible
     }
 }
