@@ -14,6 +14,7 @@
 | [.cursor/skills/spark-ui-spec/SKILL.md](../.cursor/skills/spark-ui-spec/SKILL.md) | Agent skill: SwiftUI page spec + compliance checklist |
 | [.cursor/skills/ios-product-design/SKILL.md](../.cursor/skills/ios-product-design/SKILL.md) | Agent skill: iOS product design, PRD, HIG, UX flows |
 | [TAB_SCREENS.md](TAB_SCREENS.md) | Four-tab L1/L2 screen layout reference |
+| [.cursor/BUGBOT.md](../.cursor/BUGBOT.md) | PR review rules for Bugbot / agents |
 | [API_CONTRACT.md](API_CONTRACT.md) | REST contract (iOS ↔ backend) |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Mock vs Staging, secrets |
 | [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) | Phased roadmap and acceptance criteria |

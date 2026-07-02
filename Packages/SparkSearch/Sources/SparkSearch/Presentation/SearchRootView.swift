@@ -4,30 +4,33 @@ import SparkDesignSystem
 import SwiftUI
 
 public struct SearchRootView: View {
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-
     @State private var viewModel: SearchViewModel
     @State private var selectedPerson: SearchResultItem?
     private let onSelectResult: ((SearchResultItem) -> Void)?
     private let onOpenPersonMessages: ((String) -> Void)?
+    private let usesTabRoleSearchChrome: Bool
 
     public init(
         coordinator: SearchCoordinator,
         initialQuery: String = "",
+        usesTabRoleSearchChrome: Bool = false,
         onSelectResult: ((SearchResultItem) -> Void)? = nil,
         onOpenPersonMessages: ((String) -> Void)? = nil
     ) {
         _viewModel = State(initialValue: coordinator.makeViewModel(initialQuery: initialQuery))
+        self.usesTabRoleSearchChrome = usesTabRoleSearchChrome
         self.onSelectResult = onSelectResult
         self.onOpenPersonMessages = onOpenPersonMessages
     }
 
     public init(
         viewModel: SearchViewModel,
+        usesTabRoleSearchChrome: Bool = false,
         onSelectResult: ((SearchResultItem) -> Void)? = nil,
         onOpenPersonMessages: ((String) -> Void)? = nil
     ) {
         _viewModel = State(initialValue: viewModel)
+        self.usesTabRoleSearchChrome = usesTabRoleSearchChrome
         self.onSelectResult = onSelectResult
         self.onOpenPersonMessages = onOpenPersonMessages
     }
@@ -42,31 +45,15 @@ public struct SearchRootView: View {
                 if viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     suggestionsList
                 } else {
-                    resultsContent
+                    SearchResultsList(
+                        viewModel: viewModel,
+                        selectedPerson: $selectedPerson,
+                        onSelectResult: onSelectResult
+                    )
                 }
             }
-            .searchable(
-                text: $viewModel.query,
-                placement: .navigationBarDrawer(displayMode: .always),
-                prompt: Text(
-                    String(localized: "search.placeholder", defaultValue: "搜索 Spark", comment: "Search placeholder")
-                )
-            )
-            .onSubmit(of: .search) {
-                Task { await viewModel.submitSearch() }
-            }
-            .onChange(of: viewModel.query) { _, newValue in
-                if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    viewModel.clearResults()
-                }
-            }
-            .task(id: viewModel.query) {
-                let trimmed = viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else { return }
-                await viewModel.submitSearch()
-            }
+            .modifier(SearchQueryChromeModifier(usesTabRoleSearchChrome: usesTabRoleSearchChrome, viewModel: viewModel))
             .scrollDismissesKeyboard(.interactively)
-            .modifier(SearchReadableWidthModifier(horizontalSizeClass: horizontalSizeClass))
             .navigationDestination(item: $selectedPerson) { person in
                 SearchPersonProfileView(item: person, onOpenMessages: onOpenPersonMessages)
             }
@@ -126,139 +113,37 @@ public struct SearchRootView: View {
         }
         .sparkSemanticListChrome()
     }
-
-    @ViewBuilder
-    private var resultsContent: some View {
-        switch viewModel.loadState {
-        case .idle, .loading:
-            ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .sparkFeedModuleScroll()
-                .sparkLoadingAccessibilityLabel(
-                    String(
-                        localized: "search.loading.a11y",
-                        defaultValue: "正在搜索",
-                        comment: "Search loading"
-                    )
-                )
-        case .empty:
-            ContentUnavailableView(
-                String(localized: "search.empty.title", defaultValue: "无结果", comment: "Empty search"),
-                systemImage: "magnifyingglass",
-                description: Text(
-                    String(localized: "search.empty.subtitle", defaultValue: "换个关键词试试", comment: "Empty search hint")
-                )
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .sparkFeedModuleScroll()
-        case .failure(let message):
-            SparkRetryUnavailableView(
-                title: String(localized: "search.error.title", defaultValue: "搜索失败", comment: "Search error"),
-                description: message
-            ) {
-                Task { await viewModel.submitSearch() }
-            }
-        case .loaded:
-            List(viewModel.results) { item in
-                if item.resultKind == .person {
-                    Button {
-                        selectedPerson = item
-                    } label: {
-                        SearchResultRow(item: item, showsChevron: true)
-                    }
-                    .buttonStyle(.sparkPressable)
-                    .sparkSemanticListRow()
-                } else if let onSelectResult, item.isNavigable {
-                    Button {
-                        onSelectResult(item)
-                    } label: {
-                        SearchResultRow(item: item, showsChevron: true)
-                    }
-                    .buttonStyle(.sparkPressable)
-                    .sparkSemanticListRow()
-                } else {
-                    SearchResultRow(item: item, showsChevron: false)
-                        .sparkSemanticListRow()
-                }
-            }
-            .sparkSemanticListChrome()
-            .refreshable {
-                await viewModel.submitSearch()
-            }
-        }
-    }
 }
 
-private struct SearchReadableWidthModifier: ViewModifier {
-    let horizontalSizeClass: UserInterfaceSizeClass?
+private struct SearchQueryChromeModifier: ViewModifier {
+    let usesTabRoleSearchChrome: Bool
+    @Bindable var viewModel: SearchViewModel
 
     func body(content: Content) -> some View {
-        if SparkAdaptiveLayout.usesSplit(horizontalSizeClass: horizontalSizeClass) {
-            content.sparkReadableWidth()
+        if usesTabRoleSearchChrome {
+            content
         } else {
             content
-        }
-    }
-}
-
-private extension SearchResultItem {
-    var isNavigable: Bool {
-        resultKind?.supportsInAppNavigation == true
-    }
-}
-
-private struct SearchResultRow: View {
-    let item: SearchResultItem
-    let showsChevron: Bool
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 8) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text((item.resultKind?.localizedLabel ?? item.kind).uppercased())
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text(item.title)
-                    .font(.headline)
-                Text(item.subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-            Spacer(minLength: 0)
-            if showsChevron {
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(item.title), \(item.subtitle)")
-        .accessibilityHint(item.navigationAccessibilityHint)
-    }
-}
-
-private extension SearchResultItem {
-    var navigationAccessibilityHint: String {
-        switch resultKind {
-        case .activity:
-            String(
-                localized: "search.result.hint.activity",
-                defaultValue: "在活动标签页中打开",
-                comment: "Search result opens activity tab"
-            )
-        case .community:
-            String(
-                localized: "search.result.hint.community",
-                defaultValue: "在社区标签页中打开",
-                comment: "Search result opens community tab"
-            )
-        case .person, .none:
-            String(
-                localized: "search.result.hint.person",
-                defaultValue: "查看用户资料",
-                comment: "Search result person hint"
-            )
+                .searchable(
+                    text: $viewModel.query,
+                    placement: .navigationBarDrawer(displayMode: .always),
+                    prompt: Text(
+                        String(localized: "search.placeholder", defaultValue: "搜索 Spark", comment: "Search placeholder")
+                    )
+                )
+                .onSubmit(of: .search) {
+                    Task { await viewModel.submitSearch() }
+                }
+                .onChange(of: viewModel.query) { _, newValue in
+                    if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        viewModel.clearResults()
+                    }
+                }
+                .task(id: viewModel.query) {
+                    let trimmed = viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !trimmed.isEmpty else { return }
+                    await viewModel.submitSearch()
+                }
         }
     }
 }
@@ -279,8 +164,3 @@ private extension SearchResultItem {
     }
 }
 
-#Preview("Search — iPad regular") {
-    SparkPreviewSupport.iPadRegular {
-        SearchRootView(coordinator: SearchCoordinator(repository: MockSearchRepository()))
-    }
-}

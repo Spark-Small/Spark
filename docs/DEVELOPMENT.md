@@ -9,6 +9,18 @@ Doc index: [README.md](README.md) · Rule map: [RULES.md](RULES.md)
 
 You can develop UI and ViewModels without a running server.
 
+### Mock phone OTP
+
+`MockAuthService` mirrors Staging OTP rules locally:
+
+- Fixed verification code: **`123456`** (`MockAuthService.mockVerificationCode`)
+- 60s resend cooldown → `AuthError.otpRateLimited`
+- One-time use; must call `sendPhoneOTP` before verify
+
+Staging logs a random 6-digit code to the `spark-api` console when `NODE_ENV !== "production"` (never in production).
+
+OTP length: **6 digits** on client (`PhoneNumberValidator.verificationCodeLength`) and staging API (`OTP_CODE_LENGTH`).
+
 ## Signing (personal Apple ID vs paid team)
 
 **Personal / free team (e.g. “Yu Shao”):** Apple does not provision **Push Notifications** or **Associated Domains**. The app must **not** link `Config/Spark.entitlements` (keep `CODE_SIGN_ENTITLEMENTS` unset in `Config/Spark.xcconfig`). Do not add those capabilities in Xcode → Signing & Capabilities.

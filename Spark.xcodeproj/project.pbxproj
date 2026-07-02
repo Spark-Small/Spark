@@ -17,6 +17,7 @@
 		88D5E3932FD1C88300A4CBD3 /* SparkPayments in Frameworks */ = {isa = PBXBuildFile; productRef = SPK100082FD19C1D00A4CBD1 /* SparkPayments */; };
 		88D5E3952FD1C88300A4CBD3 /* SparkActivity in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000A2FD19C1D00A4CBD1 /* SparkActivity */; };
 		88D5E3962FD1C88300A4CBD3 /* SparkSearch in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000B2FD19C1D00A4CBD1 /* SparkSearch */; };
+		88D5E3982FD1C88300A4CBD3 /* SparkBuddy in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000G2FD19C1D00A4CBD1 /* SparkBuddy */; };
 		88D5E3972FD1C88300A4CBD3 /* SparkCommunity in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000D2FD19C1D00A4CBD1 /* SparkCommunity */; };
 		88D5E3992FD1C88300A4CBD3 /* SparkTrust in Frameworks */ = {isa = PBXBuildFile; productRef = SPK1000F2FD19C1D00A4CBD1 /* SparkTrust */; };
 		88D5E39A2FD1C88300A4CBD3 /* SparkProfile in Frameworks */ = {isa = PBXBuildFile; productRef = SPK100102FD19C1D00A4CBD1 /* SparkProfile */; };
@@ -67,6 +68,7 @@
 				88D5E3932FD1C88300A4CBD3 /* SparkPayments in Frameworks */,
 				88D5E3952FD1C88300A4CBD3 /* SparkActivity in Frameworks */,
 				88D5E3962FD1C88300A4CBD3 /* SparkSearch in Frameworks */,
+				88D5E3982FD1C88300A4CBD3 /* SparkBuddy in Frameworks */,
 				88D5E3972FD1C88300A4CBD3 /* SparkCommunity in Frameworks */,
 				88D5E3992FD1C88300A4CBD3 /* SparkTrust in Frameworks */,
 				88D5E39A2FD1C88300A4CBD3 /* SparkProfile in Frameworks */,
@@ -142,6 +144,7 @@
 				SPK100082FD19C1D00A4CBD1 /* SparkPayments */,
 				SPK1000A2FD19C1D00A4CBD1 /* SparkActivity */,
 				SPK1000B2FD19C1D00A4CBD1 /* SparkSearch */,
+				SPK1000G2FD19C1D00A4CBD1 /* SparkBuddy */,
 				SPK1000D2FD19C1D00A4CBD1 /* SparkCommunity */,
 				SPK1000F2FD19C1D00A4CBD1 /* SparkTrust */,
 				SPK100102FD19C1D00A4CBD1 /* SparkProfile */,
@@ -214,6 +217,7 @@
 				SPK000092FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkCommunity" */,
 				SPK0000A2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkActivity" */,
 				SPK0000B2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkSearch" */,
+				SPK0000G2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkBuddy" */,
 				SPK0000C2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkPayments" */,
 				SPK0000F2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkTrust" */,
 				SPK000102FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkProfile" */,
@@ -399,7 +403,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Config/SparkURLScheme.plist;
 				INFOPLIST_KEY_SPARKAPIBaseURL = "$(SPARK_API_BASE_URL)";
-				INFOPLIST_KEY_SPARKPremiumPaywallEnabled = YES;
+				INFOPLIST_KEY_SPARKPremiumPaywallEnabled = NO;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -590,6 +594,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/SparkSearch;
 		};
+		SPK0000G2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkBuddy" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SparkBuddy;
+		};
 		SPK0000C2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkPayments" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/SparkPayments;
@@ -658,6 +666,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = SPK0000B2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkSearch" */;
 			productName = SparkSearch;
+		};
+		SPK1000G2FD19C1D00A4CBD1 /* SparkBuddy */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SPK0000G2FD19C1D00A4CBD1 /* XCLocalSwiftPackageReference "Packages/SparkBuddy" */;
+			productName = SparkBuddy;
 		};
 		SPK1000D2FD19C1D00A4CBD1 /* SparkCommunity */ = {
 			isa = XCSwiftPackageProductDependency;

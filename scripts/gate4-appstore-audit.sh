@@ -17,25 +17,41 @@ pass() {
 }
 
 echo "==> Gate 4: Privacy permissions"
-if rg -q 'NSPhotoLibraryUsageDescription' Config/SparkURLScheme.plist 2>/dev/null; then
-  pass "NSPhotoLibraryUsageDescription declared"
+for key in NSPhotoLibraryUsageDescription NSLocationWhenInUseUsageDescription NSCalendarsUsageDescription NSCalendarsFullAccessUsageDescription; do
+  if rg -q "$key" Config/SparkURLScheme.plist 2>/dev/null; then
+    pass "$key declared"
+  else
+    fail "Missing $key"
+  fi
+done
+
+if rg -q 'NSCameraUsageDescription' Config/SparkURLScheme.plist 2>/dev/null; then
+  pass "NSCameraUsageDescription declared"
 else
-  fail "Missing NSPhotoLibraryUsageDescription"
+  fail "Missing NSCameraUsageDescription"
 fi
 
-for key in NSCameraUsageDescription NSMicrophoneUsageDescription NSLocationWhenInUseUsageDescription NSContactsUsageDescription; do
+for key in NSMicrophoneUsageDescription NSContactsUsageDescription; do
   if rg -q "$key" Config Spark --glob '*.plist' 2>/dev/null; then
     fail "Unused permission key present: $key"
   fi
 done
-pass "no unused camera/mic/location/contacts keys"
+pass "no unused mic/contacts permission keys"
 
 echo "==> Gate 4: PrivacyInfo collected data types"
 if rg -q 'NSPrivacyCollectedDataTypeEmailAddress' Spark/PrivacyInfo.xcprivacy 2>/dev/null \
+  && rg -q 'NSPrivacyCollectedDataTypePhoneNumber' Spark/PrivacyInfo.xcprivacy 2>/dev/null \
   && rg -q 'NSPrivacyCollectedDataTypeOtherUserContent' Spark/PrivacyInfo.xcprivacy 2>/dev/null; then
   pass "PrivacyInfo declares collected data types"
 else
   fail "PrivacyInfo missing collected data type declarations"
+fi
+
+echo "==> Gate 4: Sign in with Apple"
+if rg -q 'signInWithAppleTapped|SignInWithAppleButton' Packages/SparkAuth/Sources/SparkAuth/Presentation/LoginView.swift 2>/dev/null; then
+  pass "LoginView wires Apple sign-in"
+else
+  fail "LoginView missing Apple sign-in"
 fi
 
 echo "==> Gate 4: Token storage"
@@ -82,11 +98,14 @@ else
 fi
 
 echo "==> Gate 5: Demo login copy hidden in Release"
-if rg -q '#if DEBUG' Packages/SparkAuth/Sources/SparkAuth/Presentation/LoginView.swift 2>/dev/null \
-  && rg -q 'auth.login.hint' Packages/SparkAuth/Sources/SparkAuth/Presentation/LoginView.swift 2>/dev/null; then
-  pass "login demo hint guarded for DEBUG"
+if rg -q 'auth.login.hint' Packages/SparkAuth/Sources/SparkAuth/Presentation/LoginView.swift 2>/dev/null; then
+  if rg -q '#if DEBUG' Packages/SparkAuth/Sources/SparkAuth/Presentation/LoginView.swift 2>/dev/null; then
+    pass "login demo hint guarded for DEBUG"
+  else
+    fail "login demo hint not DEBUG-guarded"
+  fi
 else
-  fail "login demo hint not DEBUG-guarded"
+  pass "login demo hint removed"
 fi
 
 echo "==> Gate 5: StoreKit restore purchases"

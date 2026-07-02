@@ -1,5 +1,6 @@
 // Module: SparkProfile — Profile tab root layout sections.
 
+import SparkBuddy
 import SparkCore
 import SparkDesignSystem
 import SparkNotifications
@@ -11,35 +12,46 @@ import SwiftUI
 public struct ProfileRootView: View {
     public var viewModel: ProfileViewModel
     public let profileCoordinator: ProfileCoordinator
+    @Binding public var isSearchPresented: Bool
+    public var searchViewModel: SearchViewModel?
     public let onSelectSearchResult: (SearchResultItem) -> Void
     public let onSignOut: () -> Void
     public let onDeleteAccount: () async -> Void
     public let onOpenPaywall: () -> Void
     public let onOpenPersonMessages: ((String) -> Void)?
+    public let onOpenSearch: (() -> Void)?
+    public let buddyCoordinator: BuddyCoordinator?
 
     @State private var showVerificationWizard = false
     @State private var showDeleteAccountConfirmation = false
     @State private var showSignOutConfirmation = false
     @State private var showNotificationSettings = false
-    @State private var searchQuery = ""
     @ScaledMetric(relativeTo: .body) private var profileAvatarSize = SparkLayoutMetrics.tabPersonAvatarSize
 
     public init(
         viewModel: ProfileViewModel,
         profileCoordinator: ProfileCoordinator,
+        isSearchPresented: Binding<Bool> = .constant(false),
+        searchViewModel: SearchViewModel? = nil,
         onSelectSearchResult: @escaping (SearchResultItem) -> Void,
         onSignOut: @escaping () -> Void,
         onDeleteAccount: @escaping () async -> Void,
         onOpenPaywall: @escaping () -> Void,
-        onOpenPersonMessages: ((String) -> Void)? = nil
+        onOpenPersonMessages: ((String) -> Void)? = nil,
+        onOpenSearch: (() -> Void)? = nil,
+        buddyCoordinator: BuddyCoordinator? = nil
     ) {
         self.viewModel = viewModel
         self.profileCoordinator = profileCoordinator
+        _isSearchPresented = isSearchPresented
+        self.searchViewModel = searchViewModel
         self.onSelectSearchResult = onSelectSearchResult
         self.onSignOut = onSignOut
         self.onDeleteAccount = onDeleteAccount
         self.onOpenPaywall = onOpenPaywall
         self.onOpenPersonMessages = onOpenPersonMessages
+        self.onOpenSearch = onOpenSearch
+        self.buddyCoordinator = buddyCoordinator
     }
 
     public var body: some View {
@@ -57,24 +69,37 @@ public struct ProfileRootView: View {
                     await viewModel.load()
                 }
             }
+            .sparkPhoneStyleNavigationBar()
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SearchRootView(
-                            coordinator: profileCoordinator.makeSearchCoordinator(),
-                            initialQuery: searchQuery,
-                            onSelectResult: onSelectSearchResult,
-                            onOpenPersonMessages: onOpenPersonMessages
-                        )
+                    Button {
+                        onOpenSearch?()
                     } label: {
                         Image(systemName: "magnifyingglass")
                     }
                     .accessibilityLabel(
-                        String(localized: "community.search.a11y", defaultValue: "搜索", comment: "Search")
+                        String(
+                            localized: "profile.search.open.a11y",
+                            defaultValue: "搜索 Spark",
+                            comment: "Open global search"
+                        )
                     )
                 }
             }
-            .sparkPhoneStyleNavigationBar()
+            .sheet(isPresented: $isSearchPresented) {
+                if let searchViewModel {
+                    NavigationStack {
+                        SearchRootView(
+                            viewModel: searchViewModel,
+                            onSelectResult: { item in
+                                isSearchPresented = false
+                                onSelectSearchResult(item)
+                            },
+                            onOpenPersonMessages: onOpenPersonMessages
+                        )
+                    }
+                }
+            }
             .sheet(isPresented: $showVerificationWizard) {
                 TrustVerificationWizardView(
                     viewModel: profileCoordinator.makeVerificationViewModel {
@@ -186,6 +211,9 @@ public struct ProfileRootView: View {
                     }
                     trustRow(profile: summary)
                         .sparkFlatTabListRow()
+                    if let buddyCoordinator {
+                        BuddyProfileProviderSection(coordinator: buddyCoordinator)
+                    }
                 }
                 accountSettingsRow
                     .sparkFlatTabListRow()

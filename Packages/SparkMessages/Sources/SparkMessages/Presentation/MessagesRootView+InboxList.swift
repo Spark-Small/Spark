@@ -9,26 +9,14 @@ extension MessagesRootView {
         segment: MessagesInboxSegment,
         @ViewBuilder rows: () -> Rows
     ) -> some View {
-        if usesSplitInbox {
-            List(selection: $selectedThreadID) {
-                MessagesInboxSearchBar(text: $inboxSearchText, segment: segment)
-                    .sparkInboxSearchListRow()
-                rows()
-            }
-            .sparkFlatTabListStyle()
-            .refreshable {
-                await viewModel.load()
-            }
-        } else {
-            List {
-                MessagesInboxSearchBar(text: $inboxSearchText, segment: segment)
-                    .sparkInboxSearchListRow()
-                rows()
-            }
-            .sparkFlatTabListStyle()
-            .refreshable {
-                await viewModel.load()
-            }
+        List {
+            MessagesInboxSearchBar(text: $inboxSearchText, segment: segment)
+                .sparkInboxSearchListRow()
+            rows()
+        }
+        .sparkFlatTabListStyle()
+        .refreshable {
+            await viewModel.load()
         }
     }
 
@@ -83,7 +71,7 @@ extension MessagesRootView {
 
     @ViewBuilder
     func matchConversationRow(conversation: ConversationPreview, match: MatchPreview) -> some View {
-        let row = Button {
+        Button {
             Task { await openMatchConversation(match) }
         } label: {
             ConversationRow(conversation: conversation, isNewMatch: true)
@@ -103,45 +91,20 @@ extension MessagesRootView {
                 comment: "Open new match conversation hint"
             )
         )
-
-        if usesSplitInbox {
-            row.tag(conversation.threadID)
-        } else {
-            row
-        }
     }
 
     @ViewBuilder
     func conversationRow(_ conversation: ConversationPreview) -> some View {
-        if usesSplitInbox {
-            conversationRowContent(conversation)
-                .tag(conversation.threadID)
-        } else {
-            NavigationLink(value: conversation.asMessageThread()) {
-                ConversationRow(conversation: conversation)
-            }
-            .sparkFlatTabListRow()
-            .messagesConversationSwipeActions(
-                conversation: conversation,
-                onMarkRead: { Task { await viewModel.markConversationRead(conversation) } },
-                onHide: { Task { await hideConversation(conversation) } },
-                onDelete: { Task { await deleteConversation(conversation) } }
-            )
+        NavigationLink(value: conversation.asMessageThread()) {
+            ConversationRow(conversation: conversation)
         }
-    }
-
-    func conversationRowContent(_ conversation: ConversationPreview) -> some View {
-        ConversationRow(
+        .sparkFlatTabListRow()
+        .messagesConversationSwipeActions(
             conversation: conversation,
-            isNewMatch: viewModel.matchPreview(for: conversation) != nil
+            onMarkRead: { Task { await viewModel.markConversationRead(conversation) } },
+            onHide: { Task { await hideConversation(conversation) } },
+            onDelete: { Task { await deleteConversation(conversation) } }
         )
-            .sparkFlatTabListRow()
-            .messagesConversationSwipeActions(
-                conversation: conversation,
-                onMarkRead: { Task { await viewModel.markConversationRead(conversation) } },
-                onHide: { Task { await hideConversation(conversation) } },
-                onDelete: { Task { await deleteConversation(conversation) } }
-            )
     }
 
     @ViewBuilder
@@ -152,20 +115,11 @@ extension MessagesRootView {
     @MainActor
     func hideConversation(_ conversation: ConversationPreview) async {
         await viewModel.hideConversation(conversation)
-        clearSelectionIfNeeded(for: conversation.threadID)
     }
 
     @MainActor
     func deleteConversation(_ conversation: ConversationPreview) async {
         await viewModel.deleteConversation(conversation)
-        clearSelectionIfNeeded(for: conversation.threadID)
-    }
-
-    @MainActor
-    func clearSelectionIfNeeded(for threadID: MessageThreadID) {
-        if selectedThreadID == threadID {
-            selectedThreadID = nil
-        }
     }
 
     func conversationDetail(for thread: MessageThread) -> some View {
@@ -222,10 +176,6 @@ extension MessagesRootView {
         if let conversation = viewModel.conversation(for: thread.threadID) {
             selectedInboxSegment = conversation.kind == .dm ? .dm : .groupChats
         }
-        if usesSplitInbox {
-            selectedThreadID = thread.threadID
-        } else {
-            navigationPath.append(thread)
-        }
+        navigationPath.append(thread)
     }
 }

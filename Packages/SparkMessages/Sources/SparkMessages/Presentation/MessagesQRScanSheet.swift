@@ -1,5 +1,8 @@
 // Module: SparkMessages — Scan QR codes for activity / conversation deep links.
 
+import AVFoundation
+import PhotosUI
+import SparkCore
 import SparkDesignSystem
 import SwiftUI
 import VisionKit
@@ -39,6 +42,9 @@ struct MessagesQRScanSheet: View {
                     }
                 }
             }
+            .onAppear {
+                SparkPermissionTelemetry.trackCameraAccess(source: .messagesQRScan)
+            }
             .navigationTitle(
                 String(localized: "messages.scan.title", defaultValue: "扫一扫", comment: "QR scan title")
             )
@@ -69,6 +75,9 @@ private struct MessagesQRScannerRepresentable: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ uiViewController: DataScannerViewController, context: Context) {
+        if AVCaptureDevice.authorizationStatus(for: .video) == .notDetermined {
+            SparkPermissionTelemetry.promptRequested(permission: .camera, source: .messagesQRScan)
+        }
         guard !uiViewController.isScanning else { return }
         try? uiViewController.startScanning()
     }

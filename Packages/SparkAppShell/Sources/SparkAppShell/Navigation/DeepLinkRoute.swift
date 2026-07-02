@@ -10,4 +10,5 @@ public enum DeepLinkRoute: Equatable, Sendable {
     case communityPost(postID: String)
     case communityRecap(activityID: String)
     case activityDetail(activityID: String)
+    case buddyDetail(listingID: String)
 }

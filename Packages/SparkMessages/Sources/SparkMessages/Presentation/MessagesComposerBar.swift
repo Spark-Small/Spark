@@ -1,6 +1,7 @@
 // Module: SparkMessages — Thread composer (system bar + quaternary field).
 
 import PhotosUI
+import SparkCore
 import SparkDesignSystem
 import SwiftUI
 
@@ -118,6 +119,9 @@ struct MessagesComposerBar: View {
                 }
             }
             .buttonStyle(.plain)
+            .onAppear {
+                SparkPermissionTelemetry.trackPhotoLibraryAccess(source: .messagesComposerPhoto)
+            }
             .onChange(of: selectedPhotoItem) { _, item in
                 if item != nil {
                     showsAttachmentTray = false

@@ -1,7 +1,7 @@
-# Spark 五 Tab 页面结构（一级 / 二级细化）
+# Spark 四 Tab 页面结构（一级 / 二级细化）
 
 > **Status:** Living document — 与当前 `main` 代码一致。  
-> **Last updated:** 2026-06-07  
+> **Last updated:** 2026-06-19  
 > **Related:** [TYPOGRAPHY.md](TYPOGRAPHY.md) · [FEATURE_INVENTORY.md](FEATURE_INVENTORY.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · `.cursor/rules/ios-swiftui-layout.mdc`
 
 **文档层级**
@@ -26,9 +26,6 @@
 | `inboxModuleInnerPadding` | **14** | 模块卡内边距（与 `actionCardInnerPadding` 同值） |
 | Match 玻璃卡 | R**28** / maxW **420** | `matchCardCornerRadius` / `matchCardMaxWidth` |
 | Inbound 格子 | R**20** / 媒体 **140** | `inboundCellCornerRadius` / `inboundMediaHeight` |
-| iPad Split | **320** | `SparkAdaptiveLayout.sidebarIdealWidth` |
-| iPad 发现卡 | **480** | `SparkAdaptiveLayout.discoverCardMaxWidth` |
-| iPad 搜索可读宽 | **640** | `SparkAdaptiveLayout.contentReadableMaxWidth` |
 
 **实现：** `Packages/SparkDesignSystem/Sources/SparkDesignSystem/SparkLayoutMetrics.swift`
 
@@ -76,26 +73,27 @@ Spark **无自定义字体**；全部使用 SF Pro 语义 Text Style + Dynamic T
 
 ```
 SparkRootView
-├── 未登录 → LoginView（全屏，非 Tab）
-└── 已登录 → SparkMainTabView（TabView × 5）
-    ├── 喜欢    LikesRootView
-    ├── 活动    ActivityRootView
-    ├── 社区    CommunityRootView
-    ├── 消息    MessagesRootView        [Tab Badge: 未读数]
-    └── 我的    ProfileRootView
+├── 会话恢复中 → ProgressView
+└── 游客 / 已登录 → SparkMainTabView（TabView × 5）
+    ├── 活动    ActivityRootView（发现 | 地图 · 我的活动 Sheet）
+    ├── 搭子    BuddyRootView（陪玩 · 信任认证 · 服务分类 · 标准套餐）
+    ├── 社区    CommunityRootView（Feed 游客可读）
+    ├── 消息    MessagesRootView        [需登录 · Tab Badge]
+    └── 我的    ProfileRootView / GuestProfilePromptView（全局搜索 Sheet）
 
 全局 Modal（AppRouter / PaywallRouter）
-├── GlobalPresentation.authRequired（Sheet）
+├── GlobalPresentation.authRequired（Sheet · 写操作 / 消息 Tab）
 ├── PaywallView（fullScreenCover）
-└── Deep Link 消费 → 切换 Tab + pending 状态
+└── Deep Link：公开活动/帖子游客可开；会话/Recap 草稿需登录
 ```
 
 **平台规则**
 
-| width | 容器 |
-|-------|------|
-| compact（iPhone） | `NavigationStack` push / Sheet |
-| regular（iPad） | `NavigationSplitView` 左列表 + 右详情 |
+| 设备 | 容器 |
+|------|------|
+| iPhone | `NavigationStack` push / Sheet |
+
+**说明：** 项目为 iPhone-first，不按 `horizontalSizeClass` 分支布局。
 
 **设计系统**（Presentation 层统一）
 
@@ -107,32 +105,11 @@ SparkRootView
 
 ---
 
-## Tab 1 — 喜欢 `SparkTab.likes`
+## Tab 1 — 喜欢 `SparkTab.likes`（已归档）
 
-**需登录** · Coordinator：`LikesCoordinator` · 跨 Tab：`SparkTabOrchestrator.openMatchConversation`
+> **2026-06-08 起移除。** `SparkLikes` 已归档（见 `Packages/SparkLikes/README.md` · [adr/0004-sparklikes-archived.md](adr/0004-sparklikes-archived.md)）。配对/Inbound 能力已迁移至 **消息 Inbox**（`MatchPreview` + `MessagesInboxSorting`）。下文 Likes Tab 线框 spec **仅作历史参考**，勿在新代码中引用。
 
-### L1-1 发现流 `LikesRootView` → `likesDiscoverStack`
-
-| 区域 | 组件 | 说明 |
-|------|------|------|
-| 顶栏 inset | `LikesIntentModeBar` | 分段：**配对 / 交朋友**；切换触发 `reloadWithPreferences` |
-| 导航栏左 | 偏好按钮 | `slider.horizontal.3` → Sheet 偏好 |
-| 导航栏右 | Inbound 入口 | `heart.text.square` + 数量角标；Deep Link `likesInbound` |
-| 导航栏右 | 更多 Menu | 撤回上一位 |
-| 进度 | `LikesFeedProgressBar` | 今日已看 / 池容量 |
-| 主体 | `DiscoverCardStackView` | 全屏卡片栈；左右滑 Like/Pass；上滑资料；右滑超阈值开场白 |
-| 卡片媒体 | `DiscoverCardMediaView` | 多图 `TabView` 横滑；视频；捏合缩放 |
-| 卡片信息 | `DiscoverCardView` | 底部 `sparkPhotoTextScrim`：姓名·年龄·地点·每日精选·标签 |
-| 底栏 | actionBar | Pass · Spark/加好友 · Like |
-| 背景 | `.black` | 沉浸发现体验 |
-
-**状态：** `idle` · `loading` · `loaded` · `empty`（今日看完 / 无推荐）· `failure`（重试）
-
-**iPad regular：** `NavigationSplitView` — 左栏 `LikesInboundListView(sidebar)`，右栏发现流。
-
----
-
-### L2 / Modal — 喜欢 Tab 内
+### L2 / Modal — 喜欢 Tab 内（历史）
 
 | ID | 视图 | 呈现 | 触发 |
 |----|------|------|------|
@@ -184,7 +161,7 @@ NavigationStack + List
 
 ---
 
-## Tab 2 — 社区 `SparkTab.community`
+## Tab 3 — 社区 `SparkTab.community`
 
 **需登录** · 默认 Tab · Coordinator：`CommunityCoordinator`
 
@@ -201,18 +178,18 @@ NavigationStack + List
 
 **compact 布局：** `TabView(.page)` 双分页；动态 `LazyVStack(spacing: 0)` + 卡片内 `Divider`。
 
-**regular 布局：** `NavigationSplitView` — 左栏 ideal **320pt** · 右 `splitDetail` 帖子/社区详情。
+**布局：** `NavigationStack` — Push 帖子/社区详情。
 
 **状态：** `idle` · `loading` · `loaded` · `empty` · `failure`
 
 ---
 
-### L2 — Push / Split 详情
+### L2 — Push 详情
 
 | ID | 视图 | 层级 | 布局要点 |
 |----|------|------|----------|
-| L2-1 | `CommunityPostDetailView` | Push / Split 右栏 | 关联活动行 · 作者 · 正文 · 评论区 · `CommunityReplyComposer` · Toolbar 举报 |
-| L2-2 | `CommunityDetailView` | Push / Split 右栏 | 社区主页：Header · 活动列表 · 帖子 · 成员入口 |
+| L2-1 | `CommunityPostDetailView` | Push | 关联活动行 · 作者 · 正文 · 评论区 · `CommunityReplyComposer` · Toolbar 举报 |
+| L2-2 | `CommunityDetailView` | Push | 社区主页：Header · 活动列表 · 帖子 · 成员入口 |
 
 #### L2-1 帖子详情
 
@@ -257,7 +234,7 @@ VStack
 
 ---
 
-## Tab 3 — 消息 `SparkTab.messages`
+## Tab 4 — 消息 `SparkTab.messages`
 
 **需登录** · Tab Badge：`FetchUnreadCountUseCase` → `messagesTabWithBadge`
 
@@ -275,7 +252,7 @@ VStack
 | 群聊行 | `ConversationRow` | 仅进行中 / 即将开始；**已结束活动不展示** |
 
 **compact：** `NavigationStack` → push `ConversationDetailView`  
-**regular：** `NavigationSplitView` — 左 Inbox 列表，右会话详情
+**导航：** `NavigationStack` — 左 Inbox 列表 Push 会话详情
 
 **状态：** `idle` · `loading` · `loaded` · `empty` · `failure`
 
@@ -296,65 +273,98 @@ VStack
 
 ---
 
-## Tab 4 — 活动 `SparkTab.activity`
+## Tab 1 — 活动 `SparkTab.activity`（默认首页）
 
-**需登录** · Coordinator：`ActivityCoordinator` · Premium 锁定 Browse 第 2+ 条
+**游客可读发现** · **写操作需登录** · Coordinator：`ActivityCoordinator`
 
-### L1-1 活动 Inbox `ActivityRootView` → `activityListShell`
+### L1-1 活动主页 `ActivityRootView`
 
 | 区域 | 组件 | 说明 |
 |------|------|------|
-| 容器 | `SparkScreenContainer` | 无大标题 · `navigationTitle: ""` · `.inline` |
-| **即将行动** | `InboxActionItemsListSection` | 活动邀请 / 变更 / 候补 · 左滑移除 · 数据来自 `MessagesViewModel` |
-| 工具栏 Menu | 逛局 / 提醒设置 / 创建活动 | 见 Modal |
-| 筛选 | 横向 glass chips `ActivityListFilter` | Inbox 顶栏下滚动筛选 |
-| 列表 | `ActivityInboxListRow` | RSVP 状态角标；Premium 锁定遮罩（index>0） |
+| 顶栏 principal | 分段 **发现 \| 地图** | `ActivityHomeSegment` · `SparkToolbarSegmentedPicker` |
+| 顶栏 trailing | `ellipsis.circle` Menu Sheet | 我的活动 · 活动提醒 · 发起活动 |
+| **发现** | `ActivityBrowseContent` + `ActivityBrowseFilterBar` | 公开逛局列表（`ActivityBrowseFilter` 单选 chip）；`.refreshable` |
+| **地图** | Inbox 地图视图 | 登录后显示报名/主办活动；游客 `ContentUnavailableView` + 登录 CTA |
+| Tab 底栏 CTA | `ActivityTabBottomAccessory`（iOS 26.1+） | 发现：发起活动；详情：RSVP / 登录后报名 |
+| 底栏回退 | `ActivityDiscoverLegacyCreateCTA` / `DetailRSVPFallbackModifier` | iOS &lt; 26.1 · `safeAreaInset` |
+| 我的活动 | `ActivityRootView+MyActivities` Sheet | 工具栏 Menu → push Inbox 子栈 |
 
-**compact：** `NavigationStack` push 详情  
-**regular：** `NavigationSplitView` 左列表右详情
+**游客：** 可浏览发现列表与活动详情；RSVP → `GlobalPresentation.authRequired` → 登录后回跳  
+**Premium：** Debug 构建默认关闭 Feed 锁定
 
-**状态：** 同上五态 + `showsFilterEmptyState`
+**导航：** `NavigationStack` push 详情
+
+**状态：** idle · loading · loaded · empty · failure · `showsFilterEmptyState`
 
 ---
 
 ### L2 — Push 详情 `ActivityDetailView`
 
-| Section | 内容 |
-|---------|------|
-| 生命周期 | 已取消/已结束标签 |
-| 邀请信息 | 主办 · Bio · 时间 · 地点 · 人数 |
-| 主办其他活动 | NavigationLink 列表 |
-| 参与者 | 头像列表 · Host 视角管理 |
-| 活动说明 | 描述正文 |
-| 邀请好友 | 复制链接 |
-| RSVP | 报名 / 候补 / 取消 |
-| Host 区 | Announce · Edit · Cancel · Feedback |
-| 底部 | 群聊 · 导出日历(EventKit) · **写 Recap** → 社区 Tab |
+Meetup 式 `ScrollView` + `ActivityDetailLoadedList`（cover · 主办 · 时间地点 · 社交证明 · 相关主题 · 群聊/日历/Recap）。
+
+| 区域 | 组件 | 说明 |
+|------|------|------|
+| 主 CTA | Tab `ActivityTabBottomAccessory` 或 inline fallback | 取代旧 `ActivityDetailRSVPBar`；Host 操作仍在 List 内 |
+| 生命周期 | 已取消/已结束标签 | |
+| Host 区 | Announce · Edit · Cancel · 名单管理 | |
+| 底部 | 群聊 · 日历 · **写 Recap** → 社区 Tab | |
 
 **Modal from 详情：** `EditActivityView` · 举报 Sheet · Announce Sheet · 再办一局 Create
 
 ---
 
-### L2 — Modal（从 L1 工具栏）
+### L2 — Modal / Sheet（从 L1）
 
 | ID | 视图 | 说明 |
 |----|------|------|
-| M-1 | `ActivityBrowseListView` | **逛局**；分类+时间筛选；列表/NavigationLink 详情 |
-| M-2 | `CreateActivityView` | 创建表单；可预填 `CreateActivityDraft`（匹配咖啡局） |
-| M-3 | `notificationSettingsSheet` | `ActivityNotificationSettingsSection` |
-| M-4 | `EditActivityView` | 从详情编辑 |
+| M-1 | `CreateActivityView` | 多步表单 + 模板；可预填 `CreateActivityDraft` |
+| M-2 | `notificationSettingsSheet` | `ActivityNotificationSettingsSection` |
+| M-3 | `EditActivityView` | 从详情编辑 |
+| M-4 | `myActivitiesSheet` | 我的 Inbox（主办/参加筛选） |
 
-#### M-1 Browse 布局
+#### 发现 Browse（内嵌，非 Sheet）
 
 ```
-NavigationStack（Sheet）
-├── categoryPicker + timeWindowPicker
-├── List / Grid 活动条目
-│   └── Premium 锁定：模糊遮罩 + Paywall tap
-└── navigationDestination → ActivityDetailView(context: .discover)
+ActivityBrowseContent
+├── sparkTabTopAccessory → ActivityBrowseFilterBar（全部/今天/本周/分类…）
+├── List + ActivityInboxListRow（Discover 三轨）
+│   ├── 封面 → ActivityBrowseHeroOverlay（Today Hero 浮层卡片）
+│   ├── 信息区 → ActivityDetailView(context: .discover)
+│   └── 「加入」→ ActivityBrowseJoinSheet → RSVP
+├── Premium 锁定：第 2 条起 blur + Paywall tap
+├── 游客 Join「登录并加入」→ auth → 恢复 Join Sheet
+└── iOS < 26.1 safeAreaInset → ActivityDiscoverLegacyCreateCTA
 ```
 
-**RSVP 后链路：** 群聊 Thread（`ensureActivityGroupThread`）+ 本地提醒（`ActivityNotificationRegistrar`）
+**RSVP 后链路：** 群聊 Thread + 本地提醒（`ActivityNotificationRegistrar`）
+
+---
+
+## Tab 2 — 搭子 `SparkTab.buddy`
+
+**无需登录即可进入 Tab** · Coordinator：`BuddyCoordinator` · 模块：`SparkBuddy`
+
+### L1-1 搭子浏览 `BuddyRootView`
+
+| 区域 | 内容 |
+|------|------|
+| **Toolbar trailing** | `ellipsis` → `BuddyBrowseOptionsSheet`（计费 / 排序 / 仅认证） |
+| **筛选** | `BuddyBrowseFilterBar` → `sparkTabTopAccessory`（chip 单选 `BuddyServiceFilter`，与活动发现一致） |
+| **列表** | `BuddyListRow`（ConversationRow 行距 · 评分与单数 · 服务分类 · 匹配度 · 认证 · 套餐价） |
+| **详情** | Push → `BuddyDetailView`（**隐藏 Tab Bar** · 评分摘要 · 维度条 · 用户评价摘录 · 信任认证 · AI 匹配 · 标准套餐 · 安全护航） |
+| **联系** | 身份区 `BuddyDetailContactActionsRow`（语音预聊 · 平台聊天） |
+| **预订** | Sheet → `BuddyBookingSheet`（套餐 · 预约时间 · 平台托管支付） |
+| **预聊** | Sheet → `BuddyPreChatSheet`（15 分钟语音预聊说明） |
+| **安全** | Push → `BuddySafetyCenterView`（定位 · SOS · 行程 · 反酒托） |
+| **底栏 CTA** | 立即预约 |
+| **空态** | ContentUnavailableView |
+| **错误** | SparkRetryUnavailableView + 下拉刷新 |
+
+**导航：** `NavigationStack` push 详情
+
+**Deep Link：** `spark://buddy/{id}` · `https://spark.app/buddies/{id}` → `AppRouter.pendingBuddyListingID`
+
+**联系搭子 CTA：** 身份区「平台聊天」→ 消息 Tab 私信 Thread
 
 ---
 
@@ -369,7 +379,8 @@ NavigationStack（Sheet）
 | **头部** | 头像占位 · 昵称 · `TrustScoreRingView` · `TrustBadgeView` |
 | **Premium** | CTA 按钮（`isPremiumPaywallEnabled`）→ 全局 Paywall |
 | **信任认证** | 完成认证 / 已完成 状态 → Wizard Sheet |
-| **发现** | NavigationLink → **搜索** |
+| **陪玩入驻** | `BuddyProfileProviderSection`（认证申请 · 审核中 · **陪玩收益**仅认证通过后可见） |
+| **发现** | 工具栏 🔍 → **搜索 Sheet**（`SearchRootView`） |
 | **法律** | 隐私政策 · 用户协议（`SparkLegalLinks`） |
 | **关于** | ICP 备案号 |
 | **账号** | 退出登录（确认 Dialog）· 注销账号（二次确认 Dialog） |
@@ -378,7 +389,7 @@ NavigationStack（Sheet）
 
 ---
 
-### L2-1 搜索 `SearchRootView`（Push from 我的）
+### L2-1 搜索 `SearchRootView`（Sheet from 我的工具栏）
 
 | 态 | 布局 |
 |----|------|
@@ -414,13 +425,16 @@ NavigationStack + List
 ### LoginView（App 级，非 Tab）
 
 ```
-NavigationStack + ScrollView
-├── 标题 / 说明
-├── 邮箱 + 密码
-├── 登录按钮
-├── Sign in with Apple
-└── #if DEBUG 演示 hint
+Form .grouped
+├── 标题「加入Nexus」+ 副标题
+├── 手机号 + 短信验证码（→ 发送 / 60s 重发）
+├── 登录 / 取消
+├── Sign in with Apple（官方按钮）
+├── 法律条款（用户协议 · 隐私政策）
+└── Footer：找回密码（手机 OTP）
 ```
+
+登出后 `resetAfterSignOut()` 会清空 `pendingDeepLinkAfterAuth`。
 
 ---
 
@@ -428,8 +442,8 @@ NavigationStack + ScrollView
 
 | 路由 | 目标页面 |
 |------|----------|
-| `tab(likes/community/messages/activity/profile)` | 切换 Tab |
-| `likesInbound` | 喜欢 Tab → Inbound Sheet |
+| `tab(likes/community/messages/activity/profile)` | 切换 Tab（`likes` → 社区，兼容旧链） |
+| `likesInbound` | **已废弃** — 原喜欢 Tab Inbound |
 | `conversation(threadID)` | 消息 Tab → L2 会话 |
 | `communityPost(postID)` | 社区 Tab → L2 帖子详情 |
 | `communityRecap(activityID)` | 社区 Tab → Recap Sheet |
@@ -444,10 +458,9 @@ NavigationStack + ScrollView
 
 | Tab | 一级 (L1) | 二级 Push | 二级 Modal |
 |-----|-----------|-----------|------------|
-| 喜欢 | 发现流 | — | 偏好·Inbound·资料·开场白·举报·Gate·Match |
 | 社区 | Feed | 帖子详情·社区详情 | Recap·举报·成员·资料预览 |
 | 消息 | Inbox | 会话详情 | — |
-| 活动 | Inbox 列表 | 活动详情 | 逛局·创建·编辑·提醒设置 |
+| 活动 | 发现/地图 | 活动详情 | 创建·编辑·我的活动·提醒设置 |
 | 我的 | 个人中心 | 搜索 | 信任 Wizard |
 | 全局 | — | — | 登录·Paywall·需登录提示 |
 
@@ -455,7 +468,7 @@ NavigationStack + ScrollView
 
 ---
 
-## L3 线框级 Spec — Tab 1 喜欢
+## L3 线框级 Spec — Tab 1 喜欢（已归档 · 历史参考）
 
 ### L1-1 发现流
 
@@ -586,7 +599,7 @@ Toolbar trailing: 发帖（isCommunityPostingEnabled）
 内容区: `TabView(.page)` ↔ `selectedSegment` 双向同步（可横向滑动切换；`accessibilityReduceMotion` 时直接 switch）
 
 分页 .feed（动态）:
-  ScrollView / Split List → CommunityPostCard × N（Plan A 相关帖过滤）
+  ScrollView → CommunityPostCard × N（Plan A 相关帖过滤）
 
 分页 .groups（我的社区）:
   Section 已加入 → MyCommunitiesCarousel（64 圆统一 · 探索更多同尺寸 tertiary + plus · spacing 12 · pad H16）
@@ -608,7 +621,7 @@ Feed 列表: LazyVStack spacing 0 · 无外层 H pad · 无玻璃卡片
 │ (avatar 36×36)  L1: name .body.semibold · community .footnote  time .caption2│
 │  L2: 和你去了 XX .footnote.semibold accent（熟人优先，可 2 行）│
 │  L3: 📅 关联活动 · 局后随拍（recap；与 L2 同活动不重复）│
-├─ mediaRegion (有图)  edge-to-edge phone / inset iPad ┤
+├─ mediaRegion (有图)  edge-to-edge ┤
 │  4:5 fill maxPixel 1280 · tap → detail              │
 ├─ actionRow  pad H16 V8  spacing 20 ─────────────────┤
 │  ♥ count  💬 count  .subheadline · 0 不显示数字     │
@@ -619,7 +632,7 @@ Feed 列表: LazyVStack spacing 0 · 无外层 H pad · 无玻璃卡片
 └─ Divider ───────────────────────────────────────────┘
 ```
 
-**iPad Split：** 左 List selection · 右 PostDetail / CommunityDetail · sidebar ideal **320**
+**导航：** `NavigationStack` push · 左 List · 右 PostDetail / CommunityDetail
 
 > 首页不再使用 `PeopleDiscoveryCard`、FilterBar、底部「所有社区」长列表 — 见 [TYPOGRAPHY.md § 社区](TYPOGRAPHY.md#社区)。
 
@@ -691,7 +704,7 @@ HStack spacing 14 · pad V2 (inboxRowVerticalPadding)
 
 **Swipe：** 未读 → `标为已读` blue · `不显示` · `删除` destructive
 
-**iPad Split：** List selection tag threadID · 右 `ConversationDetailView`
+**导航：** `NavigationStack` push · List → `ConversationDetailView`
 
 ---
 
@@ -772,7 +785,7 @@ HStack spacing 12 · pad V4
 | Hero | 分类 · 标题 · 状态 capsule | `.caption.semibold` · `.title2.bold` |
 | 时间与地点 | 日期/时间 · 地图预览 · 人数 | `.body.semibold` · `.subheadline` |
 | 主办 | 头像 44pt · 主办名 · bio | `.body.semibold` · `.subheadline` |
-| 底部 RSVP | `ActivityDetailRSVPBar` | 待回复时 `safeAreaInset` |
+| 底部 RSVP | `ActivityTabBottomAccessory` / `ActivityTabBottomFallbackCTA` | Tab bar 上方（iOS 26.1+）或 `safeAreaInset` 回退 |
 | 主办其他活动 | NavigationLink rows | `.subheadline.medium` + `.caption` |
 | 参与者 | 头像 HStack · Host 管理 | |
 | 活动说明 | 描述 | `.body` |
@@ -783,17 +796,21 @@ HStack spacing 12 · pad V4
 
 ---
 
-### M-1 逛局 Sheet
+### 发现 Browse（内嵌）
 
 ```
-NavigationStack Sheet
-categoryPicker + timeWindowPicker  pad H V8
-List 活动行（同 InboxRow 规格）
+ActivityBrowseContent List .sparkFlatTabListStyle
+ActivityBrowseFilterBar → sparkTabTopAccessory（chip 单选 ActivityBrowseFilter）
+ActivityInboxListRow（Discover 三轨）
+├── 封面 → ActivityBrowseHeroOverlay（浮层卡片，非 bottom sheet）
+├── 信息区 → ActivityDetailView(context: .discover)
+└── 「加入」→ ActivityBrowseJoinSheet
 Premium: 模糊 + lock · tap → Paywall
-navigationDestination → ActivityDetail(context: .discover)
+.refreshable → ActivityBrowseViewModel.reload()
+Inbox 列表：整卡 → 详情
 ```
 
-### M-3 提醒设置 Sheet
+### M-2 提醒设置 Sheet
 
 - `.presentationDetents([.medium])`
 - `Form` + `ActivityNotificationSettingsSection`
@@ -834,7 +851,7 @@ List .sparkScreenListStyle
 | loading | ProgressView center + a11y |
 | loaded | `SearchResultRow`: kind `.caption.semibold` · title `.headline` · subtitle `.subheadline` ×2 · chevron |
 | empty | ContentUnavailableView |
-| iPad | `sparkReadableWidth(640)` |
+| iPhone | 全宽 `NavigationStack` |
 
 `.searchable` placement `.navigationBarDrawer(always)` · prompt `搜索 Spark`
 
@@ -854,14 +871,14 @@ List .sparkScreenListStyle
 ### LoginView（非 Tab）
 
 ```
-NavigationStack large title「登录 Spark」
-ScrollView VStack spacing 24 pad 24
-  subtitle .title3.semibold
-  email/password fields spacing 12 · glass sparkCard
-  登录 borderedProminent
-  divider
-  Sign in with Apple
-背景 .background · sparkDismissesKeyboardOnScroll
+NavigationStack large title「加入Nexus」
+Form .grouped
+  subtitle .title2.semibold
+  手机号 + OTP（oneTimeCode QuickType）
+  登录 / 取消 borderedProminent + bordered large 52pt
+  SignInWithAppleButton（官方）
+  法律条款 footer + SMS 隐私 caption
+背景系统 grouped · sparkDismissesKeyboardOnScroll
 ```
 
 ### PaywallView
@@ -895,3 +912,4 @@ ScrollView VStack spacing 24 pad 24
 | 2026-06-07 | 初版：五 Tab 一级/二级页面逐页布局细化 |
 | 2026-06-07 | L3：线框级间距/字号/Safe Area/Premium 门控文案 |
 | 2026-06-07 | 即将行动移至活动 Tab；消息页配对统一为 ConversationRow |
+| 2026-06-19 | 活动 Tab：**发现 \| 地图** 顶栏分段；Browse 内嵌 `ActivityBrowseContent`；移除 `ActivityBrowseListView` Sheet；RSVP 迁至 Tab Bottom Accessory；Phone OTP 登录 spec；Likes Tab 标记归档 |

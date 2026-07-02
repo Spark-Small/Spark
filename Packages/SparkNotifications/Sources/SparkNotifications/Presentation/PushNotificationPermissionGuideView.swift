@@ -1,5 +1,6 @@
 // Module: SparkNotifications — First-launch push permission onboarding.
 
+import SparkCore
 import SparkDesignSystem
 import SwiftUI
 import UserNotifications
@@ -81,6 +82,10 @@ public struct PushNotificationPermissionGuideView: View {
                 Button(
                     String(localized: "notifications.guide.later", defaultValue: "稍后再说", comment: "Later")
                 ) {
+                    SparkPermissionTelemetry.promptSkipped(
+                        permission: .notifications,
+                        source: .pushPermissionGuide
+                    )
                     markSeen()
                     onSkip()
                 }
@@ -103,12 +108,42 @@ public struct PushNotificationPermissionGuideView: View {
                     )
             }
         }
+        .task {
+            let settings = await UNUserNotificationCenter.current().notificationSettings()
+            SparkPermissionTelemetry.statusChecked(
+                permission: .notifications,
+                source: .pushPermissionGuide,
+                status: SparkPermissionTelemetry.notificationStatus(from: settings.authorizationStatus)
+            )
+        }
     }
 
     private func requestPermission() async {
         isRequesting = true
         defer { isRequesting = false }
-        _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
+
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        let source = SparkPermissionTelemetry.Source.pushPermissionGuide
+        SparkPermissionTelemetry.statusChecked(
+            permission: .notifications,
+            source: source,
+            status: SparkPermissionTelemetry.notificationStatus(from: settings.authorizationStatus)
+        )
+
+        if settings.authorizationStatus == .notDetermined {
+            SparkPermissionTelemetry.promptRequested(permission: .notifications, source: source)
+        }
+
+        let granted = (try? await center.requestAuthorization(options: [.alert, .badge, .sound])) ?? false
+        if settings.authorizationStatus == .notDetermined {
+            SparkPermissionTelemetry.promptResult(
+                permission: .notifications,
+                source: source,
+                outcome: SparkPermissionTelemetry.notificationOutcome(granted: granted)
+            )
+        }
+
         markSeen()
         onContinue()
     }

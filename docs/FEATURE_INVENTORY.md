@@ -1,39 +1,43 @@
 # Spark 功能清单与系统模块
 
 > **Status:** Living document — reflects shipped code on `main`.  
-> **Last updated:** 2026-06-08  
+> **Last updated:** 2026-07-02  
 > **Related:** [ARCHITECTURE.md](ARCHITECTURE.md) · [PACKAGES.md](PACKAGES.md) · [API_CONTRACT.md](API_CONTRACT.md)
 
 ---
 
 ## 1. 产品形态
 
-Spark 是 **iOS 17+ / Swift 6** 消费社交 App，核心体验为：**社区 → 活动 → 消息 → 个人中心**，Tab 间通过 `SparkTabOrchestrator` 编排联动（Nexus W0–W6）。
+Spark 是 **iOS 17+ / Swift 6** 消费社交 App，核心体验为：**活动发现 · 陪玩搭子 → 社区信任沉淀 → 消息协调 → 个人中心**，Tab 间通过 `SparkTabOrchestrator` 编排联动（Nexus W0–W6）。
 
-### 1.1 四 Tab 主界面
+### 1.1 五 Tab 主界面
 
-| Tab | Package | 需登录 | 说明 |
-|-----|---------|--------|------|
-| 社区 | SparkCommunity | ✅ | 帖子 Feed、我的社区、Recap |
-| 消息 | SparkMessages | ✅ | 统一 Inbox、DM / 群聊 |
-| 活动 | SparkActivity | ✅ | 活动 Inbox、Browse、RSVP |
-| 我的 | SparkProfile + SparkSearch + SparkTrust | 部分 | 资料、搜索、认证、法务、账号 |
+| Tab | Package | 游客 | 需登录（写操作） | 说明 |
+|-----|---------|------|------------------|------|
+| 活动 | SparkActivity | ✅ 发现 | RSVP / 主办 / 我的活动 | 默认 Tab；顶栏 **发现 \| 地图** |
+| 搭子 | SparkBuddy | ✅ 浏览 | 预约 / 提供方入驻 | 陪玩列表 · 信任认证 · 标准套餐 |
+| 社区 | SparkCommunity | ✅ Feed 只读 | 发帖 / 回复 | Activity Recap 晒图流 |
+| 消息 | SparkMessages | ❌ | 全部 | 统一 Inbox、DM / 群聊 |
+| 我的 | SparkProfile + SparkSearch + SparkTrust + SparkBuddy | ✅ 登录 CTA | 资料 / 搜索 / 信任 / 陪玩入驻 | 未登录显示 `GuestProfilePromptView` |
 
-- 默认 Tab：**活动**（`AppRouter` 初始化）
-- **搜索**入口在「我的」Tab 内（非独立 Tab）
-- 未登录访问需登录 Tab → 全局登录 Sheet（`GlobalPresentation.authRequired`）
+- 默认 Tab：**活动 · 发现**（游客）/ 登录后 `finishAuthentication` 仍落活动 Tab
+- **取消登录 Sheet** 保留 `pendingCreateActivityDraft`（`AppRouter.cancelAuthPresentation` 不清草稿）
+- **搜索**入口在「我的」Tab 内（需登录）
+- **写操作门控**：报名、发帖、消息、创建活动 → `GlobalPresentation.authRequired`（Sheet 登录）；读公开活动/帖子/深链无需登录
+- **Debug** 构建：`SPARKPremiumPaywallEnabled = NO`（冷启动不锁 Feed）；Release 仍为 `YES`
 
 ---
 
-## 2. SPM 模块一览（14 packages）
+## 2. SPM 模块一览（15 packages）
 
 ```
 Spark (App target)
 ├── SparkAppShell       — 壳层、Tab、路由、Deep Link、跨 Tab 编排
 ├── SparkAuth           — 登录 / 会话 / 注销
+├── SparkActivity       — 活动 CRUD / RSVP / 提醒 / 发现
+├── SparkBuddy          — 陪玩浏览 / 预约 / 提供方入驻与收益
 ├── SparkCommunity      — 社区 Feed / 帖子 / 举报
 ├── SparkMessages       — Inbox / 会话 / 活动邀请
-├── SparkActivity       — 活动 CRUD / RSVP / 提醒
 ├── SparkProfile        — 「我的」Tab 资料摘要
 ├── SparkSearch         — 全局搜索
 ├── SparkTrust          — 信任分 / L1–L3 认证向导
@@ -63,7 +67,7 @@ Data          →  DTO, Live*, Mock*, Mapper
 | **SparkCore** | `UserID`, `AppError`, `RetryPolicy`, `SparkLog`, `SparkLegalLinks`, `MockURL` |
 | **SparkNetworking** | `HTTPClient` actor, `APIClient`, `AuthorizationInterceptor`, `RemoteImageCache`, 图片降采样 |
 | **SparkPersistence** | `KeychainManager`, `KeychainAccessTokenProvider`, `InMemoryKeychainManager`（测试） |
-| **SparkDesignSystem** | `sparkGlassSurface/Control`, `SparkCachedRemoteImage`, `sparkPhotoTextScrim`, `sparkPressable`, `SparkScreenContainer`, 无障碍 loading |
+| **SparkDesignSystem** | `sparkGlassSurface/Control`, `SparkCachedRemoteImage`, `SparkTabBottomAccessory`, `SparkToolbarSegmentedPicker`, `SparkFilterChipBar`, `SparkScreenContainer`, 无障碍 loading |
 | **SparkNotifications** | Activity / Community / Messages Push Payload；`LiveDeviceTokenUploader` / `NoOpDeviceTokenUploader` |
 
 ### 2.3 应用壳层
@@ -72,6 +76,7 @@ Data          →  DTO, Live*, Mock*, Mapper
 |------|----------|
 | 根视图 | `SparkRootView`, `SparkMainTabView` |
 | 路由 | `AppRouter`, `SparkTab`, `DeepLinkParser`, `DeepLinkRoute` |
+| Tab Chrome | `SparkMainTabChrome`, `ActivityTabChrome`, `CommunityTabChrome`（iOS 26.1+ bottom accessory） |
 | 编排 | `SparkTabOrchestrator`, `SparkTabDependencies` |
 | 全局呈现 | `GlobalPresentation`（登录 / Paywall / Info Sheet） |
 
@@ -83,16 +88,17 @@ Data          →  DTO, Live*, Mock*, Mapper
 
 | 功能 | 实现 | API |
 |------|------|-----|
-| Sign in with Apple | ✅ | `POST /v1/auth/apple` |
-| 邮箱 + 密码登录 | ✅ | `POST /v1/auth/email` |
-| 邮箱注册 | ✅ | `POST /v1/auth/register` |
-| 忘记密码 | ✅（Staging 204 stub） | `POST /v1/auth/password-reset` |
+| Sign in with Apple | ✅ 官方 `SignInWithAppleButton` | `POST /v1/auth/apple` |
+| 手机号 + 短信 OTP 登录 | ✅ | `POST /v1/auth/phone/otp` · `POST /v1/auth/phone/verify` |
+| 手机号找回密码 | ✅ | `POST /v1/auth/phone/password-reset` |
+| 邮箱 + 密码登录 | ✅（保留 API） | `POST /v1/auth/email` |
+| 邮箱注册 | ✅ `SignUpView`（无登录页入口；主路径为手机 OTP 隐式注册） | `POST /v1/auth/register` |
 | 会话恢复 | ✅ Keychain | `GET /v1/auth/session` |
-| 登出 | ✅ | `POST /v1/auth/sign-out` |
+| 登出 | ✅ 清空手机表单 + 深链暂存 | `POST /v1/auth/sign-out` |
 | 账号注销 | ✅ Profile 二次确认 | `POST /v1/auth/account/delete` |
-| 登录态门控 | ✅ Tab / Deep Link | — |
+| 登录态门控 | ✅ Tab / Deep Link Sheet | — |
 
-**UseCases:** `RestoreSession`, `SignInWithApple`, `SignInWithEmail`, `SignUpWithEmail`, `RequestPasswordReset`, `SignOut`, `DeleteAccount`
+**UseCases:** `RestoreSession`, `SignInWithApple`, `SendPhoneOTP`, `SignInWithPhoneOTP`, `ResetPasswordWithPhoneOTP`, `SignInWithEmail`, `SignUpWithEmail`, `SignOut`, `DeleteAccount`
 
 ---
 
@@ -101,7 +107,6 @@ Data          →  DTO, Live*, Mock*, Mapper
 | 功能 | 说明 |
 |------|------|
 | Tab Feed | 帖子 + 人发现综合流 |
-| Split 布局 | iPad / regular width `NavigationSplitView` |
 | 帖子详情 | 标题、作者、回复列表 |
 | 关联活动 | Banner → 跳转活动 Tab |
 | 成员 / 资料 | `CommunityMembersSheet`, `CommunityMemberProfileSheet` |
@@ -135,7 +140,6 @@ Data          →  DTO, Live*, Mock*, Mapper
 | 会话上下文 | 关联活动摘要等 |
 | 活动邀请响应 | Accept / Decline |
 | 全部已读 | Mark read（全局 / 单 Thread） |
-| Split Inbox | iPad 分栏 |
 
 **UseCases（12）:**  
 `FetchInbox`, `FetchUnreadCount`, `MarkMessagesRead`, `FetchMessageThreads`, `FetchThreadMessages`, `SendThreadMessage`, `MarkThreadRead`, `FetchConversationContext`, `EnsureDirectMessageThread`, `DismissActionItem`, `RespondToActivityInvite`
@@ -148,10 +152,12 @@ Data          →  DTO, Live*, Mock*, Mapper
 
 | 功能 | 说明 |
 |------|------|
-| 活动 Inbox | 收件箱式 Feed；顶部 **Action Items**（活动邀请等待办，`InboxActionItemsListSection`） |
-| Browse | 浏览更多活动；Premium 锁定部分条目 |
-| 详情 | RSVP、参与者、邀请好友 |
-| 创建 / 编辑 / 取消 | Host CRUD |
+| 发现 Browse | `ActivityBrowseContent` + `ActivityBrowseFilter`（时间/分类 chip）；`GET /v1/activities/browse` |
+| 地图 | 登录用户 Inbox 活动地图；游客登录 CTA |
+| 我的活动 | Sheet：`ActivityRootView+MyActivities`（Inbox 筛选 + Action Items） |
+| 活动 Inbox | 主办/参加 Feed；Action Items（`InboxActionItemsListSection`） |
+| 详情 | Meetup 式 Scroll；RSVP 经 Tab Bottom Accessory（iOS 26.1+）或 `safeAreaInset` 回退 |
+| 创建 / 编辑 / 取消 | Host CRUD；`ActivityCreateTemplateStore` 快捷/保存模板 |
 | RSVP / Waitlist | 报名、候补、候补提升 |
 | Host Announce | 向参与者群发通知 |
 | Host Feedback | 活动结束反馈 |
@@ -168,7 +174,25 @@ Data          →  DTO, Live*, Mock*, Mapper
 
 ---
 
-### 3.5 我的 — SparkProfile · SparkSearch · SparkTrust
+### 3.5 搭子 — SparkBuddy
+
+| 功能 | 说明 |
+|------|------|
+| 浏览列表 | 服务分类 chip + 筛选 sheet（计费 / 排序 / 认证） |
+| 详情 | 信任认证 · AI 匹配 · 套餐 · 评分维度 · 评价摘录 |
+| 预约 | `BuddyBookingSheet` + 托管支付（Mock / Staging escrow 标记） |
+| 语音预聊 | `BuddyPreChatSheet`（Mock 服务） |
+| 平台聊天 | 跳转消息 Tab 私信 |
+| 安全中心 | 定位 / SOS / 行程说明 |
+| 提供方 | Profile 入驻申请 · 收益页（认证通过后） |
+
+**UseCases:** `FetchBuddyListings`, `FetchBuddyListingDetail`, `CreateBuddyOrder`, `FetchBuddyProviderStatus`, `SubmitBuddyProviderApplication`, `FetchBuddyProviderEarnings`, `FetchBuddyProviderOrders`
+
+**Deep Link:** `buddyListing(listingID)` · `spark://buddy/{id}`
+
+---
+
+### 3.6 我的 — SparkProfile · SparkSearch · SparkTrust
 
 #### Profile Tab
 
@@ -222,6 +246,7 @@ Data          →  DTO, Live*, Mock*, Mapper
 |------|----------|
 | `openMatchConversation` | 消息 Inbox 新配对 → DM |
 | `fetchRecommendedActivity` | 活动推荐上下文 |
+| `fetchRecommendedBuddy` | 活动详情 → 配套陪玩推荐 |
 | `fetchActivityRecap` | 社区 Recap 草稿预填 |
 | `syncPremiumEntitlement` | StoreKit 权益同步 |
 | `syncActivityReminders` | RSVP 后提醒同步 |
@@ -242,6 +267,7 @@ Data          →  DTO, Live*, Mock*, Mapper
 | `communityPost(postID)` | 社区帖子详情 |
 | `communityRecap(activityID)` | 社区 Recap 草稿 |
 | `activityDetail(activityID)` | 活动详情 |
+| `buddyListing(listingID)` | 搭子 Tab 打开陪玩详情 |
 
 未登录时路由暂存于 `pendingDeepLinkAfterAuth`，登录后自动应用。
 
@@ -258,6 +284,7 @@ Data          →  DTO, Live*, Mock*, Mapper
 | Auth | session, email, **register**, **password-reset**, apple, sign-out, **account/delete** |
 | Messages | inbox, threads, messages, read, action-items, direct/activity threads |
 | Activities | feed, browse, CRUD, RSVP, waitlist, announce, feedback, report |
+| **Buddy** | `GET /v1/buddies`, detail, `POST /v1/buddy-orders`, provider status/application/earnings/orders |
 | Community | feed, communities, posts, **media/stage**, replies, **report** |
 | Search | `GET /v1/search` |
 | Trust | profile, phone/real-name/liveness verify |
@@ -275,15 +302,18 @@ Data          →  DTO, Live*, Mock*, Mapper
 
 ## 7. UseCase 完整列表（Domain 层）
 
-### SparkAuth（7）
+### SparkAuth（10）
 
 - `RestoreSessionUseCase`
 - `SignInWithAppleUseCase`
+- `SendPhoneOTPUseCase`
+- `SignInWithPhoneOTPUseCase`
+- `ResetPasswordWithPhoneOTPUseCase`
 - `SignInWithEmailUseCase`
 - `SignUpWithEmailUseCase`
-- `RequestPasswordResetUseCase`
 - `SignOutUseCase`
 - `DeleteAccountUseCase`
+- `RequestPasswordResetUseCase` *(deprecated — legacy email API stub)*
 
 ### SparkMessages（12）
 
@@ -314,6 +344,16 @@ Data          →  DTO, Live*, Mock*, Mapper
 - `AnnounceActivityUseCase`
 - `SubmitHostFeedbackUseCase`
 - `ReportActivityUseCase`
+
+### SparkBuddy（7）
+
+- `FetchBuddyListingsUseCase`
+- `FetchBuddyListingDetailUseCase`
+- `CreateBuddyOrderUseCase`
+- `FetchBuddyProviderStatusUseCase`
+- `SubmitBuddyProviderApplicationUseCase`
+- `FetchBuddyProviderEarningsUseCase`
+- `FetchBuddyProviderOrdersUseCase`
 
 ### SparkCommunity（9）
 

@@ -35,10 +35,18 @@ This document turns the audit into an execution plan.
 - [x] Tab bar icon variants (selected filled vs unselected outline)
 - [x] `scrollDismissesKeyboard(.interactively)` on Search and conversation composer
 
-### P2 — CONSIDER (completed)
+### P2 — CONSIDER (superseded)
 
-- [x] `NavigationSplitView` on iPad regular width for Messages (sidebar + detail)
-- [x] iPad split for Activity / Community / Likes on regular horizontal size class
+- ~~`NavigationSplitView` on iPad regular width~~ — **removed (2026-07)**; iPhone-first `NavigationStack` on all tabs
+- ~~iPad split for Community / Messages~~ — same policy
+
+---
+
+## iPhone-first layout policy (2026-07)
+
+- All tabs use **`NavigationStack`** push / Sheet; no `horizontalSizeClass` layout branching
+- Removed `SparkAdaptiveLayout`, `sparkReadableWidth`, and `SparkPreviewSupport.iPadRegular`
+- PR checklist: verify iPhone SE (smallest) only
 
 ---
 
@@ -73,10 +81,9 @@ This document turns the audit into an execution plan.
 - Opening a thread marks it read (detail `.task` — compact + split)
 - Keyboard dismiss on scroll for Search + composer
 
-### P2 — CONSIDER
+### P2 — CONSIDER (historical)
 
-- Messages inbox uses `NavigationSplitView` when `horizontalSizeClass == .regular`
-- Activity / Community / Likes use split layout on iPad regular width
+- ~~Messages / Community split inbox~~ — removed; see iPhone-first policy above
 - Inbox list extracted to `MessagesRootView+InboxList.swift` for maintainability
 
 ---
@@ -87,7 +94,6 @@ This document turns the audit into an execution plan.
 |------|--------|
 | Per-thread read API | `POST /v1/messages/threads/{thread_id}/read` + optimistic `markConversationRead` with rollback |
 | Double-tap zoom gestures | Documented in `docs/HIG_COMPLIANCE.md`; a11y hints on mock + remote photo layers |
-| iPad split other tabs | Activity list/detail, Community feed/detail, Likes inbound sidebar + discover detail |
 
 ## Phase 3 — Five-tab layout completion (2026-06-05)
 
@@ -96,18 +102,18 @@ This document turns the audit into an execution plan.
 | 喜欢 | Inbound `.refreshable`; iPad discover card `maxWidth` 480pt; pass/friend glass controls (`sparkGlassControl`) |
 | 社区 | Toolbar search 44×44pt |
 | 消息 | Composer `.sensoryFeedback(.success)` on send |
-| 活动 | 逛局 `ActivityBrowseListView` `.refreshable` (verified) |
-| 搜索 | iPad `sparkReadableWidth` 640pt; suggestion rows 44pt; result `accessibilityHint` |
-| 共用 | `SparkAdaptiveLayout` + `SparkGlassSurface` in SparkDesignSystem |
+| 活动 | 发现 `ActivityBrowseContent` `.refreshable` + `ActivityBrowseFilterBar` (verified 2026-06-19) |
+| 搜索 | suggestion rows 44pt; result `accessibilityHint` |
+| 共用 | `SparkGlassSurface` in SparkDesignSystem |
 
 ## Phase 4 — P2 polish (2026-06-05)
 
 | Tab | Shipped |
 |-----|---------|
-| 社区 | iPad split feed `List(selection: $splitDestination)`; `CommunityPostCard` avatar `sparkGlassControl` |
+| 社区 | `CommunityPostCard` avatar `sparkGlassControl` |
 | 喜欢 | `MatchSheetView` glass + no decorative gradient; `friendRequestSuccessToken` + `.sensoryFeedback(.success)` |
-| 消息 | Composer `sparkGlassSurface`; `ArchivedChatsDisclosure` a11y + iPad regular default expanded |
-| 共用 | `SparkPreviewSupport` (dark / XL / iPad); root Preview matrix on Community / Search / Messages / Activity / Likes |
+| 消息 | Composer `sparkGlassSurface`; `ArchivedChatsDisclosure` a11y |
+| 共用 | `SparkPreviewSupport` (dark / XL); root Preview matrix on Community / Search / Messages / Activity |
 
 ---
 
@@ -119,4 +125,4 @@ make lint
 make test-packages
 ```
 
-Manual: Dynamic Type XL, Reduce Motion, VoiceOver on inbox/like/community rows; iPad Messages split; swipe mark read; pull-to-refresh on Likes/Search.
+Manual: Dynamic Type XL, Reduce Motion, VoiceOver on inbox/community rows; swipe mark read; pull-to-refresh on Search.

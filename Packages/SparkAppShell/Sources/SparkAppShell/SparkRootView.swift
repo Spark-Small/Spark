@@ -7,6 +7,7 @@ import SparkMessages
 import SparkPayments
 import SparkPersistence
 import SparkProfile
+import SparkBuddy
 import SparkSearch
 import SparkTrust
 import SwiftUI
@@ -40,10 +41,8 @@ public struct SparkRootView: View {
                 ProgressView()
                     .progressViewStyle(.circular)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(.regularMaterial)
-            case .unauthenticated, .failure:
-                LoginView(viewModel: authViewModel)
-            case .authenticated:
+                    .background(Color(.systemBackground))
+            case .unauthenticated, .authenticated, .failure:
                 SparkMainTabView(
                     router: router,
                     authViewModel: authViewModel,
@@ -56,10 +55,13 @@ public struct SparkRootView: View {
         .task {
             await authViewModel.restoreSessionIfNeeded()
         }
-        .onChange(of: authViewModel.authState) { _, newState in
-            if case .authenticated = newState, let pending = router.pendingDeepLinkAfterAuth {
-                router.apply(pending)
-                router.pendingDeepLinkAfterAuth = nil
+        .onChange(of: authViewModel.authState) { oldState, newState in
+            guard case .authenticated = newState else { return }
+            switch oldState {
+            case .unauthenticated, .failure:
+                router.finishAuthentication()
+            default:
+                break
             }
         }
     }
@@ -79,6 +81,7 @@ public struct SparkRootView: View {
             activityFeedRepository: MockActivityFeedRepository(),
             activityBrowseRepository: MockActivityBrowseRepository(),
             searchRepository: MockSearchRepository(),
+            buddyRepository: MockBuddyRepository(),
             communityPostsRepository: MockCommunityPostsRepository(),
             trustRepository: MockTrustRepository(),
             blockedActivityHostsStore: BlockedActivityHostsStore()

@@ -1,19 +1,23 @@
 // Module: SparkAppShell — Cross-tab orchestration via Coordinators (no Repository leakage).
 
 import SparkActivity
+import SparkBuddy
 import SparkCore
 import SparkMessages
 
 public struct SparkTabOrchestrator: Sendable {
     private let messagesCoordinator: MessagesCoordinator
     private let activityCoordinator: ActivityCoordinator
+    private let buddyCoordinator: BuddyCoordinator
 
     public init(
         messagesCoordinator: MessagesCoordinator,
-        activityCoordinator: ActivityCoordinator
+        activityCoordinator: ActivityCoordinator,
+        buddyCoordinator: BuddyCoordinator
     ) {
         self.messagesCoordinator = messagesCoordinator
         self.activityCoordinator = activityCoordinator
+        self.buddyCoordinator = buddyCoordinator
     }
 
     public func openMatchConversation(
@@ -32,6 +36,10 @@ public struct SparkTabOrchestrator: Sendable {
 
     public func fetchRecommendedActivity() async -> (id: String, title: String)? {
         await activityCoordinator.fetchRecommendedActivity()
+    }
+
+    public func fetchRecommendedBuddy(forActivityCategory category: String) async -> BuddyCrossRecommendation? {
+        await buddyCoordinator.fetchRecommendedListing(forActivityCategory: category)
     }
 
     public func fetchActivityShareContext(activityID: String) async -> ActivityShareContext? {

@@ -1,7 +1,7 @@
 // Module: SparkMessagesTests
 
 import Foundation
-import SparkMessages
+@testable import SparkMessages
 import Testing
 
 struct MessagesInboxSortingTests {
@@ -33,10 +33,12 @@ struct MessagesInboxSortingTests {
             displayName: "Upcoming",
             lastMessagePreview: "Hi",
             lastMessageAt: .now,
+            unreadCount: 0,
             activity: InboxActivitySummary(
                 id: "act_1",
                 title: "Upcoming",
                 startsAt: .now.addingTimeInterval(86_400),
+                attendeeCount: 8,
                 lifecycle: .upcoming
             )
         )
@@ -46,13 +48,15 @@ struct MessagesInboxSortingTests {
             displayName: "Ended",
             lastMessagePreview: "Done",
             lastMessageAt: .now,
-            isArchived: true,
+            unreadCount: 0,
             activity: InboxActivitySummary(
                 id: "act_2",
                 title: "Ended",
                 startsAt: .now.addingTimeInterval(-86_400),
+                attendeeCount: 12,
                 lifecycle: .ended
-            )
+            ),
+            isArchived: true
         )
         let visible = MessagesInboxSorting.visibleGroupChats([upcoming, ended])
         #expect(visible.count == 1)

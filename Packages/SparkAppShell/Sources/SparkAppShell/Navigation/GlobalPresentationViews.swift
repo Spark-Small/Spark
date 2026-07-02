@@ -1,47 +1,18 @@
 // Module: SparkAppShell — Shared modal content for global presentation state.
 
+import SparkAuth
 import SparkPayments
 import SwiftUI
 
 struct GlobalSheetContent: View {
     let presentation: GlobalPresentation
+    @Bindable var authViewModel: AuthViewModel
     let onDismiss: () -> Void
 
     var body: some View {
         switch presentation {
         case .authRequired:
-            NavigationStack {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text(
-                        String(
-                            localized: "shell.authRequired.title",
-                            defaultValue: "需要登录",
-                            comment: "Auth required sheet title"
-                        )
-                    )
-                    .font(.title2.weight(.semibold))
-                    Text(
-                        String(
-                            localized: "shell.authRequired.message",
-                            defaultValue: "请先登录后再使用此功能。",
-                            comment: "Auth required sheet message"
-                        )
-                    )
-                    .foregroundStyle(.secondary)
-                    Button(
-                        String(localized: "shell.authRequired.ok", defaultValue: "好", comment: "Dismiss"),
-                        action: onDismiss
-                    )
-                    .buttonStyle(.borderedProminent)
-                }
-                .padding(24)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .navigationTitle(
-                    String(localized: "shell.authRequired.nav", defaultValue: "登录", comment: "Nav title")
-                )
-                .navigationBarTitleDisplayMode(.inline)
-            }
-            .presentationDetents([.medium])
+            LoginView(viewModel: authViewModel, onCancel: onDismiss)
         case .info, .paywall:
             EmptyView()
         }
@@ -50,6 +21,7 @@ struct GlobalSheetContent: View {
 
 struct GlobalFullScreenContent: View {
     let presentation: GlobalPresentation
+    @Bindable var authViewModel: AuthViewModel
     let entitlementManager: EntitlementManager
     let onDismiss: () -> Void
 

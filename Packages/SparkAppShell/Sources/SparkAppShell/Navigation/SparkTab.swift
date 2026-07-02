@@ -3,8 +3,9 @@
 import Foundation
 
 public enum SparkTab: String, CaseIterable, Identifiable, Sendable {
-    case community
     case activity
+    case buddy
+    case community
     case messages
     case profile
 
@@ -20,6 +21,8 @@ public enum SparkTab: String, CaseIterable, Identifiable, Sendable {
             String(localized: "tab.activity", defaultValue: "活动", comment: "Tab title")
         case .profile:
             String(localized: "tab.profile", defaultValue: "我的", comment: "Tab title")
+        case .buddy:
+            String(localized: "tab.buddy", defaultValue: "搭子", comment: "Buddy tab title")
         }
     }
 
@@ -30,6 +33,7 @@ public enum SparkTab: String, CaseIterable, Identifiable, Sendable {
         case .messages: "bubble.left.and.bubble.right"
         case .activity: "calendar"
         case .profile: "person.crop.circle"
+        case .buddy: Self.buddyTabSymbol(filled: false)
         }
     }
 
@@ -40,23 +44,28 @@ public enum SparkTab: String, CaseIterable, Identifiable, Sendable {
         case .messages: "bubble.left.and.bubble.right.fill"
         case .activity: "calendar"
         case .profile: "person.crop.circle.fill"
+        case .buddy: Self.buddyTabSymbol(filled: true)
         }
     }
 
     /// Tabs that require a signed-in user (guests are redirected to login).
     public var requiresAuthentication: Bool {
         switch self {
-        case .profile:
+        case .activity, .community, .profile, .buddy:
             false
-        case .community, .messages, .activity:
+        case .messages:
             true
         }
     }
 
-    /// Legacy deep-link name for search entry (routes to profile tab).
     public static func fromDeepLinkName(_ name: String) -> SparkTab? {
-        if name == "search" { return .profile }
         if name == "likes" { return .community }
+        // REASONING: Global search moved to Profile toolbar; keep legacy deep links working.
+        if name == "search" { return .profile }
         return SparkTab(rawValue: name)
+    }
+
+    private static func buddyTabSymbol(filled: Bool) -> String {
+        filled ? "person.2.wave.2.fill" : "person.2.wave.2"
     }
 }

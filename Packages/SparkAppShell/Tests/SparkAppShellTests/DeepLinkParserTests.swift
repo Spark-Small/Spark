@@ -64,4 +64,34 @@ struct DeepLinkParserTests {
         let route = DeepLinkParser.parse(url: url)
         #expect(route == .communityPost(postID: "cp_001"))
     }
+
+    @Test func parseBuddyTabDeepLink() {
+        let url = URL(string: "spark://buddy")!
+        let route = DeepLinkParser.parse(url: url)
+        #expect(route == .tab(.buddy, query: nil))
+    }
+
+    @Test func parseBuddyDetailCustomSchemeDeepLink() {
+        let url = URL(string: "spark://buddy/buddy_city_1")!
+        let route = DeepLinkParser.parse(url: url)
+        #expect(route == .buddyDetail(listingID: "buddy_city_1"))
+    }
+
+    @Test func parseBuddyDetailUniversalLink() {
+        let url = URL(string: "https://spark.app/buddies/buddy_city_1")!
+        let route = DeepLinkParser.parse(url: url)
+        #expect(route == .buddyDetail(listingID: "buddy_city_1"))
+    }
+
+    @Test func legacySearchDeepLinkRoutesToProfile() {
+        let url = URL(string: "spark://search?q=coffee")!
+        let route = DeepLinkParser.parse(url: url)
+        #expect(route == .tab(.profile, query: "coffee"))
+    }
+
+    @Test func legacyUniversalSearchTabRoutesToProfile() {
+        let url = URL(string: "https://spark.app/tab/search?q=tea")!
+        let route = DeepLinkParser.parse(url: url)
+        #expect(route == .tab(.profile, query: "tea"))
+    }
 }

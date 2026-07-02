@@ -57,7 +57,7 @@ flowchart LR
 |---|--------|------|------|
 | 2.1 | `ActivityBrowseTimeWindow`（all / thisWeek / thisMonth） | `SparkActivity` | ☑ |
 | 2.2 | ViewModel `selectedTimeWindow` → `ActivityBrowseQuery` | `SparkActivity` | ☑ |
-| 2.3 | `ActivityBrowseListView` segmented 时间 Picker | `SparkActivity` | ☑ |
+| 2.3 | `ActivityBrowseFilterBar` + `ActivityBrowseContent`（发现内嵌） | `SparkActivity` | ☑ |
 | 2.4 | 后端 `starts_after` / `starts_before` 查询 | `spark-api` | ☑ |
 | 2.5 | `ActivityBrowseViewModelTests` | `SparkActivityTests` | ☑ |
 | 2.6 | Staging smoke browse 时间筛选 | `staging-smoke.sh` | ☑ |

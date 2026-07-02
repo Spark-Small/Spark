@@ -1,7 +1,7 @@
 # Spark — 缺失前端 UI 页面清单
 
 > **Status:** Living document — 对照 `main` 代码与 [FEATURE_INVENTORY.md](FEATURE_INVENTORY.md) · [TAB_SCREENS.md](TAB_SCREENS.md)  
-> **Last updated:** 2026-06-07  
+> **Last updated:** 2026-06-19  
 > **判定标准：** Domain/UseCase 或 API 已存在，但 **Release 可触达的 SwiftUI 页面缺失、仅占位、或导航死胡同**
 
 ---
@@ -27,10 +27,10 @@
 
 | 建议页面 | 状态 | 已有底层 | 现状 | 优先级 |
 |----------|------|----------|------|--------|
-| **注册页** `SignUpView` | **已落地** | `SignUpWithEmailUseCase` · Mock + Live `/v1/auth/register` | `LoginView` → NavigationLink | P1 |
-| **忘记密码** `ForgotPasswordView` | **已落地** | `RequestPasswordResetUseCase` · Mock + Live stub | `LoginView` → NavigationLink | P2 |
+| **注册页** `SignUpView` | **已落地（无入口）** | `SignUpWithEmailUseCase` · Mock + Live `/v1/auth/register` | —（手机 OTP 登录即注册） | P1 |
+| **忘记密码** `ForgotPasswordView` | **已落地** | `ResetPasswordWithPhoneOTPUseCase` · Mock + Staging | `LoginView` → NavigationLink | P2 |
 
-**已有 UI：** `LoginView`（Apple + 邮箱 + 注册/找回密码）
+**已有 UI：** `LoginView`（手机 OTP + Apple + 注册/找回密码）
 
 ---
 
@@ -43,7 +43,7 @@
 | **UGC 媒体发帖** | ✅ Live stage | `PrepareCommunityMediaUpload` + `POST /v1/community/media/stage` | PhotosPicker → stage → publish with `media[]` | — |
 | **社区 scoped 搜索** `CommunitySearchView` | **已落地** | 本地 filter | 社区 Toolbar 搜索 → 帖子筛选 | P3 |
 
-**已有 UI（完整）：** Feed、Split、帖子详情、Recap 草稿、成员 Sheet、举报、PeopleDiscoveryList
+**已有 UI（完整）：** Feed、帖子详情、Recap 草稿、成员 Sheet、举报、PeopleDiscoveryList
 
 ---
 
@@ -54,7 +54,7 @@
 | **图片发送** | **已落地** | `SendThreadMessage` + `ChatMessageKind.image` | `PhotosPicker` + Mock 本地文件 URL | P2 |
 | **会话 Peer 资料** `ConversationPeerProfileView` | **已落地** | `FetchConversationContext` | DM 工具栏 → 资料页 + 共同活动 | P2 |
 
-**已有 UI（完整）：** 统一 Inbox、会话详情、活动邀请响应、Split Inbox
+**已有 UI（完整）：** 统一 Inbox、会话详情、活动邀请响应
 
 ---
 

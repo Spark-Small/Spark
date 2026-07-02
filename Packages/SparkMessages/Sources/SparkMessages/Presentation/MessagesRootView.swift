@@ -7,8 +7,6 @@ import SwiftUI
 public struct MessagesRootView: View {
     static let logger = SparkLog.logger(category: "Messages.RootView")
 
-    @Environment(\.horizontalSizeClass) var horizontalSizeClass
-
     @Binding var pendingConversationThreadID: String?
     var viewModel: MessagesViewModel
     var onOpenActivity: ((String) -> Void)?
@@ -17,7 +15,6 @@ public struct MessagesRootView: View {
     var onScannedPayload: ((String) -> Void)?
 
     @State var navigationPath = NavigationPath()
-    @State var selectedThreadID: MessageThreadID?
     @State var matchOpenErrorMessage: String?
     @State var showQRScanner = false
     @State var showNewChatPicker = false
@@ -26,10 +23,6 @@ public struct MessagesRootView: View {
     @State var inboxSearchText = ""
 
     @Environment(PeerDisplayNameStore.self) var peerDisplayNameStore
-
-    var usesSplitInbox: Bool {
-        horizontalSizeClass == .regular
-    }
 
     public init(
         viewModel: MessagesViewModel,
@@ -50,12 +43,11 @@ public struct MessagesRootView: View {
     public var body: some View {
         @Bindable var viewModel = viewModel
 
-        Group {
-            if usesSplitInbox {
-                splitInbox
-            } else {
-                compactInbox
-            }
+        NavigationStack(path: $navigationPath) {
+            inboxShell
+                .navigationDestination(for: MessageThread.self) { thread in
+                    conversationDetail(for: thread)
+                }
         }
         .onChange(of: pendingConversationThreadID) { _, threadID in
             guard let threadID else { return }
@@ -78,50 +70,6 @@ public struct MessagesRootView: View {
             }
         } message: {
             Text(matchOpenErrorMessage ?? "")
-        }
-    }
-
-    private var compactInbox: some View {
-        NavigationStack(path: $navigationPath) {
-            inboxShell
-                .navigationDestination(for: MessageThread.self) { thread in
-                    conversationDetail(for: thread)
-                }
-        }
-    }
-
-    private var splitInbox: some View {
-        NavigationSplitView {
-            inboxShell
-                .navigationSplitViewColumnWidth(
-                    min: 280,
-                    ideal: SparkLayoutMetrics.navigationSplitSidebarIdealWidth,
-                    max: 400
-                )
-        } detail: {
-            if let threadID = selectedThreadID,
-               let thread = viewModel.thread(for: threadID) {
-                conversationDetail(for: thread)
-            } else {
-                ContentUnavailableView {
-                    Label(
-                        String(
-                            localized: "messages.split.empty.title",
-                            defaultValue: "选择对话",
-                            comment: "Split inbox placeholder"
-                        ),
-                        systemImage: "bubble.left.and.bubble.right"
-                    )
-                } description: {
-                    Text(
-                        String(
-                            localized: "messages.split.empty.subtitle",
-                            defaultValue: "从左侧列表打开一条消息",
-                            comment: "Split inbox hint"
-                        )
-                    )
-                }
-            }
         }
     }
 
@@ -167,45 +115,56 @@ public struct MessagesRootView: View {
 
     @ViewBuilder
     private var inboxContent: some View {
-        switch viewModel.loadState {
-        case .idle, .loading:
-            ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .sparkLoadingAccessibilityLabel(
-                    String(
-                        localized: "messages.loading.a11y",
-                        defaultValue: "正在加载消息",
-                        comment: "Inbox loading"
+        ZStack {
+            loadedInboxSegmentContent
+                .opacity(showsLoadedInboxSurface ? 1 : 0)
+                .allowsHitTesting(showsLoadedInboxSurface)
+                .accessibilityHidden(!showsLoadedInboxSurface)
+                .accessibilityLabel(showsLoadedInboxSurface ? inboxLoadedAccessibilityLabel : "")
+
+            switch viewModel.loadState {
+            case .idle, .loading:
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .sparkLoadingAccessibilityLabel(
+                        String(
+                            localized: "messages.loading.a11y",
+                            defaultValue: "正在加载消息",
+                            comment: "Inbox loading"
+                        )
                     )
-                )
-        case .empty:
-            loadedInboxSegmentContent
-                .onAppear {
-                    selectedInboxSegment = .dm
+            case .failure(let message):
+                SparkRetryUnavailableView(
+                    title: String(localized: "messages.error.title", defaultValue: "加载失败", comment: "Inbox error"),
+                    description: message
+                ) {
+                    Task { await viewModel.load() }
                 }
-        case .failure(let message):
-            SparkRetryUnavailableView(
-                title: String(localized: "messages.error.title", defaultValue: "加载失败", comment: "Inbox error"),
-                description: message
-            ) {
-                Task { await viewModel.load() }
+            case .empty, .loaded:
+                EmptyView()
             }
-        case .loaded:
-            loadedInboxSegmentContent
-                .accessibilityLabel(inboxLoadedAccessibilityLabel)
-                .onAppear {
-                    applyInitialInboxSegmentIfNeeded()
-                }
+        }
+        .onAppear {
+            if viewModel.loadState == .empty {
+                selectedInboxSegment = .dm
+            }
+            if viewModel.loadState == .loaded {
+                applyInitialInboxSegmentIfNeeded()
+            }
+        }
+    }
+
+    private var showsLoadedInboxSurface: Bool {
+        switch viewModel.loadState {
+        case .empty, .loaded:
+            true
+        case .idle, .loading, .failure:
+            false
         }
     }
 
     private var showsInboxSegmentPicker: Bool {
-        switch viewModel.loadState {
-        case .failure:
-            false
-        case .idle, .loading, .empty, .loaded:
-            true
-        }
+        true
     }
 
     private var inboxLoadedAccessibilityLabel: String {
@@ -250,13 +209,6 @@ public struct MessagesRootView: View {
 
 #Preview("Messages — accessibility XL") {
     SparkPreviewSupport.accessibilityXL {
-        MessagesRootView(viewModel: MessagesViewModel(repository: MockMessagesRepository(unreadCount: 3)))
-            .environment(PeerDisplayNameStore(storage: InMemoryPeerDisplayNameStore()))
-    }
-}
-
-#Preview("Messages — iPad split") {
-    SparkPreviewSupport.iPadRegular {
         MessagesRootView(viewModel: MessagesViewModel(repository: MockMessagesRepository(unreadCount: 3)))
             .environment(PeerDisplayNameStore(storage: InMemoryPeerDisplayNameStore()))
     }

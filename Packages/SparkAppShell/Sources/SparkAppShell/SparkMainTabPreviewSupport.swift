@@ -8,6 +8,7 @@ import SparkMessages
 import SparkNetworking
 import SparkPayments
 import SparkPersistence
+import SparkBuddy
 import SparkSearch
 import SparkTrust
 import SwiftUI
@@ -32,6 +33,7 @@ enum SparkMainTabPreviewSupport {
             activityFeedRepository: MockActivityFeedRepository(),
             activityBrowseRepository: MockActivityBrowseRepository(),
             searchRepository: MockSearchRepository(),
+            buddyRepository: MockBuddyRepository(),
             communityPostsRepository: MockCommunityPostsRepository(),
             trustRepository: MockTrustRepository(),
             blockedActivityHostsStore: BlockedActivityHostsStore()
