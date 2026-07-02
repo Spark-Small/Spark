@@ -173,11 +173,16 @@ public struct CommunityDetailView: View {
 
     @ViewBuilder
     private var segmentContent: some View {
-        switch viewModel.selectedSegment {
-        case .activities:
-            activitiesTab
-        case .posts:
-            postsTab
+        SparkPreservedSegmentStack(
+            selection: viewModel.selectedSegment,
+            segments: Array(CommunityDetailViewModel.Segment.allCases)
+        ) { segment in
+            switch segment {
+            case .activities:
+                activitiesTab
+            case .posts:
+                postsTab
+            }
         }
     }
 

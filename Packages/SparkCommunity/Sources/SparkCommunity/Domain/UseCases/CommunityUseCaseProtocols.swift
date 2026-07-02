@@ -34,6 +34,10 @@ public protocol JoinCommunityUseCaseProtocol: Sendable {
     func callAsFunction(communityID: String) async throws -> CommunityDetail
 }
 
+public protocol SetCommunityPostLikeUseCaseProtocol: Sendable {
+    func callAsFunction(postID: String, liked: Bool) async throws -> CommunityPostLikeResult
+}
+
 extension FetchCommunityPostsUseCase: FetchCommunityPostsUseCaseProtocol {}
 extension FetchCommunityTabExperienceUseCase: FetchCommunityTabExperienceUseCaseProtocol {}
 extension CreateCommunityRecapUseCase: CreateCommunityRecapUseCaseProtocol {}
@@ -42,3 +46,4 @@ extension FetchCommunityPostUseCase: FetchCommunityPostUseCaseProtocol {}
 extension CreateCommunityReplyUseCase: CreateCommunityReplyUseCaseProtocol {}
 extension CreateCommunityPostUseCase: CreateCommunityPostUseCaseProtocol {}
 extension JoinCommunityUseCase: JoinCommunityUseCaseProtocol {}
+extension SetCommunityPostLikeUseCase: SetCommunityPostLikeUseCaseProtocol {}

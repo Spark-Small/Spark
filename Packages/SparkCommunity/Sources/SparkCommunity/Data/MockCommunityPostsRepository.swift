@@ -6,6 +6,10 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
     private var replyStore: [String: [CommunityPostReply]]
     private var userCreatedPosts: [CommunityPostDetail] = []
     private var joinedCommunityIDs: Set<String>
+    private var catalogLikeCounts: [String: Int] = [:]
+    private var viewerLikedPostIDs: Set<String> = []
+
+    private let currentUserID = "viewer"
 
     public init() {
         replyStore = MockCommunityPostCatalog.defaultReplies()
@@ -30,7 +34,8 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
     }
 
     public func fetchTabExperience() async throws -> CommunityTabExperience {
-        MockCommunityTabCatalog.tabExperience(joinedIDs: joinedCommunityIDs)
+        let experience = MockCommunityTabCatalog.tabExperience(joinedIDs: joinedCommunityIDs)
+        return applyLikeState(to: experience)
     }
 
     public func fetchCommunityDetail(id: String) async throws -> CommunityDetail {
@@ -65,11 +70,28 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
 
     public func fetchPost(id: String) async throws -> CommunityPostDetail {
         if let post = allPostDetails().first(where: { $0.id == id }) {
-            return post
+            return applyLikeState(to: post)
         }
         if let feedPost = MockCommunityTabCatalog.feedPosts().first(where: { $0.id == id }) {
             let replies = replyStore[id, default: []]
-            return MockCommunityTabCatalog.postDetail(for: feedPost, replies: replies)
+            let likedPost = applyLikeState(to: feedPost)
+            var detail = MockCommunityTabCatalog.postDetail(for: likedPost, replies: replies)
+            detail = CommunityPostDetail(
+                id: detail.id,
+                title: detail.title,
+                body: detail.body,
+                authorDisplayName: detail.authorDisplayName,
+                authorUserID: detail.authorUserID,
+                replyCount: detail.replyCount,
+                replies: detail.replies,
+                linkedActivity: detail.linkedActivity,
+                mediaItems: detail.mediaItems,
+                tags: detail.tags,
+                kind: detail.kind,
+                likeCount: likedPost.likeCount,
+                viewerHasLiked: likedPost.viewerHasLiked
+            )
+            return detail
         }
         throw CommunityError.underlying(.server(statusCode: 404, message: nil))
     }
@@ -119,7 +141,8 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
             ),
             replyCount: 0,
             linkedActivity: LinkedActivityContext(id: draft.activityID, name: draft.activityTitle),
-            mediaItems: draft.publishedMedia
+            mediaItems: draft.publishedMedia,
+            kind: .activityRecap
         )
         userCreatedPosts.insert(detail, at: 0)
         return detail
@@ -152,5 +175,99 @@ public actor MockCommunityPostsRepository: CommunityPostsRepository {
         _ = postID
         _ = reason
         _ = detail
+    }
+
+    public func setPostLike(postID: String, liked: Bool) async throws -> CommunityPostLikeResult {
+        guard postExists(postID: postID) else {
+            throw CommunityError.underlying(.server(statusCode: 404, message: nil))
+        }
+        ensureCatalogLikeCount(for: postID)
+        if liked {
+            viewerLikedPostIDs.insert(postID)
+        } else {
+            viewerLikedPostIDs.remove(postID)
+        }
+        return likeResult(for: postID)
+    }
+
+    private func postExists(postID: String) -> Bool {
+        MockCommunityTabCatalog.feedPosts().contains { $0.id == postID }
+            || allPostDetails().contains { $0.id == postID }
+    }
+
+    private func ensureCatalogLikeCount(for postID: String) {
+        guard catalogLikeCounts[postID] == nil else { return }
+        if let feedPost = MockCommunityTabCatalog.feedPosts().first(where: { $0.id == postID }) {
+            catalogLikeCounts[postID] = feedPost.likeCount
+            return
+        }
+        if let detail = allPostDetails().first(where: { $0.id == postID }) {
+            catalogLikeCounts[postID] = detail.likeCount
+        }
+    }
+
+    private func likeResult(for postID: String) -> CommunityPostLikeResult {
+        let base = catalogLikeCounts[postID] ?? 0
+        let viewerHasLiked = viewerLikedPostIDs.contains(postID)
+        return CommunityPostLikeResult(
+            viewerHasLiked: viewerHasLiked,
+            likeCount: base + (viewerHasLiked ? 1 : 0)
+        )
+    }
+
+    private func applyLikeState(to post: CommunityFeedPost) -> CommunityFeedPost {
+        ensureCatalogLikeCount(for: post.id)
+        let result = likeResult(for: post.id)
+        return CommunityFeedPost(
+            id: post.id,
+            authorDisplayName: post.authorDisplayName,
+            authorUserID: post.authorUserID,
+            authorAvatarURL: post.authorAvatarURL,
+            communityName: post.communityName,
+            content: post.content,
+            imageURL: post.imageURL,
+            mediaItems: post.mediaItems,
+            likeCount: result.likeCount,
+            commentCount: post.commentCount,
+            tags: post.tags,
+            createdAt: post.createdAt,
+            sharedActivityWithViewer: post.sharedActivityWithViewer,
+            relationshipToViewer: post.relationshipToViewer,
+            linkedActivity: post.linkedActivity,
+            kind: post.kind,
+            viewerHasLiked: result.viewerHasLiked
+        )
+    }
+
+    private func applyLikeState(to detail: CommunityPostDetail) -> CommunityPostDetail {
+        ensureCatalogLikeCount(for: detail.id)
+        let result = likeResult(for: detail.id)
+        return CommunityPostDetail(
+            id: detail.id,
+            title: detail.title,
+            body: detail.body,
+            authorDisplayName: detail.authorDisplayName,
+            authorUserID: detail.authorUserID,
+            replyCount: detail.replyCount,
+            replies: detail.replies,
+            linkedActivity: detail.linkedActivity,
+            mediaItems: detail.mediaItems,
+            tags: detail.tags,
+            kind: detail.kind,
+            likeCount: result.likeCount,
+            viewerHasLiked: result.viewerHasLiked
+        )
+    }
+
+    private func applyLikeState(to experience: CommunityTabExperience) -> CommunityTabExperience {
+        let items = experience.feedItems.map { item -> CommunityFeedItem in
+            guard case .post(let post) = item else { return item }
+            return .post(applyLikeState(to: post))
+        }
+        return CommunityTabExperience(
+            joinedCommunities: experience.joinedCommunities,
+            feedItems: items,
+            allCommunities: experience.allCommunities
+        )
     }
 }

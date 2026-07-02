@@ -170,45 +170,82 @@ public struct CommunityPostDetailView: View {
 
     private func postHeader(post: CommunityPostDetail) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(post.authorDisplayName)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(.primary)
+            Group {
+                Text(post.authorDisplayName)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.primary)
 
-            if let linkedActivity = post.linkedActivity {
-                CommunityPostLinkedActivityLine(name: linkedActivity.name) {
-                    onOpenLinkedActivity?(linkedActivity.id)
+                if let linkedActivity = post.linkedActivity {
+                    CommunityPostLinkedActivitySummaryCard(activity: linkedActivity) {
+                        onOpenLinkedActivity?(linkedActivity.id)
+                    }
+                    .disabled(onOpenLinkedActivity == nil)
                 }
-                .disabled(onOpenLinkedActivity == nil)
+
+                if !post.galleryMedia.isEmpty {
+                    CommunityPostMediaPager(
+                        mediaItems: post.galleryMedia,
+                        usesInsetMedia: false,
+                        horizontalPadding: SparkLayoutMetrics.standardHorizontalPadding,
+                        onOpen: {}
+                    )
+                    .allowsHitTesting(post.galleryMedia.contains { $0.kind == .video })
+                }
+
+                Text(post.body)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .lineSpacing(SparkLayoutMetrics.communityFeedBodyLineSpacing)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                CommunityPostTagsRow(tags: post.tags)
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(post.title), \(post.authorDisplayName)")
 
-            if !post.galleryMedia.isEmpty {
-                CommunityPostMediaPager(
-                    mediaItems: post.galleryMedia,
-                    usesInsetMedia: false,
-                    horizontalPadding: SparkLayoutMetrics.standardHorizontalPadding,
-                    onOpen: {}
-                )
-                .allowsHitTesting(post.galleryMedia.contains { $0.kind == .video })
-            }
-
-            Text(post.body)
-                .font(.body)
-                .foregroundStyle(.primary)
-                .lineSpacing(SparkLayoutMetrics.communityFeedBodyLineSpacing)
-                .fixedSize(horizontal: false, vertical: true)
-
-            CommunityPostTagsRow(tags: post.tags)
+            CommunityPostLikeControl(
+                isLiked: post.viewerHasLiked,
+                likeCount: post.likeCount,
+                isPending: viewModel.isLikePending,
+                onToggle: { Task { await viewModel.toggleLike() } }
+            )
+            .font(.subheadline)
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(post.title), \(post.authorDisplayName)")
     }
 
     private func repliesSection(post: CommunityPostDetail) -> some View {
         VStack(alignment: .leading, spacing: SparkLayoutMetrics.communityFeedBlockSpacing) {
-            Text(repliesSectionTitle(count: post.replyCount))
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .accessibilityAddTraits(.isHeader)
+            HStack(alignment: .firstTextBaseline) {
+                Text(repliesSectionTitle(count: post.replyCount))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 8)
+                if viewModel.showsReplySortControl {
+                    Picker(
+                        String(
+                            localized: "community.replies.sort.a11y",
+                            defaultValue: "评论排序",
+                            comment: "Reply sort picker accessibility label"
+                        ),
+                        selection: $viewModel.replySortMode
+                    ) {
+                        ForEach(CommunityPostReplySortMode.allCases) { mode in
+                            Text(mode.localizedTitle).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .font(.footnote)
+                    .accessibilityLabel(
+                        String(
+                            localized: "community.replies.sort.a11y",
+                            defaultValue: "评论排序",
+                            comment: "Reply sort picker accessibility label"
+                        )
+                    )
+                }
+            }
 
             if post.replies.isEmpty {
                 Text(
@@ -222,10 +259,10 @@ public struct CommunityPostDetailView: View {
                 .foregroundStyle(.tertiary)
             } else {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(post.replies) { reply in
-                        CommentRow(reply: reply, relationship: .none)
+                    ForEach(viewModel.displayedReplies) { reply in
+                        CommentRow(reply: reply, relationship: reply.relationshipToViewer)
                             .padding(.vertical, SparkLayoutMetrics.communityRowVerticalPadding)
-                        if reply.id != post.replies.last?.id {
+                        if reply.id != viewModel.displayedReplies.last?.id {
                             Divider()
                         }
                     }
@@ -265,7 +302,7 @@ public struct CommunityPostDetailView: View {
     CommunityPreviewTraits.matrix("Post detail") {
         NavigationStack {
             CommunityPostDetailView(
-                postID: "cp_1",
+                postID: "cp_recap_mock",
                 coordinator: CommunityCoordinator(repository: MockCommunityPostsRepository())
             )
         }

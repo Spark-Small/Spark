@@ -48,18 +48,24 @@ struct CommunityViewModelTests {
         #expect(viewModel.loadState == .failure("Posts unavailable"))
     }
 
-    @Test func toggleLikeUpdatesState() async {
-        let viewModel = CommunityViewModel(repository: MockCommunityPostsRepository())
+    @Test func toggleLikePersistsThroughRepository() async {
+        let repository = MockCommunityPostsRepository()
+        let viewModel = CommunityViewModel(repository: repository)
         await viewModel.load()
         guard let post = viewModel.homeFeedPosts.first else {
             Issue.record("Expected feed post")
             return
         }
         let baseCount = post.likeCount
-        viewModel.toggleLike(postID: post.id)
+        await viewModel.toggleLike(postID: post.id)
         #expect(viewModel.isPostLiked(post.id))
         #expect(viewModel.likeCount(for: post.id) == baseCount + 1)
-        viewModel.toggleLike(postID: post.id)
+
+        await viewModel.load()
+        #expect(viewModel.isPostLiked(post.id))
+        #expect(viewModel.likeCount(for: post.id) == baseCount + 1)
+
+        await viewModel.toggleLike(postID: post.id)
         #expect(!viewModel.isPostLiked(post.id))
         #expect(viewModel.likeCount(for: post.id) == baseCount)
     }
@@ -102,6 +108,9 @@ private struct CommunitiesOnlyPostsRepository: CommunityPostsRepository, Sendabl
     func fetchCommunityPosts(communityID: String) async throws -> [CommunityFeedPost] { [] }
     func reportPost(postID: String, reason: CommunityReportReason, detail: String?) async throws {}
     func joinCommunity(id: String) async throws -> CommunityDetail { throw TestError() }
+    func setPostLike(postID: String, liked: Bool) async throws -> CommunityPostLikeResult {
+        CommunityPostLikeResult(viewerHasLiked: liked, likeCount: liked ? 1 : 0)
+    }
 
     struct TestError: LocalizedError {
         var errorDescription: String? { "Not found" }
@@ -155,6 +164,9 @@ private struct EmptyCommunityPostsRepository: CommunityPostsRepository, Sendable
 
     func reportPost(postID: String, reason: CommunityReportReason, detail: String?) async throws {}
     func joinCommunity(id: String) async throws -> CommunityDetail { throw TestError() }
+    func setPostLike(postID: String, liked: Bool) async throws -> CommunityPostLikeResult {
+        CommunityPostLikeResult(viewerHasLiked: liked, likeCount: liked ? 1 : 0)
+    }
 
     struct TestError: LocalizedError {
         var errorDescription: String? { "Not found" }
@@ -211,6 +223,10 @@ private struct FailingCommunityPostsRepository: CommunityPostsRepository, Sendab
     }
 
     func joinCommunity(id: String) async throws -> CommunityDetail {
+        throw TestError()
+    }
+
+    func setPostLike(postID: String, liked: Bool) async throws -> CommunityPostLikeResult {
         throw TestError()
     }
 }

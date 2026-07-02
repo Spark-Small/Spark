@@ -118,6 +118,20 @@ public struct LiveCommunityPostsRepository: CommunityPostsRepository, Sendable {
         )
     }
 
+    public func setPostLike(postID: String, liked: Bool) async throws -> CommunityPostLikeResult {
+        let payload = try JSONEncoder().encode(SetCommunityPostLikeRequestDTO(liked: liked))
+        do {
+            let dto: CommunityPostLikeResponseDTO = try await apiClient.post(
+                CommunityAPIPath.like(postID: postID),
+                body: payload,
+                as: CommunityPostLikeResponseDTO.self
+            )
+            return CommunityDTOMapper.likeResult(from: dto)
+        } catch {
+            throw CommunityError.underlying(mapToAppError(error))
+        }
+    }
+
     public func createRecapPost(_ draft: CommunityRecapDraft) async throws -> CommunityPostDetail {
         try CommunityRecapDraft.validate(draft)
         let body = try JSONEncoder().encode(
@@ -163,7 +177,8 @@ public struct LiveCommunityPostsRepository: CommunityPostsRepository, Sendable {
                 content: summary.excerpt,
                 likeCount: 0,
                 commentCount: summary.replyCount,
-                createdAt: Date()
+                createdAt: Date(),
+                viewerHasLiked: false
             )
         }
         return CommunityTabExperience(

@@ -71,6 +71,7 @@ struct CommunityFeedPostDTO: Decodable, Sendable {
     let relationshipToViewer: String?
     let linkedActivity: LinkedActivityDTO?
     let kind: String?
+    let viewerHasLiked: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -88,6 +89,7 @@ struct CommunityFeedPostDTO: Decodable, Sendable {
         case relationshipToViewer = "relationship_to_viewer"
         case linkedActivity = "linked_activity"
         case kind
+        case viewerHasLiked = "viewer_has_liked"
         case media
     }
 }
@@ -100,6 +102,17 @@ struct SharedActivityDTO: Decodable, Sendable {
 struct LinkedActivityDTO: Decodable, Sendable {
     let id: String
     let name: String
+    let scheduleLine: String?
+    let coverURL: String?
+    let attendeeSummary: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case scheduleLine = "schedule_line"
+        case coverURL = "cover_url"
+        case attendeeSummary = "attendee_summary"
+    }
 }
 
 struct DiscoveredPersonDTO: Decodable, Sendable {

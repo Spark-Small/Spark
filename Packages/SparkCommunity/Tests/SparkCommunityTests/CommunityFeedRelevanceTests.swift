@@ -60,6 +60,71 @@ struct CommunityFeedRelevanceTests {
         #expect(result == [discoverable])
     }
 
+    @Test func homeFeedItemsPrioritizesLinkedRecapPosts() {
+        let joined = [CommunitySummary(id: "cm_book", name: "读书会", memberCount: 1, activityCount: 1)]
+        let olderRecap = CommunityFeedPost(
+            id: "cp_recap_old",
+            authorDisplayName: "A",
+            authorUserID: "u_a",
+            communityName: "读书会",
+            content: "Recap",
+            likeCount: 1,
+            commentCount: 0,
+            createdAt: Date().addingTimeInterval(-86_400),
+            linkedActivity: LinkedActivityContext(id: "act_1", name: "Coffee"),
+            kind: .activityRecap
+        )
+        let newerDiscussion = samplePost(communityName: "读书会")
+        let items: [CommunityFeedItem] = [
+            .post(newerDiscussion),
+            .post(olderRecap)
+        ]
+        let filtered = CommunityFeedRelevance.homeFeedItems(from: items, joinedCommunities: joined)
+        guard case .post(let first) = filtered.first else {
+            Issue.record("Expected post item")
+            return
+        }
+        #expect(first.id == "cp_recap_old")
+    }
+
+    @Test func homeFeedItemsPrioritizesHigherEngagementWithinRecapTier() {
+        let joined = [CommunitySummary(id: "cm_book", name: "读书会", memberCount: 1, activityCount: 1)]
+        let lowEngagementRecap = CommunityFeedPost(
+            id: "cp_recap_low",
+            authorDisplayName: "A",
+            authorUserID: "u_a",
+            communityName: "读书会",
+            content: "Recap",
+            likeCount: 1,
+            commentCount: 0,
+            createdAt: Date(),
+            linkedActivity: LinkedActivityContext(id: "act_1", name: "Coffee"),
+            kind: .activityRecap
+        )
+        let highEngagementRecap = CommunityFeedPost(
+            id: "cp_recap_high",
+            authorDisplayName: "B",
+            authorUserID: "u_b",
+            communityName: "读书会",
+            content: "Recap",
+            likeCount: 18,
+            commentCount: 0,
+            createdAt: Date().addingTimeInterval(-86_400),
+            linkedActivity: LinkedActivityContext(id: "act_2", name: "Hike"),
+            kind: .activityRecap
+        )
+        let items: [CommunityFeedItem] = [
+            .post(lowEngagementRecap),
+            .post(highEngagementRecap)
+        ]
+        let filtered = CommunityFeedRelevance.homeFeedItems(from: items, joinedCommunities: joined)
+        guard case .post(let first) = filtered.first else {
+            Issue.record("Expected post item")
+            return
+        }
+        #expect(first.id == "cp_recap_high")
+    }
+
     private func samplePost(
         communityName: String,
         kind: CommunityPostKind = .discussion

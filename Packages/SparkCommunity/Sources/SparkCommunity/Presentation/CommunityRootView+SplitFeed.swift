@@ -16,15 +16,11 @@ extension CommunityRootView {
 
     /// Phone-style filter control centered in the navigation bar (Recents「所有 / 未接来电」).
     var homeSegmentToolbarPicker: some View {
-        Picker("", selection: $selectedSegment) {
-            ForEach(CommunityHomeSegment.allCases) { segment in
-                Text(segment.localizedTitle).tag(segment)
-            }
-        }
-        .pickerStyle(.segmented)
-        .frame(maxWidth: SparkLayoutMetrics.segmentedControlMaxWidth)
-        .accessibilityLabel(
-            String(
+        SparkToolbarSegmentedPicker(
+            options: Array(CommunityHomeSegment.allCases),
+            selection: $selectedSegment,
+            title: \.localizedTitle,
+            accessibilityLabel: String(
                 localized: "community.home.segment.a11y",
                 defaultValue: "社区内容分类",
                 comment: "Community home segment picker"
@@ -40,58 +36,32 @@ extension CommunityRootView {
 
     @ViewBuilder
     private var homeSegmentInstantContent: some View {
-        switch selectedSegment {
-        case .feed:
-            feedSegmentContent
-        case .groups:
-            groupsSegmentContent
+        SparkPreservedSegmentStack(
+            selection: selectedSegment,
+            segments: Array(CommunityHomeSegment.allCases)
+        ) { segment in
+            switch segment {
+            case .feed:
+                feedSegmentContent
+            case .groups:
+                groupsSegmentContent
+            }
         }
     }
 
     @ViewBuilder
     private var feedSegmentContent: some View {
-        Group {
-            if usesSplitLayout {
-                splitFeedSegmentList
-            } else {
-                compactFeedSegmentScroll
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        compactFeedSegmentScroll
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     @ViewBuilder
     private var groupsSegmentContent: some View {
-        Group {
-            if usesSplitLayout {
-                splitGroupsSegmentList
-            } else {
-                compactGroupsSegmentScroll
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        compactGroupsSegmentScroll
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     // MARK: - Feed segment
-
-    private var splitFeedSegmentList: some View {
-        List(selection: $splitDestination) {
-            if viewModel.homeFeedPosts.isEmpty {
-                feedEmptyRow
-            } else {
-                ForEach(viewModel.homeFeedPosts) { post in
-                    feedPostCard(post)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .tag(CommunitySplitDestination.post(post.id))
-                        .sparkFlatTabListRow()
-                }
-            }
-        }
-        .sparkFlatTabListStyle()
-        .refreshable {
-            await viewModel.load()
-        }
-    }
 
     private var compactFeedSegmentScroll: some View {
         ScrollView {
@@ -129,17 +99,6 @@ extension CommunityRootView {
     }
 
     // MARK: - Groups segment
-
-    private var splitGroupsSegmentList: some View {
-        List(selection: $splitDestination) {
-            groupsJoinedSection
-            groupsDiscoverableSection
-        }
-        .sparkFlatTabListStyle()
-        .refreshable {
-            await viewModel.load()
-        }
-    }
 
     private var compactGroupsSegmentScroll: some View {
         ScrollViewReader { proxy in
@@ -203,7 +162,6 @@ extension CommunityRootView {
                         CommunityRowCell(community: community)
                     }
                     .buttonStyle(.sparkPressable)
-                    .tag(CommunitySplitDestination.community(community.id))
                     .sparkFlatTabListRow()
                 }
             } header: {
@@ -270,11 +228,13 @@ extension CommunityRootView {
             post: post,
             isLiked: viewModel.isPostLiked(post.id),
             likeCount: viewModel.likeCount(for: post.id),
-            onToggleLike: { viewModel.toggleLike(postID: post.id) },
+            isLikePending: viewModel.isLikePending(post.id),
+            onToggleLike: { Task { await viewModel.toggleLike(postID: post.id) } },
             onOpen: { openFeedPost(post) },
             onOpenAuthor: {
                 profilePreview = CommunityProfilePreview(feedPost: post)
-            }
+            },
+            onOpenLinkedActivity: onOpenLinkedActivity
         )
     }
 }

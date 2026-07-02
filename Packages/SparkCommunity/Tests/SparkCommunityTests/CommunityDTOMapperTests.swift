@@ -30,12 +30,21 @@ struct CommunityDTOMapperTests {
           "author_display_name": "Sam",
           "author_user_id": "u_1",
           "reply_count": 1,
+          "kind": "activity_recap",
+          "linked_activity": {
+            "id": "act_1",
+            "name": "Coffee chat",
+            "schedule_line": "Sat 9:30",
+            "cover_url": "https://example.com/cover.jpg",
+            "attendee_summary": "12 joined"
+          },
           "replies": [
             {
               "id": "r_1",
               "body": "Reply",
               "author_display_name": "Guest",
-              "created_at": "2026-06-07T10:00:00Z"
+              "created_at": "2026-06-07T10:00:00Z",
+              "relationship_to_viewer": "attended_linked_activity"
             }
           ]
         }
@@ -44,6 +53,10 @@ struct CommunityDTOMapperTests {
         let detail = CommunityDTOMapper.postDetail(from: dto)
         #expect(detail.replies.count == 1)
         #expect(detail.replies.first?.body == "Reply")
+        #expect(detail.replies.first?.relationshipToViewer == .attendedLinkedActivity)
+        #expect(detail.kind == .activityRecap)
+        #expect(detail.linkedActivity?.scheduleLine == "Sat 9:30")
+        #expect(detail.linkedActivity?.attendeeSummary == "12 joined")
     }
 
     @Test func tabExperienceMapsPostsAndPeopleDiscovery() throws {
@@ -123,5 +136,15 @@ struct CommunityDTOMapperTests {
             from: CommunityLinkedActivityDTO(id: "act_1", title: "Hike", scheduleLine: "Sat 9am")
         )
         #expect(linked.title == "Hike")
+    }
+
+    @Test func likeResultMapsFromDTO() throws {
+        let json = """
+        { "liked": true, "like_count": 12 }
+        """
+        let dto = try JSONDecoder().decode(CommunityPostLikeResponseDTO.self, from: Data(json.utf8))
+        let result = CommunityDTOMapper.likeResult(from: dto)
+        #expect(result.viewerHasLiked)
+        #expect(result.likeCount == 12)
     }
 }

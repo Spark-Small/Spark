@@ -1,6 +1,7 @@
 // Module: SparkCommunity — Compose new community post (MODULE-E).
 
 import PhotosUI
+import SparkCore
 import SparkDesignSystem
 import SwiftUI
 
@@ -87,6 +88,9 @@ public struct CreateCommunityPostView: View {
                             }
                         }
                     }
+                }
+                .onAppear {
+                    SparkPermissionTelemetry.trackPhotoLibraryAccess(source: .communityCreatePost)
                 }
                 .onChange(of: viewModel.selectedPhotoItems) { _, items in
                     Task { await viewModel.loadSelectedMedia(from: items) }

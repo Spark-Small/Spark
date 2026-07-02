@@ -17,6 +17,9 @@ struct CommunityPostDetailDTO: Decodable, Sendable {
     let linkedActivity: LinkedActivityDTO?
     let media: [CommunityPostMediaDTO]?
     let tags: [String]?
+    let kind: String?
+    let likeCount: Int?
+    let viewerHasLiked: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -29,6 +32,9 @@ struct CommunityPostDetailDTO: Decodable, Sendable {
         case linkedActivity = "linked_activity"
         case media
         case tags
+        case kind
+        case likeCount = "like_count"
+        case viewerHasLiked = "viewer_has_liked"
     }
 }
 
@@ -37,12 +43,14 @@ struct CommunityPostReplyDTO: Decodable, Sendable {
     let body: String
     let authorDisplayName: String
     let createdAt: String?
+    let relationshipToViewer: String?
 
     enum CodingKeys: String, CodingKey {
         case id
         case body
         case authorDisplayName = "author_display_name"
         case createdAt = "created_at"
+        case relationshipToViewer = "relationship_to_viewer"
     }
 }
 

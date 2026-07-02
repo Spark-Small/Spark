@@ -30,13 +30,10 @@ enum CommunityHomeSegment: String, CaseIterable, Identifiable, Sendable {
 }
 
 public struct CommunityRootView: View {
-    @Environment(\.horizontalSizeClass) var horizontalSizeClass
-
     @Binding private var pendingCommunityPostID: String?
     @Binding private var pendingRecapActivityID: String?
     @State var viewModel: CommunityViewModel
     @State var navigationPath = NavigationPath()
-    @State var splitDestination: CommunitySplitDestination?
     @State private var activityShareDraft: ActivityShareSheetItem?
     @State var profilePreview: CommunityProfilePreview?
     @State private var showComposePost = false
@@ -46,7 +43,10 @@ public struct CommunityRootView: View {
     @State var pendingGroupsScrollTarget: String?
 
     let coordinator: CommunityCoordinator
+    let tabChrome: CommunityTabChrome
     private let fetchActivityShareContext: ((String) async -> ActivityShareContext?)?
+    let isAuthenticated: Bool
+    let onSignInRequired: (() -> Void)?
     let onLikePerson: (String) -> Void
     let onOpenLinkedActivity: (String) -> Void
 
@@ -54,6 +54,9 @@ public struct CommunityRootView: View {
         coordinator: CommunityCoordinator,
         pendingCommunityPostID: Binding<String?> = .constant(nil),
         pendingRecapActivityID: Binding<String?> = .constant(nil),
+        tabChrome: CommunityTabChrome = CommunityTabChrome(),
+        isAuthenticated: Bool = true,
+        onSignInRequired: (() -> Void)? = nil,
         fetchActivityShareContext: ((String) async -> ActivityShareContext?)? = nil,
         onLikePerson: @escaping (String) -> Void = { _ in },
         onOpenLinkedActivity: @escaping (String) -> Void = { _ in }
@@ -62,6 +65,9 @@ public struct CommunityRootView: View {
         _pendingCommunityPostID = pendingCommunityPostID
         _pendingRecapActivityID = pendingRecapActivityID
         _viewModel = State(initialValue: coordinator.makeTabViewModel())
+        self.tabChrome = tabChrome
+        self.isAuthenticated = isAuthenticated
+        self.onSignInRequired = onSignInRequired
         self.fetchActivityShareContext = fetchActivityShareContext
         self.onLikePerson = onLikePerson
         self.onOpenLinkedActivity = onOpenLinkedActivity
@@ -72,6 +78,9 @@ public struct CommunityRootView: View {
         coordinator: CommunityCoordinator,
         pendingCommunityPostID: Binding<String?> = .constant(nil),
         pendingRecapActivityID: Binding<String?> = .constant(nil),
+        tabChrome: CommunityTabChrome = CommunityTabChrome(),
+        isAuthenticated: Bool = true,
+        onSignInRequired: (() -> Void)? = nil,
         fetchActivityShareContext: ((String) async -> ActivityShareContext?)? = nil,
         onLikePerson: @escaping (String) -> Void = { _ in },
         onOpenLinkedActivity: @escaping (String) -> Void = { _ in }
@@ -80,49 +89,36 @@ public struct CommunityRootView: View {
         _pendingCommunityPostID = pendingCommunityPostID
         _pendingRecapActivityID = pendingRecapActivityID
         _viewModel = State(initialValue: viewModel)
+        self.tabChrome = tabChrome
+        self.isAuthenticated = isAuthenticated
+        self.onSignInRequired = onSignInRequired
         self.fetchActivityShareContext = fetchActivityShareContext
         self.onLikePerson = onLikePerson
         self.onOpenLinkedActivity = onOpenLinkedActivity
     }
 
     public var body: some View {
-        Group {
-            if usesSplitLayout {
-                NavigationSplitView {
-                    communityFeedShell
-                        .navigationSplitViewColumnWidth(
-                            min: 280,
-                            ideal: SparkLayoutMetrics.navigationSplitSidebarIdealWidth,
-                            max: 400
-                        )
-                } detail: {
-                    splitDetail
+        NavigationStack(path: $navigationPath) {
+            communityFeedShell
+                .navigationDestination(for: CommunityFeedPost.self) { post in
+                    postDetailView(postID: post.id)
                 }
-                .navigationSplitViewStyle(.balanced)
-            } else {
-                NavigationStack(path: $navigationPath) {
-                    communityFeedShell
-                        .navigationDestination(for: CommunityFeedPost.self) { post in
-                            postDetailView(postID: post.id)
-                        }
-                        .navigationDestination(for: CommunityPost.self) { post in
-                            postDetailView(postID: post.id)
-                        }
-                        .navigationDestination(for: String.self) { postID in
-                            postDetailView(postID: postID)
-                        }
-                        .navigationDestination(for: CommunitySummary.self) { community in
-                            CommunityDetailView(
-                                viewModel: coordinator.makeDetailViewModel(communityID: community.id),
-                                likedPersonIDs: viewModel.likedPersonIDs,
-                                onOpenActivity: onOpenLinkedActivity,
-                                onOpenPost: { openFeedPost($0) },
-                                onLikePerson: likePerson,
-                                onCommunityJoined: { Task { await viewModel.load() } }
-                            )
-                        }
+                .navigationDestination(for: CommunityPost.self) { post in
+                    postDetailView(postID: post.id)
                 }
-            }
+                .navigationDestination(for: String.self) { postID in
+                    postDetailView(postID: postID)
+                }
+                .navigationDestination(for: CommunitySummary.self) { community in
+                    CommunityDetailView(
+                        viewModel: coordinator.makeDetailViewModel(communityID: community.id),
+                        likedPersonIDs: viewModel.likedPersonIDs,
+                        onOpenActivity: onOpenLinkedActivity,
+                        onOpenPost: { openFeedPost($0) },
+                        onLikePerson: likePerson,
+                        onCommunityJoined: { Task { await viewModel.load() } }
+                    )
+                }
         }
         .communityProfileSheet(
             preview: $profilePreview,
@@ -155,6 +151,27 @@ public struct CommunityRootView: View {
                 },
                 onDismiss: { activityShareDraft = nil }
             )
+        }
+        .onAppear {
+            syncTabChrome()
+        }
+        .onChange(of: selectedSegment) { _, _ in
+            syncTabChrome()
+        }
+        .onChange(of: navigationPath) { _, _ in
+            syncTabChrome()
+        }
+        .onChange(of: isAuthenticated) { _, _ in
+            syncTabChrome()
+        }
+    }
+
+    func presentComposePost() {
+        guard SparkFeatureFlags.isCommunityPostingEnabled else { return }
+        if isAuthenticated {
+            showComposePost = true
+        } else {
+            onSignInRequired?()
         }
     }
 
@@ -202,61 +219,61 @@ public struct CommunityRootView: View {
                     homeSegmentToolbarPicker
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                if SparkFeatureFlags.isCommunityPostingEnabled {
-                    Button {
-                        showComposePost = true
-                    } label: {
-                        Image(systemName: "square.and.pencil")
-                    }
-                    .accessibilityLabel(
-                        String(localized: "community.compose.a11y", defaultValue: "发帖", comment: "Compose post")
-                    )
-                }
-            }
         }
         .sparkPhoneStyleNavigationBar()
     }
 
     private var showsHomeSegmentPicker: Bool {
-        switch viewModel.loadState {
-        case .failure:
-            false
-        case .idle, .loading, .empty, .loaded:
-            true
-        }
+        true
     }
 
     @ViewBuilder
     private var feedContent: some View {
-        switch viewModel.loadState {
-        case .idle, .loading:
-            ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .sparkLoadingAccessibilityLabel(
-                    String(
-                        localized: "community.feed.loading.a11y",
-                        defaultValue: "正在加载社区",
-                        comment: "Community feed loading"
+        ZStack {
+            loadedFeedContent
+                .opacity(showsLoadedFeedSurface ? 1 : 0)
+                .allowsHitTesting(showsLoadedFeedSurface)
+
+            switch viewModel.loadState {
+            case .idle, .loading:
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .sparkLoadingAccessibilityLabel(
+                        String(
+                            localized: "community.feed.loading.a11y",
+                            defaultValue: "正在加载社区",
+                            comment: "Community feed loading"
+                        )
                     )
-                )
-        case .empty:
-            loadedFeedContent
-                .onAppear {
-                    selectedSegment = CommunityHomeSegment.groups
+            case .failure(let message):
+                SparkRetryUnavailableView(
+                    title: String(localized: "community.error.title", defaultValue: "无法加载", comment: "Community error"),
+                    description: message
+                ) {
+                    Task { await viewModel.load() }
                 }
-        case .failure(let message):
-            SparkRetryUnavailableView(
-                title: String(localized: "community.error.title", defaultValue: "无法加载", comment: "Community error"),
-                description: message
-            ) {
-                Task { await viewModel.load() }
+            case .empty:
+                EmptyView()
+            case .loaded:
+                EmptyView()
             }
-        case .loaded:
-            loadedFeedContent
-                .onAppear {
-                    applyInitialHomeSegmentIfNeeded()
-                }
+        }
+        .onAppear {
+            if viewModel.loadState == .empty {
+                selectedSegment = CommunityHomeSegment.groups
+            }
+            if viewModel.loadState == .loaded {
+                applyInitialHomeSegmentIfNeeded()
+            }
+        }
+    }
+
+    private var showsLoadedFeedSurface: Bool {
+        switch viewModel.loadState {
+        case .empty, .loaded:
+            true
+        case .idle, .loading, .failure:
+            false
         }
     }
 
@@ -308,12 +325,6 @@ private struct ActivityShareSheetItem: Identifiable {
 
 #Preview("Community — accessibility XL") {
     SparkPreviewSupport.accessibilityXL {
-        CommunityRootView(coordinator: CommunityCoordinator(repository: MockCommunityPostsRepository()))
-    }
-}
-
-#Preview("Community — iPad split") {
-    SparkPreviewSupport.iPadRegular {
         CommunityRootView(coordinator: CommunityCoordinator(repository: MockCommunityPostsRepository()))
     }
 }
