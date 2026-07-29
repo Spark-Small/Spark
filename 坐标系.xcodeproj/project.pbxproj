@@ -8,6 +8,7 @@
 
 /* Begin PBXFileReference section */
 		80E75795300761E8001E6272 /* 坐标系.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "坐标系.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		90A001001122334455667701 /* 坐标系Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "坐标系Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +17,22 @@
 			path = "坐标系";
 			sourceTree = "<group>";
 		};
+		90A001001122334455667702 /* 坐标系Tests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "坐标系Tests";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		80E75792300761E8001E6272 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		90A001001122334455667704 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +46,7 @@
 			isa = PBXGroup;
 			children = (
 				80E75797300761E8001E6272 /* 坐标系 */,
+				90A001001122334455667702 /* 坐标系Tests */,
 				80E75796300761E8001E6272 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +55,7 @@
 			isa = PBXGroup;
 			children = (
 				80E75795300761E8001E6272 /* 坐标系.app */,
+				90A001001122334455667701 /* 坐标系Tests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -70,7 +85,40 @@
 			productReference = 80E75795300761E8001E6272 /* 坐标系.app */;
 			productType = "com.apple.product-type.application";
 		};
+		90A001001122334455667706 /* 坐标系Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 90A00100112233445566770B /* Build configuration list for PBXNativeTarget "坐标系Tests" */;
+			buildPhases = (
+				90A001001122334455667703 /* Sources */,
+				90A001001122334455667704 /* Frameworks */,
+				90A001001122334455667705 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				90A001001122334455667708 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				90A001001122334455667702 /* 坐标系Tests */,
+			);
+			name = "坐标系Tests";
+			packageProductDependencies = (
+			);
+			productName = "坐标系Tests";
+			productReference = 90A001001122334455667701 /* 坐标系Tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
+
+/* Begin PBXContainerItemProxy section */
+		90A001001122334455667707 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 80E7578D300761E8001E6272 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 80E75794300761E8001E6272;
+			remoteInfo = "坐标系";
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXProject section */
 		80E7578D300761E8001E6272 /* Project object */ = {
@@ -83,6 +131,10 @@
 					80E75794300761E8001E6272 = {
 						CreatedOnToolsVersion = 26.6;
 					};
+					90A001001122334455667706 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 80E75794300761E8001E6272;
+					};
 				};
 			};
 			buildConfigurationList = 80E75790300761E8001E6272 /* Build configuration list for PBXProject "坐标系" */;
@@ -94,18 +146,28 @@
 			);
 			mainGroup = 80E7578C300761E8001E6272;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 80E75796300761E8001E6272 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				80E75794300761E8001E6272 /* 坐标系 */,
+				90A001001122334455667706 /* 坐标系Tests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		80E75793300761E8001E6272 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		90A001001122334455667705 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,7 +184,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		90A001001122334455667703 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		90A001001122334455667708 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 80E75794300761E8001E6272 /* 坐标系 */;
+			targetProxy = 90A001001122334455667707 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		80E7579E300761E9001E6272 /* Debug */ = {
@@ -251,11 +328,18 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "坐标系/坐标系.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = A95ZH5QY7B;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "用于把已报名的活动写入系统日历";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "用于把已报名的活动写入系统日历";
+				INFOPLIST_KEY_NSCameraUsageDescription = "用于扫一扫识别搭子或活动群二维码（后续版本）";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "用于展示本地天气、计算活动距离与附近推荐";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于发起活动封面、头像与社区分享时选择图片";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -268,9 +352,10 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "coordinate.---";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -283,11 +368,18 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "坐标系/坐标系.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = A95ZH5QY7B;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "用于把已报名的活动写入系统日历";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "用于把已报名的活动写入系统日历";
+				INFOPLIST_KEY_NSCameraUsageDescription = "用于扫一扫识别搭子或活动群二维码（后续版本）";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "用于展示本地天气、计算活动距离与附近推荐";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于发起活动封面、头像与社区分享时选择图片";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -300,13 +392,70 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "coordinate.---";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		90A001001122334455667709 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = A95ZH5QY7B;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "coordinate.tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/坐标系.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/坐标系";
+			};
+			name = Debug;
+		};
+		90A00100112233445566770A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = A95ZH5QY7B;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "coordinate.tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/坐标系.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/坐标系";
 			};
 			name = Release;
 		};
@@ -327,6 +476,15 @@
 			buildConfigurations = (
 				80E757A1300761E9001E6272 /* Debug */,
 				80E757A2300761E9001E6272 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		90A00100112233445566770B /* Build configuration list for PBXNativeTarget "坐标系Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				90A001001122334455667709 /* Debug */,
+				90A00100112233445566770A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
