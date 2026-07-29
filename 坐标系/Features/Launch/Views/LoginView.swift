@@ -126,7 +126,7 @@ struct LoginView: View {
 
             chrome(
                 QuietTextButton(title: "以访客身份继续") {
-                    _ = session.signIn(phone: "13800000000", code: LocalAuthSession.demoCode)
+                    session.continueAsGuest()
                 }
                 .padding(.top, 6),
                 step: Reveal.guest,

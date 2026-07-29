@@ -215,12 +215,14 @@
 | 焦点大卡 | 0.88 | 一卡主导 + 露邻 |
 | 跟进/热场 | 0.86 | 同左 |
 | 榜单海报 | 0.36 | 约两张半/屏 + 露边；配合 3:4 控轨高 |
+| 我的内容库 | 0.29 | 约三张 2:3 竖海报 + 露出第 4 张 |
 
 ## 4.5 Section 间距
 
 | 上下文 | 由谁管 |
 |--------|--------|
 | 发现大分区 | `PlatformMetrics.sectionSpacing` ← 系统 `UITableView.sectionHeaderTopPadding` |
+| 我的内容库分区 | 同上；一级标题单行，不叠重复说明；空态再解释 |
 | 分区标题↔内容 | `sectionHeaderSpacing` ← 系统 subtitleCell 垂直 margin |
 | 标题↔副标题 / chevron | `sectionSubtitleSpacing` / `sectionChevronSpacing` ← 系统 `textToSecondaryTextVerticalPadding` |
 | 标题簇水平 | `sectionTitleClusterSpacing` ← 系统 `imageToTextPadding` |
@@ -307,6 +309,7 @@
 | **Discover 竖大卡** | 兴趣/品类流 | 16:9 | 20 | 封面叠字或 a11y 图下堆叠 |
 | **Continue / Hot 横卡** | 跟进、热场轨 | 16:9 | 14 | 轨宽 ~0.86；底栏同 Hero 结构 |
 | **Poster 榜单** | 排名轨 | 3:4 | 14 | 轨宽 ~0.36；序号角标 |
+| **Profile Library** | 「我的」内容预览 | 2:3 竖海报 | poster | 一屏约 3 张完整卡并露出第 4 张；底部渐变叠标题与单行 meta |
 | **Editorial 焦点** | 焦点大卡 | 4:5 | 24 | 轨宽 ~0.88 |
 | **Person 搭子** | 精选 Hero + 网格 | Hero 3:4 穿顶；网格 3:4 | discover | 首屏精选大卡；下方双列扫人；默认同好 / 右上「陪玩」 |
 | **Circle 组织** | 同好第二幕 | 3:4 | poster | 轨宽 ~0.36；加入=进组织群；次于选人 |

@@ -113,13 +113,15 @@ struct ActivityConversationSyncService {
 @MainActor
 struct AppProfileSyncService {
     func apply(user: AppUser, previousName: String, app: AppModel) {
-        app.user = user
-        app.activities.currentUserName = user.name
-        app.community.currentUserName = user.name
-        if previousName != user.name {
-            app.activities.migrateUserName(from: previousName, to: user.name)
+        var next = user
+        next.id = LocalUserIdentity.current
+        app.user = next
+        app.activities.currentUserName = next.name
+        app.community.currentUserName = next.name
+        if previousName != next.name {
+            app.activities.migrateUserName(from: previousName, to: next.name)
         }
-        app.refreshInterestContext(user.interests)
+        app.refreshInterestContext(next.interests)
     }
 
     func applyOnboarding(interests: [String], app: AppModel) {
@@ -129,6 +131,7 @@ struct AppProfileSyncService {
         if app.user.city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             app.user.city = "上海"
         }
+        app.user.id = LocalUserIdentity.current
         app.user.interests = interests
         app.activities.currentUserName = app.user.name
         app.community.currentUserName = app.user.name
@@ -137,15 +140,17 @@ struct AppProfileSyncService {
     }
 
     func apply(snapshot: ProfileSnapshot, app: AppModel) {
-        app.user = snapshot.user
+        var nextUser = snapshot.user
+        nextUser.id = LocalUserIdentity.current
+        app.user = nextUser
         app.hasCompletedOnboarding = snapshot.hasCompletedOnboarding
         app.blockedUserNames = Set(snapshot.blockedUserNames)
         app.moderationTickets = snapshot.moderationTickets.sorted { $0.createdAt > $1.createdAt }
-        app.activities.currentUserName = snapshot.user.name
-        app.community.currentUserName = snapshot.user.name
+        app.activities.currentUserName = nextUser.name
+        app.community.currentUserName = nextUser.name
         app.buddies.blockedUserNames = app.blockedUserNames
         app.community.blockedUserNames = app.blockedUserNames
-        app.refreshInterestContext(snapshot.user.interests)
+        app.refreshInterestContext(nextUser.interests)
     }
 }
 

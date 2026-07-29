@@ -642,6 +642,8 @@ enum PlatformMetrics {
     /// 卡宽高比为构图比，非 pt
     static var activityCardAspectRatio: CGFloat { 16 / 9 }
     static var continueCardAspectRatio: CGFloat { 16 / 9 }
+    /// 「我的」个人内容库竖海报（宽:高），参考 Apple TV 榜单小卡。
+    static var profileLibraryCardAspectRatio: CGFloat { 2 / 3 }
     /// 榜单 / 组织 / 语音厅竖海报（宽:高）；略扁于经典 2:3，降低货架轨高
     static var posterCardAspectRatio: CGFloat { 3 / 4 }
     static var featuredCardAspectRatio: CGFloat { 3 / 4 }
@@ -658,6 +660,8 @@ enum PlatformMetrics {
     static var editorialRailVisibleFraction: CGFloat { 0.88 }
     /// 海报轨卡宽占比：约两张半 + 露边；配合 3:4 控制轨高
     static var posterRailVisibleFraction: CGFloat { 0.36 }
+    /// 个人内容库小卡：一屏约三张完整卡，并露出第四张提示横滑。
+    static var profileLibraryRailVisibleFraction: CGFloat { 0.29 }
     /// 背景大图轻微放大（切换时）
     static var personStageBackgroundScale: CGFloat { 1.06 }
     /// 舞台外框与精选 Hero 同比例（3:4）

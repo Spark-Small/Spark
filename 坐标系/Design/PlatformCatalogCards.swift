@@ -451,6 +451,13 @@ extension View {
             length * PlatformMetrics.posterRailVisibleFraction
         }
     }
+
+    /// 个人内容库小卡轨：约三张完整卡，并露出第四张。
+    func platformProfileLibraryRailFrame() -> some View {
+        containerRelativeFrame(.horizontal) { length, _ in
+            length * PlatformMetrics.profileLibraryRailVisibleFraction
+        }
+    }
 }
 
 #Preview("Editorial rail") {

@@ -95,10 +95,10 @@ struct CommunityBookmarksView: View {
 
     var body: some View {
         CommunityPostLibraryList(
-            title: "收藏",
-            emptyTitle: "还没有收藏",
+            title: "收藏的分享",
+            emptyTitle: "还没有收藏分享",
             emptySystemImage: "bookmark",
-            emptyDescription: "在社区分享里点收藏，会出现在这里",
+            emptyDescription: "在社区分享里点收藏，种草与复盘会出现在这里",
             posts: model.bookmarkedPosts,
             footnote: { model.bookmarkCollection(for: $0.id) }
         )

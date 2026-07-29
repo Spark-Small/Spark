@@ -1224,7 +1224,9 @@ struct ChatHistoryHit: Identifiable, Hashable {
     var sentAt: Date
 }
 
-struct AppUser: Codable, Hashable {
+struct AppUser: Codable, Hashable, Identifiable {
+    /// 本机稳定用户 UUID（游客与登录用户共用）
+    var id: UUID
     var name: String
     var handle: String
     var city: String
@@ -1237,6 +1239,7 @@ struct AppUser: Codable, Hashable {
     var avatarLocalName: String? = nil
 
     init(
+        id: UUID = LocalUserIdentity.current,
         name: String,
         handle: String,
         city: String,
@@ -1247,6 +1250,7 @@ struct AppUser: Codable, Hashable {
         interests: [String] = [],
         avatarLocalName: String? = nil
     ) {
+        self.id = id
         self.name = name
         self.handle = handle
         self.city = city
@@ -1260,6 +1264,7 @@ struct AppUser: Codable, Hashable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? LocalUserIdentity.current
         name = try container.decode(String.self, forKey: .name)
         handle = try container.decode(String.self, forKey: .handle)
         city = try container.decode(String.self, forKey: .city)

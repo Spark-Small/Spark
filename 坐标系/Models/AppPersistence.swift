@@ -608,6 +608,7 @@ enum AppPersistence {
 
         // 保留 onboarding / 拉黑等个人状态，仅刷新用户展示统计
         var profile = loadProfile()
+        profile.user.id = LocalUserIdentity.current
         profile.user.joinedCount = SampleData.currentUser.joinedCount
         profile.user.hostedCount = SampleData.currentUser.hostedCount
         profile.user.buddyCount = SampleData.currentUser.buddyCount

@@ -45,7 +45,11 @@ final class AppModel {
         let resolvedProfileRepository = profileRepository ?? LocalProfileRepository()
         self.profileRepository = resolvedProfileRepository
         profilePersistenceGeneration = resolvedProfileRepository.currentPersistenceGeneration()
-        let profileSnapshot = resolvedProfileRepository.load()
+        LocalUserIdentity.ensure()
+        var profileSnapshot = resolvedProfileRepository.load()
+        if profileSnapshot.user.id != LocalUserIdentity.current {
+            profileSnapshot.user.id = LocalUserIdentity.current
+        }
         user = profileSnapshot.user
         hasCompletedOnboarding = profileSnapshot.hasCompletedOnboarding
         blockedUserNames = Set(profileSnapshot.blockedUserNames)
@@ -98,7 +102,9 @@ final class AppModel {
 
     func updateProfile(_ updated: AppUser) {
         let previousName = user.name
-        syncOrchestrator.handle(.profileUpdated(previousName: previousName, user: updated))
+        var next = updated
+        next.id = LocalUserIdentity.current
+        syncOrchestrator.handle(.profileUpdated(previousName: previousName, user: next))
     }
 
     func syncProfileStats() {
@@ -122,6 +128,13 @@ final class AppModel {
     func beginEditActivity(_ id: Activity.ID) {
         selectedTab = .activities
         activities.beginEdit(id)
+    }
+
+    /// 统一从任意 Tab 发起新活动（由活动 Tab 承载 Compose Sheet）
+    func beginComposeActivity() {
+        selectedTab = .activities
+        activities.editingActivityID = nil
+        activities.isComposing = true
     }
 
     /// 取消报名；付费活动可选演示退款；非主办则退出活动群

@@ -6,6 +6,16 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		90A001001122334455667707 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 80E7578D300761E8001E6272 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 80E75794300761E8001E6272;
+			remoteInfo = "坐标系";
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		80E75795300761E8001E6272 /* 坐标系.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "坐标系.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		90A001001122334455667701 /* 坐标系Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "坐标系Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -109,16 +119,6 @@
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
-
-/* Begin PBXContainerItemProxy section */
-		90A001001122334455667707 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 80E7578D300761E8001E6272 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 80E75794300761E8001E6272;
-			remoteInfo = "坐标系";
-		};
-/* End PBXContainerItemProxy section */
 
 /* Begin PBXProject section */
 		80E7578D300761E8001E6272 /* Project object */ = {
@@ -418,7 +418,7 @@
 					"@loader_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "coordinate.tests";
+				PRODUCT_BUNDLE_IDENTIFIER = coordinate.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -446,7 +446,7 @@
 					"@loader_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "coordinate.tests";
+				PRODUCT_BUNDLE_IDENTIFIER = coordinate.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

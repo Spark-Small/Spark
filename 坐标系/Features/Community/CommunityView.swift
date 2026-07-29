@@ -78,7 +78,7 @@ struct CommunityView: View {
     private var feedToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Menu {
-                Button("收藏", systemImage: "bookmark") {
+                Button("收藏的分享", systemImage: "bookmark") {
                     path.append(CommunityLibraryDestination.bookmarks)
                 }
                 Button("赞过的", systemImage: "heart") {
