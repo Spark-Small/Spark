@@ -47,9 +47,7 @@ struct ProfileView: View {
             .navigationDestination(for: CommunityPost.self) { post in
                 CommunityPostDetailView(postID: post.id)
             }
-            .navigationDestination(for: InterestCircle.self) { circle in
-                ProfileCircleDetailView(circle: circle)
-            }
+            .circleDetailNavigationDestination()
             .navigationDestination(for: ProfileRoute.self, destination: profileDestination)
             .buddyOrgJoinChrome(
                 buddies: buddies,
@@ -271,6 +269,7 @@ struct ProfileView: View {
                 }
             }
         }
+        .activityZoomSlot("profile-activities")
     }
 
     private var publishedShelf: some View {
@@ -296,6 +295,7 @@ struct ProfileView: View {
                 .padding(.horizontal, PlatformMetrics.contentInset)
             }
         }
+        .activityZoomSlot("profile-published")
     }
 
     private func publishedPostRow(_ post: CommunityPost) -> some View {
@@ -319,20 +319,17 @@ struct ProfileView: View {
 
     private func publishedActivityRow(_ activity: Activity) -> some View {
         HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
-            NavigationLink(value: activity.id) {
+            ActivityZoomNavigationLink(
+                activity: activity,
+                namespace: zoomNamespace
+            ) {
                 ProfilePublishedLibraryLabel(
                     title: activity.title,
                     subtitle: "公开 · 活动 · \(Formatters.activityEventTime(from: activity.date))"
                 ) {
                     CommunityRemotePhoto(ref: activity.coverPhoto)
-                        .activityZoomTransitionSource(
-                            id: activity.id,
-                            in: zoomNamespace,
-                            clip: .rail
-                        )
                 }
             }
-            .buttonStyle(.plain)
 
             ProfilePublishedShareMenu(
                 shareText: ProfileLibraryCopy.activityShareText(for: activity),

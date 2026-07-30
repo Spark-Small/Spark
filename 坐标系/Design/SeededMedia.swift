@@ -2,7 +2,7 @@
 //  SeededMedia.swift
 //  坐标系
 //
-//  离线种子图：确定性渐变 + SF Symbol 场景。
+//  离线种子图：确定性渐变 + SF Symbol；滚动路径不用 GeometryReader。
 //
 
 import SwiftUI
@@ -23,7 +23,7 @@ enum SeededPalette {
     }
 }
 
-/// 封面 / 相册用的本地场景图
+/// 封面 / 相册用的本地场景图（轻量：渐变 + Symbol，适合 LazyVStack / LazyHStack）
 struct SeededSceneFill: View {
     let seed: Int
     var symbol: String = "photo"
@@ -52,30 +52,6 @@ struct SeededSceneFill: View {
                 endPoint: UnitPoint(x: 0.9 - tilt, y: layout == 1 ? 0 : 1)
             )
 
-            GeometryReader { geo in
-                Circle()
-                    .fill(primary.opacity(layout == 0 ? 0.22 : 0.16))
-                    .frame(width: geo.size.width * (layout == 2 ? 0.9 : 0.72))
-                    .offset(
-                        x: geo.size.width * (layout == 1 ? -0.2 : (0.35 + tilt)),
-                        y: -geo.size.height * (layout == 2 ? 0.08 : 0.18)
-                    )
-                Circle()
-                    .fill(secondary.opacity(0.18))
-                    .frame(width: geo.size.width * (layout == 1 ? 0.7 : 0.55))
-                    .offset(
-                        x: -geo.size.width * (layout == 2 ? 0.05 : 0.22),
-                        y: geo.size.height * (layout == 1 ? 0.28 : 0.42)
-                    )
-                if layout != 1 {
-                    RoundedRectangle(cornerRadius: PlatformMetrics.radiusEditorial, style: .continuous)
-                        .fill(.white.opacity(0.08))
-                        .frame(width: geo.size.width * 0.42, height: geo.size.height * 0.28)
-                        .rotationEffect(.degrees(Double(seed % 18) - 9))
-                        .offset(x: geo.size.width * 0.12, y: geo.size.height * 0.2)
-                }
-            }
-
             if showsSymbol {
                 Image(systemName: symbol)
                     .font(.system(size: symbolSize, weight: .semibold))
@@ -91,38 +67,7 @@ struct SeededSceneFill: View {
     }
 }
 
-/// 姓名确定性头像底色
-struct SeededAvatarView: View {
-    let name: String
-    var size: CGFloat = 32
-
-    private var seed: Int { abs(name.hashValue) }
-    private var initial: String { String(name.prefix(1)) }
-    private var tint: Color { SeededPalette.primary(for: seed) }
-
-    var body: some View {
-        Circle()
-            .fill(
-                LinearGradient(
-                    colors: [tint.opacity(0.35), tint.opacity(0.14)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .overlay {
-                Circle().strokeBorder(tint.opacity(0.28), lineWidth: 0.5)
-            }
-            .overlay {
-                Text(initial)
-                    .font(.system(size: max(11, size * 0.42), weight: .semibold, design: .rounded))
-                    .foregroundStyle(tint)
-            }
-            .frame(width: size, height: size)
-            .accessibilityHidden(true)
-    }
-}
-
-/// 搭子人像占位：全幅铺满圆框（隔空投送式），渐变底 + 大号面容
+/// 搭子人像占位：全幅铺满；固定比例装饰，滚动路径不用 GeometryReader
 struct SeededPersonFill: View {
     let seed: Int
     let name: String
@@ -133,55 +78,50 @@ struct SeededPersonFill: View {
     private var tilt: Double { Double(abs(seed % 36)) / 100 }
 
     var body: some View {
-        GeometryReader { geo in
-            let side = min(geo.size.width, geo.size.height)
-            let face = side * 0.72
+        ZStack {
+            LinearGradient(
+                colors: [
+                    tint.opacity(0.55),
+                    secondary.opacity(0.32),
+                    Color(.secondarySystemFill)
+                ],
+                startPoint: UnitPoint(x: 0.15 + tilt, y: 0),
+                endPoint: UnitPoint(x: 0.85 - tilt, y: 1)
+            )
+
+            Circle()
+                .fill(tint.opacity(0.22))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .scaleEffect(0.95)
+                .offset(y: -24)
+
+            Circle()
+                .fill(secondary.opacity(0.18))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .scaleEffect(0.78)
+                .offset(x: 20 - tilt * 40, y: 28)
 
             ZStack {
-                LinearGradient(
-                    colors: [
-                        tint.opacity(0.55),
-                        secondary.opacity(0.32),
-                        Color(.secondarySystemFill)
-                    ],
-                    startPoint: UnitPoint(x: 0.15 + tilt, y: 0),
-                    endPoint: UnitPoint(x: 0.85 - tilt, y: 1)
-                )
-
                 Circle()
-                    .fill(tint.opacity(0.22))
-                    .frame(width: side * 0.95)
-                    .offset(y: -side * 0.22)
-
-                Circle()
-                    .fill(secondary.opacity(0.18))
-                    .frame(width: side * 0.78)
-                    .offset(
-                        x: side * (0.22 - tilt),
-                        y: side * 0.32
-                    )
-
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.45),
-                                    tint.opacity(0.62)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.45),
+                                tint.opacity(0.62)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         )
-                    Text(initial)
-                        .font(.system(size: face * 0.42, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-                        .colorScheme(.dark)
-                }
-                .frame(width: face, height: face)
-                .offset(y: side * 0.06)
+                    )
+                Text(initial)
+                    .font(.system(size: 64, weight: .bold, design: .rounded))
+                    .minimumScaleFactor(0.5)
+                    .foregroundStyle(.primary)
+                    .colorScheme(.dark)
             }
-            .frame(width: geo.size.width, height: geo.size.height)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(18)
+            .offset(y: 8)
         }
         .clipped()
         .accessibilityHidden(true)

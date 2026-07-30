@@ -275,7 +275,8 @@
 - **邀约闭环（本地演示）**：绑活动发出 → `pending` 待回执 → 模拟接受/婉拒 → 邀请记录可「进群」  
 - **预约闭环（本地演示）**：点选档期 → `pendingConfirm` 待接单 → `awaitingPayment` 可支付 → 支付后私聊；拒单为 `cancelled`  
 - **信任**：详情 Form + 「⋯」含不感兴趣 / 举报 / 拉黑；陪玩可有「平台认证」角标；底栏打招呼 + 邀约/预约（`activityDetailBottom*CTA`）  
-- **详情分区**：头图（3:4）→ 身份决策 → 资料信任行 → 基本资料 → 关于/服务 → 共同兴趣 → 组织 → 档期 → 评价 → 相关活动横滑轨  
+- **详情分区**：头图（3:4）→（可选）来源行 → 身份决策 → 资料信任行 → 基本资料 → 关于/服务 → 共同兴趣 → 组织 → 档期 → 评价 → 相关活动横滑轨  
+- **成员入口**：组织 / 工会头像、语音厅麦位 → 半屏 `BuddyMemberProfileSheet`（`.confirm`，不 Zoom）；「查看全部」→ `BuddyMemberListSheet`（`.browser`）；完整资料经视图式 `NavigationLink` 推入并带 `BuddyProfileSource`  
 
 **我的顶栏与身份区**
 
@@ -307,7 +308,13 @@
 
 `NavigationLink(value:)` + `matchedTransitionSource` + `navigationTransition(.zoom)`  
 
-封装：`ActivityZoomNavigationLink` / `activityZoomNavigationDestination`；搭子选人：`BuddyZoomNavigationLink`。
+封装：`ActivityZoomNavigationLink` / `activityZoomNavigationDestination`；搭子选人：`BuddyZoomNavigationLink` / `buddyZoomNavigationDestination`；组织：`circleDetailNavigationDestination`。
+
+同一栈内同类型 `navigationDestination` 只保留栈根一份；二级页用 `…IfNeeded` / `circleDetailNavigationDestination`（Environment 判断已注册则跳过）。**Sheet 会继承呈现方 Environment**：自带 `NavigationStack` 的 Sheet 若要值跳组织 / 活动 Zoom / 搭子，须确认不会误继承「已注册」标记（见 `.cursor/rules/navigation-destination.mdc`）。
+
+活动 Zoom 源 id 用 `ActivityZoomSource`（`activityID` + `slot`），同一活动在多货架中不得撞号；用 `activityZoomSlot(_:)` 分槽。
+
+Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关卡不挂同 namespace Zoom；精选源 clip 与详情头图 `cardShape` 对齐；评论 / 相关轨首帧后再挂。
 
 ---
 
@@ -352,7 +359,7 @@
 
 ## 6.4 Zoom Clip
 
-`ActivityZoomClip`：`card` / `rail` / `poster` / `editorial` / `fullBleed` —— 与静态卡 shape 一致，保证转场裁切同源。
+`ActivityZoomClip`：`card` / `rail` / `poster` / `editorial` —— 与静态卡 shape 一致；精选视觉仍可用 `fullBleedShape`（圆角 0），Zoom 源用 `card` 对齐详情头图。
 
 ---
 
@@ -372,7 +379,7 @@
 - 相关决策信息合并同一 `Section`（避免双白卡灰缝）  
 - 头图 Section：`listRowBackground(.clear)`，横向 inset 0  
 - 行：副标题单元格 = 头像/缩略图 + 主文 `.body` + 副文 `.subheadline`，**垂直居中**  
-- Disclosure：系统 `NavigationLink`，禁止手写 chevron + `.buttonStyle(.plain)` 挡掉箭头（相关活动除外需保留 zoom source 时仍用系统 Link）  
+- Disclosure：系统 `NavigationLink`；相关活动为视图式推入（不参与发现 Zoom）  
 - **Features 默认零自定义间距**：不在 Form 行外再套 Metrics padding；需要例外时先改 Design / 系统修饰符，再考虑 token
 
 ## 7.2 消息模块边距与列表行（系统「信息」）
@@ -574,14 +581,14 @@ Sheet 档位：
 NavigationStack
 └─ ScrollView
    ├─ [可选] Featured Hero（全宽 3:4，穿顶）
-   └─ LazyVStack(spacing: 28)
+   └─ LazyVStack(spacing: sectionSpacing)
       ├─ Section Header（双行）
       ├─ 横滑轨 / 竖卡流 / 榜单 / 焦点…
       └─ …
 Toolbar: Photos 圆形 + 胶囊；Trailing「更多」含发起 / 我的活动 / 收藏的活动 / 筛选
 Background: groupedPage
 ScrollEdge: soft top
-Zoom destination 注入 namespace
+Zoom destination + slot 源；详情相关活动不参与同 namespace Zoom。`ActivityEngagementStore` 非观察对象，避免浏览埋点拆掉列表 Zoom 源。货架结果按输入指纹缓存；种子封面不用 GeometryReader，避免 Lazy 预取掉帧。
 ```
 
 **一屏原则**：精选即品牌+主视觉；下方货架单一职责分区；不把筛选结果做成仪表盘。
@@ -595,8 +602,8 @@ Form
 ├─ Section 发起人（header「发起人」）
 ├─ Section* 行程 / 费用 / 装备 / 须知（按 blueprint 排序）
 ├─ [可选] 管理 / 订单
-├─ Section 活动讨论
-└─ Section 相关活动（横滑 Continue 卡轨）
+├─ Section 活动讨论（转场后再挂）
+└─ Section 相关活动（横滑轨，视图式推入）
 + safeAreaInset 底栏 CTA
 + toolbar glass
 + listSectionSpacing(.compact)
@@ -611,7 +618,7 @@ Form
 |------|------|------|
 | 发布/编辑 | `.form` | Form |
 | 筛选 | `.filter` | Form |
-| 成员/订单/支付 | `.browser` | List/Form |
+| 成员/订单/支付 | `.browser` | List/Form；成员轻量卡与「全部成员」同档 |
 | 参加成功 | `.confirm` | 短栈 |
 | 举报活动 | `.form` | 原因 + 情况说明 + 证明材料；提交后 Alert 收尾确认 |
 | 导航 App | `confirmationDialog` | Apple / 高德 / 百度等离散动作 |
@@ -653,7 +660,7 @@ Form
 | Zoom | `Design/ActivityZoomNavigation.swift`、`Features/Buddies/BuddyZoomNavigation.swift` |
 | Sheet | `Design/PlatformSheet.swift` |
 | 发现页 | `Features/Activities/ActivitiesView.swift` |
-| 搭子选人 | `Features/Buddies/BuddiesView.swift`、`BuddyPersonStage.swift`、`BuddyGridCard.swift`、`BuddyDiscoverCard.swift`、`BuddyPosterShelfCard.swift`、`BuddyOrgInfoViews.swift`、`BuddiesModeSwitch.swift`、`BuddyFilterSheet.swift`、`BuddyBookingSheet.swift`、`BuddyScheduleSlot.swift`、`BuddyCityCatalog.swift` |
+| 搭子选人 | `Features/Buddies/BuddiesView.swift`、`BuddyPersonStage.swift`、`BuddyGridCard.swift`、`BuddyDiscoverCard.swift`、`BuddyPosterShelfCard.swift`、`BuddyOrgInfoViews.swift`、`BuddyMemberProfileSheet.swift`、`BuddyMemberListSheet.swift`、`BuddyMemberCopy.swift`、`BuddyVoiceHallViews.swift`、`BuddiesModeSwitch.swift`、`BuddyFilterSheet.swift`、`BuddyBookingSheet.swift`、`BuddyScheduleSlot.swift`、`BuddyCityCatalog.swift` |
 | 详情 | `Features/Activities/ActivityDetailView.swift`、`ActivityDetailSections.swift` |
 | Tab 折叠 | `ContentView.swift` |
 

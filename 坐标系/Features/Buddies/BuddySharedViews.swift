@@ -50,6 +50,8 @@ struct BuddyReviewRow: View {
 struct BuddyDetailActionBar: View {
     var inviteEnabled = true
     var inviteTitle = BuddyDetailCopy.invite
+    /// 工会 / 语音厅入口：预约按钮带系统图标，强调转化
+    var emphasizeInvite = false
     var onGreet: () -> Void
     var onInvite: () -> Void
 
@@ -58,9 +60,17 @@ struct BuddyDetailActionBar: View {
             Button(BuddyDetailCopy.greet, action: onGreet)
                 .activityDetailBottomSecondaryCTA()
 
-            Button(inviteTitle, action: onInvite)
+            if emphasizeInvite {
+                Button(action: onInvite) {
+                    Label(inviteTitle, systemImage: "calendar.badge.clock")
+                }
                 .activityDetailBottomPrimaryCTA()
                 .disabled(!inviteEnabled)
+            } else {
+                Button(inviteTitle, action: onInvite)
+                    .activityDetailBottomPrimaryCTA()
+                    .disabled(!inviteEnabled)
+            }
         }
         .activityDetailBottomBarChrome()
     }

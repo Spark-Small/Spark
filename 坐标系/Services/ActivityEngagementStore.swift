@@ -4,12 +4,12 @@
 //
 //  隐式反馈引擎：把「浏览详情 / 收藏 / 报名」这些真实转化行为，
 //  按标签与品类累积成动态兴趣权重，喂给 ActivityRecommender 做二次排序。
-//  比只认引导页勾选的静态兴趣更贴近「这个人真正会点开、会报名」，
-//  是提升推荐流转化率与复访率（DAU）最直接的杠杆。
+//
+//  刻意不用 @Observable：发现页 body 会经货架读到本 store，若写入触发观察，
+//  Zoom 底下的 matchedTransitionSource 会被拆掉重建，返回时表现为「先卡再缩小」。
 //
 
 import Foundation
-import Observation
 
 /// 一次行为对应的隐式信号强度：报名 > 收藏 > 仅查看。
 enum ActivityEngagementEvent {
@@ -27,7 +27,6 @@ enum ActivityEngagementEvent {
 }
 
 @MainActor
-@Observable
 final class ActivityEngagementStore {
     static let shared = ActivityEngagementStore()
 

@@ -57,16 +57,11 @@ struct BuddiesView: View {
                 if let focusedBuddyID, ids.contains(focusedBuddyID) { return }
                 focusedBuddyID = ids.first
             }
-            .navigationDestination(for: DiscoverBuddyItem.self) { item in
-                BuddyDetailRouteView(item: item)
-                    .buddyZoomNavigationTransition(id: item.id, in: zoomNamespace)
-            }
+            .buddyZoomNavigationDestination(namespace: zoomNamespace)
             .navigationDestination(for: Activity.self) { activity in
                 ActivityDetailView(activity: activity)
             }
-            .navigationDestination(for: InterestCircle.self) { circle in
-                ProfileCircleDetailView(circle: circle)
-            }
+            .circleDetailNavigationDestination()
             .navigationDestination(for: VoiceHall.self) { hall in
                 BuddyVoiceHallRoomView(hall: hall)
             }

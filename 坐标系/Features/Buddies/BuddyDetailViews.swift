@@ -9,6 +9,7 @@ import SwiftUI
 
 struct BuddyDetailRouteView: View {
     let item: DiscoverBuddyItem
+    var source: BuddyProfileSource = .discover
 
     @Environment(BuddiesModel.self) private var buddies
     @Environment(AppModel.self) private var app
@@ -24,6 +25,7 @@ struct BuddyDetailRouteView: View {
             case .free(let buddy):
                 CircleBuddyDetailView(
                     buddy: buddy,
+                    source: source,
                     onGreet: {
                         let greeting = "你好！我想约你一起「\(buddy.profile.lookingFor)」——你最近有空吗？"
                         if let convo = app.startDirectChat(with: buddy.profile.nickname, greeting: greeting) {
@@ -35,6 +37,7 @@ struct BuddyDetailRouteView: View {
             case .paid(let companion):
                 PaidCompanionDetailView(
                     companion: companion,
+                    source: source,
                     onGreet: {
                         let greeting = "你好！我看到你提供「\(companion.specialty)」，想预约一下。你最近方便吗？"
                         if let convo = app.startDirectChat(with: companion.profile.nickname, greeting: greeting) {
@@ -128,6 +131,7 @@ struct BuddyDetailRouteView: View {
 
 struct CircleBuddyDetailView: View {
     let buddy: CircleBuddy
+    var source: BuddyProfileSource = .discover
     var onGreet: () -> Void
     var onInvite: () -> Void
 
@@ -148,6 +152,14 @@ struct CircleBuddyDetailView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
+            }
+
+            if let line = source.contextLine {
+                Section {
+                    BuddyDetailSourceRow(line: line, source: source)
+                } header: {
+                    Text(BuddyMemberCopy.sourceSectionTitle)
+                }
             }
 
             Section {
@@ -234,6 +246,7 @@ struct CircleBuddyDetailView: View {
 
 struct PaidCompanionDetailView: View {
     let companion: PaidCompanion
+    var source: BuddyProfileSource = .discover
     var onGreet: () -> Void
     var onInvite: () -> Void
 
@@ -257,6 +270,14 @@ struct PaidCompanionDetailView: View {
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+            }
+
+            if let line = source.contextLine {
+                Section {
+                    BuddyDetailSourceRow(line: line, source: source)
+                } header: {
+                    Text(BuddyMemberCopy.sourceSectionTitle)
+                }
             }
 
             Section {
@@ -337,6 +358,7 @@ struct PaidCompanionDetailView: View {
             BuddyDetailActionBar(
                 inviteEnabled: companion.isAvailable,
                 inviteTitle: companion.isAvailable ? BuddyDetailCopy.book : BuddyDetailCopy.bookUnavailable,
+                emphasizeInvite: source.emphasizesBooking,
                 onGreet: onGreet,
                 onInvite: onInvite
             )

@@ -400,3 +400,30 @@ struct BuddyDetailCircleRow: View {
         }
     }
 }
+
+/// 从组织 / 工会 / 语音厅进入时的来源说明行
+struct BuddyDetailSourceRow: View {
+    let line: String
+    var source: BuddyProfileSource
+
+    private var systemImage: String {
+        switch source {
+        case .discover: "sparkles"
+        case .circle: "person.3"
+        case .guild: "building.2"
+        case .voiceHall: "dot.radiowaves.left.and.right"
+        }
+    }
+
+    var body: some View {
+        Label {
+            Text(line)
+                .font(.body)
+                .foregroundStyle(.primary)
+        } icon: {
+            Image(systemName: systemImage)
+                .foregroundStyle(.tint)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}

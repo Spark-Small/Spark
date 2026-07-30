@@ -3,6 +3,7 @@
 //  坐标系
 //
 //  陪玩页第二幕：Soul 式语音厅（演示场；非真实时音频）。
+//  麦位 → 半屏资料卡（不离厅、不 Zoom）；空麦位申请上麦。
 //
 
 import SwiftUI
@@ -61,6 +62,8 @@ struct BuddyVoiceHallRoomView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isOnMic = false
     @State private var toast: String?
+    @State private var selectedSeat: BuddyMemberProfileTarget?
+    @State private var confirmTakeMic = false
 
     private var seats: [String] {
         var names = hall.onMicNicknames
@@ -116,7 +119,7 @@ struct BuddyVoiceHallRoomView: View {
             }
 
             Section {
-                Text("演示语音厅：可上麦围观，点麦位可打招呼或预约陪玩。正式实时语音将另行接入。")
+                Text("演示语音厅：可上麦围观，点麦位查看资料。正式实时语音将另行接入。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -127,9 +130,13 @@ struct BuddyVoiceHallRoomView: View {
         .platformSecondaryPage()
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 12) {
-                Button(isOnMic ? "下麦" : "上麦") {
-                    isOnMic.toggle()
-                    toast = isOnMic ? "已上麦（演示）" : "已下麦"
+                Button(isOnMic ? BuddyMemberCopy.leaveMic : BuddyMemberCopy.takeMic) {
+                    if isOnMic {
+                        isOnMic = false
+                        toast = BuddyMemberCopy.offMicDemo
+                    } else {
+                        confirmTakeMic = true
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
@@ -143,35 +150,83 @@ struct BuddyVoiceHallRoomView: View {
             .padding(.vertical, 10)
             .background(PlatformSurface.bar)
         }
-        .platformTransientFeedback($toast)
-        .navigationDestination(for: DiscoverBuddyItem.self) { item in
-            BuddyDetailRouteView(item: item)
+        .alert(BuddyMemberCopy.takeMic, isPresented: $confirmTakeMic) {
+            Button(BuddyMemberCopy.takeMic) {
+                isOnMic = true
+                toast = BuddyMemberCopy.onMicDemo
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text(BuddyMemberCopy.emptySeatHint)
         }
+        .sheet(item: $selectedSeat) { target in
+            BuddyMemberProfileSheet(
+                target: target,
+                onMessage: { item in
+                    let greeting = "你好，我在「\(hall.title)」听到你了～"
+                    if let convo = app.startDirectChat(with: item.profile.nickname, greeting: greeting) {
+                        app.openMessages(conversationID: convo.id)
+                    }
+                },
+                onBook: { companion in
+                    buddies.book(companion)
+                },
+                onLeaveMic: target.item.profile.nickname == app.user.name
+                    ? {
+                        isOnMic = false
+                        selectedSeat = nil
+                        toast = BuddyMemberCopy.offMicDemo
+                    }
+                    : nil
+            )
+        }
+        .sheet(item: Binding(
+            get: { buddies.bookingTarget },
+            set: { buddies.bookingTarget = $0 }
+        )) { companion in
+            BuddyBookingSheet(companion: companion) { scheduledAt, hours, slotLabel in
+                _ = buddies.recordBooking(
+                    companion: companion,
+                    scheduledAt: scheduledAt,
+                    hours: hours,
+                    slotLabel: slotLabel
+                )
+            }
+        }
+        .platformTransientFeedback($toast)
     }
 
     private func seatCell(_ name: String) -> some View {
-        let item = buddies.item(for: name)
-        return Group {
-            if let item {
-                NavigationLink(value: item) {
-                    seatContent(name: name, isHost: name == hall.hostNickname)
-                }
-                .buttonStyle(.plain)
-            } else {
-                Button {
-                    toast = "演示：向 \(name) 打招呼"
-                    if let convo = app.startDirectChat(with: name, greeting: "你好，我在「\(hall.title)」听到你了～") {
-                        app.openMessages(conversationID: convo.id)
-                    }
-                } label: {
-                    seatContent(name: name, isHost: name == hall.hostNickname)
-                }
-                .buttonStyle(.plain)
-            }
+        let isHost = name == hall.hostNickname
+        let isSelf = name == app.user.name
+        return Button {
+            openSeat(name: name, isHost: isHost)
+        } label: {
+            seatContent(name: name, isHost: isHost, isSelf: isSelf)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(BuddyMemberCopy.seatAccessibility(nickname: name, isHost: isHost))
+        .accessibilityHint(BuddyMemberCopy.profileTitle)
+    }
+
+    private func openSeat(name: String, isHost: Bool) {
+        let source = BuddyProfileSource.voiceHall(title: hall.title, isHost: isHost)
+        let role = isHost ? BuddyMemberCopy.roleHost : BuddyMemberCopy.roleOnMic
+
+        if let item = buddies.item(for: name) {
+            selectedSeat = BuddyMemberProfileTarget(item: item, source: source, role: role)
+            return
+        }
+
+        // 麦上昵称无完整资料时：先打招呼，不虚构条目
+        toast = "演示：向 \(name) 打招呼"
+        let greeting = "你好，我在「\(hall.title)」听到你了～"
+        if let convo = app.startDirectChat(with: name, greeting: greeting) {
+            app.openMessages(conversationID: convo.id)
         }
     }
 
-    private func seatContent(name: String, isHost: Bool) -> some View {
+    private func seatContent(name: String, isHost: Bool, isSelf: Bool) -> some View {
         VStack(spacing: 8) {
             ZStack(alignment: .bottomTrailing) {
                 PlatformListAvatarView(name: name, side: 64)
@@ -180,10 +235,10 @@ struct BuddyVoiceHallRoomView: View {
                     .padding(4)
                     .background(.ultraThinMaterial, in: Circle())
             }
-            Text(name)
+            Text(isSelf ? BuddyMemberCopy.roleSelf : name)
                 .font(.caption.weight(.semibold))
                 .lineLimit(1)
-            Text(isHost ? "厅主" : "麦上")
+            Text(isHost ? BuddyMemberCopy.roleHost : BuddyMemberCopy.roleOnMic)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
@@ -193,8 +248,7 @@ struct BuddyVoiceHallRoomView: View {
 
     private var emptySeat: some View {
         Button {
-            isOnMic = true
-            toast = "已上麦（演示）"
+            confirmTakeMic = true
         } label: {
             VStack(spacing: 8) {
                 Circle()
@@ -204,7 +258,7 @@ struct BuddyVoiceHallRoomView: View {
                         Image(systemName: "plus")
                             .foregroundStyle(.secondary)
                     }
-                Text("空麦位")
+                Text(BuddyMemberCopy.emptySeat)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -212,5 +266,8 @@ struct BuddyVoiceHallRoomView: View {
             .padding(.vertical, 8)
         }
         .buttonStyle(.plain)
+        .disabled(isOnMic)
+        .accessibilityLabel(BuddyMemberCopy.emptySeat)
+        .accessibilityHint(BuddyMemberCopy.emptySeatHint)
     }
 }

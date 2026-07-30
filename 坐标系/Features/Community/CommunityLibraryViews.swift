@@ -71,12 +71,7 @@ private struct CommunityPostLibraryList: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .platformSecondaryPage()
-        .navigationDestination(for: CommunityPost.self) { post in
-            CommunityPostDetailView(postID: post.id)
-        }
-        .navigationDestination(for: Activity.self) { activity in
-            ActivityDetailView(activity: activity)
-        }
+        // 分享 / 活动详情目的地由社区栈根注册
     }
 
     private func librarySecondary(for post: CommunityPost) -> String {

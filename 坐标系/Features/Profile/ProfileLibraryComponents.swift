@@ -112,12 +112,6 @@ struct ProfileLibraryShelfCard<Media: View>: View {
         ZStack {
             cover
 
-            LinearGradient(
-                colors: [.clear, Color.black.opacity(0.78)],
-                startPoint: .center,
-                endPoint: .bottom
-            )
-
             if let badge, !badge.isEmpty {
                 PlatformMediaCaptionBadge(title: badge)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

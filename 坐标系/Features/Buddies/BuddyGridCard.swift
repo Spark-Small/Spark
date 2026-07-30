@@ -50,7 +50,6 @@ struct BuddyGridCard: View {
         ZStack(alignment: .bottom) {
             BuddyZoomNavigationLink(item: item, namespace: zoomNamespace) {
                 coverFill
-                    .overlay { bottomScrim }
                     .overlay(alignment: .topLeading) { leadingBadge }
                     .overlay(alignment: .topTrailing) { trailingBadge }
             }
@@ -88,15 +87,6 @@ struct BuddyGridCard: View {
                 CommunityRemotePhoto(ref: profile.coverPhoto)
             }
             .clipped()
-    }
-
-    private var bottomScrim: some View {
-        LinearGradient(
-            colors: [.clear, Color.black.opacity(0.55)],
-            startPoint: .center,
-            endPoint: .bottom
-        )
-        .allowsHitTesting(false)
     }
 
     private func footer(onMedia: Bool) -> some View {

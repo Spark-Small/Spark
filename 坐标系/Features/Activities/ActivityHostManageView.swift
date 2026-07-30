@@ -197,8 +197,7 @@ struct ActivityHostedTripRow: View {
         VStack(alignment: .leading) {
             ActivityZoomNavigationLink(
                 activity: activity,
-                namespace: zoomNamespace,
-                clip: .card
+                namespace: zoomNamespace
             ) {
                 ActivityDiscoverCard(
                     activity: activity,

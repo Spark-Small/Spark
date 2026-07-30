@@ -2,8 +2,7 @@
 //  ActivityCatalogSeeAllSheet.swift
 //  坐标系
 //
-//  分区「查看全部」：系统 browser sheet + 官方 zoom 打开详情。
-//  明确降级为发现大卡列表（同源 CTA / 状态文案）。
+//  分区「查看全部」：browser sheet + Zoom 打开详情（发现大卡列表）。
 //
 
 import SwiftUI
@@ -31,8 +30,7 @@ struct ActivityCatalogSeeAllSheet: View {
                     ForEach(Array(shelf.activities.enumerated()), id: \.element.id) { index, activity in
                         ActivityZoomNavigationLink(
                             activity: activity,
-                            namespace: zoomNamespace,
-                            clip: .card
+                            namespace: zoomNamespace
                         ) {
                             shelfRow(activity: activity, index: index)
                         }
@@ -50,6 +48,7 @@ struct ActivityCatalogSeeAllSheet: View {
                 }
             }
             .activityZoomNavigationDestination(namespace: zoomNamespace)
+            .activityZoomSlot("see-all-\(shelf.id)")
         }
         .platformSheet(.browser)
     }
@@ -86,7 +85,12 @@ struct ActivityCatalogSeeAllSheet: View {
     private func join(_ activity: Activity) {
         withAnimation(reduceMotion ? nil : .snappy) {
             _ = app.quickJoinActivity(activity) {
-                path.append(activity.id)
+                path.append(
+                    ActivityZoomSource(
+                        activityID: activity.id,
+                        slot: "see-all-\(shelf.id)"
+                    )
+                )
             }
         }
     }

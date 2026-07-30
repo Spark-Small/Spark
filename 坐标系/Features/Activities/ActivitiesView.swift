@@ -5,13 +5,7 @@
 
 import SwiftUI
 
-/// 活动发现页：发现并参加一场局。
-/// 顶栏：Photos 式两侧圆形 glass（无中间天气胶囊）。
-/// 导航栏：系统自动背景 + scrollEdgeEffect；Tab 栏折叠见 ContentView.tabBarMinimizeBehavior。
-/// 打开详情：NavigationLink + navigationTransition(.zoom)。
-/// 精选下方：活动状态 / 兴趣 / 品类长列表分区，可一直下滑。
-///
-/// 注：当前 iOS 26.5 SDK 无 `toolbarMinimizeBehavior`；不自算沉浸 / 不手写显隐。
+/// 活动发现：精选 Hero + 货架；详情 Zoom 打开。
 struct ActivitiesView: View {
     @Environment(ActivitiesModel.self) private var model
     @Environment(AppModel.self) private var app
@@ -103,7 +97,7 @@ struct ActivitiesView: View {
         }
     }
 
-    // MARK: - Toolbar（Photos：两侧圆形 glass）
+    // MARK: - Toolbar
 
     @ToolbarContentBuilder
     private var activitiesToolbar: some ToolbarContent {
@@ -183,7 +177,9 @@ struct ActivitiesView: View {
     @ViewBuilder
     private var catalogStyleModules: some View {
         ForEach(model.recommendationShelves) { shelf in
+            // 按货架分槽，保证同活动多处出现时 zoom 源 id 唯一
             shelfModule(shelf)
+                .activityZoomSlot("shelf-\(shelf.id)")
         }
     }
 
@@ -265,17 +261,17 @@ struct ActivitiesView: View {
             }
 
         case .list:
+            // 竖卡分区数量有限：用 VStack，避免嵌套纵向 LazyVStack
             DiscoverBrowseSection(
                 title: shelf.title,
                 subtitle: shelf.subtitle,
                 onSeeAll: { seeAllShelf = shelf }
             ) {
-                LazyVStack(alignment: .leading, spacing: PlatformMetrics.discoverCardSpacing) {
+                VStack(alignment: .leading, spacing: PlatformMetrics.discoverCardSpacing) {
                     ForEach(shelf.activities) { activity in
                         ActivityZoomNavigationLink(
                             activity: activity,
-                            namespace: zoomNamespace,
-                            clip: .card
+                            namespace: zoomNamespace
                         ) {
                             ActivityDiscoverCard(
                                 activity: activity,
@@ -345,7 +341,7 @@ struct ActivitiesView: View {
     }
 
     private var featuredCarousel: some View {
-        // Photos / App Store：单卡 Hero，不做 Today 式分页轮播
+        // 单卡 Hero，不做分页轮播
         Group {
             if let featured = model.featured.first {
                 ActivityFeaturedCard(
@@ -353,12 +349,14 @@ struct ActivitiesView: View {
                     zoomNamespace: zoomNamespace,
                     onJoin: { join(featured) }
                 )
-                .id("\(featured.id)-\(model.isJoined(featured.id))")
+                // 身份只跟活动 id，避免报名后拆掉 Zoom 源
+                .id(featured.id)
             }
         }
         .modifier(FeaturedHeroAspectModifier(dynamicTypeSize: dynamicTypeSize))
         .frame(maxWidth: .infinity)
         .clipped()
+        .activityZoomSlot("featured")
     }
 
     private var emptyState: some View {
@@ -411,7 +409,7 @@ struct ActivitiesView: View {
     }
 
     private func open(_ activity: Activity) {
-        path.append(activity.id)
+        path.append(ActivityZoomSource(activityID: activity.id, slot: "programmatic"))
     }
 
     private func join(_ activity: Activity) {

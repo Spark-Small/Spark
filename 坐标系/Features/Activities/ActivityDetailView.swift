@@ -10,7 +10,6 @@ struct ActivityDetailView: View {
     let activityID: Activity.ID
 
     @Environment(ActivitiesModel.self) private var model
-    @Environment(MessagesModel.self) private var messages
     @Environment(BuddiesModel.self) private var buddies
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -32,6 +31,8 @@ struct ActivityDetailView: View {
     @State private var reportMessage: String?
     @State private var joinIssueMessage: String?
     @State private var cancelRefundActivityID: Activity.ID?
+    /// 评论 / 相关轨等次要内容：转场首帧后再挂，减轻 Zoom 合成负载
+    @State private var revealsSecondaryContent = false
 
     init(activityID: Activity.ID) {
         self.activityID = activityID
@@ -138,6 +139,13 @@ struct ActivityDetailView: View {
         .contentMargins(.top, 0, for: .scrollContent)
         .scrollDismissesKeyboard(.interactively)
         .scrollEdgeEffectStyle(.soft, for: .top)
+        .task(id: live.id) {
+            guard !revealsSecondaryContent else { return }
+            await Task.yield()
+            try? await Task.sleep(for: ActivityZoomEngagement.postTransitionDelay)
+            guard !Task.isCancelled else { return }
+            revealsSecondaryContent = true
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 ActivityDetailControls.GlassIconMenu(accessibilityLabel: "分享与更多") {
@@ -145,13 +153,10 @@ struct ActivityDetailView: View {
                 }
             }
         }
-        // Form 详情：头图落在系统顶栏安全区下方（非 Photos 全幅沉浸穿顶）
-        // 顶栏玻璃由系统栏位布局；上滑边缘过渡交给 scrollEdgeEffect
+        // Form 头图落在系统顶栏下方；边缘过渡交给 scrollEdgeEffect
         .toolbarBackground(.hidden, for: .navigationBar)
         .platformSecondaryPage()
-        .navigationDestination(for: InterestCircle.self) { circle in
-            ProfileCircleDetailView(circle: circle)
-        }
+        .circleDetailNavigationDestination()
         .buddyOrgJoinChrome(
             buddies: buddies,
             openConversation: { app.openMessages(conversationID: $0) }
@@ -295,24 +300,26 @@ struct ActivityDetailView: View {
             .id(ordersRevision)
         }
 
-        Section {
-            ActivityDetailCommentsSection(
-                activityID: live.id,
-                currentUserName: model.currentUserName
-            ) {
-                commentsRevision += 1
-            }
-        } header: {
-            Text(ActivityDetailCopy.commentsTitle)
-        }
-        .id(commentsRevision)
-
-        let related = ActivityRelatedRecommender.related(to: live, from: model.activities)
-        if !related.isEmpty {
+        if revealsSecondaryContent {
             Section {
-                ActivityDetailRelatedSection(relatedActivities: related)
+                ActivityDetailCommentsSection(
+                    activityID: live.id,
+                    currentUserName: model.currentUserName
+                ) {
+                    commentsRevision += 1
+                }
             } header: {
-                Text(ActivityDetailCopy.relatedTitle)
+                Text(ActivityDetailCopy.commentsTitle)
+            }
+            .id(commentsRevision)
+
+            let related = ActivityRelatedRecommender.related(to: live, from: model.activities)
+            if !related.isEmpty {
+                Section {
+                    ActivityDetailRelatedSection(relatedActivities: related)
+                } header: {
+                    Text(ActivityDetailCopy.relatedTitle)
+                }
             }
         }
     }

@@ -216,6 +216,7 @@ struct HeroMediaCard<Cover: View, Meta: View, Status: View, Actions: View>: View
                 .colorScheme(.dark)
                 .padding(layout.contentPadding)
                 .padding(.trailing, trailingReserve)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityHidden(true)
             }
             .modifier(

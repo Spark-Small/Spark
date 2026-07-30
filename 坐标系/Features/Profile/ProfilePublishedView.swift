@@ -56,9 +56,7 @@ struct ProfilePublishedView: View {
         .navigationTitle("我的发布")
         .navigationBarTitleDisplayMode(.inline)
         .platformSecondaryPage()
-        .navigationDestination(for: CommunityPost.self) { post in
-            CommunityPostDetailView(postID: post.id)
-        }
+        // 分享详情目的地由「我的」栈根注册
         .navigationDestination(for: Activity.self) { activity in
             ActivityDetailView(activity: activity)
         }

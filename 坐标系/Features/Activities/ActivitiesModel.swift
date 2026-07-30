@@ -30,6 +30,9 @@ final class ActivitiesModel {
     private let repository: ActivitiesRepository
     @ObservationIgnored private var persistenceGeneration: Int
     @ObservationIgnored private var persistTask: Task<Void, Never>?
+    /// 货架结果缓存：避免每次 body / 返回发现页都整库重排
+    @ObservationIgnored private var cachedRecommendationShelves: [ActivityBrowseShelf] = []
+    @ObservationIgnored private var recommendationShelvesCacheKey: RecommendationShelvesCacheKey?
 
     init(currentUserName: String? = nil, repository: ActivitiesRepository? = nil) {
         let resolvedRepository = repository ?? LocalActivitiesRepository()
@@ -72,15 +75,28 @@ final class ActivitiesModel {
 
     var showsFeatured: Bool { !featured.isEmpty && showsBrowseModules }
 
-    /// 长列表推荐分区（精选 Hero 以下，可一直滑）
+    /// 长列表推荐分区（精选 Hero 以下）。按输入指纹缓存，返回详情后滑动不重算整库。
     var recommendationShelves: [ActivityBrowseShelf] {
-        ActivityBrowseShelfBuilder.build(
+        let key = RecommendationShelvesCacheKey(
+            category: selectedCategory,
+            filters: quickFilters,
+            activityRevision: activities.map(\.id),
+            joinedIDs: joinedIDs,
+            featuredIDs: Set(featured.map(\.id))
+        )
+        if key == recommendationShelvesCacheKey {
+            return cachedRecommendationShelves
+        }
+        let built = ActivityBrowseShelfBuilder.build(
             catalog: filtered,
-            featuredIDs: Set(featured.map(\.id)),
+            featuredIDs: key.featuredIDs,
             joinedIDs: joinedIDs,
             interests: ActivityRecommender.userInterests,
             catalogIndex: catalogIndexByID
         )
+        cachedRecommendationShelves = built
+        recommendationShelvesCacheKey = key
+        return built
     }
 
     /// 打开详情即记一次隐式浏览信号，喂给推荐做行为学习（见 ActivityEngagementStore）
@@ -618,4 +634,13 @@ final class ActivitiesModel {
         dismissedWaitlistBannerIDs.remove(activityID)
         NotificationService.cancelWaitlistSpotNotification(activityID: activityID)
     }
+}
+
+/// 货架缓存指纹：分类 / 筛选 / 目录顺序 / 报名 / 精选变化时失效
+private struct RecommendationShelvesCacheKey: Equatable {
+    var category: ActivityCategory
+    var filters: Set<ActivityQuickFilter>
+    var activityRevision: [UUID]
+    var joinedIDs: Set<UUID>
+    var featuredIDs: Set<UUID>
 }

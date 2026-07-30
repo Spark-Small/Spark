@@ -2,33 +2,55 @@
 //  ActivityZoomNavigation.swift
 //  坐标系
 //
-//  官方 Zoom（WWDC24 / Photos）：
-//  NavigationLink + matchedTransitionSource（常驻）
-//  + navigationTransition(.zoom) — 系统可交互返回
-//
-//  clipShape 仅支持 RoundedRectangle。
+//  NavigationLink + matchedTransitionSource + navigationTransition(.zoom)
 //
 
 import SwiftUI
 
-// MARK: - Clip shapes（与静态卡片一致）
+// MARK: - Clip
 
 enum ActivityZoomClip {
     case card
-    /// 16:9 跟进 / 热场横卡（与榜单竖海报同圆角档，角色不同）
+    /// 16:9 跟进 / 热场横卡
     case rail
     /// 2:3 榜单竖海报
     case poster
     case editorial
-    case fullBleed
 
     var shape: RoundedRectangle {
         switch self {
         case .card: PlatformMetrics.cardShape
         case .rail, .poster: PlatformMetrics.posterShape
         case .editorial: PlatformMetrics.editorialShape
-        case .fullBleed: PlatformMetrics.fullBleedShape
         }
+    }
+}
+
+// MARK: - Source identity
+
+/// Zoom 源 id，同时作为导航值。同一活动可出现在多条货架，故用 slot 保证 namespace 内唯一。
+struct ActivityZoomSource: Hashable {
+    let activityID: Activity.ID
+    var slot: String = ""
+}
+
+// MARK: - Engagement（转场后再写，避免改源列表）
+
+enum ActivityZoomEngagement {
+    static let postTransitionDelay: Duration = .milliseconds(450)
+
+    @MainActor
+    static func recordAfterTransition(
+        activityID: Activity.ID,
+        model: ActivitiesModel
+    ) async {
+        do {
+            try await Task.sleep(for: postTransitionDelay)
+        } catch {
+            return
+        }
+        guard !Task.isCancelled else { return }
+        model.recordDetailView(activityID)
     }
 }
 
@@ -36,38 +58,83 @@ enum ActivityZoomClip {
 
 extension View {
     func activityZoomTransitionSource(
-        id: Activity.ID,
+        _ source: ActivityZoomSource,
         in namespace: Namespace.ID,
         clip: ActivityZoomClip = .card
     ) -> some View {
-        matchedTransitionSource(id: id, in: namespace) { source in
-            source.clipShape(clip.shape)
+        matchedTransitionSource(id: source, in: namespace) { configuration in
+            configuration.clipShape(clip.shape)
         }
     }
 
     func activityZoomNavigationTransition(
-        id: Activity.ID,
+        _ source: ActivityZoomSource,
         in namespace: Namespace.ID
     ) -> some View {
-        navigationTransition(.zoom(sourceID: id, in: namespace))
+        navigationTransition(.zoom(sourceID: source, in: namespace))
     }
 
-    /// Photos：`navigationDestination` + zoom；并向栈内注入 namespace 供相关卡复用
+    /// 货架 / 精选分区：同一活动在不同位置各拿唯一源 id
+    func activityZoomSlot(_ slot: String) -> some View {
+        environment(\.activityZoomSlot, slot)
+    }
+
+    /// 栈根注册 Zoom 目的地；详情相关活动用视图式推入，不挂本 namespace 源
     func activityZoomNavigationDestination(
         namespace: Namespace.ID
     ) -> some View {
         self
             .environment(\.activityZoomNamespace, namespace)
-            .navigationDestination(for: Activity.ID.self) { id in
-                ActivityZoomDetailDestination(activityID: id, namespace: namespace)
-                    .environment(\.activityZoomNamespace, namespace)
+            .navigationDestination(for: ActivityZoomSource.self) { source in
+                ActivityZoomDetailDestination(source: source, namespace: namespace)
+            }
+    }
+
+    /// 仅当外层尚未注册时再挂（如「我的」推入行程）。自有 NavigationStack 的 Sheet 应直接用上方 API。
+    func activityZoomNavigationDestinationIfNeeded(
+        fallback namespace: Namespace.ID
+    ) -> some View {
+        modifier(ActivityZoomStackRegistration(fallback: namespace))
+    }
+}
+
+/// 统一详情入口：Zoom + 延后浏览埋点
+struct ActivityZoomDetailDestination: View {
+    let source: ActivityZoomSource
+    let namespace: Namespace.ID
+    @Environment(ActivitiesModel.self) private var model
+
+    var body: some View {
+        ActivityDetailView(activityID: source.activityID)
+            .activityZoomNavigationTransition(source, in: namespace)
+            .task(id: source.activityID) {
+                await ActivityZoomEngagement.recordAfterTransition(
+                    activityID: source.activityID,
+                    model: model
+                )
             }
     }
 }
 
-/// 当前导航栈的活动 zoom namespace（详情内相关卡与之对齐）
+private struct ActivityZoomStackRegistration: ViewModifier {
+    @Environment(\.activityZoomNamespace) private var inherited
+    let fallback: Namespace.ID
+
+    func body(content: Content) -> some View {
+        if inherited == nil {
+            content.activityZoomNavigationDestination(namespace: fallback)
+        } else {
+            content
+        }
+    }
+}
+
 private struct ActivityZoomNamespaceKey: EnvironmentKey {
     static let defaultValue: Namespace.ID? = nil
+}
+
+private struct ActivityZoomSlotKey: EnvironmentKey {
+    static let defaultValue = ""
 }
 
 extension EnvironmentValues {
@@ -75,30 +142,22 @@ extension EnvironmentValues {
         get { self[ActivityZoomNamespaceKey.self] }
         set { self[ActivityZoomNamespaceKey.self] = newValue }
     }
-}
 
-/// 详情打开的唯一入口：无论从哪张卡片点进来都会经过这里，
-/// 顺手记一次隐式浏览信号（见 ActivityEngagementStore），不用在每张卡片上重复埋点。
-private struct ActivityZoomDetailDestination: View {
-    let activityID: Activity.ID
-    var namespace: Namespace.ID
-    @Environment(ActivitiesModel.self) private var model
-
-    var body: some View {
-        ActivityDetailView(activityID: activityID)
-            .activityZoomNavigationTransition(id: activityID, in: namespace)
-            .onAppear { model.recordDetailView(activityID) }
+    var activityZoomSlot: String {
+        get { self[ActivityZoomSlotKey.self] }
+        set { self[ActivityZoomSlotKey.self] = newValue }
     }
 }
 
-// MARK: - NavigationLink 源
+// MARK: - NavigationLink
 
-/// Photos 路径：值导航 + 常驻 matchedTransitionSource
 struct ActivityZoomNavigationLink<Label: View>: View {
     let activityID: Activity.ID
     var namespace: Namespace.ID
     var clip: ActivityZoomClip = .card
     @ViewBuilder var label: () -> Label
+
+    @Environment(\.activityZoomSlot) private var slot
 
     init(
         activity: Activity,
@@ -125,15 +184,12 @@ struct ActivityZoomNavigationLink<Label: View>: View {
     }
 
     var body: some View {
-        NavigationLink(value: activityID) {
+        let source = ActivityZoomSource(activityID: activityID, slot: slot)
+        NavigationLink(value: source) {
             label()
         }
         .buttonStyle(.plain)
-        .activityZoomTransitionSource(
-            id: activityID,
-            in: namespace,
-            clip: clip
-        )
+        .activityZoomTransitionSource(source, in: namespace, clip: clip)
     }
 }
 

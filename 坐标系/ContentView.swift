@@ -461,7 +461,7 @@ struct ContentView: View {
                 LaunchSurface.stage
                     .ignoresSafeArea()
                     .overlay {
-                        Image("LaunchMark")
+                        Image("LaunchEnvelopeMark")
                             .resizable()
                             .scaledToFit()
                             .frame(width: 200, height: 200)

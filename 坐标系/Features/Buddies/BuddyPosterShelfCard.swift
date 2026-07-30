@@ -78,10 +78,15 @@ extension BuddyPosterShelfCard {
 struct BuddyGuildDetailView: View {
     let guild: CompanionGuild
     @Environment(BuddiesModel.self) private var buddies
+    @Environment(AppModel.self) private var app
     @State private var toast: String?
 
     private var isJoined: Bool { buddies.isJoined(guild) }
     private var roster: [PaidCompanion] { buddies.companions(in: guild) }
+
+    private var profileSource: BuddyProfileSource {
+        .guild(name: guild.name, specialty: guild.specialty)
+    }
 
     var body: some View {
         BuddyOrgInfoScaffold(
@@ -98,7 +103,15 @@ struct BuddyGuildDetailView: View {
             ],
             members: roster,
             memberName: { $0.profile.nickname },
-            memberDestination: { DiscoverBuddyItem.paid($0) },
+            memberTarget: { companion, _ in
+                BuddyMemberProfileTarget(
+                    item: .paid(companion),
+                    source: profileSource,
+                    role: companion.isAvailable
+                        ? BuddyMemberCopy.roleAvailable
+                        : BuddyMemberCopy.roleBusy
+                )
+            },
             isJoined: isJoined,
             joinTitle: "关注工会",
             leaveTitle: "取消关注",
@@ -113,11 +126,30 @@ struct BuddyGuildDetailView: View {
             prefs: buddies.prefs(kind: .guild, name: guild.name),
             onPrefsChange: { next in
                 buddies.updatePrefs(kind: .guild, name: guild.name) { $0 = next }
+            },
+            onMessageMember: { item in
+                let greeting = "你好，我在工会「\(guild.name)」看到你，想了解一下服务。"
+                if let convo = app.startDirectChat(with: item.profile.nickname, greeting: greeting) {
+                    app.openMessages(conversationID: convo.id)
+                }
+            },
+            onBookMember: { companion in
+                buddies.book(companion)
             }
         )
         .platformSecondaryPage()
-        .navigationDestination(for: DiscoverBuddyItem.self) { item in
-            BuddyDetailRouteView(item: item)
+        .sheet(item: Binding(
+            get: { buddies.bookingTarget },
+            set: { buddies.bookingTarget = $0 }
+        )) { companion in
+            BuddyBookingSheet(companion: companion) { scheduledAt, hours, slotLabel in
+                _ = buddies.recordBooking(
+                    companion: companion,
+                    scheduledAt: scheduledAt,
+                    hours: hours,
+                    slotLabel: slotLabel
+                )
+            }
         }
         .platformTransientFeedback($toast)
     }

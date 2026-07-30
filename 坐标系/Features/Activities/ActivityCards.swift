@@ -85,8 +85,7 @@ struct ActivityFeaturedCard: View {
         if let zoomNamespace {
             ActivityZoomNavigationLink(
                 activityID: live.id,
-                namespace: zoomNamespace,
-                clip: .fullBleed
+                namespace: zoomNamespace
             ) {
                 media
             }

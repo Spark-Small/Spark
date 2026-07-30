@@ -515,7 +515,6 @@ struct ActivityDetailHeroGallery: View {
     let activity: Activity
     var onEditGallery: (() -> Void)?
 
-    @State private var selectedIndex = 0
     @State private var showViewer = false
 
     private var photos: [CommunityPhotoRef] {
@@ -553,24 +552,14 @@ struct ActivityDetailHeroGallery: View {
             .platformMediaChromeInset()
         }
         .fullScreenCover(isPresented: $showViewer) {
-            CommunityPhotoViewer(
-                photos: photos,
-                startIndex: selectedIndex
-            )
+            CommunityPhotoViewer(photos: photos, startIndex: 0)
         }
     }
 
+    /// 与发现卡同源单帧封面；多图进全屏查看器翻页
     @ViewBuilder
     private var photoLayer: some View {
-        if photos.count > 1 {
-            TabView(selection: $selectedIndex) {
-                ForEach(Array(photos.enumerated()), id: \.offset) { index, ref in
-                    CommunityRemotePhoto(ref: ref)
-                        .tag(index)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .automatic))
-        } else if let first = photos.first {
+        if let first = photos.first {
             CommunityRemotePhoto(ref: first)
         } else {
             CommunityRemotePhoto(ref: .seeded(seed: activity.coverSeed, symbol: activity.coverSymbol))
@@ -676,40 +665,17 @@ struct ActivityDetailCommentsSection: View {
     }
 }
 
-/// 相关活动：Form 副标题行（封面 + 主/副文垂直居中；disclosure 交给系统 NavigationLink）
+/// 相关活动：视图式 NavigationLink，不参与发现页 Zoom。
 struct ActivityDetailRelatedSection: View {
-    @Environment(ActivitiesModel.self) private var model
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @Environment(\.activityZoomNamespace) private var zoomNamespace
 
     let relatedActivities: [Activity]
 
     var body: some View {
-        Group {
-            if let zoomNamespace {
-                DiscoverHorizontalRail {
-                    ForEach(relatedActivities) { related in
-                        PlatformContinueCard(
-                            activityID: related.id,
-                            zoomNamespace: zoomNamespace,
-                            photo: related.coverPhoto,
-                            title: related.title,
-                            timeLine: Formatters.activityEventTime(from: related.date),
-                            metaLine: subtitle(for: related),
-                            isJoined: model.isJoined(related.id),
-                            isFull: related.isFull,
-                            onJoin: model.isJoined(related.id) ? nil : { model.toggleJoin(related.id) }
-                        )
-                        .platformContinueRailFrame()
-                    }
-                }
-            } else {
-                DiscoverHorizontalRail {
-                    ForEach(relatedActivities) { related in
-                        relatedFallbackCard(related)
-                            .platformContinueRailFrame()
-                    }
-                }
+        DiscoverHorizontalRail {
+            ForEach(relatedActivities) { related in
+                relatedCard(related)
+                    .platformContinueRailFrame()
             }
         }
         .listRowInsets(relatedRailInsets)
@@ -728,8 +694,10 @@ struct ActivityDetailRelatedSection: View {
         )
     }
 
-    private func relatedFallbackCard(_ related: Activity) -> some View {
-        NavigationLink(value: related.id) {
+    private func relatedCard(_ related: Activity) -> some View {
+        NavigationLink {
+            ActivityDetailView(activityID: related.id)
+        } label: {
             VStack(alignment: .leading, spacing: PlatformMetrics.stackedMediaSpacing) {
                 CommunityRemotePhoto(ref: related.coverPhoto)
                     .aspectRatio(PlatformMetrics.continueCardAspectRatio, contentMode: .fill)

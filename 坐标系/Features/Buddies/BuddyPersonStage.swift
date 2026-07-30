@@ -77,18 +77,6 @@ struct BuddyPersonStage<Card: View>: View {
                         : "在下方信息区打开资料"
                 )
             }
-
-            // 底栏可读性：轻 scrim，中间大图保持清晰
-            VStack(spacing: 0) {
-                Spacer(minLength: 0)
-                LinearGradient(
-                    colors: [.clear, Color.black.opacity(0.35)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: size.height * 0.22)
-                .allowsHitTesting(false)
-            }
         }
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: focusedID)
     }

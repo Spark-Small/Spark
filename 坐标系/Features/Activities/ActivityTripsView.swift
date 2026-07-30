@@ -34,13 +34,21 @@ struct ActivityTripsView: View {
     @Environment(ActivitiesModel.self) private var model
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
+    /// `.pushed` 复用「我的」栈 namespace；`.sheet` 自有栈必须用 own，勿继承呈现方
+    @Environment(\.activityZoomNamespace) private var inheritedZoomNamespace
     @State private var path = NavigationPath()
     @State private var pendingZoomActivityID: Activity.ID?
     @State private var pendingHostManage: ActivityHostManageRoute?
     @State private var segment: Segment
     @State private var cancelTarget: Activity?
     @State private var cancelRefundTarget: Activity?
-    @Namespace private var zoomNamespace
+    @Namespace private var ownZoomNamespace
+
+    private var zoomNamespace: Namespace.ID {
+        presentation == .sheet
+            ? ownZoomNamespace
+            : (inheritedZoomNamespace ?? ownZoomNamespace)
+    }
 
     init(presentation: Presentation = .sheet, initialSegment: Segment = .joined) {
         self.presentation = presentation
@@ -137,8 +145,7 @@ struct ActivityTripsView: View {
                         } else {
                             ActivityZoomNavigationLink(
                                 activity: activity,
-                                namespace: zoomNamespace,
-                                clip: .card
+                                namespace: zoomNamespace
                             ) {
                                 ActivityDiscoverCard(
                                     activity: activity,
@@ -196,7 +203,10 @@ struct ActivityTripsView: View {
                 }
             }
         }
-        .activityZoomNavigationDestination(namespace: zoomNamespace)
+        .modifier(ActivityTripsZoomDestination(
+            presentation: presentation,
+            ownNamespace: ownZoomNamespace
+        ))
         .navigationDestination(for: ActivityHostManageRoute.self) { route in
             ActivityHostManageView(activityID: route.activityID)
         }
@@ -207,9 +217,10 @@ struct ActivityTripsView: View {
             get: { pendingZoomActivityID.map(PendingActivityZoom.init(id:)) },
             set: { pendingZoomActivityID = $0?.id }
         )) { pending in
-            ActivityDetailView(activityID: pending.id)
-                .activityZoomNavigationTransition(id: pending.id, in: zoomNamespace)
-                .onAppear { model.recordDetailView(pending.id) }
+            ActivityZoomDetailDestination(
+                source: ActivityZoomSource(activityID: pending.id),
+                namespace: zoomNamespace
+            )
         }
         .confirmationDialog(
             ActivityDetailCopy.hostManageCancelAlertTitle,
@@ -319,7 +330,7 @@ struct ActivityTripsView: View {
 
     private func openZoom(_ activity: Activity) {
         if presentation == .sheet {
-            path.append(activity.id)
+            path.append(ActivityZoomSource(activityID: activity.id))
         } else {
             pendingZoomActivityID = activity.id
         }
@@ -355,6 +366,21 @@ struct ActivityTripsView: View {
         case .joined: "看中一场局，点参加就会出现在这里"
         case .hosted: "在活动页发起一场局，会出现在这里"
         case .waitlist: "\(ActivityCardStatus.fullVerbose)时可加入候补，有空位时再参加"
+        }
+    }
+}
+
+private struct ActivityTripsZoomDestination: ViewModifier {
+    let presentation: ActivityTripsView.Presentation
+    let ownNamespace: Namespace.ID
+
+    func body(content: Content) -> some View {
+        switch presentation {
+        case .sheet:
+            // 自有 NavigationStack：忽略呈现方继承的 namespace，始终注册
+            content.activityZoomNavigationDestination(namespace: ownNamespace)
+        case .pushed:
+            content.activityZoomNavigationDestinationIfNeeded(fallback: ownNamespace)
         }
     }
 }

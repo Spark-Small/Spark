@@ -41,9 +41,7 @@ struct ProfileCirclesListView: View {
                 }
             }
         }
-        .navigationDestination(for: InterestCircle.self) { circle in
-            ProfileCircleDetailView(circle: circle)
-        }
+        .circleDetailNavigationDestination()
     }
 }
 
@@ -70,9 +68,7 @@ struct ProfileCircleDiscoverView: View {
         .navigationTitle("发现圈子")
         .navigationBarTitleDisplayMode(.inline)
         .platformSecondaryPage()
-        .navigationDestination(for: InterestCircle.self) { circle in
-            ProfileCircleDetailView(circle: circle)
-        }
+        .circleDetailNavigationDestination()
     }
 }
 

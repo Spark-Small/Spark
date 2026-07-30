@@ -3,12 +3,13 @@
 //  坐标系
 //
 //  兴趣组织 / 陪玩工会详情：群资料骨架 + 完整加入 / 退出 / 邀请链路。
+//  成员头像 → 半屏资料卡（不 Zoom）；「查看全部」→ 成员列表 Sheet。
 //
 
 import SwiftUI
 
 /// 组织「群资料」骨架（主流：加入 = 进组织群）
-struct BuddyOrgInfoScaffold<Member: Identifiable, Destination: Hashable>: View {
+struct BuddyOrgInfoScaffold<Member: Identifiable>: View {
     let infoTitle: String
     let nameLabel: String
     let displayName: String
@@ -18,7 +19,7 @@ struct BuddyOrgInfoScaffold<Member: Identifiable, Destination: Hashable>: View {
     let metaRows: [(title: String, value: String)]
     let members: [Member]
     let memberName: (Member) -> String
-    let memberDestination: (Member) -> Destination?
+    let memberTarget: (Member, Int) -> BuddyMemberProfileTarget?
     let isJoined: Bool
     let joinTitle: String
     let leaveTitle: String
@@ -33,10 +34,14 @@ struct BuddyOrgInfoScaffold<Member: Identifiable, Destination: Hashable>: View {
     var onReport: () -> Void
     var prefs: OrgMembershipPrefs
     var onPrefsChange: (OrgMembershipPrefs) -> Void
+    var onMessageMember: (DiscoverBuddyItem) -> Void
+    var onBookMember: ((PaidCompanion) -> Void)? = nil
 
     @Environment(AppModel.self) private var app
     @State private var showAllMembers = false
     @State private var confirmLeave = false
+    @State private var selectedMember: BuddyMemberProfileTarget?
+    @State private var showMemberList = false
 
     private let columns = Array(
         repeating: GridItem(.flexible(), spacing: PlatformMetrics.cardInfoSpacing),
@@ -50,6 +55,10 @@ struct BuddyOrgInfoScaffold<Member: Identifiable, Destination: Hashable>: View {
 
     private var canExpandMembers: Bool {
         members.count > 9
+    }
+
+    private var allMemberTargets: [BuddyMemberProfileTarget] {
+        members.enumerated().compactMap { memberTarget($0.element, $0.offset) }
     }
 
     var body: some View {
@@ -125,6 +134,21 @@ struct BuddyOrgInfoScaffold<Member: Identifiable, Destination: Hashable>: View {
                     : "退出后成员设置会清除，可随时重新加入。"
             )
         }
+        .sheet(item: $selectedMember) { target in
+            BuddyMemberProfileSheet(
+                target: target,
+                onMessage: onMessageMember,
+                onBook: onBookMember
+            )
+        }
+        .sheet(isPresented: $showMemberList) {
+            BuddyMemberListSheet(
+                title: BuddyMemberCopy.listTitle,
+                members: allMemberTargets,
+                onMessage: onMessageMember,
+                onBook: onBookMember
+            )
+        }
     }
 
     private var muteBinding: Binding<Bool> {
@@ -177,9 +201,9 @@ struct BuddyOrgInfoScaffold<Member: Identifiable, Destination: Hashable>: View {
         Section {
             if members.isEmpty && !isJoined {
                 ContentUnavailableView(
-                    "暂无成员资料",
+                    BuddyMemberCopy.emptyMembersTitle,
                     systemImage: "person.2",
-                    description: Text("加入后可邀请同好，或去舞台发现更多人。")
+                    description: Text(BuddyMemberCopy.emptyMembersDescription)
                 )
                 .listRowBackground(Color.clear)
                 .padding(.vertical, 8)
@@ -188,8 +212,8 @@ struct BuddyOrgInfoScaffold<Member: Identifiable, Destination: Hashable>: View {
                     if isJoined {
                         selfMemberCell
                     }
-                    ForEach(visibleMembers) { member in
-                        memberCell(member)
+                    ForEach(Array(visibleMembers.enumerated()), id: \.element.id) { offset, member in
+                        memberCell(member, index: offset)
                     }
                     if isJoined {
                         addMemberCell
@@ -197,22 +221,49 @@ struct BuddyOrgInfoScaffold<Member: Identifiable, Destination: Hashable>: View {
                 }
                 .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
 
-                if canExpandMembers {
+                if canExpandMembers || !allMemberTargets.isEmpty {
                     Button {
-                        withAnimation(.snappy) { showAllMembers.toggle() }
+                        if canExpandMembers, !showAllMembers {
+                            withAnimation(.snappy) { showAllMembers = true }
+                        } else {
+                            showMemberList = true
+                        }
                     } label: {
                         HStack {
                             Spacer()
-                            Text(showAllMembers ? "收起成员" : "更多成员")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            Image(systemName: showAllMembers ? "chevron.up" : "chevron.down")
+                            Text(
+                                canExpandMembers && !showAllMembers
+                                    ? BuddyMemberCopy.moreMembers
+                                    : BuddyMemberCopy.viewAllMembers
+                            )
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            Image(systemName: canExpandMembers && !showAllMembers ? "chevron.down" : "list.bullet")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.tertiary)
                             Spacer()
                         }
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(BuddyMemberCopy.viewAllMembers)
+
+                    if showAllMembers, canExpandMembers {
+                        Button {
+                            withAnimation(.snappy) { showAllMembers = false }
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Text(BuddyMemberCopy.collapseMembers)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                Image(systemName: "chevron.up")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                                Spacer()
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
         }
@@ -228,24 +279,26 @@ struct BuddyOrgInfoScaffold<Member: Identifiable, Destination: Hashable>: View {
                 .frame(maxWidth: 56)
         }
         .frame(maxWidth: .infinity)
-        .accessibilityLabel("我，\(app.user.name)")
+        .accessibilityLabel("\(BuddyMemberCopy.roleSelf)，\(app.user.name)")
     }
 
     @ViewBuilder
-    private func memberCell(_ member: Member) -> some View {
+    private func memberCell(_ member: Member, index: Int) -> some View {
         let name = memberName(member)
         let label = prefs.showMemberNicknames ? truncated(name) : String(name.prefix(1))
-        if let destination = memberDestination(member) {
-            NavigationLink(value: destination) {
-                memberAvatarStack(displayName: name, label: label)
+        if let target = memberTarget(member, index) {
+            Button {
+                selectedMember = target
+            } label: {
+                memberAvatarStack(displayName: name, label: label, role: target.role)
             }
             .buttonStyle(.plain)
         } else {
-            memberAvatarStack(displayName: name, label: label)
+            memberAvatarStack(displayName: name, label: label, role: nil)
         }
     }
 
-    private func memberAvatarStack(displayName: String, label: String) -> some View {
+    private func memberAvatarStack(displayName: String, label: String, role: String?) -> some View {
         VStack(spacing: 6) {
             PlatformListAvatarView(name: displayName, side: 52)
             Text(label)
@@ -255,7 +308,11 @@ struct BuddyOrgInfoScaffold<Member: Identifiable, Destination: Hashable>: View {
                 .frame(maxWidth: 56)
         }
         .frame(maxWidth: .infinity)
-        .accessibilityLabel(displayName)
+        .accessibilityLabel(
+            role.map { BuddyMemberCopy.listAccessibility(nickname: displayName, role: $0) }
+                ?? displayName
+        )
+        .accessibilityHint(BuddyMemberCopy.profileTitle)
     }
 
     private var addMemberCell: some View {
@@ -339,6 +396,10 @@ struct ProfileCircleDetailView: View {
             .map(DiscoverBuddyItem.free)
     }
 
+    private var profileSource: BuddyProfileSource {
+        .circle(name: circle.name, topic: circle.topic)
+    }
+
     var body: some View {
         BuddyOrgInfoScaffold(
             infoTitle: "组织信息",
@@ -353,7 +414,13 @@ struct ProfileCircleDetailView: View {
             ],
             members: members,
             memberName: { $0.profile.nickname },
-            memberDestination: { Optional.some($0) },
+            memberTarget: { item, index in
+                BuddyMemberProfileTarget(
+                    item: item,
+                    source: profileSource,
+                    role: index == 0 ? BuddyMemberCopy.roleAdmin : BuddyMemberCopy.roleMember
+                )
+            },
             isJoined: isJoined,
             joinTitle: "加入组织",
             leaveTitle: "退出组织",
@@ -372,12 +439,15 @@ struct ProfileCircleDetailView: View {
             prefs: buddies.prefs(kind: .circle, name: circle.name),
             onPrefsChange: { next in
                 buddies.updatePrefs(kind: .circle, name: circle.name) { $0 = next }
+            },
+            onMessageMember: { item in
+                let greeting = "你好，我在「\(circle.name)」看到你，想认识一下。"
+                if let convo = app.startDirectChat(with: item.profile.nickname, greeting: greeting) {
+                    app.openMessages(conversationID: convo.id)
+                }
             }
         )
         .platformSecondaryPage()
-        .navigationDestination(for: DiscoverBuddyItem.self) { item in
-            BuddyDetailRouteView(item: item)
-        }
         .buddyOrgJoinChrome(
             buddies: buddies,
             openConversation: { app.openMessages(conversationID: $0) }
