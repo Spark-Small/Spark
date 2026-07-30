@@ -53,8 +53,7 @@ struct ActivityJoinSuccessSheet: View {
             VStack {
                 Image(systemName: context == .published ? "sparkles" : "checkmark.circle.fill")
                     .font(.largeTitle.weight(.semibold))
-                    .foregroundStyle(PlatformStatus.success)
-                    .symbolRenderingMode(.hierarchical)
+                    .platformSymbolStyle(.status(PlatformStatus.success))
 
                 VStack {
                     Text(context.title)

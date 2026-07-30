@@ -20,6 +20,7 @@ struct ActivitiesView: View {
     @State private var didBootstrapLocation = false
     @State private var path = NavigationPath()
     @State private var seeAllShelf: ActivityBrowseShelf?
+    @State private var showFavorites = false
     @Namespace private var zoomNamespace
 
     var body: some View {
@@ -68,6 +69,9 @@ struct ActivitiesView: View {
             .sheet(isPresented: $model.showTrips) {
                 ActivityTripsView()
             }
+            .sheet(isPresented: $showFavorites) {
+                ActivityFavoritesView()
+            }
             .sheet(isPresented: $model.showFilters) {
                 ActivityFilterSheet(quickFilters: $model.quickFilters)
             }
@@ -115,7 +119,7 @@ struct ActivitiesView: View {
                 }
             } label: {
                 Image(systemName: model.selectedCategory.systemImage)
-                    .symbolRenderingMode(.hierarchical)
+                    .platformSymbolStyle(.hierarchical)
             }
             .platformToolbarCircleStyle()
             .accessibilityLabel("活动分类，当前\(model.selectedCategory.title)")
@@ -127,7 +131,7 @@ struct ActivitiesView: View {
                     model.showFilters = true
                 } label: {
                     Image(systemName: "line.3.horizontal.decrease")
-                        .symbolRenderingMode(.hierarchical)
+                        .platformSymbolStyle(.hierarchical)
                 }
                 .platformToolbarCircleStyle()
                 .accessibilityLabel(activeFiltersAccessibilityLabel)
@@ -141,6 +145,9 @@ struct ActivitiesView: View {
                 Button("我的活动", systemImage: "ticket") {
                     model.showTrips = true
                 }
+                Button("收藏的活动", systemImage: "bookmark") {
+                    showFavorites = true
+                }
                 Button(
                     hasActiveFilters ? "筛选（已启用）" : "筛选",
                     systemImage: "line.3.horizontal.decrease"
@@ -149,7 +156,7 @@ struct ActivitiesView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis")
-                    .symbolRenderingMode(.hierarchical)
+                    .platformSymbolStyle(.hierarchical)
             }
             .platformToolbarCircleStyle()
             .accessibilityLabel("更多")

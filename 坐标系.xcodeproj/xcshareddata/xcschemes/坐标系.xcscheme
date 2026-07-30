@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "80E75794300761E8001E6272"
-               BuildableName = "坐标系.app"
-               BlueprintName = "坐标系"
-               ReferencedContainer = "container:坐标系.xcodeproj">
+               BuildableName = "&#x5750;&#x6807;&#x7cfb;.app"
+               BlueprintName = "&#x5750;&#x6807;&#x7cfb;"
+               ReferencedContainer = "container:&#x5750;&#x6807;&#x7cfb;.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
          <BuildActionEntry
@@ -30,9 +30,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "90A001001122334455667706"
-               BuildableName = "坐标系Tests.xctest"
-               BlueprintName = "坐标系Tests"
-               ReferencedContainer = "container:坐标系.xcodeproj">
+               BuildableName = "&#x5750;&#x6807;&#x7cfb;Tests.xctest"
+               BlueprintName = "&#x5750;&#x6807;&#x7cfb;Tests"
+               ReferencedContainer = "container:&#x5750;&#x6807;&#x7cfb;.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -50,9 +50,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "90A001001122334455667706"
-               BuildableName = "坐标系Tests.xctest"
-               BlueprintName = "坐标系Tests"
-               ReferencedContainer = "container:坐标系.xcodeproj">
+               BuildableName = "&#x5750;&#x6807;&#x7cfb;Tests.xctest"
+               BlueprintName = "&#x5750;&#x6807;&#x7cfb;Tests"
+               ReferencedContainer = "container:&#x5750;&#x6807;&#x7cfb;.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -72,9 +72,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "80E75794300761E8001E6272"
-            BuildableName = "坐标系.app"
-            BlueprintName = "坐标系"
-            ReferencedContainer = "container:坐标系.xcodeproj">
+            BuildableName = "&#x5750;&#x6807;&#x7cfb;.app"
+            BlueprintName = "&#x5750;&#x6807;&#x7cfb;"
+            ReferencedContainer = "container:&#x5750;&#x6807;&#x7cfb;.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -89,9 +89,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "80E75794300761E8001E6272"
-            BuildableName = "坐标系.app"
-            BlueprintName = "坐标系"
-            ReferencedContainer = "container:坐标系.xcodeproj">
+            BuildableName = "&#x5750;&#x6807;&#x7cfb;.app"
+            BlueprintName = "&#x5750;&#x6807;&#x7cfb;"
+            ReferencedContainer = "container:&#x5750;&#x6807;&#x7cfb;.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

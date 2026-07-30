@@ -344,9 +344,14 @@ struct ActivityDetailFeeCard: View {
                         .foregroundStyle(.primary)
                         .fixedSize(horizontal: false, vertical: true)
                 } icon: {
-                    Image(systemName: item.included ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(item.included ? PlatformStatus.success : .secondary)
-                        .symbolRenderingMode(.hierarchical)
+                    if item.included {
+                        Image(systemName: "checkmark.circle.fill")
+                            .platformSymbolStyle(.status(PlatformStatus.success))
+                    } else {
+                        Image(systemName: "circle")
+                            .platformSymbolStyle(.hierarchical)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .labelStyle(.titleAndIcon)
                 .font(.body)

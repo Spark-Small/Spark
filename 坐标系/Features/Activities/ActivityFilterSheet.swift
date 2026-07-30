@@ -60,12 +60,15 @@ struct ActivityFilterSheet: View {
                 Section("条件") {
                     Toggle(isOn: $nearby) {
                         Label("附近", systemImage: "location")
+                            .platformContentSymbolStyle()
                     }
                     Toggle(isOn: $free) {
                         Label("免费", systemImage: "gift")
+                            .platformContentSymbolStyle()
                     }
                     Toggle(isOn: $available) {
                         Label("有空位", systemImage: "person.badge.plus")
+                            .platformContentSymbolStyle()
                     }
                 }
             }

@@ -122,7 +122,10 @@ struct CommunityCommentRow: View {
             VStack(spacing: 2) {
                 Image(systemName: isLiked ? "heart.fill" : "heart")
                     .font(.body)
-                    .foregroundStyle(isLiked ? PlatformStatus.danger : .secondary)
+                    .platformListActionSymbolStyle(
+                        isActive: isLiked,
+                        activeColor: PlatformStatus.danger
+                    )
                 if comment.likeCount > 0 {
                     Text("\(comment.likeCount)")
                         .font(.caption2)

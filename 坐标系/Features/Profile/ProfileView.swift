@@ -14,6 +14,7 @@ struct ProfileView: View {
     @Environment(CommunityModel.self) private var community
 
     @State private var showEditProfile = false
+    @State private var showCreateAccount = false
     @State private var path = NavigationPath()
     @Namespace private var zoomNamespace
 
@@ -24,7 +25,6 @@ struct ProfileView: View {
                     profileSection
                     activityShelf
                     publishedShelf
-                    favoritesShelf
                     circlesShelf
                     buddiesEntry
                 }
@@ -34,6 +34,9 @@ struct ProfileView: View {
             .background(PlatformSurface.groupedPage)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    accountMenu
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
                         ProfileSettingsView()
@@ -47,6 +50,9 @@ struct ProfileView: View {
                     get: { app.user },
                     set: { updated in app.updateProfile(updated) }
                 ))
+            }
+            .sheet(isPresented: $showCreateAccount) {
+                ProfileCreateAccountSheet(session: app.auth)
             }
             .activityZoomNavigationDestination(namespace: zoomNamespace)
             .navigationDestination(for: CommunityPost.self) { post in
@@ -64,9 +70,6 @@ struct ProfileView: View {
                     ActivityTripsView(presentation: .pushed, initialSegment: .joined)
                 }
             }
-            .navigationDestination(for: FavoritesDestination.self) { _ in
-                ProfileFavoritesView()
-            }
             .navigationDestination(for: CircleDestination.self) { _ in
                 ProfileCirclesListView()
             }
@@ -81,15 +84,67 @@ struct ProfileView: View {
     }
 
     private var profileSection: some View {
-        Button {
-            showEditProfile = true
-        } label: {
-            profileIdentityRow
+        VStack(alignment: .leading, spacing: PlatformMetrics.sectionHeaderSpacing) {
+            Button {
+                showEditProfile = true
+            } label: {
+                profileIdentityRow
+            }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .accessibilityHint("打开个人资料编辑")
+
+            HStack(spacing: PlatformMetrics.railCardSpacing) {
+                NavigationLink {
+                    ProfileMembershipView()
+                } label: {
+                    Text("开通会员")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.primary)
+
+                NavigationLink {
+                    ProfileWalletView()
+                } label: {
+                    Text("我的钱包")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
         }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle())
-        .accessibilityHint("打开个人资料编辑")
         .padding(.horizontal, PlatformMetrics.contentInset)
+    }
+
+    @ViewBuilder
+    private var accountMenu: some View {
+        Menu {
+            if app.auth.isGuest {
+                Button("手机号创建账号", systemImage: "phone") {
+                    showCreateAccount = true
+                }
+                Button("使用 Apple 创建", systemImage: "apple.logo") {
+                    app.auth.signInDemoApple()
+                }
+                Button("使用微信创建", systemImage: "message") {
+                    app.auth.signInDemoWeChat()
+                }
+            } else {
+                Button("编辑个人资料", systemImage: "person.crop.circle") {
+                    showEditProfile = true
+                }
+                NavigationLink {
+                    ProfileSettingsView()
+                } label: {
+                    Label("账号设置", systemImage: "lock.shield")
+                }
+            }
+        } label: {
+            Text(app.auth.isGuest ? "创建账号" : "账号")
+        }
+        .accessibilityHint(app.auth.isGuest ? "选择创建账号方式" : "打开账号操作")
     }
 
     private var joinedActivitiesPreview: [Activity] {
@@ -105,15 +160,15 @@ struct ProfileView: View {
     }
 
     private var publishedPostsPreview: [CommunityPost] {
-        Array(community.myPosts.prefix(6))
+        Array(community.myPosts.prefix(3))
     }
 
-    private var favoriteActivitiesPreview: [Activity] {
-        Array(activities.favoriteActivities.prefix(6))
-    }
-
-    private var favoritePostsPreview: [CommunityPost] {
-        Array(community.bookmarkedPosts.prefix(6))
+    private var publishedActivitiesPreview: [Activity] {
+        Array(
+            activities.hostedActivities
+                .sorted { $0.date > $1.date }
+                .prefix(max(0, 3 - publishedPostsPreview.count))
+        )
     }
 
     private var joinedCirclesPreview: [InterestCircle] {
@@ -154,14 +209,13 @@ struct ProfileView: View {
                             namespace: zoomNamespace,
                             clip: .rail
                         ) {
-                            ProfileLibraryShelfCard(
+                            PlatformActivityCompactCard(
+                                photo: activity.coverPhoto,
+                                badge: activities.isHost(activity) ? "主办中" : ActivityCardStatus.joined,
                                 title: activity.title,
-                                subtitle: Formatters.activityEventTime(from: activity.date),
-                                badge: activities.isHost(activity) ? "主办中" : ActivityCardStatus.joined
-                            ) {
-                                CommunityRemotePhoto(ref: activity.coverPhoto)
-                            }
-                            .platformProfileLibraryRailFrame()
+                                metaLine: Formatters.activityEventTime(from: activity.date)
+                            )
+                            .platformProfileActivityHistoryRailFrame()
                         }
                     }
                 }
@@ -176,95 +230,72 @@ struct ProfileView: View {
                 path.append(PublishedDestination(segment: .posts))
             }
         ) {
-            if publishedPostsPreview.isEmpty && hostedActivitiesPreview.isEmpty {
+            if publishedPostsPreview.isEmpty && publishedActivitiesPreview.isEmpty {
                 profileShelfEmptyState(
                     title: "还没有发布内容",
                     systemImage: "square.and.pencil",
                     description: "发社区分享或发起活动后，这里会显示最近内容。"
                 )
             } else {
-                DiscoverHorizontalRail {
+                VStack(spacing: PlatformMetrics.sectionHeaderSpacing) {
                     ForEach(publishedPostsPreview) { post in
-                        NavigationLink(value: post) {
-                            ProfileLibraryShelfCard(
-                                title: post.messageText,
-                                subtitle: postShelfMetaLine(for: post),
-                                badge: "分享"
-                            ) {
-                                CommunityRemotePhoto(ref: post.coverPhoto)
+                        HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
+                            NavigationLink(value: post) {
+                                ProfilePublishedLibraryLabel(
+                                    title: post.messageText,
+                                    subtitle: "公开 · \(postShelfMetaLine(for: post))"
+                                ) {
+                                    CommunityRemotePhoto(ref: post.coverPhoto)
+                                }
                             }
-                            .platformProfileLibraryRailFrame()
+                            .buttonStyle(.plain)
+
+                            Menu {
+                                ShareLink(item: post.shareText) {
+                                    Label("分享", systemImage: "square.and.arrow.up")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .font(.body.weight(.semibold))
+                            }
+                            .buttonStyle(.plain)
+                            .controlSize(.large)
+                            .accessibilityLabel("更多，\(post.messageText)")
                         }
-                        .buttonStyle(.plain)
                     }
 
-                    ForEach(Array(hostedActivitiesPreview.prefix(max(0, 6 - publishedPostsPreview.count)))) { activity in
-                        ActivityZoomNavigationLink(
-                            activity: activity,
-                            namespace: zoomNamespace,
-                            clip: .rail
-                        ) {
-                            ProfileLibraryShelfCard(
-                                title: activity.title,
-                                subtitle: Formatters.activityEventTime(from: activity.date),
-                                badge: "活动"
-                            ) {
-                                CommunityRemotePhoto(ref: activity.coverPhoto)
+                    ForEach(publishedActivitiesPreview) { activity in
+                        HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
+                            NavigationLink(value: activity.id) {
+                                ProfilePublishedLibraryLabel(
+                                    title: activity.title,
+                                    subtitle: "公开 · 活动 · \(Formatters.activityEventTime(from: activity.date))"
+                                ) {
+                                    CommunityRemotePhoto(ref: activity.coverPhoto)
+                                        .activityZoomTransitionSource(
+                                            id: activity.id,
+                                            in: zoomNamespace,
+                                            clip: .rail
+                                        )
+                                }
                             }
-                            .platformProfileLibraryRailFrame()
+                            .buttonStyle(.plain)
+
+                            Menu {
+                                ShareLink(item: activityShareText(for: activity)) {
+                                    Label("分享", systemImage: "square.and.arrow.up")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .font(.body.weight(.semibold))
+                            }
+                            .buttonStyle(.plain)
+                            .controlSize(.large)
+                            .accessibilityLabel("更多，\(activity.title)")
                         }
                     }
                 }
-            }
-        }
-    }
-
-    private var favoritesShelf: some View {
-        DiscoverBrowseSection(
-            title: "收藏",
-            onSeeAll: {
-                path.append(FavoritesDestination.root)
-            }
-        ) {
-            if favoriteActivitiesPreview.isEmpty && favoritePostsPreview.isEmpty {
-                profileShelfEmptyState(
-                    title: "还没有收藏内容",
-                    systemImage: "bookmark",
-                    description: "在活动或社区里点收藏后，这里会保留最近内容。"
-                )
-            } else {
-                DiscoverHorizontalRail {
-                    ForEach(favoriteActivitiesPreview) { activity in
-                        ActivityZoomNavigationLink(
-                            activity: activity,
-                            namespace: zoomNamespace,
-                            clip: .rail
-                        ) {
-                            ProfileLibraryShelfCard(
-                                title: activity.title,
-                                subtitle: Formatters.activityEventTime(from: activity.date),
-                                badge: "活动"
-                            ) {
-                                CommunityRemotePhoto(ref: activity.coverPhoto)
-                            }
-                            .platformProfileLibraryRailFrame()
-                        }
-                    }
-
-                    ForEach(favoritePostsPreview) { post in
-                        NavigationLink(value: post) {
-                            ProfileLibraryShelfCard(
-                                title: post.messageText,
-                                subtitle: postShelfMetaLine(for: post),
-                                badge: "分享"
-                            ) {
-                                CommunityRemotePhoto(ref: post.coverPhoto)
-                            }
-                            .platformProfileLibraryRailFrame()
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+                .padding(.horizontal, PlatformMetrics.contentInset)
             }
         }
     }
@@ -295,8 +326,7 @@ struct ProfileView: View {
                                     .overlay {
                                         Image(systemName: circle.systemImage)
                                             .font(.title2)
-                                            .symbolRenderingMode(.hierarchical)
-                                            .foregroundStyle(Color.accentColor)
+                                            .platformSymbolStyle(.multicolor)
                                     }
                             }
                             .platformProfileLibraryRailFrame()
@@ -317,6 +347,7 @@ struct ProfileView: View {
         ) {
             NavigationLink(value: BuddiesDestination.root) {
                 Label("查看我的陪玩", systemImage: "person.2")
+                    .platformContentSymbolStyle()
                     .font(.body.weight(.medium))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, PlatformMetrics.contentInset)
@@ -382,6 +413,10 @@ struct ProfileView: View {
         ]
         return parts.joined(separator: " · ")
     }
+
+    private func activityShareText(for activity: Activity) -> String {
+        "【坐标系·活动】\(activity.title)\n\(Formatters.activityEventTime(from: activity.date))\n\(activity.location)"
+    }
 }
 
 #Preview {
@@ -390,10 +425,6 @@ struct ProfileView: View {
 
 private enum ActivityLibraryDestination: Hashable {
     case joined
-}
-
-private enum FavoritesDestination: Hashable {
-    case root
 }
 
 private enum CircleDestination: Hashable {
@@ -406,51 +437,4 @@ private enum BuddiesDestination: Hashable {
 
 private struct PublishedDestination: Hashable {
     var segment: ProfilePublishedView.Segment
-}
-
-private struct ProfileLibraryShelfCard<Media: View>: View {
-    let title: String
-    let subtitle: String
-    var badge: String? = nil
-    @ViewBuilder var media: () -> Media
-
-    var body: some View {
-        ZStack {
-            media()
-                .aspectRatio(PlatformMetrics.profileLibraryCardAspectRatio, contentMode: .fill)
-                .clipped()
-
-            LinearGradient(
-                colors: [.clear, Color.black.opacity(0.78)],
-                startPoint: .center,
-                endPoint: .bottom
-            )
-
-            if let badge, !badge.isEmpty {
-                PlatformMediaCaptionBadge(title: badge)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
-
-            VStack(alignment: .leading, spacing: PlatformMetrics.cardInfoSpacing) {
-                Text(title)
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(2)
-
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.82))
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-            .padding(PlatformMetrics.captionBadgeInset)
-        }
-        .aspectRatio(PlatformMetrics.profileLibraryCardAspectRatio, contentMode: .fit)
-        .clipShape(PlatformMetrics.posterShape)
-        .contentShape(PlatformMetrics.posterShape)
-        .colorScheme(.dark)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(title)，\(subtitle)")
-    }
 }

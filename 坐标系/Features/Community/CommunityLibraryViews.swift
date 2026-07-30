@@ -158,14 +158,20 @@ struct CommunityGuidelinesView: View {
 
             Section("请这样发") {
                 Label("分享真实到场体验，配上清楚的地点与时间", systemImage: "checkmark.circle")
+                    .platformContentSymbolStyle()
                 Label("尊重他人，讨论聚焦活动本身", systemImage: "hand.raised")
+                    .platformContentSymbolStyle()
                 Label("转载请注明来源，不冒用他人照片", systemImage: "person.crop.rectangle")
+                    .platformContentSymbolStyle()
             }
 
             Section("请避免") {
                 Label("骚扰、人身攻击与恶意举报", systemImage: "xmark.circle")
+                    .platformContentSymbolStyle()
                 Label("广告灌水、虚假活动信息", systemImage: "megaphone")
+                    .platformContentSymbolStyle()
                 Label("色情低俗、违法违规内容", systemImage: "exclamationmark.triangle")
+                    .platformContentSymbolStyle()
             }
 
             Section {

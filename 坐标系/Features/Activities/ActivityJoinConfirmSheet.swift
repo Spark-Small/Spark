@@ -321,8 +321,9 @@ struct ActivityDetailContentEditorSheet: View {
                                     removeGalleryPhoto(at: index)
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
-                                        .symbolRenderingMode(.palette)
-                                        .foregroundStyle(.white, .black.opacity(0.55))
+                                        .platformSymbolStyle(
+                                            .badge(primary: .white, secondary: .black.opacity(0.55))
+                                        )
                                 }
                                 .offset(x: PlatformMetrics.galleryRemoveBadgeOffset, y: -PlatformMetrics.galleryRemoveBadgeOffset)
                             }

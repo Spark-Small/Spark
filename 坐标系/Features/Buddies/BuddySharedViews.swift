@@ -29,10 +29,13 @@ struct BuddyReviewRow: View {
                 Text(review.author)
                     .font(.body)
                 Spacer(minLength: 0)
-                Label("\(review.rating)", systemImage: "star.fill")
+                Label {
+                    Text("\(review.rating)")
+                } icon: {
+                    Image(systemName: "star.fill")
+                        .platformSymbolStyle(.status(PlatformStatus.warning))
+                }
                     .font(.subheadline)
-                    .foregroundStyle(PlatformStatus.warning)
-                    .symbolRenderingMode(.hierarchical)
                 Text(review.dateText)
                     .font(.subheadline)
                     .foregroundStyle(.tertiary)

@@ -35,22 +35,6 @@ enum PlatformListActionSymbol {
     static var trailingTextSpacing: CGFloat { PlatformMetrics.hairlineSpacing }
 }
 
-extension View {
-    /// 列表行内操作符号：hierarchical 渲染 + body/medium 尺寸，随 Dynamic Type 缩放。
-    /// 传入 `activeColor` 时激活态用 monochrome + 语义色（如点赞红）。
-    func platformListActionSymbolStyle(
-        isActive: Bool = false,
-        activeColor: Color? = nil
-    ) -> some View {
-        let usesSemanticActive = isActive && activeColor != nil
-        return self
-            .font(PlatformListActionSymbol.font)
-            .imageScale(PlatformListActionSymbol.imageScale)
-            .symbolRenderingMode(usesSemanticActive ? .monochrome : .hierarchical)
-            .foregroundStyle(isActive ? (activeColor ?? .primary) : .secondary)
-    }
-}
-
 /// subtitleCell 主 / 副 / 辅助文列（Feed、详情、评论等复用）。
 struct PlatformListTextColumn: View {
     let primary: String

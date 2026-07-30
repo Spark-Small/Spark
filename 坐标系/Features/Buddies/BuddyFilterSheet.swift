@@ -114,6 +114,7 @@ struct BuddyFilterSheet: View {
             NavigationLink(value: BuddyFilterRoute.provinces) {
                 HStack {
                     Label("指定城市", systemImage: "building.2")
+                        .platformContentSymbolStyle()
                     Spacer()
                     Text(citySummary)
                         .foregroundStyle(.secondary)
@@ -208,6 +209,7 @@ struct BuddyFilterSheet: View {
             NavigationLink(value: BuddyFilterRoute.hobbies) {
                 HStack {
                     Label("兴趣", systemImage: "heart")
+                        .platformContentSymbolStyle()
                     Spacer()
                     Text(hobbySummary)
                         .foregroundStyle(.secondary)
@@ -241,6 +243,7 @@ struct BuddyFilterSheet: View {
         } label: {
             HStack {
                 Label(title, systemImage: systemImage)
+                    .platformContentSymbolStyle()
                     .foregroundStyle(.primary)
                 Spacer()
                 if selected {
@@ -342,6 +345,7 @@ struct BuddyFilterSheet: View {
         } label: {
             HStack {
                 Label(title, systemImage: systemImage)
+                    .platformContentSymbolStyle()
                     .foregroundStyle(.primary)
                 Spacer()
                 if selected {

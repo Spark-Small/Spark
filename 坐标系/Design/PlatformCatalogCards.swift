@@ -83,6 +83,77 @@ private struct PlatformCatalogHeroFooter: View {
     }
 }
 
+// MARK: - 活动紧凑横卡（16:9）
+
+/// 活动页与个人内容库共用的小卡：16:9 封面内叠放标题与时间。
+/// 外层负责 NavigationLink / Zoom 和轨道宽度，本组件只管理卡内视觉。
+struct PlatformActivityCompactCard: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var photo: CommunityPhotoRef?
+    var badge: String?
+    var title: String
+    var metaLine: String
+
+    var body: some View {
+        ZStack {
+            PlatformCatalogCoverFill(
+                photo: photo,
+                aspectRatio: PlatformMetrics.activityCardAspectRatio
+            )
+
+            LinearGradient(
+                colors: [.clear, Color.black.opacity(0.78)],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+
+            if let badge, !badge.isEmpty {
+                PlatformMediaCaptionBadge(title: badge)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(PlatformMetrics.captionBadgeInset)
+            }
+
+            VStack(alignment: .leading, spacing: PlatformMetrics.cardInfoSpacing) {
+                titleView
+
+                Text(metaLine)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.82))
+                    .lineLimit(DiscoverAccessibility.metaLineLimit(for: dynamicTypeSize))
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+            .padding(PlatformMetrics.captionBadgeInset)
+        }
+        .clipShape(PlatformMetrics.mediaShape)
+        .contentShape(PlatformMetrics.mediaShape)
+        .colorScheme(.dark)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            ActivityCardStatus.openAccessibilityLabel(
+                status: badge,
+                title: title,
+                parts: metaLine
+            )
+        )
+        .accessibilityHint(ActivityCardStatus.openHint)
+    }
+
+    @ViewBuilder
+    private var titleView: some View {
+        let text = Text(title)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.white)
+            .multilineTextAlignment(.leading)
+
+        if dynamicTypeSize.isAccessibilitySize {
+            text.fixedSize(horizontal: false, vertical: true)
+        } else {
+            text.lineLimit(2, reservesSpace: true)
+        }
+    }
+}
+
 // MARK: - 跟进横卡（16:9）
 
 /// 左下信息 + 右下参加；封面 zoom 打开
@@ -452,10 +523,28 @@ extension View {
         }
     }
 
-    /// 个人内容库小卡轨：约三张完整卡，并露出第四张。
+    /// 我的活动横卡轨：系统相对容器一屏两张完整卡。
+    func platformProfileActivityHistoryRailFrame() -> some View {
+        containerRelativeFrame(
+            .horizontal,
+            count: PlatformMetrics.profileActivityHistoryRailColumnCount,
+            span: 1,
+            spacing: PlatformMetrics.railCardSpacing
+        )
+    }
+
+    /// 个人内容库竖海报轨：约三张完整卡，并露出第四张。
     func platformProfileLibraryRailFrame() -> some View {
         containerRelativeFrame(.horizontal) { length, _ in
             length * PlatformMetrics.profileLibraryRailVisibleFraction
+        }
+    }
+
+    /// 「我的发布」媒体库行缩略图：与一屏两张的活动卡等宽。
+    func platformProfileMediaLibraryThumbnailFrame() -> some View {
+        containerRelativeFrame(.horizontal) { length, _ in
+            let contentWidth = length - PlatformMetrics.contentInset * 2
+            return (contentWidth - PlatformMetrics.railCardSpacing) / 2
         }
     }
 }

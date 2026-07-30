@@ -19,8 +19,7 @@ struct BuddyVoiceHallShelfCard: View {
                     .overlay {
                         Image(systemName: hall.systemImage)
                             .font(.largeTitle)
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(PlatformStatus.warning)
+                            .platformSymbolStyle(.status(PlatformStatus.warning))
                     }
                     .aspectRatio(PlatformMetrics.posterCardAspectRatio, contentMode: .fit)
 

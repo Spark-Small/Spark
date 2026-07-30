@@ -215,7 +215,8 @@
 | 焦点大卡 | 0.88 | 一卡主导 + 露邻 |
 | 跟进/热场 | 0.86 | 同左 |
 | 榜单海报 | 0.36 | 约两张半/屏 + 露边；配合 3:4 控轨高 |
-| 我的内容库 | 0.29 | 约三张 2:3 竖海报 + 露出第 4 张 |
+| 我的活动历史轨 | 系统两列 | 两张完整 16:9 横缩略小卡 |
+| 我的竖海报内容轨 | 0.29 | 约三张 2:3 竖海报 + 露出第 4 张 |
 
 ## 4.5 Section 间距
 
@@ -276,6 +277,15 @@
 - **信任**：详情 Form + 「⋯」含不感兴趣 / 举报 / 拉黑；陪玩可有「平台认证」角标；底栏打招呼 + 邀约/预约（`activityDetailBottom*CTA`）  
 - **详情分区**：头图（3:4）→ 身份决策 → 资料信任行 → 基本资料 → 关于/服务 → 共同兴趣 → 组织 → 档期 → 评价 → 相关活动横滑轨  
 
+**我的顶栏与身份区**
+
+- 顶栏 Leading：账号 `Menu`；访客显示「创建账号」，登录后显示「账号」
+- 顶栏 Trailing：系统设置入口
+- 身份区：头像 + 昵称 + `@账号`，整行进入编辑资料
+- 身份区下方：两个等宽大号系统按钮；左「开通会员」，右「我的钱包」
+- 一级内容库：我的活动 / 我的发布 / 我的圈子 / 我的陪玩；**不含收藏聚合**
+- 收藏分域：社区分享 → 社区左上角 Menu「收藏的分享」；活动 → 活动页「更多」→「收藏的活动」
+
 **详情顶栏**
 
 - `.toolbarBackground(.hidden, for: .navigationBar)`  
@@ -309,7 +319,9 @@
 | **Discover 竖大卡** | 兴趣/品类流 | 16:9 | 20 | 封面叠字或 a11y 图下堆叠 |
 | **Continue / Hot 横卡** | 跟进、热场轨 | 16:9 | 14 | 轨宽 ~0.86；底栏同 Hero 结构 |
 | **Poster 榜单** | 排名轨 | 3:4 | 14 | 轨宽 ~0.36；序号角标 |
-| **Profile Library** | 「我的」内容预览 | 2:3 竖海报 | poster | 一屏约 3 张完整卡并露出第 4 张；底部渐变叠标题与单行 meta |
+| **Profile Activity History** | 「我的活动」预览 | 16:9 封面内叠字 | media | 使用系统相对容器两列，一屏两张完整卡；标题与时间位于卡内 |
+| **Profile Media Library** | 「我的发布」预览 | 16:9 双层行缩略图 | media | 缩略图与一屏两张的活动卡等宽；前景媒体 + 单张背景共两层；右侧粗体标题/公开状态、尾部系统更多菜单 |
+| **Profile Poster Library** | 圈子内容预览 | 2:3 竖海报 | poster | 一屏约 3 张完整卡并露出第 4 张；底部渐变叠标题与单行 meta |
 | **Editorial 焦点** | 焦点大卡 | 4:5 | 24 | 轨宽 ~0.88 |
 | **Person 搭子** | 精选 Hero + 网格 | Hero 3:4 穿顶；网格 3:4 | discover | 首屏精选大卡；下方双列扫人；默认同好 / 右上「陪玩」 |
 | **Circle 组织** | 同好第二幕 | 3:4 | poster | 轨宽 ~0.36；加入=进组织群；次于选人 |
@@ -317,6 +329,8 @@
 | **Detail Hero** | 详情头图 | 3:4 | card（圆角卡） | 安全区下；天气胶囊；相册控件 |
 | **Detail Related** | 相关活动轨 | 16:9 横卡 | rail | Form 内横滑；露邻卡；非 List 行 |
 | **Compose Cover** | 发布封面 | 高 160 | media | Sheet 表单内 |
+
+活动紧凑横卡统一使用 `PlatformActivityCompactCard`：组件只负责 16:9 媒体、状态角标、两行标题、单行 meta 与 Dynamic Type；导航、Zoom 和轨宽由调用层负责。
 
 ## 6.2 卡内布局通则
 
@@ -491,10 +505,15 @@ Sheet 档位：
 ## 10.1 规则
 
 1. **只用 SF Symbols**（活动封面占位、导航、状态、工具栏）。  
-2. 渲染：默认 `.symbolRenderingMode(.hierarchical)`；状态可 monochrome + 语义色。  
-3. 与文字并排：优先 `Label`；列表行主操作除外。  
-4. 权重跟随正文 Dynamic Type，不写死 pointSize（列表标准头像位图除外）。  
-5. 镜像与本地化：使用系统可本地化符号名。  
+2. 渲染统一走 `platformSymbolStyle` / `platformContentSymbolStyle` / `platformListActionSymbolStyle`（见 `PlatformSymbolStyle.swift`）：
+   - **默认** `.hierarchical` — Toolbar、glass、次要 meta、占位图  
+   - **状态** `.monochrome` + `PlatformStatus` — 成功 / 警告 / 危险 / 点赞激活  
+   - **角标** `.palette` — 媒体删除钮、已发送勾等双层符号  
+   - **多色** `.multicolor` — 设置入口、筛选条件、分类 / 组织内容图标、公约列表  
+3. **勿强制彩色**：Tab Bar、Toolbar Menu、Navigation chevron、破坏性 `role`、系统选中 tint。  
+4. 与文字并排：优先 `Label`；列表行主操作除外。  
+5. 权重跟随正文 Dynamic Type，不写死 pointSize（列表标准头像位图除外）。  
+6. 镜像与本地化：使用系统可本地化符号名；颜色只用系统语义色与 `PlatformStatus`，无品牌色板。  
 
 ## 10.2 活动常用
 
@@ -508,6 +527,7 @@ Sheet 档位：
 | 认证 / 会员 | `checkmark.seal.fill`、`crown.fill` |
 | 费用勾选 | `checkmark.circle.fill` / `circle` |
 | 空状态 | `calendar`、`sparkles` 等 |
+| 设置 | `lock.shield`、`bell.badge`、`hand.raised.fill`、`flag.fill`、`info.circle` |
 
 决策卡行头用文案「时间」「地点」，**不再**用 clock/mappin 作行头图标。
 
@@ -556,7 +576,7 @@ NavigationStack
       ├─ Section Header（双行）
       ├─ 横滑轨 / 竖卡流 / 榜单 / 焦点…
       └─ …
-Toolbar: Photos 圆形 + 胶囊
+Toolbar: Photos 圆形 + 胶囊；Trailing「更多」含发起 / 我的活动 / 收藏的活动 / 筛选
 Background: groupedPage
 ScrollEdge: soft top
 Zoom destination 注入 namespace

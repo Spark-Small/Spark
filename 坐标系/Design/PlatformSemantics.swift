@@ -660,7 +660,9 @@ enum PlatformMetrics {
     static var editorialRailVisibleFraction: CGFloat { 0.88 }
     /// 海报轨卡宽占比：约两张半 + 露边；配合 3:4 控制轨高
     static var posterRailVisibleFraction: CGFloat { 0.36 }
-    /// 个人内容库小卡：一屏约三张完整卡，并露出第四张提示横滑。
+    /// 我的活动横卡：系统相对容器一屏两列。
+    static var profileActivityHistoryRailColumnCount: Int { 2 }
+    /// 个人内容库竖海报：一屏约三张完整卡，并露出第四张提示横滑。
     static var profileLibraryRailVisibleFraction: CGFloat { 0.29 }
     /// 背景大图轻微放大（切换时）
     static var personStageBackgroundScale: CGFloat { 1.06 }
@@ -978,7 +980,7 @@ struct PlatformPlaceholderFill: View {
             Image(systemName: "photo")
                 .font(.title2.weight(.bold))
                 .foregroundStyle(.secondary)
-                .symbolRenderingMode(.hierarchical)
+                .platformSymbolStyle(.hierarchical)
         }
     }
 }

@@ -79,7 +79,7 @@ struct SeededSceneFill: View {
             if showsSymbol {
                 Image(systemName: symbol)
                     .font(.system(size: symbolSize, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
+                    .platformSymbolStyle(.hierarchical)
                     .foregroundStyle(.primary.opacity(0.85))
                     .colorScheme(.dark)
                     .padding(layout == 0 ? 0 : 28)

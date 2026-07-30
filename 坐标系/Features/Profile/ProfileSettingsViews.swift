@@ -22,36 +22,42 @@ struct ProfileSettingsView: View {
                     SettingsAccountView()
                 } label: {
                     Label("账号与安全", systemImage: "lock.shield")
+                        .platformContentSymbolStyle()
                 }
 
                 NavigationLink {
                     SettingsNotificationsView()
                 } label: {
-                    Label("通知设置", systemImage: "bell")
+                    Label("通知设置", systemImage: "bell.badge")
+                        .platformContentSymbolStyle()
                 }
 
                 NavigationLink {
                     SettingsPrivacyView()
                 } label: {
-                    Label("隐私", systemImage: "hand.raised")
+                    Label("隐私", systemImage: "hand.raised.fill")
+                        .platformContentSymbolStyle()
                 }
 
                 NavigationLink {
                     ModerationTicketsView()
                 } label: {
-                    Label("举报记录", systemImage: "flag")
+                    Label("举报记录", systemImage: "flag.fill")
+                        .platformContentSymbolStyle()
                 }
 
                 NavigationLink {
                     BlockedUsersView()
                 } label: {
                     Label("已拉黑", systemImage: "hand.raised.slash")
+                        .platformContentSymbolStyle()
                 }
 
                 NavigationLink {
                     SettingsAboutView()
                 } label: {
                     Label("关于坐标系", systemImage: "info.circle")
+                        .platformContentSymbolStyle()
                 }
             }
 

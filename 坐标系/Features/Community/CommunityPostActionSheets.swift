@@ -494,8 +494,9 @@ struct CommunityShareSheet: View {
                     PlatformListAvatarView(name: name, side: avatarSide)
                     if sent {
                         Image(systemName: "checkmark.circle.fill")
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, Color.accentColor)
+                            .platformSymbolStyle(
+                                .badge(primary: .white, secondary: Color.accentColor)
+                            )
                             .background(Circle().fill(PlatformSurface.canvas).padding(-2))
                     }
                 }

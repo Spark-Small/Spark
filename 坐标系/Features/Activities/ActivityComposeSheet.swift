@@ -102,7 +102,9 @@ struct ActivityComposeSheet: View {
                     TextField("活动标题", text: $title)
                     Picker("类型", selection: $category) {
                         ForEach(publishCategories) { item in
-                            Label(item.title, systemImage: item.systemImage).tag(item)
+                            Label(item.title, systemImage: item.systemImage)
+                                .platformContentSymbolStyle()
+                                .tag(item)
                         }
                     }
                     TextField("地点", text: $location)
@@ -113,6 +115,7 @@ struct ActivityComposeSheet: View {
                             latitude == nil ? "地图选点" : "已选坐标，点击重选",
                             systemImage: "map"
                         )
+                        .platformContentSymbolStyle()
                     }
                     DatePicker("开始时间", selection: $date, in: Date()...)
                 }

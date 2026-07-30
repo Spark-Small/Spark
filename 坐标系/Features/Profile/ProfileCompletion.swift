@@ -32,7 +32,7 @@ enum ProfileCompletion {
 
     static func ratio(for user: AppUser) -> Double {
         ratio(
-            hasAvatar: user.avatarLocalName != nil,
+            hasAvatar: user.hasAvatarImage,
             name: user.name,
             handle: user.handle,
             city: user.city,
@@ -43,11 +43,19 @@ enum ProfileCompletion {
 }
 
 extension AppUser {
+    private static let defaultAvatarAssetName = "ProfileDefaultAvatar"
+
+    var hasAvatarImage: Bool {
+        avatarLocalName != nil || UIImage(named: Self.defaultAvatarAssetName) != nil
+    }
+
     var localAvatarImage: UIImage? {
-        guard let name = avatarLocalName,
-              let url = CommunityPhotoStore.fileURL(named: name),
-              let data = try? Data(contentsOf: url),
-              let image = UIImage(data: data) else { return nil }
-        return image
+        if let name = avatarLocalName,
+           let url = CommunityPhotoStore.fileURL(named: name),
+           let data = try? Data(contentsOf: url),
+           let image = UIImage(data: data) {
+            return image
+        }
+        return UIImage(named: Self.defaultAvatarAssetName)
     }
 }

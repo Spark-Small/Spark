@@ -49,8 +49,7 @@ struct BuddyOrgJoinConfirmSheet: View {
                     VStack(spacing: PlatformMetrics.cardInfoSpacing) {
                         Image(systemName: systemImage)
                             .font(.largeTitle)
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(.tint)
+                            .platformSymbolStyle(.multicolor)
                             .frame(width: 72, height: 72)
                             .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
@@ -75,8 +74,10 @@ struct BuddyOrgJoinConfirmSheet: View {
 
                 Section {
                     Label("加入后进入组织群聊，可看成员与公告", systemImage: "bubble.left.and.bubble.right")
+                        .platformContentSymbolStyle()
                         .font(.subheadline)
                     Label("可随时在组织资料或消息里退出", systemImage: "arrow.uturn.backward")
+                        .platformContentSymbolStyle()
                         .font(.subheadline)
                 } footer: {
                     Text("本地演示：加入状态与群聊会保存在本机。")
@@ -121,8 +122,7 @@ struct BuddyOrgJoinSuccessSheet: View {
 
                 Image(systemName: success.systemImage)
                     .font(.system(size: 44))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.tint)
+                    .platformSymbolStyle(.multicolor)
 
                 Text("已加入组织")
                     .font(.title2.weight(.bold))

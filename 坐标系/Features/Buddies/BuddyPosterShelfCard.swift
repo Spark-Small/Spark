@@ -13,7 +13,6 @@ struct BuddyPosterShelfCard: View {
     let subtitle: String
     let systemImage: String
     var fill: Color = Color.accentColor.opacity(0.14)
-    var symbolTint: Color = .accentColor
     var badgeTitle: String? = nil
     var badgeTint: Color = PlatformStatus.success
     var accessibilitySummary: String
@@ -27,8 +26,7 @@ struct BuddyPosterShelfCard: View {
                     .overlay {
                         Image(systemName: systemImage)
                             .font(.largeTitle)
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(symbolTint)
+                            .platformSymbolStyle(.multicolor)
                     }
                     .aspectRatio(PlatformMetrics.posterCardAspectRatio, contentMode: .fit)
 
