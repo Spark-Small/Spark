@@ -258,21 +258,28 @@ struct FriendProfileDetailView: View {
             }
             .platformSheet(.browser)
         }
-        .sheet(isPresented: $showReport) {
-            MessageReportSheet(targetTitle: nickname) { reason in
-                app.addModerationTicket(
-                    postID: UUID(),
-                    title: nickname,
-                    reason: reason,
-                    targetKind: .person
-                )
-                feedback = MessagesCopy.reportSubmitted
+        .alert(
+            "\(MessagesCopy.reportTitle)：\(nickname)",
+            isPresented: $showReport
+        ) {
+            ForEach(MessagesCopy.reportReasons, id: \.self) { reason in
+                Button(reason, role: .destructive) {
+                    app.addModerationTicket(
+                        postID: UUID(),
+                        title: nickname,
+                        reason: reason,
+                        targetKind: .person
+                    )
+                    feedback = MessagesCopy.reportSubmitted
+                }
             }
+            Button(MessagesCopy.cancel, role: .cancel) {}
+        } message: {
+            Text(MessagesCopy.reportFooter)
         }
-        .confirmationDialog(
+        .alert(
             MessagesCopy.friendBlockConfirmTitle,
-            isPresented: $confirmBlock,
-            titleVisibility: .visible
+            isPresented: $confirmBlock
         ) {
             Button(MessagesCopy.friendAddToBlacklist, role: .destructive) {
                 app.blockUser(nickname)

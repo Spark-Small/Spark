@@ -112,10 +112,9 @@ struct BuddyOrgInfoScaffold<Member: Identifiable, Destination: Hashable>: View {
         .listStyle(.insetGrouped)
         .navigationTitle("\(infoTitle) (\(memberCountLabel))")
         .navigationBarTitleDisplayMode(.inline)
-        .confirmationDialog(
+        .alert(
             leaveTitle,
-            isPresented: $confirmLeave,
-            titleVisibility: .visible
+            isPresented: $confirmLeave
         ) {
             Button(leaveTitle, role: .destructive, action: onLeave)
             Button("取消", role: .cancel) {}

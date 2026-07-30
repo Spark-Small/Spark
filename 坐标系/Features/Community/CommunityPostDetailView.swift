@@ -11,6 +11,7 @@ struct CommunityPostDetailView: View {
     @Environment(CommunityModel.self) private var model
     @Environment(ActivitiesModel.self) private var activities
     @Environment(BuddiesModel.self) private var buddies
+    @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
 
     @State private var draft = ""
@@ -37,11 +38,25 @@ struct CommunityPostDetailView: View {
         .sheet(isPresented: $showBookmarkSheet) {
             CommunityBookmarkSheet(postID: postID)
         }
-        .sheet(isPresented: $showReportSheet) {
-            CommunityReportSheet(postID: postID)
+        .alert(
+            "举报这条分享",
+            isPresented: $showReportSheet
+        ) {
+            ForEach(["垃圾广告", "不实信息", "色情低俗", "人身攻击", "其他"], id: \.self) { reason in
+                Button(reason, role: .destructive) {
+                    submitReport(reason: reason)
+                }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("选择举报原因。举报后内容会从你的信息流中隐藏。")
         }
         .communityAuthorSheet($authorDestination)
-        .alert("删除这条分享？", isPresented: $confirmDelete) {
+        .confirmationDialog(
+            "删除这条分享？",
+            isPresented: $confirmDelete,
+            titleVisibility: .visible
+        ) {
             Button("删除", role: .destructive) {
                 _ = model.deletePost(postID)
                 dismiss()
@@ -58,6 +73,17 @@ struct CommunityPostDetailView: View {
         } message: {
             Text("检测到敏感词「\(blockedCommentWord ?? "")」，请修改后再发送。")
         }
+    }
+
+    private func submitReport(reason: String) {
+        let title = model.post(id: postID)?.messageText ?? "分享"
+        _ = model.reportPost(postID, reason: reason)
+        app.addModerationTicket(
+            postID: postID,
+            title: title,
+            reason: reason,
+            targetKind: .communityPost
+        )
     }
 
     private func detailScroll(_ post: CommunityPost) -> some View {

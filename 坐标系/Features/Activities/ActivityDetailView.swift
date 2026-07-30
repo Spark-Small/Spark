@@ -22,6 +22,8 @@ struct ActivityDetailView: View {
     @State private var showPaymentSheet = false
     @State private var showContentEditor = false
     @State private var showOrders = false
+    @State private var showShareSheet = false
+    @State private var showReportSheet = false
     @State private var profileMemberName: String?
     @State private var contentRevision = 0
     @State private var commentsRevision = 0
@@ -53,6 +55,18 @@ struct ActivityDetailView: View {
         }
         .sheet(isPresented: joinSuccessPresented) { joinSuccessSheet }
         .sheet(isPresented: publishSuccessPresented) { publishSuccessSheet }
+        .sheet(isPresented: $showShareSheet) {
+            if let activity {
+                PlatformShareSheet(items: [shareText(for: activity)])
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
+        }
+        .sheet(isPresented: $showReportSheet) {
+            if let activity {
+                ActivityReportSheet(activity: activity, onSubmit: submitReport)
+            }
+        }
         .sheet(isPresented: $showHostProfile) {
             if let name = activity?.hostName {
                 CommunityAuthorFallbackSheet(name: name)
@@ -394,11 +408,13 @@ struct ActivityDetailView: View {
 
     @ViewBuilder
     private func moreMenuContent(for live: Activity) -> some View {
-        ShareLink(item: shareText(for: live)) {
-            Label(ActivityCardStatus.shareActivity, systemImage: "square.and.arrow.up")
+        Button(ActivityCardStatus.shareActivity, systemImage: "square.and.arrow.up") {
+            showShareSheet = true
         }
 
-        Button(ActivityDetailCopy.reportAction, systemImage: "exclamationmark.bubble", action: { report(live) })
+        Button(ActivityDetailCopy.reportAction, systemImage: "exclamationmark.bubble", role: .destructive) {
+            showReportSheet = true
+        }
 
         Divider()
 
@@ -627,14 +643,19 @@ struct ActivityDetailView: View {
         "\(activity.title)\n\(Formatters.activityEventTime(from: activity.date))\n\(activity.location)"
     }
 
-    private func report(_ activity: Activity) {
+    private func submitReport(reason: String, detail: String, evidenceCount: Int) {
+        guard let activity else { return }
+        var parts = [reason, detail]
+        if evidenceCount > 0 {
+            parts.append("附件 \(evidenceCount) 张")
+        }
         app.addModerationTicket(
             postID: activity.id,
             title: activity.title,
-            reason: "活动详情举报",
+            reason: parts.joined(separator: " · "),
             targetKind: .activity
         )
-        reportMessage = "我们已收到对该活动的反馈，将尽快核查。"
+        reportMessage = ActivityDetailCopy.reportReceivedMessage
     }
 
     private func askHost(about activity: Activity) {

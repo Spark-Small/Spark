@@ -91,16 +91,40 @@ struct PlatformActivityCompactCard: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var photo: CommunityPhotoRef?
-    var badge: String?
+    var badge: String? = nil
     var title: String
     var metaLine: String
 
     var body: some View {
-        ZStack {
-            PlatformCatalogCoverFill(
-                photo: photo,
-                aspectRatio: PlatformMetrics.activityCardAspectRatio
+        Group {
+            if DiscoverAccessibility.prefersStackedCardChrome(for: dynamicTypeSize) {
+                stackedBody
+            } else {
+                overlayBody
+            }
+        }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            ActivityCardStatus.openAccessibilityLabel(
+                status: badge,
+                title: title,
+                parts: metaLine
             )
+        )
+        .accessibilityHint(ActivityCardStatus.openHint)
+    }
+
+    private var stackedBody: some View {
+        VStack(alignment: .leading, spacing: PlatformMetrics.stackedMediaSpacing) {
+            cover
+            copy(onMedia: false)
+        }
+    }
+
+    private var overlayBody: some View {
+        ZStack {
+            cover
 
             LinearGradient(
                 colors: [.clear, Color.black.opacity(0.78)],
@@ -114,42 +138,56 @@ struct PlatformActivityCompactCard: View {
                     .padding(PlatformMetrics.captionBadgeInset)
             }
 
-            VStack(alignment: .leading, spacing: PlatformMetrics.cardInfoSpacing) {
-                titleView
-
-                Text(metaLine)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.82))
-                    .lineLimit(DiscoverAccessibility.metaLineLimit(for: dynamicTypeSize))
-            }
+            copy(onMedia: true)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
             .padding(PlatformMetrics.captionBadgeInset)
         }
         .clipShape(PlatformMetrics.mediaShape)
         .contentShape(PlatformMetrics.mediaShape)
         .colorScheme(.dark)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            ActivityCardStatus.openAccessibilityLabel(
-                status: badge,
-                title: title,
-                parts: metaLine
-            )
+    }
+
+    private var cover: some View {
+        PlatformCatalogCoverFill(
+            photo: photo,
+            aspectRatio: PlatformMetrics.activityCardAspectRatio
         )
-        .accessibilityHint(ActivityCardStatus.openHint)
+        .overlay(alignment: .topLeading) {
+            if DiscoverAccessibility.prefersStackedCardChrome(for: dynamicTypeSize),
+               let badge,
+               !badge.isEmpty {
+                PlatformMediaCaptionBadge(title: badge)
+                    .padding(PlatformMetrics.captionBadgeInset)
+            }
+        }
+        .clipShape(PlatformMetrics.mediaShape)
+    }
+
+    private func copy(onMedia: Bool) -> some View {
+        VStack(
+            alignment: .leading,
+            spacing: PlatformConversationListRow.textToSecondarySpacing
+        ) {
+            titleView(onMedia: onMedia)
+
+            Text(metaLine)
+                .font(.caption)
+                .foregroundStyle(onMedia ? .white.opacity(0.82) : .secondary)
+                .lineLimit(DiscoverAccessibility.metaLineLimit(for: dynamicTypeSize))
+        }
     }
 
     @ViewBuilder
-    private var titleView: some View {
+    private func titleView(onMedia: Bool) -> some View {
         let text = Text(title)
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(onMedia ? .white : .primary)
             .multilineTextAlignment(.leading)
 
         if dynamicTypeSize.isAccessibilitySize {
             text.fixedSize(horizontal: false, vertical: true)
         } else {
-            text.lineLimit(2, reservesSpace: true)
+            text.lineLimit(2)
         }
     }
 }

@@ -283,8 +283,10 @@
 - 顶栏 Trailing：系统设置入口
 - 身份区：头像 + 昵称 + `@账号`，整行进入编辑资料
 - 身份区下方：两个等宽大号系统按钮；左「开通会员」，右「我的钱包」
-- 一级内容库：我的活动 / 我的发布 / 我的圈子 / 我的陪玩；**不含收藏聚合**
+- 一级内容库：我的活动 / 我的发布 / 我的圈子 / 我的陪玩预约卡片轨；**不含收藏聚合**
 - 收藏分域：社区分享 → 社区左上角 Menu「收藏的分享」；活动 → 活动页「更多」→「收藏的活动」
+- 根页用 `platformTabBarHiddenWhenPushed(path.isEmpty)`；推入任一二级页后隐藏 Tab Bar
+- Accessibility Dynamic Type：活动横卡、发布媒体行、圈子 / 陪玩海报均由叠字切换为图下文案
 
 **详情顶栏**
 
@@ -319,9 +321,9 @@
 | **Discover 竖大卡** | 兴趣/品类流 | 16:9 | 20 | 封面叠字或 a11y 图下堆叠 |
 | **Continue / Hot 横卡** | 跟进、热场轨 | 16:9 | 14 | 轨宽 ~0.86；底栏同 Hero 结构 |
 | **Poster 榜单** | 排名轨 | 3:4 | 14 | 轨宽 ~0.36；序号角标 |
-| **Profile Activity History** | 「我的活动」预览 | 16:9 封面内叠字 | media | 使用系统相对容器两列，一屏两张完整卡；标题与时间位于卡内 |
+| **Profile Activity History** | 「我的活动」预览 | 16:9 封面内叠字 | media | 与活动页横卡共用信息布局；一屏两张完整卡；标题最多两行但不预留空行，标题与时间间距取系统 `textToSecondaryTextVerticalPadding` |
 | **Profile Media Library** | 「我的发布」预览 | 16:9 双层行缩略图 | media | 缩略图与一屏两张的活动卡等宽；前景媒体 + 单张背景共两层；右侧粗体标题/公开状态、尾部系统更多菜单 |
-| **Profile Poster Library** | 圈子内容预览 | 2:3 竖海报 | poster | 一屏约 3 张完整卡并露出第 4 张；底部渐变叠标题与单行 meta |
+| **Profile Poster Library** | 圈子 / 陪玩预约预览 | 2:3 竖海报 | poster | 一屏约 3 张完整卡并露出第 4 张；圈子卡不显示「已加入」；陪玩卡展示昵称、订单状态、时间与价格 |
 | **Editorial 焦点** | 焦点大卡 | 4:5 | 24 | 轨宽 ~0.88 |
 | **Person 搭子** | 精选 Hero + 网格 | Hero 3:4 穿顶；网格 3:4 | discover | 首屏精选大卡；下方双列扫人；默认同好 / 右上「陪玩」 |
 | **Circle 组织** | 同好第二幕 | 3:4 | poster | 轨宽 ~0.36；加入=进组织群；次于选人 |
@@ -611,9 +613,30 @@ Form
 | 筛选 | `.filter` | Form |
 | 成员/订单/支付 | `.browser` | List/Form |
 | 参加成功 | `.confirm` | 短栈 |
-| 导航 App | `.action` / List | 系统列表 |
+| 举报活动 | `.form` | 原因 + 情况说明 + 证明材料；提交后 Alert 收尾确认 |
+| 导航 App | `confirmationDialog` | Apple / 高德 / 百度等离散动作 |
+| 分享活动 | `PlatformShareSheet` | 系统 `UIActivityViewController` 的 SwiftUI 桥接；iPhone 从底部呈现 |
 
-## 12.4 文案与状态
+## 12.4 Alert / Confirmation Dialog
+
+只使用 SwiftUI 系统 `.alert` 与 `.confirmationDialog`，不自绘弹窗。
+
+| 意图 | 系统容器 | 规则 |
+|------|----------|------|
+| 阻塞告知、错误、敏感词 | `.alert` | 单一「好的 / 知道了」；信息必须先读再继续 |
+| 需理解后果的多结果决策 | `.alert` | 如「仅取消 / 取消并退款」；按钮角色明确 |
+| 退出登录 / 注销账号 | `.alert` | 设置页账号后果确认；破坏动作 `.destructive`，必须有 `.cancel` |
+| 删除预约记录 / 取消预约 | `.alert` | 陪玩订单详情后果确认；破坏动作 `.destructive`，必须有 `.cancel` |
+| 退出组织 / 用户举报 / 拉黑 / 删除会话 | `.alert` | 后果确认或选择举报原因；破坏动作 `.destructive`，必须有 `.cancel` |
+| 活动举报受理收尾 | `.alert` | Sheet 提交材料后弹出「已收到反馈」；单一「好的」 |
+| 菜单触发的移出群聊 | `.confirmationDialog` | `titleVisibility: .visible`；破坏动作必须 `.destructive`，必须有 `.cancel` |
+| 离散动作选择 | `.confirmationDialog` | 如选择导航 App；不使用 Form Sheet |
+| 有输入、摘要、支付或下一步 | `.platformSheet(.confirm/.form/.browser)` | 不压缩为 Alert/Dialog |
+| 非阻塞成功反馈 | `platformTransientFeedback` | 触觉 + VoiceOver；不弹成功 Alert |
+
+破坏性动作不得从 `Menu`、`List` 行或详情按钮直接执行；先写入待确认状态，再由系统 Dialog 执行。
+
+## 12.5 文案与状态
 
 - 动作词与 `ActivityCardStatus` / `ActivityDetailCopy` 对齐。  
 - 名额紧张用 warning 语义，不堆营销脚注。  

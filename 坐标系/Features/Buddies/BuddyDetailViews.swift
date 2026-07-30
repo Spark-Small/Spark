@@ -16,6 +16,7 @@ struct BuddyDetailRouteView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var showReport = false
+    @State private var confirmBlock = false
 
     var body: some View {
         Group {
@@ -56,15 +57,14 @@ struct BuddyDetailRouteView: View {
                         showReport = true
                     }
                     Button("拉黑", systemImage: "hand.raised", role: .destructive) {
-                        app.blockUser(item.profile.nickname)
-                        dismiss()
+                        confirmBlock = true
                     }
                 } label: {
                     Label("更多", systemImage: "ellipsis")
                 }
             }
         }
-        .confirmationDialog("举报 \(item.profile.nickname)", isPresented: $showReport, titleVisibility: .visible) {
+        .alert("举报 \(item.profile.nickname)", isPresented: $showReport) {
             Button("骚扰或不适内容", role: .destructive) {
                 submitBuddyReport(reason: "骚扰或不适内容")
             }
@@ -72,6 +72,20 @@ struct BuddyDetailRouteView: View {
                 submitBuddyReport(reason: "虚假资料")
             }
             Button("取消", role: .cancel) {}
+        } message: {
+            Text("选择举报原因。我们会尽快核查。")
+        }
+        .alert(
+            "拉黑 \(item.profile.nickname)？",
+            isPresented: $confirmBlock
+        ) {
+            Button("拉黑", role: .destructive) {
+                app.blockUser(item.profile.nickname)
+                dismiss()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("拉黑后将不再收到对方的互动与消息。")
         }
         .sheet(item: Binding(
             get: { buddies.inviteTarget },

@@ -13,6 +13,7 @@ struct ProfileSettingsView: View {
     @State private var confirmDeleteAccount = false
     #if DEBUG
     @State private var confirmResetDemo = false
+    @State private var confirmClearCaches = false
     #endif
 
     var body: some View {
@@ -78,7 +79,7 @@ struct ProfileSettingsView: View {
                     confirmResetDemo = true
                 }
                 Button("清空本地屏蔽与工单") {
-                    app.clearLocalCaches()
+                    confirmClearCaches = true
                 }
             } header: {
                 Text("开发者")
@@ -99,8 +100,16 @@ struct ProfileSettingsView: View {
         } message: {
             Text("会清空本机活动、消息、社区、预约、订单与已选头像，并回到默认演示样本。")
         }
+        .alert("清空本地屏蔽与工单？", isPresented: $confirmClearCaches) {
+            Button("清空", role: .destructive) {
+                app.clearLocalCaches()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("此操作只清除本机屏蔽名单与举报工单，且无法恢复。")
+        }
         #endif
-        .confirmationDialog("退出登录？", isPresented: $confirmSignOut, titleVisibility: .visible) {
+        .alert("退出登录？", isPresented: $confirmSignOut) {
             Button("退出登录", role: .destructive) {
                 Task { await app.signOutLocally() }
             }
@@ -108,7 +117,7 @@ struct ProfileSettingsView: View {
         } message: {
             Text("将返回登录与引导流程。")
         }
-        .confirmationDialog("注销本地账号？", isPresented: $confirmDeleteAccount, titleVisibility: .visible) {
+        .alert("注销本地账号？", isPresented: $confirmDeleteAccount) {
             Button("注销本地账号", role: .destructive) {
                 Task { await app.deleteLocalAccount() }
             }

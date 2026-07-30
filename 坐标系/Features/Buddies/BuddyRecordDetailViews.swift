@@ -17,6 +17,9 @@ struct BuddyBookingDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var showReschedule = false
+    @State private var confirmRefund = false
+    @State private var confirmCancel = false
+    @State private var confirmDelete = false
 
     private var record: BuddyBookingRecord? {
         buddies.bookingRecords.first { $0.id == recordID }
@@ -99,8 +102,7 @@ struct BuddyBookingDetailView: View {
 
                     Section {
                         Button("删除记录", role: .destructive) {
-                            buddies.deleteBooking(record.id)
-                            dismiss()
+                            confirmDelete = true
                         }
                     }
                 }
@@ -143,6 +145,44 @@ struct BuddyBookingDetailView: View {
                 }
             )
         }
+        .confirmationDialog(
+            "申请退款？",
+            isPresented: $confirmRefund,
+            titleVisibility: .visible
+        ) {
+            Button("申请退款", role: .destructive) {
+                if let record {
+                    buddies.refundBooking(record.id)
+                }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("退款后当前预约将结束。")
+        }
+        .alert("取消预约？", isPresented: $confirmCancel) {
+            Button("取消预约", role: .destructive) {
+                guard let record else { return }
+                if record.canWithdraw {
+                    buddies.withdrawPendingBooking(record.id)
+                } else {
+                    buddies.cancelBooking(record.id)
+                }
+            }
+            Button("保留预约", role: .cancel) {}
+        } message: {
+            Text("取消后无法恢复，如已支付请先确认退款规则。")
+        }
+        .alert("删除这条预约记录？", isPresented: $confirmDelete) {
+            Button("删除记录", role: .destructive) {
+                if let record {
+                    buddies.deleteBooking(record.id)
+                    dismiss()
+                }
+            }
+            Button("保留记录", role: .cancel) {}
+        } message: {
+            Text("删除后无法恢复。")
+        }
     }
 
     private func hasPrimaryActions(_ record: BuddyBookingRecord) -> Bool {
@@ -178,16 +218,12 @@ struct BuddyBookingDetailView: View {
         }
         if record.canRefund {
             Button("申请退款", systemImage: "arrow.uturn.backward", role: .destructive) {
-                buddies.refundBooking(record.id)
+                confirmRefund = true
             }
         }
         if record.canWithdraw || record.status == .paid || record.status == .inProgress {
             Button("取消预约", systemImage: "xmark.circle", role: .destructive) {
-                if record.canWithdraw {
-                    buddies.withdrawPendingBooking(record.id)
-                } else {
-                    buddies.cancelBooking(record.id)
-                }
+                confirmCancel = true
             }
         }
     }

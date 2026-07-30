@@ -860,43 +860,6 @@ struct CommunityBookmarkSheet: View {
     }
 }
 
-// MARK: - Report
-
-struct CommunityReportSheet: View {
-    let postID: CommunityPost.ID
-    @Environment(CommunityModel.self) private var model
-    @Environment(AppModel.self) private var app
-    @Environment(\.dismiss) private var dismiss
-
-    private let reasons = ["垃圾广告", "不实信息", "色情低俗", "人身攻击", "其他"]
-
-    var body: some View {
-        MessagesFormSheet(title: "举报", dismissAction: .cancel) {
-            List {
-                Section {
-                    ForEach(reasons, id: \.self) { reason in
-                        Button(reason) {
-                            let title = model.post(id: postID)?.messageText ?? "分享"
-                            _ = model.reportPost(postID, reason: reason)
-                            app.addModerationTicket(
-                                postID: postID,
-                                title: title,
-                                reason: reason,
-                                targetKind: .communityPost
-                            )
-                            dismiss()
-                        }
-                    }
-                } header: {
-                    Text("选择举报原因")
-                } footer: {
-                    Text("举报后这条分享会从你的信息流中隐藏，并生成本地工单")
-                }
-            }
-        }
-    }
-}
-
 /// 本地评论译文（系统 Form；无网络翻译服务）
 struct CommunityCommentTranslateSheet: View {
     let comment: CommunityComment

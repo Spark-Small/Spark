@@ -18,7 +18,7 @@ struct OnboardingSheet: View {
 
     var body: some View {
         ZStack {
-            InvitationPaper.stage
+            Color(.systemGroupedBackground)
                 .ignoresSafeArea()
 
             ScrollView {
@@ -41,7 +41,7 @@ struct OnboardingSheet: View {
                     VStack(spacing: 10) {
                         Text(InterestSelectionLimits.progressText(count: selectedInterests.count))
                             .font(.caption)
-                            .foregroundStyle(canContinue ? .secondary : InvitationPaper.accent.opacity(0.9))
+                            .foregroundStyle(canContinue ? Color.secondary : Color.red)
                             .frame(maxWidth: .infinity)
                             .animation(.easeOut(duration: 0.2), value: selectedInterests.count)
 

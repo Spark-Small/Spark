@@ -33,18 +33,7 @@ struct ProfileView: View {
             .contentMargins(.bottom, PlatformMetrics.sectionSpacing, for: .scrollContent)
             .background(PlatformSurface.groupedPage)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    accountMenu
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        ProfileSettingsView()
-                    } label: {
-                        Label("设置", systemImage: "gearshape")
-                    }
-                }
-            }
+            .toolbar { profileToolbar }
             .sheet(isPresented: $showEditProfile) {
                 EditProfileSheet(user: Binding(
                     get: { app.user },
@@ -61,61 +50,29 @@ struct ProfileView: View {
             .navigationDestination(for: InterestCircle.self) { circle in
                 ProfileCircleDetailView(circle: circle)
             }
-            .navigationDestination(for: PublishedDestination.self) { destination in
-                ProfilePublishedView(initialSegment: destination.segment)
-            }
-            .navigationDestination(for: ActivityLibraryDestination.self) { destination in
-                switch destination {
-                case .joined:
-                    ActivityTripsView(presentation: .pushed, initialSegment: .joined)
-                }
-            }
-            .navigationDestination(for: CircleDestination.self) { _ in
-                ProfileCirclesListView()
-            }
-            .navigationDestination(for: BuddiesDestination.self) { _ in
-                ProfileBuddiesView()
-            }
+            .navigationDestination(for: ProfileRoute.self, destination: profileDestination)
             .buddyOrgJoinChrome(
                 buddies: buddies,
                 openConversation: { app.openMessages(conversationID: $0) }
             )
+            .platformTabBarHiddenWhenPushed(path.isEmpty)
         }
     }
 
-    private var profileSection: some View {
-        VStack(alignment: .leading, spacing: PlatformMetrics.sectionHeaderSpacing) {
-            Button {
-                showEditProfile = true
-            } label: {
-                profileIdentityRow
-            }
-            .buttonStyle(.plain)
-            .contentShape(Rectangle())
-            .accessibilityHint("打开个人资料编辑")
+    // MARK: - Toolbar
 
-            HStack(spacing: PlatformMetrics.railCardSpacing) {
-                NavigationLink {
-                    ProfileMembershipView()
-                } label: {
-                    Text("开通会员")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.primary)
-
-                NavigationLink {
-                    ProfileWalletView()
-                } label: {
-                    Text("我的钱包")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-            }
-            .buttonBorderShape(.capsule)
-            .controlSize(.large)
+    @ToolbarContentBuilder
+    private var profileToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            accountMenu
         }
-        .padding(.horizontal, PlatformMetrics.contentInset)
+        ToolbarItem(placement: .topBarTrailing) {
+            NavigationLink {
+                ProfileSettingsView()
+            } label: {
+                Label("设置", systemImage: "gearshape")
+            }
+        }
     }
 
     @ViewBuilder
@@ -147,216 +104,63 @@ struct ProfileView: View {
         .accessibilityHint(app.auth.isGuest ? "选择创建账号方式" : "打开账号操作")
     }
 
-    private var joinedActivitiesPreview: [Activity] {
-        activities.joinedActivities
-            .filter { !activities.isHost($0) && !$0.isPast }
-            .sorted { $0.date < $1.date }
-    }
+    // MARK: - Navigation
 
-    private var hostedActivitiesPreview: [Activity] {
-        activities.hostedActivities
-            .filter { !$0.isPast }
-            .sorted { $0.date < $1.date }
-    }
-
-    private var publishedPostsPreview: [CommunityPost] {
-        Array(community.myPosts.prefix(3))
-    }
-
-    private var publishedActivitiesPreview: [Activity] {
-        Array(
-            activities.hostedActivities
-                .sorted { $0.date > $1.date }
-                .prefix(max(0, 3 - publishedPostsPreview.count))
-        )
-    }
-
-    private var joinedCirclesPreview: [InterestCircle] {
-        Array(buddies.joinedCircles.prefix(8))
-    }
-
-    private var activityPreview: [Activity] {
-        let unique = Dictionary(
-            grouping: joinedActivitiesPreview + hostedActivitiesPreview,
-            by: \.id
-        )
-        return Array(
-            unique.values
-                .compactMap(\.first)
-                .sorted { $0.date < $1.date }
-                .prefix(8)
-        )
-    }
-
-    private var activityShelf: some View {
-        DiscoverBrowseSection(
-            title: "我的活动",
-            onSeeAll: {
-                path.append(ActivityLibraryDestination.joined)
-            }
-        ) {
-            if activityPreview.isEmpty {
-                profileShelfEmptyState(
-                    title: "还没有活动行程",
-                    systemImage: "calendar",
-                    description: "参加或发起活动后，这里会优先展示未结束的内容。"
-                )
-            } else {
-                DiscoverHorizontalRail {
-                    ForEach(activityPreview) { activity in
-                        ActivityZoomNavigationLink(
-                            activity: activity,
-                            namespace: zoomNamespace,
-                            clip: .rail
-                        ) {
-                            PlatformActivityCompactCard(
-                                photo: activity.coverPhoto,
-                                badge: activities.isHost(activity) ? "主办中" : ActivityCardStatus.joined,
-                                title: activity.title,
-                                metaLine: Formatters.activityEventTime(from: activity.date)
-                            )
-                            .platformProfileActivityHistoryRailFrame()
-                        }
-                    }
-                }
-            }
+    @ViewBuilder
+    private func profileDestination(_ route: ProfileRoute) -> some View {
+        switch route {
+        case .activityLibrary:
+            ActivityTripsView(presentation: .pushed, initialSegment: .joined)
+        case .published(let segment):
+            ProfilePublishedView(initialSegment: segment)
+        case .circles:
+            ProfileCirclesListView()
+        case .buddies:
+            ProfileBuddiesView()
+        case .booking(let id):
+            BuddyBookingDetailView(recordID: id)
         }
     }
 
-    private var publishedShelf: some View {
-        DiscoverBrowseSection(
-            title: "我的发布",
-            onSeeAll: {
-                path.append(PublishedDestination(segment: .posts))
-            }
-        ) {
-            if publishedPostsPreview.isEmpty && publishedActivitiesPreview.isEmpty {
-                profileShelfEmptyState(
-                    title: "还没有发布内容",
-                    systemImage: "square.and.pencil",
-                    description: "发社区分享或发起活动后，这里会显示最近内容。"
-                )
-            } else {
-                VStack(spacing: PlatformMetrics.sectionHeaderSpacing) {
-                    ForEach(publishedPostsPreview) { post in
-                        HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
-                            NavigationLink(value: post) {
-                                ProfilePublishedLibraryLabel(
-                                    title: post.messageText,
-                                    subtitle: "公开 · \(postShelfMetaLine(for: post))"
-                                ) {
-                                    CommunityRemotePhoto(ref: post.coverPhoto)
-                                }
-                            }
-                            .buttonStyle(.plain)
+    // MARK: - Identity
 
-                            Menu {
-                                ShareLink(item: post.shareText) {
-                                    Label("分享", systemImage: "square.and.arrow.up")
-                                }
-                            } label: {
-                                Image(systemName: "ellipsis")
-                                    .font(.body.weight(.semibold))
-                            }
-                            .buttonStyle(.plain)
-                            .controlSize(.large)
-                            .accessibilityLabel("更多，\(post.messageText)")
-                        }
-                    }
-
-                    ForEach(publishedActivitiesPreview) { activity in
-                        HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
-                            NavigationLink(value: activity.id) {
-                                ProfilePublishedLibraryLabel(
-                                    title: activity.title,
-                                    subtitle: "公开 · 活动 · \(Formatters.activityEventTime(from: activity.date))"
-                                ) {
-                                    CommunityRemotePhoto(ref: activity.coverPhoto)
-                                        .activityZoomTransitionSource(
-                                            id: activity.id,
-                                            in: zoomNamespace,
-                                            clip: .rail
-                                        )
-                                }
-                            }
-                            .buttonStyle(.plain)
-
-                            Menu {
-                                ShareLink(item: activityShareText(for: activity)) {
-                                    Label("分享", systemImage: "square.and.arrow.up")
-                                }
-                            } label: {
-                                Image(systemName: "ellipsis")
-                                    .font(.body.weight(.semibold))
-                            }
-                            .buttonStyle(.plain)
-                            .controlSize(.large)
-                            .accessibilityLabel("更多，\(activity.title)")
-                        }
-                    }
-                }
-                .padding(.horizontal, PlatformMetrics.contentInset)
-            }
-        }
-    }
-
-    private var circlesShelf: some View {
-        DiscoverBrowseSection(
-            title: "我的圈子",
-            onSeeAll: {
-                path.append(CircleDestination.root)
-            }
-        ) {
-            if joinedCirclesPreview.isEmpty {
-                profileShelfEmptyState(
-                    title: "还没有加入圈子",
-                    systemImage: "person.3",
-                    description: "去搭子页找到合适的兴趣组织，加入后可在这里快速回看。"
-                )
-            } else {
-                DiscoverHorizontalRail {
-                    ForEach(joinedCirclesPreview) { circle in
-                        NavigationLink(value: circle) {
-                            ProfileLibraryShelfCard(
-                                title: circle.name,
-                                subtitle: "\(circle.topic) · \(circle.memberCount) 人",
-                                badge: "已加入"
-                            ) {
-                                Color.accentColor.opacity(0.14)
-                                    .overlay {
-                                        Image(systemName: circle.systemImage)
-                                            .font(.title2)
-                                            .platformSymbolStyle(.multicolor)
-                                    }
-                            }
-                            .platformProfileLibraryRailFrame()
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-    }
-
-    private var buddiesEntry: some View {
-        DiscoverBrowseSection(
-            title: "我的陪玩",
-            onSeeAll: {
-                path.append(BuddiesDestination.root)
-            }
-        ) {
-            NavigationLink(value: BuddiesDestination.root) {
-                Label("查看我的陪玩", systemImage: "person.2")
-                    .platformContentSymbolStyle()
-                    .font(.body.weight(.medium))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, PlatformMetrics.contentInset)
-                    .padding(.vertical, PlatformConversationListRow.verticalInset)
-                    .background(PlatformSurface.elevated, in: PlatformMetrics.cardShape)
-                    .padding(.horizontal, PlatformMetrics.contentInset)
+    private var profileSection: some View {
+        VStack(alignment: .leading, spacing: PlatformMetrics.sectionHeaderSpacing) {
+            Button {
+                showEditProfile = true
+            } label: {
+                profileIdentityRow
             }
             .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .accessibilityHint("打开个人资料编辑")
+
+            commercialButtons
         }
+        .padding(.horizontal, PlatformMetrics.contentInset)
+    }
+
+    private var commercialButtons: some View {
+        HStack(spacing: PlatformMetrics.railCardSpacing) {
+            NavigationLink {
+                ProfileMembershipView()
+            } label: {
+                Text("开通会员")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.primary)
+
+            NavigationLink {
+                ProfileWalletView()
+            } label: {
+                Text("我的钱包")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+        }
+        .buttonBorderShape(.capsule)
+        .controlSize(.large)
     }
 
     private var profileIdentityRow: some View {
@@ -390,51 +194,222 @@ struct ProfileView: View {
         )
     }
 
-    @ViewBuilder
-    private func profileShelfEmptyState(
-        title: String,
-        systemImage: String,
-        description: String
-    ) -> some View {
-        ContentUnavailableView(
-            title,
-            systemImage: systemImage,
-            description: Text(description)
+    // MARK: - Previews
+
+    /// 未结束：我参加的 + 我主办的（二者互斥）。
+    private var activityPreview: [Activity] {
+        let joined = activities.joinedActivities
+            .filter { !activities.isHost($0) && !$0.isPast }
+        let hosted = activities.hostedActivities
+            .filter { !$0.isPast }
+        return Array((joined + hosted).sorted { $0.date < $1.date }.prefix(8))
+    }
+
+    private var publishedPostsPreview: [CommunityPost] {
+        Array(community.myPosts.prefix(3))
+    }
+
+    private var publishedActivitiesPreview: [Activity] {
+        Array(
+            activities.hostedActivities
+                .sorted { $0.date > $1.date }
+                .prefix(max(0, 3 - publishedPostsPreview.count))
         )
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, PlatformMetrics.contentInset)
     }
 
-    private func postShelfMetaLine(for post: CommunityPost) -> String {
-        let parts = [
-            Formatters.conversationListTime(from: post.postedAt),
-            "赞 \(post.likeCount)",
-            "评 \(post.commentCount)"
-        ]
-        return parts.joined(separator: " · ")
+    private var joinedCirclesPreview: [InterestCircle] {
+        Array(buddies.joinedCircles.prefix(8))
     }
 
-    private func activityShareText(for activity: Activity) -> String {
-        "【坐标系·活动】\(activity.title)\n\(Formatters.activityEventTime(from: activity.date))\n\(activity.location)"
+    private var bookingPreview: [BuddyBookingRecord] {
+        let terminalStatuses: Set<BookingOrderStatus> = [.completed, .refunded, .cancelled]
+        return Array(
+            buddies.bookingRecords
+                .sorted { lhs, rhs in
+                    let lhsIsTerminal = terminalStatuses.contains(lhs.status)
+                    let rhsIsTerminal = terminalStatuses.contains(rhs.status)
+                    if lhsIsTerminal != rhsIsTerminal {
+                        return !lhsIsTerminal
+                    }
+                    return lhsIsTerminal
+                        ? lhs.scheduledAt > rhs.scheduledAt
+                        : lhs.scheduledAt < rhs.scheduledAt
+                }
+                .prefix(8)
+        )
     }
+
+    // MARK: - Shelves
+
+    private var activityShelf: some View {
+        DiscoverBrowseSection(
+            title: "我的活动",
+            onSeeAll: { path.append(ProfileRoute.activityLibrary) }
+        ) {
+            if activityPreview.isEmpty {
+                ProfileShelfEmptyState(
+                    title: "还没有活动行程",
+                    systemImage: "calendar",
+                    description: "参加或发起活动后，这里会优先展示未结束的内容。"
+                )
+            } else {
+                DiscoverHorizontalRail {
+                    ForEach(activityPreview) { activity in
+                        ActivityZoomNavigationLink(
+                            activity: activity,
+                            namespace: zoomNamespace,
+                            clip: .rail
+                        ) {
+                            PlatformActivityCompactCard(
+                                photo: activity.coverPhoto,
+                                title: activity.title,
+                                metaLine: Formatters.activityEventTime(from: activity.date)
+                            )
+                            .platformProfileActivityHistoryRailFrame()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var publishedShelf: some View {
+        DiscoverBrowseSection(
+            title: "我的发布",
+            onSeeAll: { path.append(ProfileRoute.published(.posts)) }
+        ) {
+            if publishedPostsPreview.isEmpty && publishedActivitiesPreview.isEmpty {
+                ProfileShelfEmptyState(
+                    title: "还没有发布内容",
+                    systemImage: "square.and.pencil",
+                    description: "发社区分享或发起活动后，这里会显示最近内容。"
+                )
+            } else {
+                VStack(spacing: PlatformMetrics.sectionHeaderSpacing) {
+                    ForEach(publishedPostsPreview) { post in
+                        publishedPostRow(post)
+                    }
+                    ForEach(publishedActivitiesPreview) { activity in
+                        publishedActivityRow(activity)
+                    }
+                }
+                .padding(.horizontal, PlatformMetrics.contentInset)
+            }
+        }
+    }
+
+    private func publishedPostRow(_ post: CommunityPost) -> some View {
+        HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
+            NavigationLink(value: post) {
+                ProfilePublishedLibraryLabel(
+                    title: post.messageText,
+                    subtitle: "公开 · \(ProfileLibraryCopy.postMetaLine(for: post))"
+                ) {
+                    CommunityRemotePhoto(ref: post.coverPhoto)
+                }
+            }
+            .buttonStyle(.plain)
+
+            ProfilePublishedShareMenu(
+                shareText: post.shareText,
+                accessibilityTitle: post.messageText
+            )
+        }
+    }
+
+    private func publishedActivityRow(_ activity: Activity) -> some View {
+        HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
+            NavigationLink(value: activity.id) {
+                ProfilePublishedLibraryLabel(
+                    title: activity.title,
+                    subtitle: "公开 · 活动 · \(Formatters.activityEventTime(from: activity.date))"
+                ) {
+                    CommunityRemotePhoto(ref: activity.coverPhoto)
+                        .activityZoomTransitionSource(
+                            id: activity.id,
+                            in: zoomNamespace,
+                            clip: .rail
+                        )
+                }
+            }
+            .buttonStyle(.plain)
+
+            ProfilePublishedShareMenu(
+                shareText: ProfileLibraryCopy.activityShareText(for: activity),
+                accessibilityTitle: activity.title
+            )
+        }
+    }
+
+    private var circlesShelf: some View {
+        DiscoverBrowseSection(
+            title: "我的圈子",
+            onSeeAll: { path.append(ProfileRoute.circles) }
+        ) {
+            if joinedCirclesPreview.isEmpty {
+                ProfileShelfEmptyState(
+                    title: "还没有加入圈子",
+                    systemImage: "person.3",
+                    description: "去搭子页找到合适的兴趣组织，加入后可在这里快速回看。"
+                )
+            } else {
+                DiscoverHorizontalRail {
+                    ForEach(joinedCirclesPreview) { circle in
+                        NavigationLink(value: circle) {
+                            ProfileLibraryShelfCard(
+                                title: circle.name,
+                                subtitle: "\(circle.topic) · \(circle.memberCount) 人"
+                            ) {
+                                ProfileCircleShelfCover(systemImage: circle.systemImage)
+                            }
+                            .platformProfileLibraryRailFrame()
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private var buddiesEntry: some View {
+        DiscoverBrowseSection(
+            title: "我的陪玩",
+            onSeeAll: { path.append(ProfileRoute.buddies) }
+        ) {
+            if bookingPreview.isEmpty {
+                ProfileShelfEmptyState(
+                    title: "还没有陪玩预约",
+                    systemImage: "person.badge.clock",
+                    description: "在搭子页预约陪玩后，这里会展示最近订单。"
+                )
+            } else {
+                DiscoverHorizontalRail {
+                    ForEach(bookingPreview) { record in
+                        NavigationLink(value: ProfileRoute.booking(record.id)) {
+                            ProfileBookingShelfCard(
+                                record: record,
+                                photo: buddies.item(for: record.companionNickname)?.profile.coverPhoto
+                            )
+                            .platformProfileLibraryRailFrame()
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Routes
+
+private enum ProfileRoute: Hashable {
+    case activityLibrary
+    case published(ProfilePublishedView.Segment)
+    case circles
+    case buddies
+    case booking(BuddyBookingRecord.ID)
 }
 
 #Preview {
     ProfileView()
-}
-
-private enum ActivityLibraryDestination: Hashable {
-    case joined
-}
-
-private enum CircleDestination: Hashable {
-    case root
-}
-
-private enum BuddiesDestination: Hashable {
-    case root
-}
-
-private struct PublishedDestination: Hashable {
-    var segment: ProfilePublishedView.Segment
 }

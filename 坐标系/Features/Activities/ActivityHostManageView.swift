@@ -171,12 +171,16 @@ struct ActivityHostManageView: View {
         .onChange(of: live.date) { _, newValue in
             date = newValue
         }
-        .alert(ActivityDetailCopy.hostManageCancelAlertTitle, isPresented: $showCancelAlert) {
-            Button("保留活动", role: .cancel) {}
+        .confirmationDialog(
+            ActivityDetailCopy.hostManageCancelAlertTitle,
+            isPresented: $showCancelAlert,
+            titleVisibility: .visible
+        ) {
             Button(ActivityDetailCopy.hostManageCancelActivity, role: .destructive) {
                 app.cancelHostedActivity(live.id)
                 dismiss()
             }
+            Button("保留活动", role: .cancel) {}
         } message: {
             Text(ActivityDetailCopy.hostManageCancelAlertMessage(title: live.title))
         }

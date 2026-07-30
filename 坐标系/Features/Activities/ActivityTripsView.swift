@@ -211,19 +211,20 @@ struct ActivityTripsView: View {
                 .activityZoomNavigationTransition(id: pending.id, in: zoomNamespace)
                 .onAppear { model.recordDetailView(pending.id) }
         }
-        .alert(
+        .confirmationDialog(
             ActivityDetailCopy.hostManageCancelAlertTitle,
             isPresented: Binding(
                 get: { cancelTarget != nil },
                 set: { if !$0 { cancelTarget = nil } }
             ),
+            titleVisibility: .visible,
             presenting: cancelTarget
         ) { activity in
-            Button("保留活动", role: .cancel) { cancelTarget = nil }
             Button(ActivityDetailCopy.hostManageCancelActivity, role: .destructive) {
                 app.cancelHostedActivity(activity.id)
                 cancelTarget = nil
             }
+            Button("保留活动", role: .cancel) { cancelTarget = nil }
         } message: { activity in
             Text(ActivityDetailCopy.hostManageCancelAlertMessage(title: activity.title))
         }

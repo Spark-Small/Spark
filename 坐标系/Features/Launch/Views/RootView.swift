@@ -13,20 +13,29 @@ struct RootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        ZStack {
-            InvitationPaper.stage
-                .ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                LaunchSurface.stage
+                    .ignoresSafeArea()
 
-            RadialGradient(
-                colors: [Color.white.opacity(0.28), Color.clear],
-                center: UnitPoint(x: 0.5, y: 0.28),
-                startRadius: 20,
-                endRadius: 420
-            )
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
-
-            launchContent
+                launchContent
+            }
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(for: LaunchState.self) { destination in
+                switch destination {
+                case .login:
+                    LoginView(session: session)
+                        .navigationTransition(
+                            .zoom(
+                                sourceID: LaunchGeometry.invitationSurface,
+                                in: launchNamespace
+                            )
+                        )
+                        .toolbar(.hidden, for: .navigationBar)
+                default:
+                    EmptyView()
+                }
+            }
         }
     }
 
@@ -34,63 +43,16 @@ struct RootView: View {
     private var launchContent: some View {
         let state = viewModel.state
 
-        ZStack {
-            BrandSplashView {
-                viewModel.brandSplashFinished(reduceMotion: reduceMotion)
-            }
-            .opacity(state == .brandSplash ? 1 : 0)
-            .allowsHitTesting(false)
-            .zIndex(6)
-
-            if showsEnvelope(state) {
-                envelopeStage
-                    .opacity(state == .letterExpanding || state == .login ? 0 : 1)
-                    .zIndex(2)
-            }
-
-            if state == .letterExpanding {
-                InvitationLetterView(expansion: 1, namespace: launchNamespace)
-                    .zIndex(3)
-            }
-
-            if state == .login {
-                LoginView(session: session, namespace: launchNamespace)
-                    .zIndex(5)
-            }
-        }
-        .animation(LaunchMotion.stateCrossfade, value: state)
-    }
-
-    private func showsEnvelope(_ state: LaunchState) -> Bool {
-        switch state {
-        case .brandTransition, .invitationReady, .opening, .letterExpanding:
-            true
-        default:
-            false
-        }
-    }
-
-    private var envelopeStage: some View {
-        let state = viewModel.state
-        let flapOpen = state == .opening || state == .letterExpanding
-        let rise: CGFloat = switch state {
-        case .opening: 0.9
-        case .letterExpanding: 1
-        default: 0
-        }
-
-        return EnvelopeView(
-            isFlapOpen: flapOpen,
-            letterRise: rise,
-            showsLetter: state == .invitationReady || state == .opening,
+        EnvelopeView(
+            isFlapOpen: state == .opening || state == .invitationOpened,
+            isLetterInteractive: state == .invitationOpened,
+            letterRise: state == .invitationReady ? 0 : 0.9,
             isFloating: state == .invitationReady,
-            isArriving: state == .brandTransition,
             namespace: launchNamespace,
             onTap: { viewModel.openInvitation(reduceMotion: reduceMotion) },
             onOpenFinished: { viewModel.envelopeOpenFinished() }
         )
-        .animation(LaunchMotion.letterRise, value: rise)
-        .allowsHitTesting(state == .invitationReady)
+        .animation(LaunchMotion.letterRise, value: state)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

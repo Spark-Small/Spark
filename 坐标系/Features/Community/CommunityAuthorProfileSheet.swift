@@ -9,6 +9,8 @@ struct CommunityAuthorFallbackSheet: View {
     let name: String
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
+    @State private var showReport = false
+    @State private var confirmBlock = false
 
     private var profile: AuthorDirectoryProfile { SampleData.author(named: name) }
 
@@ -105,12 +107,45 @@ struct CommunityAuthorFallbackSheet: View {
                             app.selectedTab = .buddies
                         }
                     }
+                    Button("举报", role: .destructive) {
+                        showReport = true
+                    }
                     Button("拉黑", role: .destructive) {
-                        app.blockUser(name)
-                        dismiss()
+                        confirmBlock = true
                     }
                 }
             }
+        }
+        .alert(
+            "举报 \(name)",
+            isPresented: $showReport
+        ) {
+            ForEach(MessagesCopy.reportReasons, id: \.self) { reason in
+                Button(reason, role: .destructive) {
+                    app.addModerationTicket(
+                        postID: UUID(),
+                        title: name,
+                        reason: reason,
+                        targetKind: .person
+                    )
+                    dismiss()
+                }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text(MessagesCopy.reportFooter)
+        }
+        .alert(
+            "拉黑 \(name)？",
+            isPresented: $confirmBlock
+        ) {
+            Button("拉黑", role: .destructive) {
+                app.blockUser(name)
+                dismiss()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("拉黑后将不再收到对方的互动与消息。")
         }
     }
 

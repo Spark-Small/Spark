@@ -32,6 +32,8 @@ struct ConversationDetailView: View {
     @State private var showGroupManage = false
     @State private var showTransfer = false
     @State private var showReport = false
+    @State private var confirmBlock = false
+    @State private var confirmLeaveCircle = false
     @State private var showLocationPicker = false
     @State private var locationDraft = ""
     @State private var locationLatitude: Double?
@@ -308,16 +310,47 @@ struct ConversationDetailView: View {
                 locationLongitude = nil
             }
         }
-        .sheet(isPresented: $showReport) {
-            MessageReportSheet(targetTitle: conversation.title) { reason in
-                app.addModerationTicket(
-                    postID: conversation.id,
-                    title: conversation.title,
-                    reason: reason,
-                    targetKind: .conversation
-                )
-                copyFeedback = MessagesCopy.reportSubmitted
+        .alert(
+            "\(MessagesCopy.reportTitle)：\(conversation.title)",
+            isPresented: $showReport
+        ) {
+            ForEach(MessagesCopy.reportReasons, id: \.self) { reason in
+                Button(reason, role: .destructive) {
+                    app.addModerationTicket(
+                        postID: conversation.id,
+                        title: conversation.title,
+                        reason: reason,
+                        targetKind: .conversation
+                    )
+                    copyFeedback = MessagesCopy.reportSubmitted
+                }
             }
+            Button(MessagesCopy.cancel, role: .cancel) {}
+        } message: {
+            Text(MessagesCopy.reportFooter)
+        }
+        .alert(
+            MessagesCopy.friendBlockConfirmTitle,
+            isPresented: $confirmBlock
+        ) {
+            Button(MessagesCopy.blockUser, role: .destructive) {
+                app.blockUser(conversation.title)
+                copyFeedback = MessagesCopy.blockedAndRemoved
+            }
+            Button(MessagesCopy.cancel, role: .cancel) {}
+        } message: {
+            Text(MessagesCopy.friendBlockConfirmMessage)
+        }
+        .alert(
+            "退出组织？",
+            isPresented: $confirmLeaveCircle
+        ) {
+            Button(MessagesCopy.leaveGroup, role: .destructive) {
+                leaveCircleGroupIfPossible()
+            }
+            Button(MessagesCopy.cancel, role: .cancel) {}
+        } message: {
+            Text("退出后将离开组织群聊，成员设置会清除，可随时重新加入。")
         }
         .sensoryFeedback(.success, trigger: sendPulse)
         .sensoryFeedback(.impact(flexibility: .soft), trigger: likePulse)
@@ -332,13 +365,12 @@ struct ConversationDetailView: View {
         .onChange(of: model.conversations.map(\.id)) { _, ids in
             if !ids.contains(conversationID) { dismiss() }
         }
-        .confirmationDialog(
+        .alert(
             MessagesCopy.deleteDialogTitle,
             isPresented: Binding(
                 get: { model.conversationPendingDelete?.id == conversationID },
                 set: { if !$0 { model.cancelDelete() } }
-            ),
-            titleVisibility: .visible
+            )
         ) {
             Button(MessagesCopy.deleteDialogConfirm, role: .destructive, action: model.confirmDelete)
             Button(MessagesCopy.deleteDialogCancel, role: .cancel, action: model.cancelDelete)
@@ -526,8 +558,7 @@ struct ConversationDetailView: View {
                     showReport = true
                 }
                 Button(MessagesCopy.blockUser, systemImage: "hand.raised", role: .destructive) {
-                    app.blockUser(conversation.title)
-                    copyFeedback = MessagesCopy.blockedAndRemoved
+                    confirmBlock = true
                 }
             } else if conversation.kind != .notice {
                 Button(MessagesCopy.reportUser, systemImage: "exclamationmark.bubble") {
@@ -560,13 +591,7 @@ struct ConversationDetailView: View {
                 }
             } else if conversation.isCircleGroup {
                 Button(MessagesCopy.leaveGroup, systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
-                    if let circleID = conversation.relatedCircleID,
-                       let circle = SampleData.interestCircles.first(where: { $0.id == circleID }) {
-                        model.leaveCircleChat(circleID: circleID, leaverName: app.user.name)
-                        buddies.leaveCircle(circle)
-                    } else {
-                        model.requestDelete(conversation)
-                    }
+                    confirmLeaveCircle = true
                 }
             } else {
                 Button(MessagesCopy.deleteConversation, systemImage: "trash", role: .destructive) {
@@ -584,6 +609,19 @@ struct ConversationDetailView: View {
         draft = ""
         replyTo = nil
         sendPulse += 1
+    }
+
+    private func leaveCircleGroupIfPossible() {
+        guard let conversation else {
+            return
+        }
+        if let circleID = conversation.relatedCircleID,
+           let circle = SampleData.interestCircles.first(where: { $0.id == circleID }) {
+            model.leaveCircleChat(circleID: circleID, leaverName: app.user.name)
+            buddies.leaveCircle(circle)
+        } else {
+            model.requestDelete(conversation)
+        }
     }
 
     private func loadAndSendPhoto(_ item: PhotosPickerItem?, conversationID: ChatConversation.ID) async {

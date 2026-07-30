@@ -76,8 +76,23 @@ struct ActivityDetailDecisionCard: View {
                 .accessibilityLabel(ActivityDetailCopy.peopleRowAccessibility)
                 .accessibilityHint("查看参加成员")
         }
-        .sheet(isPresented: $showNavigationPicker) {
-            ActivityNavigationPickerSheet(activity: activity)
+        .confirmationDialog(
+            ActivityDetailCopy.navigationSheetTitle,
+            isPresented: $showNavigationPicker,
+            titleVisibility: .visible
+        ) {
+            Button("Apple 地图") {
+                ActivityNavigation.openInAppleMaps(activity)
+            }
+            Button("高德地图") {
+                ActivityNavigation.openInAmap(activity)
+            }
+            Button("百度地图") {
+                ActivityNavigation.openInBaiduMaps(activity)
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text(activity.location)
         }
     }
 
@@ -755,14 +770,7 @@ struct ActivityDetailRelatedSection: View {
 struct ActivityDetailRelatedCircleRow: View {
     let circle: InterestCircle
 
-    @Environment(BuddiesModel.self) private var buddies
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    private var isJoined: Bool { buddies.isJoined(circle) }
-
-    private var actionTitle: String {
-        isJoined ? ActivityDetailCopy.relatedCircleJoined : ActivityDetailCopy.relatedCircleJoin
-    }
 
     private var subtitle: String {
         "\(circle.city) · \(circle.topic) · \(circle.memberCount) 人"
@@ -771,38 +779,35 @@ struct ActivityDetailRelatedCircleRow: View {
     var body: some View {
         HStack(alignment: .center) {
             NavigationLink(value: circle) {
-                HStack(alignment: .center) {
-                    Image(systemName: circle.systemImage)
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color(.tertiarySystemFill))
-                        .platformRelatedThumb()
-                        .accessibilityHidden(true)
-
-                    VStack(alignment: .leading) {
-                        Text(circle.name)
-                            .font(.body)
-                            .foregroundStyle(.primary)
-                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                        Text(subtitle)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
+                Image(systemName: circle.systemImage)
+                    .font(.title2)
+                    .platformContentSymbolStyle()
+                    .frame(
+                        width: dynamicTypeSize.listAvatarSide,
+                        height: dynamicTypeSize.listAvatarSide
+                    )
+                    .background(Color.accentColor.opacity(0.14), in: Circle())
+                    .contentShape(Circle())
             }
-            .navigationLinkIndicatorVisibility(.hidden)
-            .accessibilityLabel("\(circle.name)，\(subtitle)")
+            .buttonStyle(.plain)
+            .accessibilityLabel(ActivityDetailCopy.relatedCircleJoin)
 
             NavigationLink(value: circle) {
-                Text(actionTitle)
+                VStack(alignment: .leading) {
+                    Text(circle.name)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .tint(isJoined ? .secondary : .accentColor)
-            .accessibilityLabel(actionTitle)
+            .buttonStyle(.plain)
+            .navigationLinkIndicatorVisibility(.hidden)
+            .accessibilityLabel("\(circle.name)，\(subtitle)")
         }
     }
 }
@@ -827,36 +832,3 @@ struct ActivityDetailLocationPreview: View {
     }
 }
 
-/// 底部弹出：选择导航 App（系统 List）
-struct ActivityNavigationPickerSheet: View {
-    let activity: Activity
-
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            List {
-                Button("Apple 地图") {
-                    ActivityNavigation.openInAppleMaps(activity)
-                    dismiss()
-                }
-                Button("高德地图") {
-                    ActivityNavigation.openInAmap(activity)
-                    dismiss()
-                }
-                Button("百度地图") {
-                    ActivityNavigation.openInBaiduMaps(activity)
-                    dismiss()
-                }
-            }
-            .navigationTitle(ActivityDetailCopy.navigationSheetTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
-                }
-            }
-        }
-        .platformSheet(.form)
-    }
-}

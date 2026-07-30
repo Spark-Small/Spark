@@ -102,13 +102,12 @@ struct MessagesView: View {
                     openConversation(model.conversations.first { $0.id == conversation.id })
                 }
             }
-            .confirmationDialog(
+            .alert(
                 MessagesCopy.deleteDialogTitle,
                 isPresented: Binding(
                     get: { model.conversationPendingDelete != nil && path.isEmpty },
                     set: { if !$0 { model.cancelDelete() } }
-                ),
-                titleVisibility: .visible
+                )
             ) {
                 Button(MessagesCopy.deleteDialogConfirm, role: .destructive, action: model.confirmDelete)
                 Button(MessagesCopy.deleteDialogCancel, role: .cancel, action: model.cancelDelete)

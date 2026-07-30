@@ -21,6 +21,7 @@ struct GroupManageSheet: View {
     @State private var announcementDraft = ""
     @State private var renameDraft = ""
     @State private var showMemberPicker = false
+    @State private var pendingKickMember: String?
 
     private var conversation: ChatConversation? {
         model.conversations.first { $0.id == conversationID }
@@ -56,6 +57,28 @@ struct GroupManageSheet: View {
         }
         .sheet(isPresented: $showMemberPicker) {
             GroupMemberPickerSheet(conversationID: conversationID)
+        }
+        .confirmationDialog(
+            "移出群聊？",
+            isPresented: Binding(
+                get: { pendingKickMember != nil },
+                set: { if !$0 { pendingKickMember = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(MessagesCopy.groupKick, role: .destructive) {
+                if let nickname = pendingKickMember {
+                    model.kickMember(nickname, from: conversationID)
+                }
+                pendingKickMember = nil
+            }
+            Button(MessagesCopy.cancel, role: .cancel) {
+                pendingKickMember = nil
+            }
+        } message: {
+            if let nickname = pendingKickMember {
+                Text("将 \(nickname) 移出当前群聊。")
+            }
         }
     }
 
@@ -128,7 +151,7 @@ struct GroupManageSheet: View {
                                 }
                             }
                             Button(MessagesCopy.groupKick, role: .destructive) {
-                                model.kickMember(member.nickname, from: conversationID)
+                                pendingKickMember = member.nickname
                             }
                         } label: {
                             Text(member.role == .admin ? MessagesCopy.groupRemoveAdmin : MessagesCopy.groupRoleSection)
@@ -275,45 +298,6 @@ struct MessageRequestsSheet: View {
         }) {
             dismiss()
             onOpen(convo)
-        }
-    }
-}
-
-// MARK: - Report
-
-struct MessageReportSheet: View {
-    let targetTitle: String
-    var onSubmit: (String) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var reason = MessagesCopy.reportReasons[0]
-
-    var body: some View {
-        MessagesFormSheet(title: MessagesCopy.reportTitle, dismissAction: .cancel) {
-            List {
-                Section {
-                    Text(targetTitle)
-                } header: {
-                    Text(MessagesCopy.reportTargetSection)
-                }
-                Section {
-                    Picker(MessagesCopy.reportReasonSection, selection: $reason) {
-                        ForEach(MessagesCopy.reportReasons, id: \.self) { Text($0).tag($0) }
-                    }
-                    .pickerStyle(.inline)
-                    .labelsHidden()
-                } header: {
-                    Text(MessagesCopy.reportReasonSection)
-                }
-                Section {
-                    Button(MessagesCopy.reportSubmit, role: .destructive) {
-                        onSubmit(reason)
-                        dismiss()
-                    }
-                } footer: {
-                    Text(MessagesCopy.reportFooter)
-                }
-            }
         }
     }
 }
