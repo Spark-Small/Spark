@@ -3,14 +3,12 @@
 //  坐标系
 //
 
-import Foundation
-
-enum LaunchState: Int, Equatable, Hashable, CaseIterable, Sendable {
+enum LaunchState: Equatable, Hashable, Sendable {
     /// 放大信封静候点击。
     case invitationReady
     /// 四叶草解锁 + 信封盖翻开 + 信纸升起。
     case opening
-    /// 信纸已经露出，等待用户点击进入。
+    /// 信纸已露出，短暂停留后自动进入登录。
     case invitationOpened
     /// 信纸通过系统 Zoom 导航展开为登录页。
     case login

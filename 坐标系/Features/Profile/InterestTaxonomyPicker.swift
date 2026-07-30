@@ -7,9 +7,26 @@
 
 import SwiftUI
 
+private extension ActivityCategory {
+    /// Apple 系统语义色，随显示模式自动适配。
+    var interestSymbolColor: Color {
+        switch self {
+        case .all: .secondary
+        case .outdoorSports: .green
+        case .interestSocial: .blue
+        case .food: .orange
+        case .entertainment: .purple
+        case .cityExplore: .indigo
+        case .handmade: .pink
+        case .learning: .cyan
+        }
+    }
+}
+
 struct InterestTaxonomyPicker: View {
     @Binding var selected: Set<String>
     var sectionSpacing: CGFloat = 18
+    var usesGroupedSections = false
 
     /// 当前展开输入框的分区：某个一级分类，或末尾自定义分类。
     @State private var draftingScope: DraftScope?
@@ -55,12 +72,14 @@ struct InterestTaxonomyPicker: View {
         return VStack(alignment: .leading, spacing: 12) {
             categoryHeader(
                 title: group.category.title,
-                systemImage: group.category.systemImage
+                systemImage: group.category.systemImage,
+                symbolColor: group.category.interestSymbolColor
             )
 
             FlowInterestChips(
                 items: group.subtypes + extras,
                 selected: $selected,
+                symbolColor: group.category.interestSymbolColor,
                 trailingCustom: true,
                 isCustomActive: draftingScope == scope,
                 onCustomTap: { toggleDraft(scope) },
@@ -80,13 +99,24 @@ struct InterestTaxonomyPicker: View {
                 )
             }
         }
+        .padding(usesGroupedSections ? 16 : 0)
+        .background {
+            if usesGroupedSections {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+            }
+        }
     }
 
     private var freeformSection: some View {
         let extras = customTags(in: .freeform)
 
         return VStack(alignment: .leading, spacing: 12) {
-            categoryHeader(title: "自定义分类", systemImage: "plus.circle.fill")
+            categoryHeader(
+                title: "自定义分类",
+                systemImage: "plus.circle.fill",
+                symbolColor: .teal
+            )
 
             Text("不属于上面分类的，也可以单独加在这里。")
                 .font(.caption)
@@ -95,6 +125,7 @@ struct InterestTaxonomyPicker: View {
             FlowInterestChips(
                 items: extras,
                 selected: $selected,
+                symbolColor: .teal,
                 trailingCustom: true,
                 isCustomActive: draftingScope == .freeform,
                 onCustomTap: { toggleDraft(.freeform) },
@@ -106,6 +137,13 @@ struct InterestTaxonomyPicker: View {
                     placeholder: "例如：汉服、滑板、剧本杀房主",
                     onSubmit: { commitDraft(to: .freeform) }
                 )
+            }
+        }
+        .padding(usesGroupedSections ? 16 : 0)
+        .background {
+            if usesGroupedSections {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
             }
         }
     }
@@ -134,13 +172,18 @@ struct InterestTaxonomyPicker: View {
         .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
-    private func categoryHeader(title: String, systemImage: String) -> some View {
+    private func categoryHeader(
+        title: String,
+        systemImage: String,
+        symbolColor: Color
+    ) -> some View {
         HStack(spacing: 10) {
             Image(systemName: systemImage)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.tint)
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(symbolColor, symbolColor.opacity(0.55))
                 .frame(width: 32, height: 32)
-                .background(Color.accentColor.opacity(0.12), in: Circle())
+                .background(symbolColor.opacity(0.12), in: Circle())
 
             Text(title)
                 .font(.subheadline.weight(.semibold))
@@ -229,6 +272,7 @@ struct InterestTaxonomyPicker: View {
 private struct FlowInterestChips: View {
     let items: [String]
     @Binding var selected: Set<String>
+    var symbolColor: Color
     var trailingCustom: Bool = false
     var isCustomActive: Bool = false
     var onCustomTap: (() -> Void)?
@@ -241,7 +285,8 @@ private struct FlowInterestChips: View {
                 PlatformFilterChipButton(
                     title: item,
                     systemImage: systemImageProvider(item),
-                    isSelected: selected.contains(item)
+                    isSelected: selected.contains(item),
+                    symbolColor: symbolColor
                 ) {
                     toggle(item)
                 }
@@ -252,6 +297,7 @@ private struct FlowInterestChips: View {
                     title: "自定义",
                     systemImage: isCustomActive ? "xmark" : "plus",
                     isSelected: isCustomActive,
+                    symbolColor: symbolColor,
                     action: onCustomTap
                 )
             }

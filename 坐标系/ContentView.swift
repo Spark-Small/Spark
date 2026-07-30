@@ -26,7 +26,7 @@ final class AppModel {
     var buddies: BuddiesModel
     var user: AppUser
     var hasCompletedOnboarding: Bool
-    var auth = LocalAuthSession()
+    var auth: LocalAuthSession
     var blockedUserNames: Set<String>
     var moderationTickets: [ModerationTicket]
     /// 跨 Tab 打开指定会话
@@ -41,7 +41,11 @@ final class AppModel {
     @ObservationIgnored private let derivedStateService = AppDerivedStateService()
     @ObservationIgnored private lazy var syncOrchestrator = AppSyncOrchestrator(app: self)
 
-    init(profileRepository: ProfileRepository? = nil) {
+    init(
+        auth: LocalAuthSession? = nil,
+        profileRepository: ProfileRepository? = nil
+    ) {
+        self.auth = auth ?? LocalAuthSession()
         let resolvedProfileRepository = profileRepository ?? LocalProfileRepository()
         self.profileRepository = resolvedProfileRepository
         profilePersistenceGeneration = resolvedProfileRepository.currentPersistenceGeneration()
@@ -440,28 +444,54 @@ final class AppModel {
 }
 
 struct ContentView: View {
-    @State private var model = AppModel()
+    /// 仅读 UserDefaults，足够画出未登录首帧。
+    @State private var auth = LocalAuthSession()
+    /// 登录后再构造，避免首帧前解码全量本地目录。
+    @State private var model: AppModel?
+    @State private var didRunDeferredStartup = false
 
     var body: some View {
         Group {
-            if !model.auth.isSignedIn {
-                RootView(session: model.auth)
-            } else if !model.hasCompletedOnboarding {
-                OnboardingSheet { interests in
-                    model.completeOnboarding(interests: interests)
-                }
+            if !auth.isSignedIn {
+                RootView(session: auth)
+            } else if let model {
+                signedInRoot(model)
             } else {
-                mainTabs
+                // 已登录冷启动：延续启动屏底色，等模型就绪后再进主界面。
+                LaunchSurface.stage
+                    .ignoresSafeArea()
+                    .overlay {
+                        Image("LaunchMark")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 200, height: 200)
+                            .accessibilityHidden(true)
+                    }
             }
         }
         .task {
-            await model.bootstrapAsync()
+            await runDeferredStartupIfNeeded()
         }
-        .animation(.spring(duration: 0.45, bounce: 0.12), value: model.auth.isSignedIn)
-        .animation(.spring(duration: 0.4, bounce: 0.1), value: model.hasCompletedOnboarding)
+        .task(id: auth.isSignedIn) {
+            guard auth.isSignedIn else { return }
+            await ensureModelReady()
+        }
+        .animation(.spring(duration: 0.45, bounce: 0.12), value: auth.isSignedIn)
+        .animation(.spring(duration: 0.4, bounce: 0.1), value: model?.hasCompletedOnboarding)
     }
 
-    private var mainTabs: some View {
+    @ViewBuilder
+    private func signedInRoot(_ model: AppModel) -> some View {
+        if !model.hasCompletedOnboarding {
+            OnboardingSheet { interests in
+                model.completeOnboarding(interests: interests)
+            }
+        } else {
+            mainTabs(model)
+        }
+    }
+
+    private func mainTabs(_ model: AppModel) -> some View {
         @Bindable var model = model
 
         // 官方 Tab + 下滑折叠收纳（iPhone：tabBarMinimizeBehavior）
@@ -516,6 +546,28 @@ struct ContentView: View {
             // 登录并完成引导后进入主界面时请求定位（仅系统未决定时会弹窗）
             LocationService.shared.promptWhenInUseIfNeeded()
         }
+    }
+
+    /// 首帧之后：刷新目录种子；Debug 自检也延后。
+    private func runDeferredStartupIfNeeded() async {
+        guard !didRunDeferredStartup else { return }
+        didRunDeferredStartup = true
+
+        await Task.detached(priority: .utility) {
+            AppPersistence.refreshCatalogIfNeeded()
+        }.value
+
+        #if DEBUG
+        LocalCommercialSelfTests.runCriticalChecks()
+        #endif
+    }
+
+    private func ensureModelReady() async {
+        await runDeferredStartupIfNeeded()
+        if model == nil {
+            model = AppModel(auth: auth)
+        }
+        await model?.bootstrapAsync()
     }
 }
 

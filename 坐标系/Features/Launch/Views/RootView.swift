@@ -10,10 +10,11 @@ struct RootView: View {
 
     @Namespace private var launchNamespace
     @State private var viewModel = LaunchViewModel()
+    @State private var path = NavigationPath()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ZStack {
                 LaunchSurface.stage
                     .ignoresSafeArea()
@@ -32,10 +33,14 @@ struct RootView: View {
                             )
                         )
                         .toolbar(.hidden, for: .navigationBar)
-                default:
+                case .invitationReady, .opening, .invitationOpened:
                     EmptyView()
                 }
             }
+        }
+        .onChange(of: viewModel.state) { _, state in
+            guard state == .login, path.isEmpty else { return }
+            path.append(LaunchState.login)
         }
     }
 
@@ -44,13 +49,14 @@ struct RootView: View {
         let state = viewModel.state
 
         EnvelopeView(
-            isFlapOpen: state == .opening || state == .invitationOpened,
-            isLetterInteractive: state == .invitationOpened,
+            isFlapOpen: state == .opening || state == .invitationOpened || state == .login,
             letterRise: state == .invitationReady ? 0 : 0.9,
             isFloating: state == .invitationReady,
             namespace: launchNamespace,
             onTap: { viewModel.openInvitation(reduceMotion: reduceMotion) },
-            onOpenFinished: { viewModel.envelopeOpenFinished() }
+            onOpenFinished: {
+                viewModel.envelopeOpenFinished(reduceMotion: reduceMotion)
+            }
         )
         .animation(LaunchMotion.letterRise, value: state)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

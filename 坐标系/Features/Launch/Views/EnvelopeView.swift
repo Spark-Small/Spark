@@ -2,14 +2,13 @@
 //  EnvelopeView.swift
 //  坐标系
 //
-//  红色圆角信封：点击后四叶草顺时针解锁，上盖翻开，信纸升起并衔接到登录页。
+//  红色圆角信封：点击后四叶草解锁、上盖翻开、信纸升起；停留后自动进入登录。
 //
 
 import SwiftUI
 
 struct EnvelopeView: View {
     var isFlapOpen: Bool
-    var isLetterInteractive: Bool
     var letterRise: CGFloat
     var isFloating: Bool
     var namespace: Namespace.ID
@@ -72,7 +71,7 @@ struct EnvelopeView: View {
             .frame(width: width, height: height)
             .shadow(color: .black.opacity(0.10), radius: 18, y: 10)
         }
-        // 预留信纸升起后的高度，避免露出的部分落在命中区域之外。
+        // 预留信纸升起后的高度，避免露出部分被裁切。
         .frame(width: width, height: height + 200)
         .scaleEffect(pressScale)
         .floatingAnimation(
@@ -99,26 +98,17 @@ struct EnvelopeView: View {
 
     // MARK: - Letter
 
-    @ViewBuilder
+    /// 仅作 Zoom 过渡源；进入登录由 ViewModel 自动推进，不再依赖点击。
     private var pocketLetter: some View {
-        if isLetterInteractive {
-            NavigationLink(value: LaunchState.login) {
-                letterSurface
-            }
-            .buttonStyle(.plain)
+        letterSurface
             .matchedTransitionSource(
                 id: LaunchGeometry.invitationSurface,
                 in: namespace
             ) { source in
                 source.clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
-            .accessibilityLabel("进入登录页面")
-            .accessibilityHint("信纸将放大为登录页面")
-        } else {
-            letterSurface
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 
     private var letterSurface: some View {
@@ -221,7 +211,6 @@ struct EnvelopeView: View {
             .allowsHitTesting(false)
     }
 
-    /// 装饰层不接收点击，否则会挡住信纸下半部分的进入手势。
     private var frontPocket: some View {
         EnvelopeFrontPocketShape(corner: cornerRadius)
             .fill(envelopeFill)
@@ -245,7 +234,7 @@ struct EnvelopeView: View {
             )
             .opacity(flapHidden ? 0 : 1)
             .animation(LaunchMotion.flapVanish, value: flapHidden)
-            .allowsHitTesting(!flapHidden)
+            .allowsHitTesting(false)
     }
 
     /// 前袋的白色封口线，上盖翻开后依旧保留，与图标保持一致。
@@ -462,7 +451,6 @@ private struct CloverShape: Shape {
     @Previewable @Namespace var ns
     EnvelopeView(
         isFlapOpen: false,
-        isLetterInteractive: false,
         letterRise: 0,
         isFloating: true,
         namespace: ns,
@@ -477,7 +465,6 @@ private struct CloverShape: Shape {
     @Previewable @Namespace var ns
     EnvelopeView(
         isFlapOpen: true,
-        isLetterInteractive: true,
         letterRise: 0.85,
         isFloating: false,
         namespace: ns,

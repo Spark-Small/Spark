@@ -18,7 +18,7 @@ struct OnboardingSheet: View {
 
     var body: some View {
         ZStack {
-            Color(.systemGroupedBackground)
+            PlatformSurface.groupedPage
                 .ignoresSafeArea()
 
             ScrollView {
@@ -35,7 +35,8 @@ struct OnboardingSheet: View {
 
                     InterestTaxonomyPicker(
                         selected: $selectedInterests,
-                        sectionSpacing: 22
+                        sectionSpacing: 16,
+                        usesGroupedSections: true
                     )
 
                     VStack(spacing: 10) {

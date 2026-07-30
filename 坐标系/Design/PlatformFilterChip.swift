@@ -13,12 +13,22 @@ struct PlatformFilterChipButton: View {
     let title: String
     let systemImage: String
     var isSelected = false
+    var symbolColor: Color?
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .labelStyle(.titleAndIcon)
+            HStack(spacing: 6) {
+                if let symbolColor {
+                    Image(systemName: systemImage)
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(symbolColor, symbolColor.opacity(0.55))
+                } else {
+                    Image(systemName: systemImage)
+                }
+
+                Text(title)
+            }
         }
         .platformMaterialChipStyle(isSelected: isSelected)
         .sensoryFeedback(.selection, trigger: isSelected)

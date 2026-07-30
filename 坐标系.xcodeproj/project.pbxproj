@@ -21,9 +21,22 @@
 		90A001001122334455667701 /* 坐标系Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "坐标系Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		80E7579A300761E8001E6272 /* Exceptions for "坐标系" folder in "坐标系" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 80E75794300761E8001E6272 /* 坐标系 */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		80E75797300761E8001E6272 /* 坐标系 */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				80E7579A300761E8001E6272 /* Exceptions for "坐标系" folder in "坐标系" target */,
+			);
 			path = "坐标系";
 			sourceTree = "<group>";
 		};
@@ -335,6 +348,7 @@
 				DEVELOPMENT_TEAM = A95ZH5QY7B;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "坐标系/Info.plist";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "用于把已报名的活动写入系统日历";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "用于把已报名的活动写入系统日历";
 				INFOPLIST_KEY_NSCameraUsageDescription = "用于扫一扫识别搭子或活动群二维码（后续版本）";
@@ -342,7 +356,6 @@
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于发起活动封面、头像与社区分享时选择图片";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -375,6 +388,7 @@
 				DEVELOPMENT_TEAM = A95ZH5QY7B;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "坐标系/Info.plist";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "用于把已报名的活动写入系统日历";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "用于把已报名的活动写入系统日历";
 				INFOPLIST_KEY_NSCameraUsageDescription = "用于扫一扫识别搭子或活动群二维码（后续版本）";
@@ -382,7 +396,6 @@
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于发起活动封面、头像与社区分享时选择图片";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (

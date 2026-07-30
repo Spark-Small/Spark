@@ -3,7 +3,6 @@
 //  坐标系
 //
 
-import Foundation
 import Observation
 import SwiftUI
 
@@ -11,21 +10,26 @@ import SwiftUI
 @Observable
 final class LaunchViewModel {
     var state: LaunchState = .invitationReady
-    private(set) var isInteractionLocked = false
 
     func openInvitation(reduceMotion: Bool) {
-        guard state == .invitationReady, !isInteractionLocked else { return }
-        isInteractionLocked = true
+        guard state == .invitationReady else { return }
 
         withAnimation(reduceMotion ? .easeOut(duration: 0.15) : LaunchMotion.flapOpen) {
             state = .opening
         }
     }
 
-    func envelopeOpenFinished() {
+    /// 信纸升起完成后调用：停留片刻，再自动切入登录。
+    func envelopeOpenFinished(reduceMotion: Bool) {
         guard state == .opening else { return }
-        withAnimation(.easeOut(duration: 0.18)) {
-            state = .invitationOpened
+        state = .invitationOpened
+
+        Task { @MainActor in
+            try? await Task.sleep(
+                for: reduceMotion ? .milliseconds(120) : LaunchMotion.letterDwell
+            )
+            guard state == .invitationOpened else { return }
+            state = .login
         }
     }
 }
