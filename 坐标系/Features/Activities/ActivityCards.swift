@@ -2,7 +2,7 @@
 //  ActivityCards.swift
 //  坐标系
 //
-//  活动卡片：精选 Hero + 发现流大卡（行程 / 主办管理复用）。
+//  活动卡片：精选 Hero + 发现流大卡。
 //
 
 import SwiftUI
@@ -146,7 +146,7 @@ struct ActivityFeaturedCard: View {
     }
 }
 
-/// 发现流大卡 — 16:9（行程 / 主办管理）
+/// 发现流大卡 — 16:9
 struct ActivityDiscoverCard: View {
     let activity: Activity
     var isJoined: Bool = false

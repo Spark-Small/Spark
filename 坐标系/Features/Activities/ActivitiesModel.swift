@@ -18,14 +18,11 @@ final class ActivitiesModel {
     var currentUserName: String
     var isComposing = false
     var editingActivityID: Activity.ID?
-    var showTrips = false
     var showFilters = false
     var joinSuccessActivityID: Activity.ID?
     /// 发起人发布成功（与参加成功区分）
     var publishSuccessActivityID: Activity.ID?
     var toastMessage: String?
-    /// 会话内收起的候补晋升横条
-    private(set) var dismissedWaitlistBannerIDs: Set<UUID> = []
     private var waitlistSpotNotifiedIDs: Set<UUID>
     private let repository: ActivitiesRepository
     @ObservationIgnored private var persistenceGeneration: Int
@@ -127,33 +124,6 @@ final class ActivitiesModel {
 
     var favoriteActivities: [Activity] {
         activities.filter { favoriteIDs.contains($0.id) }.sorted { $0.date < $1.date }
-    }
-
-    var waitlistActivities: [Activity] {
-        activities.filter { waitlistIDs.contains($0.id) }.sorted { $0.date < $1.date }
-    }
-
-    /// 候补且已有空位、生命周期未结束
-    var waitlistReadyActivities: [Activity] {
-        waitlistActivities.filter { $0.isJoinable }
-    }
-
-    /// 我的行程页展示的候补晋升横条
-    var visibleWaitlistPromotions: [Activity] {
-        waitlistReadyActivities.filter { !dismissedWaitlistBannerIDs.contains($0.id) }
-    }
-
-    var hasWaitlistPromotions: Bool { !visibleWaitlistPromotions.isEmpty }
-
-    func dismissWaitlistBanner(for id: Activity.ID) {
-        dismissedWaitlistBannerIDs.insert(id)
-    }
-
-    func isWaitlistPromotionReady(for id: Activity.ID) -> Bool {
-        guard waitlistIDs.contains(id),
-              let activity = activity(id: id)
-        else { return false }
-        return activity.isJoinable
     }
 
     var joinSuccessActivity: Activity? {
@@ -267,6 +237,10 @@ final class ActivitiesModel {
             activities[index].joined = max(activities[index].joined - 1, 0)
             activities[index].participantNames.removeAll { $0 == currentUserName }
             NotificationService.cancelActivityReminder(activityID: id)
+            WalletPassStore.shared.void(relatedID: id)
+            if let order = ActivityPaymentStore.paidOrder(for: id) {
+                WalletPassStore.shared.void(relatedID: order.id)
+            }
             flash(ActivityFeedbackCopy.unjoined)
             persist()
             processWaitlistSpotAvailability(for: id)
@@ -576,17 +550,6 @@ final class ActivitiesModel {
         }
     }
 
-    private func refreshWaitlistSpotNotifications() {
-        for id in waitlistIDs {
-            processWaitlistSpotAvailability(for: id)
-        }
-    }
-
-    /// 我的行程出现时刷新候补可转正通知（勿在 init 调用，避免首帧副作用）
-    func refreshWaitlistSpotAvailability() {
-        refreshWaitlistSpotNotifications()
-    }
-
     func reloadFromRepository() async {
         guard let snapshot = try? await repository.loadAsync() else { return }
         persistenceGeneration = repository.currentPersistenceGeneration()
@@ -595,7 +558,6 @@ final class ActivitiesModel {
         favoriteIDs = Set(snapshot.favoriteIDs)
         waitlistIDs = Set(snapshot.waitlistIDs)
         waitlistSpotNotifiedIDs = Set(snapshot.waitlistSpotNotifiedIDs)
-        dismissedWaitlistBannerIDs = dismissedWaitlistBannerIDs.intersection(waitlistIDs)
     }
 
     func discardPendingPersistence() async {
@@ -631,7 +593,6 @@ final class ActivitiesModel {
     private func clearWaitlistPromotionState(for activityID: Activity.ID) {
         waitlistIDs.remove(activityID)
         waitlistSpotNotifiedIDs.remove(activityID)
-        dismissedWaitlistBannerIDs.remove(activityID)
         NotificationService.cancelWaitlistSpotNotification(activityID: activityID)
     }
 }

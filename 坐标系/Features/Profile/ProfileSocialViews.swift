@@ -132,11 +132,11 @@ struct ProfileBuddiesView: View {
                 Text("管理陪玩预约与活动邀约。找新陪玩去「搭子」页，好友聊天在「消息」。")
             }
 
-            Section {
-                switch segment {
-                case .bookings:
-                    bookingRows
-                case .invites:
+            switch segment {
+            case .bookings:
+                ProfileBookingCredentialsSection()
+            case .invites:
+                Section {
                     inviteRows
                 }
             }
@@ -157,47 +157,9 @@ struct ProfileBuddiesView: View {
         )) { record in
             BookingPaymentSheet(
                 record: record,
-                onConfirm: { confirmBookingPayment(record) },
+                onConfirm: { method in confirmBookingPayment(record, method: method) },
                 onCancel: { buddies.cancelPendingPayment() }
             )
-        }
-    }
-
-    @ViewBuilder
-    private var bookingRows: some View {
-        if buddies.bookingRecords.isEmpty {
-            ContentUnavailableView(
-                "还没有陪玩预约",
-                systemImage: "person.badge.clock",
-                description: Text("在搭子页预约陪玩后，订单会出现在这里。")
-            )
-        } else {
-            ForEach(buddies.bookingRecords) { record in
-                NavigationLink {
-                    BuddyBookingDetailView(recordID: record.id)
-                } label: {
-                    ProfileBookingRow(record: record)
-                }
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button("删除", systemImage: "trash", role: .destructive) {
-                        buddies.deleteBooking(record.id)
-                    }
-                    if record.canPay {
-                        Button("去支付", systemImage: "yensign.circle") {
-                            buddies.beginPayment(record.id)
-                        }
-                        .tint(.green)
-                    }
-                    #if DEBUG
-                    if record.canSimulateCounterpart {
-                        Button("模拟接单", systemImage: "hand.thumbsup") {
-                            buddies.acceptBooking(record.id)
-                        }
-                        .tint(.green)
-                    }
-                    #endif
-                }
-            }
         }
     }
 
@@ -237,45 +199,19 @@ struct ProfileBuddiesView: View {
         }
     }
 
-    private func confirmBookingPayment(_ record: BuddyBookingRecord) {
-        buddies.confirmPayment(record.id)
+    private func confirmBookingPayment(
+        _ record: BuddyBookingRecord,
+        method: PaymentMethod
+    ) -> PaymentOutcome {
+        let outcome = buddies.confirmPayment(record.id, method: method)
+        guard outcome == .success else { return outcome }
         let greeting =
             "你好！我想预约 \(Formatters.monthDay.string(from: record.scheduledAt)) "
             + "\(Formatters.shortTime.string(from: record.scheduledAt)) 开始的 \(record.hours) 小时陪玩，方便确认一下吗？"
         if let convo = app.startDirectChat(with: record.companionNickname, greeting: greeting) {
             app.openMessages(conversationID: convo.id)
         }
-    }
-}
-
-private struct ProfileBookingRow: View {
-    let record: BuddyBookingRecord
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
-            HStack(spacing: PlatformConversationListRow.textToSecondarySpacing) {
-                Text(record.companionNickname)
-                    .font(PlatformListTypography.primary)
-                Spacer(minLength: 0)
-                Text(record.statusLabel)
-                    .font(PlatformListTypography.secondary)
-                    .foregroundStyle(bookingStatusColor(record.status))
-                Text(record.priceText)
-                    .font(PlatformListTypography.secondary)
-                    .foregroundStyle(PlatformStatus.warning)
-            }
-
-            Text(
-                "\(Formatters.monthDay.string(from: record.scheduledAt)) \(Formatters.shortTime.string(from: record.scheduledAt)) · \(record.hours) 小时"
-            )
-            .font(PlatformListTypography.secondary)
-            .foregroundStyle(.secondary)
-
-            Text("预约于 \(Formatters.activityDate.string(from: record.bookedAt))")
-                .font(PlatformListTypography.footnote)
-                .foregroundStyle(.tertiary)
-        }
-        .accessibilityElement(children: .combine)
+        return .success
     }
 }
 

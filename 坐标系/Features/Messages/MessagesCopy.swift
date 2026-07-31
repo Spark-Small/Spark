@@ -226,7 +226,7 @@ nonisolated enum MessagesCopy {
     static let transferAmountHeader = "转账金额"
     static let transferAmountPlaceholder = "金额"
     static let transferConfirm = "确认转账"
-    static let transferDemoFooter = "演示支付：不会产生真实扣款。"
+    static let transferDemoFooter = "从钱包余额扣款；取消或过期后退回。本地演示，无真实扣款。"
     static let transferDemoBadge = "本地转账"
     static let transferDefaultAmount = "20"
     static let transferAccept = "确认收款"

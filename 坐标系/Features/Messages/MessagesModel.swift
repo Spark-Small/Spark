@@ -909,13 +909,27 @@ final class MessagesModel {
         currentUserName: String
     ) -> ChatMessage? {
         guard let conversation = conversations.first(where: { $0.id == id }) else { return nil }
-        let recipient = conversation.kind == .direct ? conversation.title : conversation.ownerName ?? MessagesCopy.memberFallback
+        let cents = WalletMoney.cents(fromYuan: amount)
+        guard cents > 0 else { return nil }
+        let charge = WalletStore.shared.charge(
+            amountCents: cents,
+            method: .wallet,
+            kind: .transferOut,
+            title: "转账给\(conversation.kind == .direct ? conversation.title : conversation.ownerName ?? MessagesCopy.memberFallback)",
+            subtitle: WalletMoney.formatted(cents: cents)
+        )
+        guard charge == .success else { return nil }
+
+        let recipient = conversation.kind == .direct
+            ? conversation.title
+            : conversation.ownerName ?? MessagesCopy.memberFallback
         let result = transferService.createTransfer(
             conversationID: id,
             amount: amount,
             senderName: currentUserName,
             recipientName: recipient
         )
+        WalletStore.shared.attachRelatedID(result.record.id, toKind: .transferOut, amountCents: cents)
         transferRecords.insert(result.record, at: 0)
         appendMessage(result.message, to: id)
         scheduleTransferExpiration(for: result.record.id)
@@ -961,9 +975,36 @@ final class MessagesModel {
         if previousStatus == .pending {
             cancelTransferExpiration(for: transferID)
         }
-        transferRecords[index] = transferService.advanceStatus(for: transferRecords[index], to: status)
+        let record = transferRecords[index]
+        transferRecords[index] = transferService.advanceStatus(for: record, to: status)
+
+        let cents = WalletMoney.cents(fromYuan: record.amount)
+        switch (previousStatus, status) {
+        case (.pending, .cancelled), (.pending, .expired), (.accepted, .refunded):
+            // 发送方取消/过期，或收款后退回：退回发送方余额
+            WalletStore.shared.credit(
+                amountCents: cents,
+                method: .wallet,
+                kind: .transferRefund,
+                title: "转账退回",
+                subtitle: record.recipientName,
+                relatedID: transferID
+            )
+        case (.pending, .accepted):
+            // 收款方入账（对方发出的转账）
+            WalletStore.shared.credit(
+                amountCents: cents,
+                method: .wallet,
+                kind: .transferIn,
+                title: "收到转账",
+                subtitle: record.senderName,
+                relatedID: transferID
+            )
+        default:
+            break
+        }
+
         if status == .expired {
-            let record = transferRecords[index]
             appendSystemTip(
                 MessagesCopy.transferExpiredNotice(amount: record.amount),
                 audience: .everyone,

@@ -2,7 +2,7 @@
 //  ProfilePublishedView.swift
 //  坐标系
 //
-//  「我的发布」：本机社区分享 + 发起活动，可从「我的」直接查看。
+//  「我的发布」：创作凭证列表（分享 / 发起活动），不进系统 Wallet。
 //
 
 import SwiftUI
@@ -17,6 +17,7 @@ struct ProfilePublishedView: View {
 
     @Environment(ActivitiesModel.self) private var activities
     @Environment(CommunityModel.self) private var community
+    @Namespace private var zoomNamespace
     @State private var segment: Segment = .posts
 
     init(initialSegment: Segment = .posts) {
@@ -39,7 +40,7 @@ struct ProfilePublishedView: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
             } footer: {
-                Text("查看你发过的社区分享与发起活动。互动数据基于本机统计。")
+                Text("创作凭证仅在 App 内展示，不会加入 Apple Wallet。互动数据基于本机统计。")
             }
 
             Section {
@@ -49,6 +50,8 @@ struct ProfilePublishedView: View {
                 case .activities:
                     activitiesRows
                 }
+            } header: {
+                Text(segment == .posts ? "分享凭证夹" : "发起凭证夹")
             }
         }
         .listStyle(.insetGrouped)
@@ -56,10 +59,7 @@ struct ProfilePublishedView: View {
         .navigationTitle("我的发布")
         .navigationBarTitleDisplayMode(.inline)
         .platformSecondaryPage()
-        // 分享详情目的地由「我的」栈根注册
-        .navigationDestination(for: Activity.self) { activity in
-            ActivityDetailView(activity: activity)
-        }
+        .activityZoomNavigationDestinationIfNeeded(fallback: zoomNamespace)
         .onAppear {
             if snapshot.posts.isEmpty, !snapshot.activities.isEmpty {
                 segment = .activities
@@ -76,16 +76,21 @@ struct ProfilePublishedView: View {
                 systemImage: "square.and.pencil",
                 description: Text("在社区发帖后，内容会出现在这里。")
             )
+            .listRowBackground(Color.clear)
         } else {
             ForEach(items) { item in
                 NavigationLink(value: item.post) {
-                    PlatformListTextColumn(
-                        primary: item.post.messageText,
-                        secondary: Formatters.conversationListTime(from: item.post.postedAt),
-                        footnote: item.metricLine,
-                        primaryLineLimit: 3
+                    ProfilePublishedCredentialCard(
+                        kind: .post,
+                        title: item.post.messageText,
+                        metaLine: "\(ProfileLibraryCopy.postMetaLine(for: item.post)) · \(item.metricLine)",
+                        photo: item.post.coverPhoto,
+                        idHint: item.post.id.uuidString
                     )
                 }
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
         }
     }
@@ -99,15 +104,24 @@ struct ProfilePublishedView: View {
                 systemImage: "flag",
                 description: Text("发起活动后，会出现在这里，也可在「我的活动」里管理。")
             )
+            .listRowBackground(Color.clear)
         } else {
             ForEach(items) { item in
-                NavigationLink(value: item.activity) {
-                    PlatformListTextColumn(
-                        primary: item.activity.title,
-                        secondary: Formatters.activityEventTime(from: item.activity.date),
-                        footnote: item.metricLine
+                ActivityZoomNavigationLink(
+                    activity: item.activity,
+                    namespace: zoomNamespace
+                ) {
+                    ProfilePublishedCredentialCard(
+                        kind: .hostedActivity,
+                        title: item.activity.title,
+                        metaLine: "\(Formatters.activityEventTime(from: item.activity.date)) · \(item.metricLine)",
+                        photo: item.activity.coverPhoto,
+                        idHint: item.activity.id.uuidString
                     )
                 }
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
         }
     }

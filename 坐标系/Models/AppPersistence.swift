@@ -17,7 +17,13 @@ struct ActivitiesSnapshot: Codable {
     static var seed: ActivitiesSnapshot {
         ActivitiesSnapshot(
             activities: SampleData.activities,
-            joinedIDs: [SampleData.activities[1].id, SampleData.activities[6].id],
+            // 「我的活动」预览堆默认露出 4 张未结束凭证
+            joinedIDs: [
+                SampleData.activities[1].id,
+                SampleData.activities[6].id,
+                SampleData.activities[8].id,
+                SampleData.activities[9].id
+            ],
             favoriteIDs: [SampleData.activities[3].id],
             waitlistIDs: [SampleData.activities[10].id],
             waitlistSpotNotifiedIDs: []
@@ -560,6 +566,10 @@ enum AppPersistence {
         ActivityPaymentStore.resetAll()
         ActivityCommentsStore.resetAll()
         ActivityDetailContentStore.resetAll()
+        WalletStore.shared.resetAll()
+        WalletPassStore.shared.resetAll()
+        UserDefaults.standard.removeObject(forKey: "profile.wallet.balanceCents")
+        UserDefaults.standard.removeObject(forKey: "profile.membership.active")
         UserDefaults.standard.removeObject(forKey: catalogVersionKey)
         UserDefaults.standard.removeObject(forKey: "reco.nearbyKM")
         UserDefaults.standard.removeObject(forKey: "reco.startingSoonHours")
@@ -590,7 +600,7 @@ enum AppPersistence {
 
     /// 内容目录版本：升级后合并新种子，保留用户活动与报名状态
     private static let catalogVersionKey = "app.catalog.version"
-    static let catalogVersion = 7
+    static let catalogVersion = 8
 
     static func refreshCatalogIfNeeded() {
         let current = UserDefaults.standard.integer(forKey: catalogVersionKey)
@@ -634,9 +644,12 @@ enum AppPersistence {
         catalog.append(contentsOf: userCreated)
 
         let validIDs = Set(catalog.map(\.id))
+        // 目录升级时补齐种子报名，保证「我的」预览堆有满 4 张可读凭证
+        let joined = Set(previous.joinedIDs.filter(validIDs.contains))
+            .union(seed.joinedIDs.filter(validIDs.contains))
         return ActivitiesSnapshot(
             activities: catalog,
-            joinedIDs: previous.joinedIDs.filter(validIDs.contains),
+            joinedIDs: Array(joined),
             favoriteIDs: previous.favoriteIDs.filter(validIDs.contains),
             waitlistIDs: previous.waitlistIDs.filter(validIDs.contains),
             waitlistSpotNotifiedIDs: previous.waitlistSpotNotifiedIDs.filter(validIDs.contains)
@@ -650,10 +663,30 @@ enum AppPersistence {
 
     private static func mergeBuddiesCatalogIfNeeded() {
         let previous = loadBuddies()
-        // 已有邀约/预约数据则保留；空库才写入种子
+        let seed = BuddiesSnapshot.seed
+
+        // 空库写入完整种子
         if previous.inviteRecords.isEmpty && previous.bookingRecords.isEmpty {
-            saveBuddies(.seed)
+            saveBuddies(seed)
+            return
         }
+
+        // 已有数据：按 ID 补齐缺失的种子预约（预览堆凑满 4 张）
+        let existingBookingIDs = Set(previous.bookingRecords.map(\.id))
+        let missingBookings = seed.bookingRecords.filter { !existingBookingIDs.contains($0.id) }
+        let existingInviteIDs = Set(previous.inviteRecords.map(\.id))
+        let missingInvites = seed.inviteRecords.filter { !existingInviteIDs.contains($0.id) }
+        guard !missingBookings.isEmpty || !missingInvites.isEmpty else { return }
+
+        saveBuddies(
+            BuddiesSnapshot(
+                inviteRecords: previous.inviteRecords + missingInvites,
+                bookingRecords: missingBookings + previous.bookingRecords,
+                joinedCircleNames: previous.joinedCircleNames,
+                joinedGuildNames: previous.joinedGuildNames,
+                membershipPrefs: previous.membershipPrefs
+            )
+        )
     }
 
     static func repairedMessagesSnapshot(from previous: MessagesSnapshot) -> MessagesSnapshot {

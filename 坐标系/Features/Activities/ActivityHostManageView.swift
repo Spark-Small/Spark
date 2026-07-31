@@ -2,12 +2,12 @@
 //  ActivityHostManageView.swift
 //  坐标系
 //
-//  发起人行程管理页：名额、改期、内容、取消活动。
+//  发起人管理页：名额、改期、内容、取消活动。
 //
 
 import SwiftUI
 
-/// 行程 / 详情共用的发起人管理页（Push 呈现）
+/// 详情共用的发起人管理页（Push 呈现）
 struct ActivityHostManageView: View {
     let activityID: Activity.ID
 
@@ -183,34 +183,6 @@ struct ActivityHostManageView: View {
             Button("保留活动", role: .cancel) {}
         } message: {
             Text(ActivityDetailCopy.hostManageCancelAlertMessage(title: live.title))
-        }
-    }
-}
-
-/// 我发起的行程卡片：带管理入口
-struct ActivityHostedTripRow: View {
-    let activity: Activity
-    var zoomNamespace: Namespace.ID
-    var onManage: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading) {
-            ActivityZoomNavigationLink(
-                activity: activity,
-                namespace: zoomNamespace
-            ) {
-                ActivityDiscoverCard(
-                    activity: activity,
-                    isJoined: true,
-                    enablesOpenTap: false
-                )
-            }
-
-            Button(action: onManage) {
-                Label(ActivityDetailCopy.hostManageTitle, systemImage: "slider.horizontal.3")
-                    .frame(maxWidth: .infinity)
-            }
-            .activityPrimaryCTA(controlSize: .small)
         }
     }
 }

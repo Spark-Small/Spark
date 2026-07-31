@@ -61,47 +61,30 @@ struct UserAgreementView: View {
 
 struct BookingPaymentSheet: View {
     let record: BuddyBookingRecord
-    var onConfirm: () -> Void
+    var onConfirm: (PaymentMethod) -> PaymentOutcome
     var onCancel: () -> Void
 
-    @Environment(\.dismiss) private var dismiss
+    private var amountCents: Int {
+        WalletMoney.cents(fromDisplay: record.priceText)
+            ?? max(record.hours, 1) * 6_800
+    }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("订单确认") {
-                    LabeledContent("陪玩", value: record.companionNickname)
-                    LabeledContent("时长", value: "\(record.hours) 小时")
-                    LabeledContent(
-                        "时间",
-                        value: "\(Formatters.monthDay.string(from: record.scheduledAt)) \(Formatters.shortTime.string(from: record.scheduledAt))"
-                    )
-                    LabeledContent("金额", value: record.priceText)
-                }
-                Section {
-                    Text("支付方式：余额支付")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .navigationTitle("确认支付")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") {
-                        onCancel()
-                        dismiss()
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("支付") {
-                        onConfirm()
-                        dismiss()
-                    }
-                    .fontWeight(.semibold)
-                }
-            }
-        }
-        .platformSheet(.confirm, interactiveDismissDisabled: true)
+        CoordinatePaymentSheet(
+            navigationTitle: "确认支付",
+            summary: [
+                ("陪玩", record.companionNickname),
+                ("时长", "\(record.hours) 小时"),
+                (
+                    "时间",
+                    "\(Formatters.monthDay.string(from: record.scheduledAt)) \(Formatters.shortTime.string(from: record.scheduledAt))"
+                )
+            ],
+            amountCents: amountCents,
+            footer: "本地演示支付，成功后记入钱包流水。",
+            preferredMethod: .wallet,
+            onConfirm: onConfirm,
+            onCancel: onCancel
+        )
     }
 }

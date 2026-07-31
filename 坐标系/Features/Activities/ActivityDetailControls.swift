@@ -23,6 +23,21 @@ enum ActivityDetailControls {
         }
     }
 
+    /// 官方 glass 胶囊（纯文案）：凭证长条导航 / 聊天
+    struct GlassCapsuleButton: View {
+        let title: String
+        var accessibilityLabel: String? = nil
+        var controlSize: ControlSize = .small
+        var action: () -> Void
+
+        var body: some View {
+            Button(title, action: action)
+                .font(.subheadline.weight(.medium))
+                .activityGlassCapsule(controlSize: controlSize)
+                .accessibilityLabel(accessibilityLabel ?? title)
+        }
+    }
+
     /// 菜单触发 — label 勿再包 Button
     struct GlassIconMenu<Content: View>: View {
         var systemImage = "ellipsis"

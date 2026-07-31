@@ -2,67 +2,10 @@
 //  ProfileLibraryComponents.swift
 //  坐标系
 //
-//  「我的」一级页内容预览组件：发布媒体行、竖海报、空态。
+//  「我的」一级页共用件：圈子海报卡、发布分享菜单、空态、文案。
 //
 
 import SwiftUI
-
-struct ProfilePublishedLibraryLabel<Media: View>: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    let title: String
-    let subtitle: String
-    @ViewBuilder var media: () -> Media
-
-    var body: some View {
-        Group {
-            if DiscoverAccessibility.prefersStackedCardChrome(for: dynamicTypeSize) {
-                VStack(alignment: .leading, spacing: PlatformMetrics.stackedMediaSpacing) {
-                    thumbnail
-                        .frame(maxWidth: .infinity)
-                    copy
-                }
-            } else {
-                HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
-                    thumbnail
-                        .platformProfileMediaLibraryThumbnailFrame()
-                    copy
-                }
-            }
-        }
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-    }
-
-    private var thumbnail: some View {
-        Color.clear
-            .aspectRatio(PlatformMetrics.activityCardAspectRatio, contentMode: .fit)
-            .overlay { media() }
-            .clipShape(PlatformMetrics.mediaShape)
-            .background {
-                PlatformMetrics.mediaShape
-                    .fill(.tertiary)
-                    .padding(.horizontal, PlatformMetrics.captionBadgeInset)
-                    .offset(y: -PlatformMetrics.captionBadgeInset)
-            }
-            .padding(.top, PlatformMetrics.captionBadgeInset)
-    }
-
-    private var copy: some View {
-        VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
-            Text(title)
-                .font(.headline)
-                .foregroundStyle(.primary)
-                .lineLimit(DiscoverAccessibility.bodyLineLimit(for: dynamicTypeSize, regular: 2))
-
-            Text(subtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(DiscoverAccessibility.metaLineLimit(for: dynamicTypeSize))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
 
 /// 发布行尾部系统更多菜单（分享）。
 struct ProfilePublishedShareMenu: View {
@@ -84,12 +27,12 @@ struct ProfilePublishedShareMenu: View {
     }
 }
 
+/// 圈子轨竖海报。
 struct ProfileLibraryShelfCard<Media: View>: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let title: String
     let subtitle: String
-    var badge: String? = nil
     @ViewBuilder var media: () -> Media
 
     var body: some View {
@@ -111,15 +54,9 @@ struct ProfileLibraryShelfCard<Media: View>: View {
     private var overlayBody: some View {
         ZStack {
             cover
-
-            if let badge, !badge.isEmpty {
-                PlatformMediaCaptionBadge(title: badge)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
-
             copy(onMedia: true)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-            .padding(PlatformMetrics.captionBadgeInset)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                .padding(PlatformMetrics.captionBadgeInset)
         }
         .aspectRatio(PlatformMetrics.profileLibraryCardAspectRatio, contentMode: .fit)
         .clipShape(PlatformMetrics.posterShape)
@@ -133,13 +70,6 @@ struct ProfileLibraryShelfCard<Media: View>: View {
             .overlay { media() }
             .clipped()
             .clipShape(PlatformMetrics.posterShape)
-            .overlay(alignment: .topLeading) {
-                if DiscoverAccessibility.prefersStackedCardChrome(for: dynamicTypeSize),
-                   let badge,
-                   !badge.isEmpty {
-                    PlatformMediaCaptionBadge(title: badge)
-                }
-            }
     }
 
     private func copy(onMedia: Bool) -> some View {
@@ -172,26 +102,6 @@ struct ProfileCircleShelfCover: View {
     }
 }
 
-/// 「我的陪玩」预约预览：与圈子共用个人内容库竖海报规格。
-struct ProfileBookingShelfCard: View {
-    let record: BuddyBookingRecord
-    let photo: CommunityPhotoRef?
-
-    var body: some View {
-        ProfileLibraryShelfCard(
-            title: record.companionNickname,
-            subtitle: "\(scheduleLine) · \(record.priceText)",
-            badge: record.statusLabel
-        ) {
-            CommunityRemotePhoto(ref: photo)
-        }
-    }
-
-    private var scheduleLine: String {
-        "\(Formatters.monthDay.string(from: record.scheduledAt)) \(Formatters.shortTime.string(from: record.scheduledAt))"
-    }
-}
-
 enum ProfileLibraryCopy {
     static func postMetaLine(for post: CommunityPost) -> String {
         [
@@ -220,5 +130,35 @@ struct ProfileShelfEmptyState: View {
         )
         .frame(maxWidth: .infinity)
         .padding(.horizontal, PlatformMetrics.contentInset)
+    }
+}
+
+// MARK: - Hosted star
+
+/// 「我发起的」星标：叠在活动长条右上角，区分参加与发起。
+struct ProfileHostedStarMark: View {
+    var body: some View {
+        Image(systemName: "star.fill")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.yellow)
+            .symbolRenderingMode(.hierarchical)
+            .padding(PlatformMetrics.captionBadgeInset)
+            .background(.ultraThinMaterial, in: Circle())
+            .accessibilityLabel("我发起的")
+            .accessibilityAddTraits(.isStaticText)
+    }
+}
+
+/// 「我的活动」顶栏：文案切换「只看发起」/「全部」，与票面星标含义分离。
+struct ProfileHostedStarFilterButton: View {
+    @Binding var showHostedOnly: Bool
+
+    var body: some View {
+        Button(showHostedOnly ? "全部" : "只看发起") {
+            showHostedOnly.toggle()
+        }
+        .accessibilityLabel(showHostedOnly ? "显示全部活动" : "只看我发起的")
+        .accessibilityHint("筛选你发起的活动")
+        .accessibilityAddTraits(showHostedOnly ? .isSelected : [])
     }
 }

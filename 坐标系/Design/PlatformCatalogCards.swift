@@ -555,28 +555,27 @@ extension View {
         }
     }
 
-    /// 我的活动横卡轨：系统相对容器一屏两张完整卡。
-    func platformProfileActivityHistoryRailFrame() -> some View {
-        containerRelativeFrame(
-            .horizontal,
-            count: PlatformMetrics.profileActivityHistoryRailColumnCount,
-            span: 1,
-            spacing: PlatformMetrics.railCardSpacing
-        )
-    }
-
-    /// 个人内容库竖海报轨：约三张完整卡，并露出第四张。
-    func platformProfileLibraryRailFrame() -> some View {
+    /// 「我的」Wallet 票面轨：与竖海报同宽占比，高度由票面 3:4 比例推导。
+    func platformProfileWalletPassRailFrame() -> some View {
         containerRelativeFrame(.horizontal) { length, _ in
             length * PlatformMetrics.profileLibraryRailVisibleFraction
         }
     }
 
-    /// 「我的发布」媒体库行缩略图：与一屏两张的活动卡等宽。
-    func platformProfileMediaLibraryThumbnailFrame() -> some View {
+    /// 兼容旧名 → Wallet 票面竖轨。
+    func platformProfileActivityCredentialRailFrame() -> some View {
+        platformProfileWalletPassRailFrame()
+    }
+
+    /// 「我的陪玩」预约凭证竖卡轨。
+    func platformProfileBookingCredentialRailFrame() -> some View {
+        platformProfileWalletPassRailFrame()
+    }
+
+    /// 个人内容库竖海报轨（圈子等）：约三张完整卡，并露出第四张。
+    func platformProfileLibraryRailFrame() -> some View {
         containerRelativeFrame(.horizontal) { length, _ in
-            let contentWidth = length - PlatformMetrics.contentInset * 2
-            return (contentWidth - PlatformMetrics.railCardSpacing) / 2
+            length * PlatformMetrics.profileLibraryRailVisibleFraction
         }
     }
 }

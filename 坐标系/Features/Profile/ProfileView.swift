@@ -23,10 +23,15 @@ struct ProfileView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: PlatformMetrics.sectionSpacing) {
                     profileSection
-                    activityShelf
+                    ProfileActivityCredentialsShelf {
+                        path.append(ProfileRoute.activityLibrary)
+                    }
+                    ProfileBookingCredentialsShelf(
+                        onSeeAll: { path.append(ProfileRoute.buddies) },
+                        onOpenBooking: { path.append(ProfileRoute.booking($0)) }
+                    )
                     publishedShelf
                     circlesShelf
-                    buddiesEntry
                 }
             }
             .contentMargins(.top, PlatformMetrics.sectionHeaderSpacing, for: .scrollContent)
@@ -108,7 +113,7 @@ struct ProfileView: View {
     private func profileDestination(_ route: ProfileRoute) -> some View {
         switch route {
         case .activityLibrary:
-            ActivityTripsView(presentation: .pushed, initialSegment: .joined)
+            ProfileActivityCredentialsView()
         case .published(let segment):
             ProfilePublishedView(initialSegment: segment)
         case .circles:
@@ -116,7 +121,7 @@ struct ProfileView: View {
         case .buddies:
             ProfileBuddiesView()
         case .booking(let id):
-            BuddyBookingDetailView(recordID: id)
+            BookingCredentialExpandedView(recordID: id)
         }
     }
 
@@ -194,15 +199,6 @@ struct ProfileView: View {
 
     // MARK: - Previews
 
-    /// 未结束：我参加的 + 我主办的（二者互斥）。
-    private var activityPreview: [Activity] {
-        let joined = activities.joinedActivities
-            .filter { !activities.isHost($0) && !$0.isPast }
-        let hosted = activities.hostedActivities
-            .filter { !$0.isPast }
-        return Array((joined + hosted).sorted { $0.date < $1.date }.prefix(8))
-    }
-
     private var publishedPostsPreview: [CommunityPost] {
         Array(community.myPosts.prefix(3))
     }
@@ -219,58 +215,7 @@ struct ProfileView: View {
         Array(buddies.joinedCircles.prefix(8))
     }
 
-    private var bookingPreview: [BuddyBookingRecord] {
-        let terminalStatuses: Set<BookingOrderStatus> = [.completed, .refunded, .cancelled]
-        return Array(
-            buddies.bookingRecords
-                .sorted { lhs, rhs in
-                    let lhsIsTerminal = terminalStatuses.contains(lhs.status)
-                    let rhsIsTerminal = terminalStatuses.contains(rhs.status)
-                    if lhsIsTerminal != rhsIsTerminal {
-                        return !lhsIsTerminal
-                    }
-                    return lhsIsTerminal
-                        ? lhs.scheduledAt > rhs.scheduledAt
-                        : lhs.scheduledAt < rhs.scheduledAt
-                }
-                .prefix(8)
-        )
-    }
-
     // MARK: - Shelves
-
-    private var activityShelf: some View {
-        DiscoverBrowseSection(
-            title: "我的活动",
-            onSeeAll: { path.append(ProfileRoute.activityLibrary) }
-        ) {
-            if activityPreview.isEmpty {
-                ProfileShelfEmptyState(
-                    title: "还没有活动行程",
-                    systemImage: "calendar",
-                    description: "参加或发起活动后，这里会优先展示未结束的内容。"
-                )
-            } else {
-                DiscoverHorizontalRail {
-                    ForEach(activityPreview) { activity in
-                        ActivityZoomNavigationLink(
-                            activity: activity,
-                            namespace: zoomNamespace,
-                            clip: .rail
-                        ) {
-                            PlatformActivityCompactCard(
-                                photo: activity.coverPhoto,
-                                title: activity.title,
-                                metaLine: Formatters.activityEventTime(from: activity.date)
-                            )
-                            .platformProfileActivityHistoryRailFrame()
-                        }
-                    }
-                }
-            }
-        }
-        .activityZoomSlot("profile-activities")
-    }
 
     private var publishedShelf: some View {
         DiscoverBrowseSection(
@@ -284,57 +229,77 @@ struct ProfileView: View {
                     description: "发社区分享或发起活动后，这里会显示最近内容。"
                 )
             } else {
-                VStack(spacing: PlatformMetrics.sectionHeaderSpacing) {
-                    ForEach(publishedPostsPreview) { post in
-                        publishedPostRow(post)
-                    }
-                    ForEach(publishedActivitiesPreview) { activity in
-                        publishedActivityRow(activity)
+                DiscoverHorizontalRail {
+                    ForEach(publishedShelfItems) { item in
+                        publishedCredentialRailItem(item)
                     }
                 }
-                .padding(.horizontal, PlatformMetrics.contentInset)
             }
         }
         .activityZoomSlot("profile-published")
     }
 
-    private func publishedPostRow(_ post: CommunityPost) -> some View {
-        HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
-            NavigationLink(value: post) {
-                ProfilePublishedLibraryLabel(
-                    title: post.messageText,
-                    subtitle: "公开 · \(ProfileLibraryCopy.postMetaLine(for: post))"
-                ) {
-                    CommunityRemotePhoto(ref: post.coverPhoto)
-                }
-            }
-            .buttonStyle(.plain)
+    private enum PublishedShelfItem: Identifiable {
+        case post(CommunityPost)
+        case activity(Activity)
 
-            ProfilePublishedShareMenu(
-                shareText: post.shareText,
-                accessibilityTitle: post.messageText
-            )
+        var id: String {
+            switch self {
+            case .post(let post): "post-\(post.id)"
+            case .activity(let activity): "activity-\(activity.id)"
+            }
         }
     }
 
-    private func publishedActivityRow(_ activity: Activity) -> some View {
-        HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
-            ActivityZoomNavigationLink(
-                activity: activity,
-                namespace: zoomNamespace
-            ) {
-                ProfilePublishedLibraryLabel(
-                    title: activity.title,
-                    subtitle: "公开 · 活动 · \(Formatters.activityEventTime(from: activity.date))"
-                ) {
-                    CommunityRemotePhoto(ref: activity.coverPhoto)
-                }
-            }
+    private var publishedShelfItems: [PublishedShelfItem] {
+        var items: [PublishedShelfItem] = publishedPostsPreview.map(PublishedShelfItem.post)
+        items += publishedActivitiesPreview.map(PublishedShelfItem.activity)
+        return Array(items.prefix(6))
+    }
 
-            ProfilePublishedShareMenu(
-                shareText: ProfileLibraryCopy.activityShareText(for: activity),
-                accessibilityTitle: activity.title
-            )
+    @ViewBuilder
+    private func publishedCredentialRailItem(_ item: PublishedShelfItem) -> some View {
+        switch item {
+        case .post(let post):
+            HStack(alignment: .top, spacing: PlatformMetrics.railCardSpacing) {
+                NavigationLink(value: post) {
+                    ProfilePublishedCredentialCard(
+                        kind: .post,
+                        title: post.messageText,
+                        metaLine: ProfileLibraryCopy.postMetaLine(for: post),
+                        photo: post.coverPhoto,
+                        idHint: post.id.uuidString
+                    )
+                    .platformProfileWalletPassRailFrame()
+                }
+                .buttonStyle(.plain)
+
+                ProfilePublishedShareMenu(
+                    shareText: post.shareText,
+                    accessibilityTitle: post.messageText
+                )
+            }
+        case .activity(let activity):
+            HStack(alignment: .top, spacing: PlatformMetrics.railCardSpacing) {
+                ActivityZoomNavigationLink(
+                    activity: activity,
+                    namespace: zoomNamespace
+                ) {
+                    ProfilePublishedCredentialCard(
+                        kind: .hostedActivity,
+                        title: activity.title,
+                        metaLine: "活动 · \(Formatters.activityEventTime(from: activity.date))",
+                        photo: activity.coverPhoto,
+                        idHint: activity.id.uuidString
+                    )
+                    .platformProfileWalletPassRailFrame()
+                }
+
+                ProfilePublishedShareMenu(
+                    shareText: ProfileLibraryCopy.activityShareText(for: activity),
+                    accessibilityTitle: activity.title
+                )
+            }
         }
     }
 
@@ -359,34 +324,6 @@ struct ProfileView: View {
                             ) {
                                 ProfileCircleShelfCover(systemImage: circle.systemImage)
                             }
-                            .platformProfileLibraryRailFrame()
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-    }
-
-    private var buddiesEntry: some View {
-        DiscoverBrowseSection(
-            title: "我的陪玩",
-            onSeeAll: { path.append(ProfileRoute.buddies) }
-        ) {
-            if bookingPreview.isEmpty {
-                ProfileShelfEmptyState(
-                    title: "还没有陪玩预约",
-                    systemImage: "person.badge.clock",
-                    description: "在搭子页预约陪玩后，这里会展示最近订单。"
-                )
-            } else {
-                DiscoverHorizontalRail {
-                    ForEach(bookingPreview) { record in
-                        NavigationLink(value: ProfileRoute.booking(record.id)) {
-                            ProfileBookingShelfCard(
-                                record: record,
-                                photo: buddies.item(for: record.companionNickname)?.profile.coverPhoto
-                            )
                             .platformProfileLibraryRailFrame()
                         }
                         .buttonStyle(.plain)

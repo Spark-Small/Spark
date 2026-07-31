@@ -60,9 +60,6 @@ struct ActivitiesView: View {
                     onUpdate: handleUpdate
                 )
             }
-            .sheet(isPresented: $model.showTrips) {
-                ActivityTripsView()
-            }
             .sheet(isPresented: $showFavorites) {
                 ActivityFavoritesView()
             }
@@ -136,9 +133,6 @@ struct ActivitiesView: View {
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button("发起活动", systemImage: "plus", action: beginCompose)
-                Button("我的活动", systemImage: "ticket") {
-                    model.showTrips = true
-                }
                 Button("收藏的活动", systemImage: "bookmark") {
                     showFavorites = true
                 }

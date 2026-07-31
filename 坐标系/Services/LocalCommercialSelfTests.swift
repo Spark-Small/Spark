@@ -174,7 +174,11 @@ enum LocalCommercialSelfTests {
         guard record.status == .pendingConfirm else { return false }
         buddies.acceptBooking(record.id)
         guard buddies.bookingRecords.first?.status == .awaitingPayment else { return false }
-        buddies.confirmPayment(record.id)
+        // 自检走 Apple Pay，避免依赖演示余额
+        guard buddies.confirmPayment(record.id, method: .applePay) == .success else {
+            print("LocalCommercialSelfTests: 预约支付失败")
+            return false
+        }
         guard buddies.bookingRecords.first?.status == .paid else { return false }
         buddies.completeBooking(record.id)
         guard buddies.bookingRecords.first?.status == .completed else { return false }

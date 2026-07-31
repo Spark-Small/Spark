@@ -268,8 +268,13 @@ struct ConversationDetailView: View {
         }
         .sheet(isPresented: $showTransfer) {
             ChatTransferSheet { amount in
-                _ = model.sendTransfer(amount: amount, to: conversation.id, currentUserName: app.user.name)
+                guard model.sendTransfer(
+                    amount: amount,
+                    to: conversation.id,
+                    currentUserName: app.user.name
+                ) != nil else { return false }
                 sendPulse += 1
+                return true
             }
         }
         .sheet(isPresented: $showCallHistory) {

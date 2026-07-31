@@ -252,6 +252,9 @@ final class AppModel {
 
     func rescheduleHostedActivity(_ id: Activity.ID, to date: Date, notifyNote: String?) {
         activities.reschedule(id, to: date, notifyNote: notifyNote)
+        if let activity = activities.activity(id: id) {
+            WalletPassStore.shared.refreshActivityPass(activity: activity)
+        }
         syncOrchestrator.handle(.activityEdited(id))
     }
 
@@ -541,6 +544,9 @@ struct ContentView: View {
                     .environment(model.community)
             }
         }
+        .environment(WalletStore.shared)
+        .environment(WalletPassStore.shared)
+        .environment(PassUpdateWebService.shared)
         .tabBarMinimizeBehavior(.onScrollDown)
         .task {
             // 登录并完成引导后进入主界面时请求定位（仅系统未决定时会弹窗）

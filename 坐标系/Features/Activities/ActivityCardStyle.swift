@@ -10,7 +10,7 @@ import SwiftUI
 
 // MARK: - Status vocabulary（发现表面唯一出口）
 
-/// 活动链路共用状态 / 动作文案（发现 · 详情 · 行程 · 反馈）
+/// 活动链路共用状态 / 动作文案（发现 · 详情 · 反馈）
 enum ActivityCardStatus {
     static let joined = "已参加"
     static let join = "参加"

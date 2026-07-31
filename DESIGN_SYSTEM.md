@@ -3,7 +3,7 @@
 > 基于活动版块实现沉淀的产品级设计规范。  
 > 原则：**Apple 原生 · SwiftUI First · HIG · App Store Today 编排 · Apple TV 沉浸 · Apple Music 留白**。  
 > 系统级：**业务少决策、多交给系统容器**；命名间距留给 Design 与系统读不到的几何，不是追求零 Metrics。  
-> 实现源码锚点：`Design/PlatformSemantics.swift`、`Design/PlatformCatalogCards.swift`、`Design/ActivityZoomNavigation.swift`、`Features/Activities/**`。
+> 实现源码锚点：`Design/PlatformSemantics.swift`、`Design/PlatformCatalogCards.swift`、`Design/ActivityZoomNavigation.swift`、`Design/WalletPassFace.swift`、`Design/WalletPassStack.swift`、`Features/Activities/**`、`Features/Profile/ProfileCredentialCards.swift`、`Features/Profile/ProfileCredentialFolderViews.swift`、`Features/Profile/ActivityCredentialExpandedView.swift`、`Services/PassKit/**`。
 
 ---
 
@@ -23,7 +23,8 @@
 | **Apple TV** | 精选全宽沉浸、媒体穿顶、玻璃顶栏浮在内容上 |
 | **Apple Music** | 大留白、少装饰、分区节奏疏朗、转化区信息克制 |
 | **Photos** | 两侧圆形 glass + 中间双行胶囊顶栏；Zoom 进详情 |
-| **Settings / Form** | 详情页用系统 Form 承载决策与说明，不做自定义信息仪表盘 |
+| **Settings / Form** | 详情页用系统 Form 承载决策与说明；钱包页主卡为例外（银行卡面），流水 / 设置仍 Form |
+| **PassKit** | 官方同构链路：Source → Build → Distribute → Update Web Service → System Wallet；App 内凭证夹在「我的」；`AddPassToWalletButton`；签名落盘 `SignedWalletPasses` |
 
 ## 1.3 硬性约束
 
@@ -215,8 +216,8 @@
 | 焦点大卡 | 0.88 | 一卡主导 + 露邻 |
 | 跟进/热场 | 0.86 | 同左 |
 | 榜单海报 | 0.36 | 约两张半/屏 + 露边；配合 3:4 控轨高 |
-| 我的活动历史轨 | 系统两列 | 两张完整 16:9 横缩略小卡 |
-| 我的竖海报内容轨 | 0.29 | 约三张 2:3 竖海报 + 露出第 4 张 |
+| 我的 Wallet 票面轨 | 0.29 | 约三张竖向通行证 + 露出第 4 张 |
+| 我的竖海报内容轨 | 0.29 | 约三张 2:3 圈子海报 + 露出第 4 张 |
 
 ## 4.5 Section 间距
 
@@ -284,10 +285,37 @@
 - 顶栏 Trailing：系统设置入口
 - 身份区：头像 + 昵称 + `@账号`，整行进入编辑资料
 - 身份区下方：两个等宽大号系统按钮；左「开通会员」，右「我的钱包」
+- **钱包**：顶部银行卡面主卡；下方 Form 为支付设置与交易流水。活动票 / 陪玩凭证在「我的」内容库以凭证卡展示，不堆在钱包里。
+- **我的内容库**：活动 / 陪玩凭证均为 **长条凭证** 纵向叠放；Zoom / 推入展开页用 **Form**：票面头图（无叠字顶栏）+ 主文/副文 + 时间/日期等 `LabeledContent`；活动另有安排/细则，陪玩页内含联系 / 订单操作 / 补发等（不再跳「管理预约」）；右上角加入 Apple Wallet。无中间履约预览页。发现/活动 Tab 仍 Zoom 进完整详情。已作废票不出现在预览。
+
+### PassKit 凭证链路（官方同构 · 本机闭环）
+
+```
+Source(PassSourceFactory)
+  → Record(PassStore / PassRecord)
+  → pass.json + assets(PassPackageBuilder)
+  → Channels(PassDistribution: App / 导出 / Signed 落盘 / .pkpasses)
+  → Update(PassUpdateWebService: register · list serials · get latest · 模拟推送)
+  → System Wallet(PassKitLoader + AddPassToWalletButton)
+```
+
+| 层 | 源码 | 说明 |
+|----|------|------|
+| 配置 | `PassConfiguration` | Pass Type ID、Team、webServiceURL、落盘目录 |
+| 源 | `PassSourceFactory` | 活动订单 / 参加 / 预约 / 会员 → `PassDraft` |
+| 定义 | `PassRecord` | serial + authenticationToken 不变；`lastUpdated` / `voided` / 分发状态 |
+| 构建 | `PassPackageBuilder` | pass.json（含更新键）+ icon/logo + manifest + 未签名 zip |
+| 存储 | `PassStore` | issue / update / void；退款作废而非仅删除 |
+| 分发 | `PassDistribution` | 导出、Unsigned 落盘、多票 `.pkpasses` |
+| 更新 | `PassUpdateWebService` | 本机模拟官方契约（非真 HTTPS/APNs） |
+| 系统 | `PassKitLoader` | 读 `SignedWalletPasses/{serial}.pkpass` |
+
+签名证书与 Pass Builder **不进 App**；真机加入需开发者签名后放入 Signed 目录。
+
 - 一级内容库：我的活动 / 我的发布 / 我的圈子 / 我的陪玩预约卡片轨；**不含收藏聚合**
 - 收藏分域：社区分享 → 社区左上角 Menu「收藏的分享」；活动 → 活动页「更多」→「收藏的活动」
 - 根页用 `platformTabBarHiddenWhenPushed(path.isEmpty)`；推入任一二级页后隐藏 Tab Bar
-- Accessibility Dynamic Type：活动横卡、发布媒体行、圈子 / 陪玩海报均由叠字切换为图下文案
+- Accessibility Dynamic Type：圈子海报卡可切图下堆叠；活动 / 陪玩 / 发布凭证以票面叠字为主（`ProfileCredentialCards`）
 
 **详情顶栏**
 
@@ -312,7 +340,7 @@
 
 同一栈内同类型 `navigationDestination` 只保留栈根一份；二级页用 `…IfNeeded` / `circleDetailNavigationDestination`（Environment 判断已注册则跳过）。**Sheet 会继承呈现方 Environment**：自带 `NavigationStack` 的 Sheet 若要值跳组织 / 活动 Zoom / 搭子，须确认不会误继承「已注册」标记（见 `.cursor/rules/navigation-destination.mdc`）。
 
-活动 Zoom 源 id 用 `ActivityZoomSource`（`activityID` + `slot`），同一活动在多货架中不得撞号；用 `activityZoomSlot(_:)` 分槽。
+活动 Zoom 源 id 用 `ActivityZoomSource`（`activityID` + `slot` + `intent`），同一活动在多货架中不得撞号；用 `activityZoomSlot(_:)` 分槽。`intent`：`.browseDetail`（默认）→ 完整详情；`.participantPass`（「我的」长条凭证）→ `ActivityCredentialExpandedView` 展开完整票面。
 
 Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关卡不挂同 namespace Zoom；精选源 clip 与详情头图 `cardShape` 对齐；评论 / 相关轨首帧后再挂。
 
@@ -328,9 +356,9 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
 | **Discover 竖大卡** | 兴趣/品类流 | 16:9 | 20 | 封面叠字或 a11y 图下堆叠 |
 | **Continue / Hot 横卡** | 跟进、热场轨 | 16:9 | 14 | 轨宽 ~0.86；底栏同 Hero 结构 |
 | **Poster 榜单** | 排名轨 | 3:4 | 14 | 轨宽 ~0.36；序号角标 |
-| **Profile Activity History** | 「我的活动」预览 | 16:9 封面内叠字 | media | 与活动页横卡共用信息布局；一屏两张完整卡；标题最多两行但不预留空行，标题与时间间距取系统 `textToSecondaryTextVerticalPadding` |
-| **Profile Media Library** | 「我的发布」预览 | 16:9 双层行缩略图 | media | 缩略图与一屏两张的活动卡等宽；前景媒体 + 单张背景共两层；右侧粗体标题/公开状态、尾部系统更多菜单 |
-| **Profile Poster Library** | 圈子 / 陪玩预约预览 | 2:3 竖海报 | poster | 一屏约 3 张完整卡并露出第 4 张；圈子卡不显示「已加入」；陪玩卡展示昵称、订单状态、时间与价格 |
+| **Wallet Pass Stack** | 长条凭证堆 | 露条 = `walletPassStackHeaderPeek`（字阶）；堆高 = 条高+min((n−1)×peek, maxExtra) | strip | 系统 Wallet 同构叠放；Zoom → 展开票面 |
+| **Wallet Pass Face** | 展开态履约票面 | 3:4 | poster | 头图认票 + 长条凭证码 + 地点/系统 glass 导航；安排/细则在票面下 Form；Wallet 在右上角 |
+| **Profile Circle Poster** | 「我的圈子」预览 | 2:3 竖海报 | poster | `ProfileLibraryShelfCard`；圈子卡不显示「已加入」 |
 | **Editorial 焦点** | 焦点大卡 | 4:5 | 24 | 轨宽 ~0.88 |
 | **Person 搭子** | 精选 Hero + 网格 | Hero 3:4 穿顶；网格 3:4 | discover | 首屏精选大卡；下方双列扫人；默认同好 / 右上「陪玩」 |
 | **Circle 组织** | 同好第二幕 | 3:4 | poster | 轨宽 ~0.36；加入=进组织群；次于选人 |
@@ -424,7 +452,7 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
 |------|------|------|
 | **Push** | `NavigationStack` 默认 | 二级页 |
 | **Sheet** | `platformSheet(_:)` detents | form / filter / browser / confirm / action |
-| **Zoom** | `navigationTransition(.zoom)` + `matchedTransitionSource` | 活动卡 → 详情 |
+| **Zoom** | `navigationTransition(.zoom)` + `matchedTransitionSource` | 活动卡 → 详情；「我的」长条凭证 → 展开票面 |
 | **Scroll edge** | `.scrollEdgeEffectStyle(.soft, for: .top)` | 发现、详情顶 |
 | **Large Title collapse** | 系统（非发现默认） | 适用 Large Title 页 |
 | **Tab minimize** | `.tabBarMinimizeBehavior(.onScrollDown)` | 根 Tab |
@@ -585,7 +613,7 @@ NavigationStack
       ├─ Section Header（双行）
       ├─ 横滑轨 / 竖卡流 / 榜单 / 焦点…
       └─ …
-Toolbar: Photos 圆形 + 胶囊；Trailing「更多」含发起 / 我的活动 / 收藏的活动 / 筛选
+Toolbar: Photos 圆形 + 胶囊；Trailing「更多」含发起 / 收藏的活动 / 筛选
 Background: groupedPage
 ScrollEdge: soft top
 Zoom destination + slot 源；详情相关活动不参与同 namespace Zoom。`ActivityEngagementStore` 非观察对象，避免浏览埋点拆掉列表 Zoom 源。货架结果按输入指纹缓存；种子封面不用 GeometryReader，避免 Lazy 预取掉帧。

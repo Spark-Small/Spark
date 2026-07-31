@@ -1453,7 +1453,7 @@ enum SampleData {
         ),
         CommunityPost(
             id: postID(12), author: "坐标系小队", title: "满员活动怎么候补？",
-            body: "详情页点「加入候补」。有人退出或名额释放时，你会在行程里看到提示，再一键报名。",
+            body: "详情页点「加入候补」。有人退出或名额释放时，会收到本地通知，再打开活动详情一键报名。",
             tags: ["指南", "候补"], likeCount: 112, commentCount: 4, repostCount: 40, shareCount: 66,
             postedAt: hours(-70), isPinned: false, photoSeeds: [761], photoHue: 0.55,
             comments: [
@@ -1669,6 +1669,13 @@ enum SampleData {
             id: uid(905), companionNickname: "阿凯", hours: 1,
             scheduledAt: day(3, hour: 14), bookedAt: hours(-1),
             priceText: "¥138", status: .pendingConfirm, paymentMethod: "simulated"
+        ),
+        // 预览轨第 4 张：已支付未履约
+        BuddyBookingRecord(
+            id: uid(906), companionNickname: "小周", hours: 2,
+            scheduledAt: day(4, hour: 16), bookedAt: hours(-12),
+            priceText: "¥256", status: .paid, paymentMethod: "余额支付",
+            paidAt: hours(-11), selectedSlotLabel: "周末下午 · 2 小时"
         )
     ]
 

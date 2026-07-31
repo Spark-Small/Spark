@@ -99,8 +99,19 @@ enum ActivityPaymentStore {
     static func finalizeRefund(orderID: UUID) {
         guard let index = cache.firstIndex(where: { $0.id == orderID }) else { return }
         guard cache[index].status == .refunding else { return }
+        let order = cache[index]
+        let method = PaymentMethod.resolve(order.paymentMethod)
+        WalletStore.shared.credit(
+            amountCents: order.amountCents,
+            method: method,
+            kind: .activityRefund,
+            title: order.activityTitle,
+            subtitle: "活动退款",
+            relatedID: order.id
+        )
         cache[index].status = .refunded
         persist()
+        WalletPassStore.shared.void(relatedID: order.id)
     }
 
     /// 主办取消活动时，批量演示退款已支付订单
@@ -132,7 +143,7 @@ enum ActivityPaymentStore {
             amountCents: payable.cents,
             createdAt: .now,
             status: .pending,
-            paymentMethod: "Apple Pay"
+            paymentMethod: PaymentMethod.wallet.displayName
         )
         cache.insert(order, at: 0)
         persist()
@@ -140,14 +151,29 @@ enum ActivityPaymentStore {
     }
 
     @discardableResult
-    static func markPaid(orderID: UUID, method: String = "Apple Pay") -> Bool {
-        guard let index = cache.firstIndex(where: { $0.id == orderID }) else { return false }
+    static func markPaid(orderID: UUID, method: PaymentMethod = .applePay) -> PaymentOutcome {
+        guard let index = cache.firstIndex(where: { $0.id == orderID }) else {
+            return .failed("订单不存在")
+        }
         // 仅 pending → paid，避免取消后异步任务仍落账
-        guard cache[index].status == .pending else { return false }
+        guard cache[index].status == .pending else {
+            return .failed("订单状态已变更")
+        }
+        let order = cache[index]
+        let outcome = WalletStore.shared.charge(
+            amountCents: order.amountCents,
+            method: method,
+            kind: .activityPayment,
+            title: order.activityTitle,
+            subtitle: "活动报名",
+            relatedID: order.id
+        )
+        guard outcome == .success else { return outcome }
         cache[index].status = .paid
-        cache[index].paymentMethod = method
+        cache[index].paymentMethod = method.displayName
         persist()
-        return true
+        WalletPassStore.shared.issueActivityTicket(order: cache[index])
+        return .success
     }
 
     static func cancelPending(orderID: UUID) {
@@ -184,109 +210,45 @@ struct ActivityPaymentSheet: View {
     let activity: Activity
     var onPaid: () -> Void
 
-    @Environment(\.dismiss) private var dismiss
     @State private var order: ActivityOrder?
-    @State private var isProcessing = false
-    @State private var selectedMethod = "Apple Pay"
-    /// 可取消的支付 Task（Swift 并发官方模式）
-    @State private var paymentTask: Task<Void, Never>?
 
     private var payable: (display: String, cents: Int)? {
         ActivityFeeParser.payableAmount(for: activity)
     }
 
     var body: some View {
-        NavigationStack {
-            List {
-                if let payable {
-                    Section {
-                        LabeledContent("活动") {
-                            Text(activity.title)
-                                .multilineTextAlignment(.trailing)
+        CoordinatePaymentSheet(
+            navigationTitle: ActivityDetailCopy.paymentTitle,
+            summary: [
+                ("活动", activity.title),
+                ("费用说明", payable?.display ?? activity.fee)
+            ],
+            amountCents: payable?.cents ?? order?.amountCents ?? 0,
+            footer: ActivityDetailCopy.paymentMockHint,
+            preferredMethod: .wallet,
+                    onConfirm: { method in
+                        let ensured = order ?? ActivityPaymentStore.createPendingOrder(for: activity)
+                        guard let ensured else { return .failed("无法创建订单") }
+                        order = ensured
+                        let outcome = ActivityPaymentStore.markPaid(orderID: ensured.id, method: method)
+                        if outcome == .success {
+                            if let paid = ActivityPaymentStore.order(id: ensured.id) {
+                                WalletPassStore.shared.issueActivityTicket(order: paid, activity: activity)
+                            }
+                            onPaid()
                         }
-                        LabeledContent("费用说明") {
-                            Text(payable.display)
-                        }
-                        LabeledContent("应付金额") {
-                            Text(ActivityFeeParser.formattedPrice(cents: payable.cents))
-                                .fontWeight(.bold)
-                        }
-                    } footer: {
-                        Text(ActivityDetailCopy.paymentMockHint)
-                    }
-
-                    Section("支付方式") {
-                        Picker("支付方式", selection: $selectedMethod) {
-                            Text("Apple Pay").tag("Apple Pay")
-                            Text("微信支付").tag("微信支付")
-                            Text("支付宝").tag("支付宝")
-                        }
-                        .pickerStyle(.inline)
-                        .labelsHidden()
-                        .disabled(isProcessing)
-                    }
+                        return outcome
+                    },
+            onCancel: {
+                if let order {
+                    ActivityPaymentStore.cancelPending(orderID: order.id)
                 }
             }
-            .navigationTitle(ActivityDetailCopy.paymentTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") {
-                        cancelPaymentFlow()
-                    }
-                    .disabled(isProcessing)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(ActivityDetailCopy.paymentTitle) {
-                        processPayment()
-                    }
-                    .fontWeight(.semibold)
-                    .disabled(isProcessing || payable == nil)
-                }
+        )
+        .onAppear {
+            if order == nil {
+                order = ActivityPaymentStore.createPendingOrder(for: activity)
             }
-            .overlay {
-                if isProcessing {
-                    ProgressView(ActivityDetailCopy.paymentProcessing)
-                        .platformProcessingOverlayChrome()
-                }
-            }
-            .onAppear {
-                if order == nil {
-                    order = ActivityPaymentStore.createPendingOrder(for: activity)
-                }
-            }
-            .onDisappear {
-                paymentTask?.cancel()
-                paymentTask = nil
-            }
-        }
-        .platformSheet(.browser, interactiveDismissDisabled: isProcessing)
-    }
-
-    private func cancelPaymentFlow() {
-        paymentTask?.cancel()
-        paymentTask = nil
-        isProcessing = false
-        if let order { ActivityPaymentStore.cancelPending(orderID: order.id) }
-        dismiss()
-    }
-
-    private func processPayment() {
-        guard let order, !isProcessing else { return }
-        isProcessing = true
-        paymentTask?.cancel()
-        paymentTask = Task { @MainActor in
-            // 模拟网关延迟；取消时 Task.isCancelled 为 true
-            try? await Task.sleep(for: .milliseconds(900))
-            guard !Task.isCancelled else { return }
-
-            let paid = ActivityPaymentStore.markPaid(orderID: order.id, method: selectedMethod)
-            isProcessing = false
-            paymentTask = nil
-            guard paid else { return }
-
-            onPaid()
-            dismiss()
         }
     }
 }

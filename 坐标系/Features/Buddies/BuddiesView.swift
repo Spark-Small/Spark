@@ -114,8 +114,9 @@ struct BuddiesView: View {
             )) { record in
                 BookingPaymentSheet(
                     record: record,
-                    onConfirm: {
-                        model.confirmPayment(record.id)
+                    onConfirm: { method in
+                        let outcome = model.confirmPayment(record.id, method: method)
+                        guard outcome == .success else { return outcome }
                         let greeting =
                             "你好！我想预约 \(Formatters.monthDay.string(from: record.scheduledAt)) "
                             + "\(Formatters.shortTime.string(from: record.scheduledAt)) 开始的 \(record.hours) 小时陪玩，方便确认一下吗？"
@@ -125,6 +126,7 @@ struct BuddiesView: View {
                         ) {
                             app.openMessages(conversationID: convo.id)
                         }
+                        return .success
                     },
                     onCancel: {
                         model.cancelPendingPayment()

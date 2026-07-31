@@ -478,20 +478,46 @@ final class BuddiesModel {
         pendingPaymentBookingID = id
     }
 
-    func confirmPayment(_ id: BuddyBookingRecord.ID) {
-        guard let index = bookingRecords.firstIndex(where: { $0.id == id }) else { return }
+    @discardableResult
+    func confirmPayment(
+        _ id: BuddyBookingRecord.ID,
+        method: PaymentMethod = .wallet
+    ) -> PaymentOutcome {
+        guard let index = bookingRecords.firstIndex(where: { $0.id == id }) else {
+            return .failed("订单不存在")
+        }
         guard bookingRecords[index].status == .awaitingPayment
-            || bookingRecords[index].status == .pendingConfirm else { return }
-        bookingRecords[index] = bookingService.advanceBooking(bookingRecords[index], to: .paid)
+            || bookingRecords[index].status == .pendingConfirm
+        else {
+            return .failed("订单尚未可支付")
+        }
+        let record = bookingRecords[index]
+        let amountCents = WalletMoney.cents(fromDisplay: record.priceText)
+            ?? max(record.hours, 1) * 6_800
+        let outcome = WalletStore.shared.charge(
+            amountCents: amountCents,
+            method: method,
+            kind: .bookingPayment,
+            title: "陪玩 · \(record.companionNickname)",
+            subtitle: record.priceText,
+            relatedID: record.id
+        )
+        guard outcome == .success else { return outcome }
+
+        var paid = bookingService.advanceBooking(record, to: .paid)
+        paid.paymentMethod = method.displayName
+        bookingRecords[index] = paid
         pendingPaymentBookingID = nil
         NotificationService.scheduleBookingReminder(
             bookingID: id,
-            companion: bookingRecords[index].companionNickname,
-            at: bookingRecords[index].scheduledAt
+            companion: paid.companionNickname,
+            at: paid.scheduledAt
         )
         flash("支付成功")
         persist()
         onRecordsChanged?()
+        WalletPassStore.shared.issueBookingTicket(for: paid)
+        return .success
     }
 
     func cancelPendingPayment() {
@@ -610,11 +636,24 @@ final class BuddiesModel {
     func refundBooking(_ id: BuddyBookingRecord.ID) {
         guard let index = bookingRecords.firstIndex(where: { $0.id == id }) else { return }
         guard bookingRecords[index].canRefund else { return }
-        bookingRecords[index] = bookingService.advanceBooking(bookingRecords[index], to: .refunded)
+        let record = bookingRecords[index]
+        let amountCents = WalletMoney.cents(fromDisplay: record.priceText)
+            ?? max(record.hours, 1) * 6_800
+        let method = PaymentMethod.resolve(record.paymentMethod)
+        WalletStore.shared.credit(
+            amountCents: amountCents,
+            method: method,
+            kind: .bookingRefund,
+            title: "陪玩退款 · \(record.companionNickname)",
+            subtitle: record.priceText,
+            relatedID: record.id
+        )
+        bookingRecords[index] = bookingService.advanceBooking(record, to: .refunded)
         NotificationService.cancelBookingReminder(bookingID: id)
+        WalletPassStore.shared.void(relatedID: record.id)
         persist()
         onRecordsChanged?()
-        flash("已申请退款，预计原路退回")
+        flash(method.affectsWalletBalance ? "已退回钱包余额" : "已申请退款，预计原路退回")
     }
 
     func cancelBooking(_ id: BuddyBookingRecord.ID) {
@@ -628,6 +667,7 @@ final class BuddiesModel {
             pendingPaymentBookingID = nil
         }
         NotificationService.cancelBookingReminder(bookingID: id)
+        WalletPassStore.shared.void(relatedID: id)
         persist()
         onRecordsChanged?()
         flash("已取消预约")
@@ -635,6 +675,7 @@ final class BuddiesModel {
 
     func deleteBooking(_ id: BuddyBookingRecord.ID) {
         NotificationService.cancelBookingReminder(bookingID: id)
+        WalletPassStore.shared.revoke(relatedID: id)
         bookingRecords.removeAll { $0.id == id }
         persist()
         onRecordsChanged?()
@@ -662,12 +703,15 @@ final class BuddiesModel {
             return
         }
         bookingRecords[index] = draft
-        if bookingRecords[index].status == .paid || bookingRecords[index].status == .inProgress {
+        if bookingRecords[index].status == .paid
+            || bookingRecords[index].status == .inProgress
+            || bookingRecords[index].status == .completed {
             NotificationService.scheduleBookingReminder(
                 bookingID: id,
                 companion: bookingRecords[index].companionNickname,
                 at: scheduledAt
             )
+            _ = WalletPassStore.shared.issueBookingTicket(for: bookingRecords[index])
         }
         persist()
         onRecordsChanged?()

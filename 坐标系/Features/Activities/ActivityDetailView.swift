@@ -12,6 +12,7 @@ struct ActivityDetailView: View {
     @Environment(ActivitiesModel.self) private var model
     @Environment(BuddiesModel.self) private var buddies
     @Environment(AppModel.self) private var app
+    @Environment(WalletPassStore.self) private var passStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -296,8 +297,13 @@ struct ActivityDetailView: View {
         if let paidOrder, joined || isHost {
             Section {
                 ActivityDetailOrderBanner(order: paidOrder) { showOrders = true }
+                activityCredentialLink(for: live, joined: joined)
             }
             .id(ordersRevision)
+        } else if joined {
+            Section {
+                activityCredentialLink(for: live, joined: joined)
+            }
         }
 
         if revealsSecondaryContent {
@@ -720,6 +726,33 @@ struct ActivityDetailView: View {
         if !joined {
             refundPaidOrderIfNeeded(for: live.id)
             joinIssueMessage = ActivityDetailCopy.joinFailedFullAfterPayMessage
+        } else {
+            _ = passStore.issueActivityAttendanceTicket(for: live)
+        }
+    }
+
+    @ViewBuilder
+    private func activityCredentialLink(for live: Activity, joined: Bool) -> some View {
+        if let pass = passStore.activityPass(for: live, activeOnly: true) {
+            NavigationLink {
+                WalletPassDetailView(passID: pass.id)
+            } label: {
+                Label("查看活动凭证", systemImage: "ticket")
+            }
+        } else if let voided = passStore.activityPass(for: live, activeOnly: false), voided.voided {
+            NavigationLink {
+                WalletPassDetailView(passID: voided.id)
+            } label: {
+                Label("凭证已作废", systemImage: "xmark.seal")
+            }
+        } else if joined || isHost {
+            Button("补发活动凭证", systemImage: "ticket") {
+                if let order = ActivityPaymentStore.paidOrder(for: live.id) {
+                    _ = passStore.issueActivityTicket(order: order, activity: live)
+                } else {
+                    _ = passStore.issueActivityAttendanceTicket(for: live)
+                }
+            }
         }
     }
 

@@ -78,7 +78,7 @@ struct LocalBuddyBookingService: BuddyBookingService {
         switch status {
         case .paid:
             next.paidAt = next.paidAt ?? .now
-            next.paymentMethod = "simulated"
+            // paymentMethod 由调用方在确认支付时写入
         case .completed:
             next.completedAt = .now
         default:

@@ -305,13 +305,21 @@ struct MessageRequestsSheet: View {
 // MARK: - Transfer
 
 struct ChatTransferSheet: View {
-    var onConfirm: (Double) -> Void
+    /// 返回是否发送成功（失败时 Sheet 留在原地提示）
+    var onConfirm: (Double) -> Bool
 
+    @Environment(WalletStore.self) private var wallet
     @Environment(\.dismiss) private var dismiss
     @State private var amountText = MessagesCopy.transferDefaultAmount
+    @State private var errorMessage: String?
 
     private var amount: Double? {
         Double(amountText.replacingOccurrences(of: ",", with: "."))
+    }
+
+    private var amountCents: Int {
+        guard let amount else { return 0 }
+        return WalletMoney.cents(fromYuan: amount)
     }
 
     var body: some View {
@@ -320,6 +328,7 @@ struct ChatTransferSheet: View {
                 Section {
                     TextField(MessagesCopy.transferAmountPlaceholder, text: $amountText)
                         .keyboardType(.decimalPad)
+                    LabeledContent("钱包余额", value: wallet.balanceText)
                 } header: {
                     Text(MessagesCopy.transferAmountHeader)
                 } footer: {
@@ -328,11 +337,26 @@ struct ChatTransferSheet: View {
                 Section {
                     Button(MessagesCopy.transferConfirm) {
                         guard let amount, amount > 0 else { return }
-                        onConfirm(amount)
-                        dismiss()
+                        if amountCents > wallet.balanceCents {
+                            errorMessage = "余额不足，请先前往钱包充值。"
+                            return
+                        }
+                        if onConfirm(amount) {
+                            dismiss()
+                        } else {
+                            errorMessage = "转账失败，请稍后重试。"
+                        }
                     }
                     .disabled(amount == nil || (amount ?? 0) <= 0)
                 }
+            }
+            .alert("无法转账", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("好的", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "")
             }
         }
     }

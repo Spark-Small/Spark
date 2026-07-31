@@ -6,6 +6,7 @@
 //
 
 import MapKit
+import SwiftUI
 import UIKit
 
 enum ActivityNavigation {
@@ -90,5 +91,36 @@ enum ActivityNavigation {
         ]
         guard let url = components?.url else { return }
         UIApplication.shared.open(url)
+    }
+}
+
+extension View {
+    /// 系统底部动作表：选择地图 App（iPhone 自屏幕底部升起）。
+    func activityMapNavigationDialog(activity: Binding<Activity?>) -> some View {
+        confirmationDialog(
+            ActivityDetailCopy.navigationSheetTitle,
+            isPresented: Binding(
+                get: { activity.wrappedValue != nil },
+                set: { if !$0 { activity.wrappedValue = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let target = activity.wrappedValue {
+                Button("Apple 地图") {
+                    ActivityNavigation.openInAppleMaps(target)
+                }
+                Button("高德地图") {
+                    ActivityNavigation.openInAmap(target)
+                }
+                Button("百度地图") {
+                    ActivityNavigation.openInBaiduMaps(target)
+                }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            if let target = activity.wrappedValue {
+                Text(target.location)
+            }
+        }
     }
 }

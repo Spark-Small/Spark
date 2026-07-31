@@ -660,9 +660,11 @@ enum PlatformMetrics {
     static var editorialRailVisibleFraction: CGFloat { 0.88 }
     /// 海报轨卡宽占比：约两张半 + 露边；配合 3:4 控制轨高
     static var posterRailVisibleFraction: CGFloat { 0.36 }
-    /// 我的活动横卡：系统相对容器一屏两列。
-    static var profileActivityHistoryRailColumnCount: Int { 2 }
-    /// 个人内容库竖海报：一屏约三张完整卡，并露出第四张提示横滑。
+    /// 「我的活动 / 发布」凭证横卡：系统相对容器一屏两列。
+    static var profileActivityCredentialRailColumnCount: Int { 2 }
+    /// 「我的陪玩」预约凭证竖卡：一屏约三张完整卡，并露出第四张。
+    static var profileBookingCredentialRailVisibleFraction: CGFloat { 0.29 }
+    /// 个人内容库竖海报（圈子）：一屏约三张完整卡，并露出第四张提示横滑。
     static var profileLibraryRailVisibleFraction: CGFloat { 0.29 }
     /// 背景大图轻微放大（切换时）
     static var personStageBackgroundScale: CGFloat { 1.06 }
@@ -694,8 +696,69 @@ enum PlatformMetrics {
     static var chipPaddingVerticalLarge: CGFloat { g(1.25) }
     static var chipPaddingVerticalExtraLarge: CGFloat { g(1.5) }
 
+    /// Wallet 票面宽高比：与系统竖海报同一规格（3:4）。
+    static var walletPassFaceAspectRatio: CGFloat { posterCardAspectRatio }
+    /// 长条凭证条高下限：顶栏 / 底栏字阶 + 系统主副文间距 + Form 行垂直 padding。
+    static var walletPassStripBarHeight: CGFloat {
+        let pad = formRowVerticalPadding
+        let title = UIFont.preferredFont(forTextStyle: .body).lineHeight
+        let meta = UIFont.preferredFont(forTextStyle: .subheadline).lineHeight
+        let header = title + systemTextToSecondaryPadding + meta
+        let footerLabel = UIFont.preferredFont(forTextStyle: .caption2).lineHeight
+        let footerValue = UIFont.preferredFont(forTextStyle: .footnote).lineHeight
+        let footerText = footerLabel + systemTextToSecondaryPadding + footerValue
+        let capsule = UIFont.preferredFont(forTextStyle: .subheadline).lineHeight
+            + chipPaddingVerticalSmall * 2
+        let footer = max(footerText, navigationBarButtonSide, capsule)
+        return (pad + header + sectionSubtitleSpacing + footer + pad)
+            .rounded(.toNearestOrAwayFromZero)
+    }
+    /// 票面四角字段边距（顶栏 / 条码 / 地点共用，保证左右对齐）
+    static var walletPassChromeInset: CGFloat { captionBadgeInset }
+    /// 条码区内边距（白底相对码面；对齐系统紧凑控件边距）。
+    static var walletPassBarcodePadding: CGFloat { captionBadgeInset }
+    /// 票面条码圆角。
+    static var walletPassBarcodeCornerRadius: CGFloat { radiusPoster }
+    /// 地点底栏 / 长条凭证码共用高度（文案块与 glass 圆钮取高，再加垂直 padding）。
+    static var walletPassFooterBandHeight: CGFloat {
+        let label = UIFont.preferredFont(forTextStyle: .caption2).lineHeight
+        let value = UIFont.preferredFont(forTextStyle: .footnote).lineHeight
+        let textBlock = label + systemTextToSecondaryPadding + value
+        let chrome = max(textBlock, navigationBarButtonSide)
+        return chrome + formRowVerticalPadding * 2
+    }
+    /// 系统 Wallet 叠卡露条：后方只露 header（标题/人数 ↔ 时间/日期），由详情 Form 字阶推导。
+    static var walletPassStackHeaderPeek: CGFloat {
+        let title = UIFont.preferredFont(forTextStyle: .body).lineHeight
+        let meta = UIFont.preferredFont(forTextStyle: .subheadline).lineHeight
+        let header = title + systemTextToSecondaryPadding + max(meta, title)
+        return (formRowVerticalPadding + header + formRowVerticalPadding)
+            .rounded(.toNearestOrAwayFromZero)
+    }
+    /// 「我的」预览堆：露条约等于系统 header 条。
+    static var walletPassStackCollapsedPeek: CGFloat { walletPassStackHeaderPeek }
+    /// 凭证夹扇出：略多于 header，便于辨认下一张。
+    static var walletPassStackScrollingPeek: CGFloat {
+        (walletPassStackHeaderPeek + g(1)).rounded(.toNearestOrAwayFromZero)
+    }
+    /// 堆叠额外高度上限：预览堆 4 张需 3 条露缝；再留 1 条余量避免压缩。
+    static var walletPassStackMaxExtraHeight: CGFloat { walletPassStackHeaderPeek * 4 }
+
     static var cardShape: RoundedRectangle {
         RoundedRectangle(cornerRadius: radiusCard, style: .continuous)
+    }
+
+    static var walletPassFaceShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: radiusPoster, style: .continuous)
+    }
+
+    /// 长条凭证外形（与展开票面同圆角家族）。
+    static var walletPassStripBarShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: radiusPoster, style: .continuous)
+    }
+
+    static var walletPassBarcodeShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: radiusMedia, style: .continuous)
     }
 
     static var posterShape: RoundedRectangle {
@@ -843,6 +906,14 @@ enum PlatformCardListRow {
     }
 }
 
+/// insetGrouped 内长条凭证行：水平交给系统分组页边；垂直用 subtitleCell 行 margin。
+enum PlatformWalletPassListRow {
+    static var insets: EdgeInsets {
+        let vertical = PlatformConversationListRow.verticalInset
+        return EdgeInsets(top: vertical, leading: 0, bottom: vertical, trailing: 0)
+    }
+}
+
 /// 消息 List 行几何：默认值直接取自 Apple `UIListContentConfiguration.subtitleCell()`（及 plain `UITableView` 探针）。
 enum PlatformConversationListRow {
     private static var configuration: UIListContentConfiguration {
@@ -948,6 +1019,15 @@ extension View {
         self
             .listRowInsets(PlatformConversationListRow.sectionHeaderInsets)
             .platformMessagesSeparatorsHidden()
+    }
+
+    /// 「我的」活动 / 陪玩长条凭证 List 行：系统行高边距，无手写 inset。
+    func platformWalletPassCredentialRow() -> some View {
+        self
+            .listRowInsets(PlatformWalletPassListRow.insets)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .navigationLinkIndicatorVisibility(.hidden)
     }
 }
 
