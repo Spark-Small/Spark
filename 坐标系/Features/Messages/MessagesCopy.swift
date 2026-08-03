@@ -80,6 +80,26 @@ nonisolated enum MessagesCopy {
     static let startChatEmptyDescription = "先在搭子页认识同好，或接受好友申请后，再来发起聊天。"
     static let startChatConfirm = "完成"
     static let startChatSearch = "搜索好友"
+    static let addFriendByUID = "通过 UID 添加"
+    static let addFriendByUIDTitle = "添加好友"
+    static let addFriendByUIDField = "对方 UID"
+    static let addFriendByUIDPlaceholder = "9 位数字"
+    static let addFriendByUIDAction = "添加"
+    static let addFriendByUIDFooter = "输入对方对外 UID（9 位数字）。可在「我的 → 账号与安全」查看自己的 UID。"
+    static let addFriendByUIDInvalid = "请输入 9 位数字 UID"
+    static let addFriendByUIDNotFound = "未找到该 UID 对应的用户"
+    static let addFriendByUIDIsSelf = "不能添加自己"
+    static func addFriendByUIDAlreadyFriend(_ name: String) -> String {
+        "「\(name)」已是好友"
+    }
+    static func addFriendByUIDSuccess(_ name: String) -> String {
+        "已添加「\(name)」为好友"
+    }
+    static func addFriendByUIDGreeting(uid: String) -> String {
+        "你好，我通过 UID \(UserPublicID.formatDisplay(uid)) 加你为好友"
+    }
+    static let copyUID = "复制 UID"
+    static let uidCopied = "已复制 UID"
     static func peerGroupTitle(_ names: [String]) -> String {
         let shown = names.prefix(3)
         let joined = shown.joined(separator: "、")

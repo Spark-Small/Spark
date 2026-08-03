@@ -58,7 +58,7 @@
 | **发现货架**（Hero、竖大卡、横滑轨、海报、焦点卡） | Design 组件 + `PlatformMetrics` 中系统读不到的几何（宽高比、轨可见比、货架节奏） | 调用 `HeroMediaCard` / `PlatformCatalog*` / `DiscoverBrowseLayout` 等；**不**在业务里写裸 `0.88`、`16/9`、卡片 padding |
 | **控件**（CTA、筛选 chip、顶栏 glass） | 系统 `ButtonStyle` + `controlSize` + `buttonBorderShape` | 选风格与尺寸档，不自算芯片内外边距 |
 | **消息** | 系统 `List` / glass + `PlatformMessagesChrome` | 顶栏：**左**通讯录；**右**加号菜单（发起聊天等）。好友与群聊同一列表；好友请求在通讯录右上角。发起聊天：选 1 人私聊、多人建群。**禁止**品牌皮肤 |
-| **搭子** | 精选 Hero + 双列网格 + 组织 / 语音厅 | 默认同好；筛选 Sheet；右上「陪玩」；邀约/预约本地闭环；加入组织=进群；陪玩页语音厅；详情 Form（头图 / 资料 / 信任 / 档期 / 评价 / 相关活动） |
+| **搭子** | 情境活动卡 + 兴趣话题 + 状态人卡；陪玩中段语音厅 | 默认同好；筛选 Sheet；右上「陪玩」；同好：情境→话题→人→组织；陪玩：可预约→语音厅→更多；邀约/预约本地闭环；信任见 `Docs/TrustBehaviorModel.md` |
 
 **`PlatformMetrics` 的正确角色：**
 
@@ -247,7 +247,7 @@
 | 页面 | `navigationBarTitleDisplayMode` |
 |------|----------------------------------|
 | 活动发现 | `.inline`（Photos 式中间胶囊，不用 Large Title 抢 Hero） |
-| 搭子选人 | `.inline`（「筛选」· 右侧「陪玩」开关；精选 Hero 穿顶 + 下方双列网格） |
+| 搭子选人 | `.inline`（「筛选」· 右侧「陪玩」；无穿顶 Hero） |
 | 消息收件箱 | `.inline`（左通讯录 · 右加号；好友与群聊同列表） |
 | 社区 Feed | `.inline`（左更多：收藏 / 赞过 / 我的分享 / 转发 / 公约 · 右发分享） |
 | 活动详情 | 无大标题；工具栏 glass 操作 |
@@ -270,13 +270,14 @@
 - Leading：系统文字按钮「筛选」（地区 / 性别 / 距离 / 兴趣 / 可约，同一 Form Sheet；有条件时 symbol fill）  
 - Principal：无（默认同好；陪玩态由右侧按钮选中表达）  
 - Trailing：单个文字按钮「陪玩」（点按进入陪玩，再点返回同好；选中时 semibold）  
-- **一页一事**：同好页 = 邀约 + 兴趣组织；陪玩页 = 预约 + 语音厅  
-- **同好页**：精选 Hero → 更多同好双列网格 → 兴趣组织  
-- **陪玩页**：精选 Hero → 更多陪玩双列网格 → 语音厅  
+- **一页一事**：同好页 = 情境找局 + 选人 + 组织；陪玩页 = 预约 + 语音厅  
+- **同好页**：情境活动卡（`PlatformContinueCard`）→ 兴趣话题 chips → 双列状态人卡 → 兴趣组织  
+- **陪玩页**：可预约双列 → 语音厅频道卡（Discord 感，中段）→ 更多陪玩  
+- **人卡**：照片叠距离 / 共同兴趣；底部一句状态（`lookingFor` / 活跃）；同好无卡内 CTA，陪玩保留邀约  
 - **邀约闭环（本地演示）**：绑活动发出 → `pending` 待回执 → 模拟接受/婉拒 → 邀请记录可「进群」  
 - **预约闭环（本地演示）**：点选档期 → `pendingConfirm` 待接单 → `awaitingPayment` 可支付 → 支付后私聊；拒单为 `cancelled`  
-- **信任**：详情 Form + 「⋯」含不感兴趣 / 举报 / 拉黑；陪玩可有「平台认证」角标；底栏打招呼 + 邀约/预约（`activityDetailBottom*CTA`）  
-- **详情分区**：头图（3:4）→（可选）来源行 → 身份决策 → 资料信任行 → 基本资料 → 关于/服务 → 共同兴趣 → 组织 → 档期 → 评价 → 相关活动横滑轨  
+- **信任**：详情 Form 挂 `TrustPublicProfileSections`（徽章 + 履约事实，无人对人星评）；「⋯」含不感兴趣 / 举报 / 拉黑；陪玩可有「平台认证」角标；底栏打招呼 + 邀约/预约（`activityDetailBottom*CTA`）。模型见 `Docs/TrustBehaviorModel.md`  
+- **详情分区**：头图（3:4）→（可选）来源行 → 身份决策 → 资料信任行 → 基本资料 → 关于/服务 → 共同兴趣 → 组织 → 档期 → 信任档案 → 相关活动横滑轨  
 - **成员入口**：组织 / 工会头像、语音厅麦位 → 半屏 `BuddyMemberProfileSheet`（`.confirm`，不 Zoom）；「查看全部」→ `BuddyMemberListSheet`（`.browser`）；完整资料经视图式 `NavigationLink` 推入并带 `BuddyProfileSource`  
 
 **我的顶栏与身份区**
@@ -360,9 +361,11 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
 | **Wallet Pass Face** | 展开态履约票面 | 3:4 | poster | 头图认票 + 长条凭证码 + 地点/系统 glass 导航；安排/细则在票面下 Form；Wallet 在右上角 |
 | **Profile Circle Poster** | 「我的圈子」预览 | 2:3 竖海报 | poster | `ProfileLibraryShelfCard`；圈子卡不显示「已加入」 |
 | **Editorial 焦点** | 焦点大卡 | 4:5 | 24 | 轨宽 ~0.88 |
-| **Person 搭子** | 精选 Hero + 网格 | Hero 3:4 穿顶；网格 3:4 | discover | 首屏精选大卡；下方双列扫人；默认同好 / 右上「陪玩」 |
-| **Circle 组织** | 同好第二幕 | 3:4 | poster | 轨宽 ~0.36；加入=进组织群；次于选人 |
-| **Voice 语音厅** | 陪玩第二幕 | 3:4 | poster | 轨宽 ~0.36；进厅听麦；次于选人 |
+| **Person 搭子** | 双列状态人卡 | 网格 3:4 | discover | 无穿顶 Hero；叠距离/兴趣；一句状态；默认同好 / 右上「陪玩」 |
+| **Situation 情境** | 活动横卡轨 | 16:9 | continue | 同好首幕；`PlatformContinueCard`；兴趣重合优先 |
+| **Topic 话题** | 兴趣 chips | — | chip | `BuddyHobbyOption` ↔ `filter.hobby` |
+| **Circle 组织** | 同好末幕 | 3:4 | poster | 轨宽 ~0.36；加入=进组织群；次于选人 |
+| **Voice 语音厅** | 陪玩中段频道卡 | 横卡 ~0.86 | continue | Discord 感：厅名·麦位·在听·进厅 |
 | **Detail Hero** | 详情头图 | 3:4 | card（圆角卡） | 安全区下；天气胶囊；相册控件 |
 | **Detail Related** | 相关活动轨 | 16:9 横卡 | rail | Form 内横滑；露邻卡；非 List 行 |
 | **Compose Cover** | 发布封面 | 高 160 | media | Sheet 表单内 |
@@ -688,7 +691,7 @@ Form
 | Zoom | `Design/ActivityZoomNavigation.swift`、`Features/Buddies/BuddyZoomNavigation.swift` |
 | Sheet | `Design/PlatformSheet.swift` |
 | 发现页 | `Features/Activities/ActivitiesView.swift` |
-| 搭子选人 | `Features/Buddies/BuddiesView.swift`、`BuddyPersonStage.swift`、`BuddyGridCard.swift`、`BuddyDiscoverCard.swift`、`BuddyPosterShelfCard.swift`、`BuddyOrgInfoViews.swift`、`BuddyMemberProfileSheet.swift`、`BuddyMemberListSheet.swift`、`BuddyMemberCopy.swift`、`BuddyVoiceHallViews.swift`、`BuddiesModeSwitch.swift`、`BuddyFilterSheet.swift`、`BuddyBookingSheet.swift`、`BuddyScheduleSlot.swift`、`BuddyCityCatalog.swift` |
+| 搭子选人 | `Features/Buddies/BuddiesView.swift`、`BuddyBrowseShelves.swift`、`BuddyGridCard.swift`、`BuddyPosterShelfCard.swift`、`BuddyOrgInfoViews.swift`、`BuddyMemberProfileSheet.swift`、`BuddyMemberListSheet.swift`、`BuddyMemberCopy.swift`、`BuddyVoiceHallViews.swift`、`BuddiesModeSwitch.swift`、`BuddyFilterSheet.swift`、`BuddyBookingSheet.swift`、`BuddyScheduleSlot.swift`、`BuddyCityCatalog.swift` |
 | 详情 | `Features/Activities/ActivityDetailView.swift`、`ActivityDetailSections.swift` |
 | Tab 折叠 | `ContentView.swift` |
 

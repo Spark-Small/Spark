@@ -113,7 +113,7 @@ struct BuddyInviteDetailView: View {
                     }
 
                     Section {
-                        Button("删除记录", role: .destructive) {
+                        Button("删除记录", systemImage: "trash", role: .destructive) {
                             buddies.deleteInvite(record.id)
                             dismiss()
                         }

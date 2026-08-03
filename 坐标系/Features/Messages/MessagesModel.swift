@@ -1237,6 +1237,50 @@ final class MessagesModel {
         persist()
     }
 
+    enum AddFriendByUIDResult: Equatable {
+        case added(nickname: String, uid: String)
+        case alreadyFriend(nickname: String)
+        case isSelf
+        case notFound
+        case invalid
+    }
+
+    func isDirectFriend(with nickname: String) -> Bool {
+        let name = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return false }
+        return conversations.contains {
+            $0.kind == .direct
+                && !$0.isMessageRequest
+                && $0.title.caseInsensitiveCompare(name) == .orderedSame
+        }
+    }
+
+    /// 通过对外数字 UID 添加好友（本地演示：直接建好友会话）。
+    @discardableResult
+    func addFriendByPublicUID(_ raw: String, myUser: AppUser) -> AddFriendByUIDResult {
+        let normalized = UserPublicID.normalize(raw)
+        guard UserPublicID.isValid(normalized) else { return .invalid }
+        guard let hit = UserPublicDirectory.resolve(rawUID: normalized, myUser: myUser) else {
+            return .notFound
+        }
+        if hit.isSelf { return .isSelf }
+        if isDirectFriend(with: hit.nickname) {
+            return .alreadyFriend(nickname: hit.nickname)
+        }
+
+        let greeting = MessagesCopy.addFriendByUIDGreeting(uid: hit.uid)
+        _ = startChat(with: hit.nickname, greeting: greeting, deliverGreeting: true)
+        if let existing = conversations.firstIndex(where: {
+            $0.kind == .direct && $0.title.caseInsensitiveCompare(hit.nickname) == .orderedSame
+        }) {
+            conversations[existing].isMessageRequest = false
+            conversations[existing].peerIsActive = true
+            conversations[existing].subtitle = MessagesCopy.friendSubtitle
+        }
+        persist()
+        return .added(nickname: hit.nickname, uid: hit.uid)
+    }
+
     func declineFriendRequest(_ id: FriendRequest.ID) {
         guard let idx = friendRequests.firstIndex(where: { $0.id == id }) else { return }
         friendRequests[idx].status = .declined

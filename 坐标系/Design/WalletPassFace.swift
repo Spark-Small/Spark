@@ -27,12 +27,6 @@ enum WalletPassBarcodeKind: String, Hashable, CaseIterable {
     }
 }
 
-struct WalletPassFaceField: Hashable, Identifiable {
-    var id: String { "\(label)-\(value)" }
-    let label: String
-    let value: String
-}
-
 struct WalletPassFaceContent: Hashable {
     /// 左上：活动名 / 陪玩昵称
     var logoText: String
@@ -57,9 +51,6 @@ struct WalletPassFaceContent: Hashable {
     var arrangementLines: [String] = []
     /// 票面中部 Form：细则注意事项
     var detailNotes: [String] = []
-    /// 兼容旧字段（票面不再展示多列）
-    var primaryFields: [WalletPassFaceField] = []
-    var footerText: String = ""
     var barcodeKind: WalletPassBarcodeKind = .qr
     var barcodeMessage: String = ""
     var stripColor: Color
@@ -533,8 +524,6 @@ struct WalletPassStripMedia: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
-
-typealias WalletPassStripPhoto = WalletPassStripMedia
 
 /// 仅预览 / 无媒体占位仍可用；票面头图默认不再用大符号。
 struct WalletPassStripSymbol: View {

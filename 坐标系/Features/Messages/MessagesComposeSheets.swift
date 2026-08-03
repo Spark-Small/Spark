@@ -178,6 +178,3 @@ enum MessagesContactRoster {
         }
     }
 }
-
-/// 兼容旧调用名
-typealias StartGroupChatSheet = StartChatSheet

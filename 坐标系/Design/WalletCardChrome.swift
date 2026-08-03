@@ -94,55 +94,115 @@ struct WalletBankBalanceCard: View {
     let tier: WalletBankCardTier
     let userID: UUID
     let nickname: String
+    var isMember: Bool = false
     var onTopUp: (() -> Void)?
 
-    /// 标准银行卡宽高比（ISO/IEC 7810 ID-1 ≈ 1.586）
-    private static let bankCardAspectRatio: CGFloat = 1.586
+    /// ISO/IEC 7810 ID-1：85.60 × 53.98 mm
+    private static let bankCardAspectRatio: CGFloat = 85.60 / 53.98
+    /// 实体卡圆角 ≈ 3.18 mm / 卡宽 85.60 mm（圆形弧，非 continuous squircle）
+    private static let cornerRadiusRatio: CGFloat = 3.18 / 85.60
+    /// 卡面内边距 ≈ 实体卡印刷边距比例
+    private static let contentInsetRatio: CGFloat = 0.055
 
     private var cardNumber: String { WalletCardNumberFormatting.display(from: userID) }
 
     var body: some View {
         Button(action: { onTopUp?() }) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .top) {
-                    Text("坐标系")
-                        .font(.caption.weight(.semibold))
+            Color.clear
+                .aspectRatio(Self.bankCardAspectRatio, contentMode: .fit)
+                .overlay {
+                    GeometryReader { geo in
+                        let radius = max(10, geo.size.width * Self.cornerRadiusRatio)
+                        let inset = max(14, geo.size.width * Self.contentInsetRatio)
+                        let shape = RoundedRectangle(cornerRadius: radius, style: .circular)
+
+                        cardFace(chipWidth: geo.size.width * 0.118)
+                            .padding(inset)
+                            .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+                            .background { cardBackground }
+                            .clipShape(shape)
+                            .overlay {
+                                shape.strokeBorder(palette.stroke, lineWidth: 1)
+                            }
+                            .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .disabled(onTopUp == nil)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "\(tier.displayName)钱包卡，余额 \(balanceText)，持卡人 \(nickname)，卡号 \(userID.uuidString)"
+            + (isMember ? "，会员" : "")
+        )
+        .accessibilityHint("轻点充值")
+        .accessibilityAddTraits(onTopUp == nil ? [] : .isButton)
+    }
+
+    private func cardFace(chipWidth: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top) {
+                Text("坐标系")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(palette.secondaryLabel)
+                Spacer(minLength: 0)
+                if isMember {
+                    Label("会员", systemImage: "checkmark.seal.fill")
+                        .font(.caption2.weight(.bold))
                         .foregroundStyle(palette.secondaryLabel)
-                    Spacer(minLength: 0)
+                        .labelStyle(.titleAndIcon)
+                } else {
                     Text(tier.englishName.uppercased())
                         .font(.caption2.weight(.bold))
                         .tracking(1.2)
                         .foregroundStyle(palette.secondaryLabel)
                 }
+            }
+
+            Spacer(minLength: 8)
+
+            HStack(alignment: .center, spacing: 10) {
+                WalletBankCardChip(width: chipWidth)
+                Image(systemName: "wave.3.right")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(palette.secondaryLabel)
+                    .symbolRenderingMode(.hierarchical)
+                    .accessibilityHidden(true)
+                Spacer(minLength: 0)
+            }
+
+            Spacer(minLength: 8)
+
+            Text(cardNumber)
+                .font(.title3.monospaced().weight(.semibold))
+                .foregroundStyle(palette.primaryLabel)
+                .tracking(1.4)
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Spacer(minLength: 8)
+
+            HStack(alignment: .bottom) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("可用余额")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(palette.secondaryLabel)
+                    Text(balanceText)
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(palette.primaryLabel)
+                        .monospacedDigit()
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
+                        .contentTransition(.numericText())
+                }
 
                 Spacer(minLength: 0)
 
-                Text(cardNumber)
-                    .font(.title3.monospaced().weight(.semibold))
-                    .foregroundStyle(palette.primaryLabel)
-                    .tracking(1)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .frame(maxWidth: .infinity)
-
-                Spacer(minLength: 0)
-
-                HStack(alignment: .bottom) {
-                    VStack(alignment: .leading) {
-                        Text("可用余额")
-                            .font(.caption)
-                            .foregroundStyle(palette.secondaryLabel)
-                        Text(balanceText)
-                            .font(.title2.weight(.bold))
-                            .foregroundStyle(palette.primaryLabel)
-                            .monospacedDigit()
-                            .minimumScaleFactor(0.7)
-                            .lineLimit(1)
-                            .contentTransition(.numericText())
-                    }
-
-                    Spacer(minLength: 0)
-
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("持卡人")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(palette.secondaryLabel)
                     Text(nickname)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(palette.primaryLabel)
@@ -150,23 +210,7 @@ struct WalletBankBalanceCard: View {
                         .minimumScaleFactor(0.8)
                 }
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .aspectRatio(Self.bankCardAspectRatio, contentMode: .fit)
-            .background { cardBackground }
-            .clipShape(PlatformMetrics.cardShape)
-            .overlay {
-                PlatformMetrics.cardShape.strokeBorder(palette.stroke, lineWidth: 1)
-            }
         }
-        .buttonStyle(.plain)
-        .disabled(onTopUp == nil)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "\(tier.displayName)钱包卡，余额 \(balanceText)，持卡人 \(nickname)，卡号 \(userID.uuidString)"
-        )
-        .accessibilityHint("轻点充值")
-        .accessibilityAddTraits(onTopUp == nil ? [] : .isButton)
     }
 
     @ViewBuilder
@@ -259,6 +303,48 @@ struct WalletBankBalanceCard: View {
                 buttonLabel: .white
             )
         }
+    }
+}
+
+/// EMV 芯片示意（金属渐变小块）
+private struct WalletBankCardChip: View {
+    var width: CGFloat
+
+    var body: some View {
+        let height = width * 0.72
+        let radius = max(2, width * 0.12)
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.92, green: 0.82, blue: 0.48),
+                        Color(red: 0.72, green: 0.58, blue: 0.28),
+                        Color(red: 0.88, green: 0.76, blue: 0.42)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.18), lineWidth: 0.5)
+            }
+            .overlay {
+                // 触点分隔线
+                VStack(spacing: height * 0.18) {
+                    chipContactLine
+                    chipContactLine
+                }
+                .padding(.horizontal, width * 0.14)
+            }
+            .frame(width: width, height: height)
+            .accessibilityHidden(true)
+    }
+
+    private var chipContactLine: some View {
+        Rectangle()
+            .fill(Color.black.opacity(0.12))
+            .frame(height: 1)
     }
 }
 

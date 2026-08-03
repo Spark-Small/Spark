@@ -57,9 +57,6 @@ enum ActivityCategory: String, CaseIterable, Identifiable, Hashable, Codable {
         }
     }
 
-    /// 兼容列表/芯片仍读 `rawValue` 展示中文的旧调用点。
-    var displayName: String { title }
-
     /// 活动页筛选条：只展示一级分类前两字，节省横向空间。
     var shortTitle: String {
         String(title.prefix(2))

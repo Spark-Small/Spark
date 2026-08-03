@@ -562,16 +562,6 @@ extension View {
         }
     }
 
-    /// 兼容旧名 → Wallet 票面竖轨。
-    func platformProfileActivityCredentialRailFrame() -> some View {
-        platformProfileWalletPassRailFrame()
-    }
-
-    /// 「我的陪玩」预约凭证竖卡轨。
-    func platformProfileBookingCredentialRailFrame() -> some View {
-        platformProfileWalletPassRailFrame()
-    }
-
     /// 个人内容库竖海报轨（圈子等）：约三张完整卡，并露出第四张。
     func platformProfileLibraryRailFrame() -> some View {
         containerRelativeFrame(.horizontal) { length, _ in

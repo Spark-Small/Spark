@@ -223,7 +223,3 @@ enum PassDateFormatting {
         return formatter.date(from: tag)
     }
 }
-
-typealias WalletPassStyle = PassStyle
-typealias WalletPassField = PassField
-typealias IssuedWalletPass = PassRecord

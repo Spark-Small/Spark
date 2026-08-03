@@ -33,6 +33,11 @@ enum ActivityDetailCopy {
     static let joinConfirmPaidHint = "确认后将进入模拟支付；支付成功自动完成参加并加入活动群。"
     static let joinConfirmNotePlaceholder = "给发起人留言（可选）"
     static let joinConfirmPayCTA = "下一步 · 支付"
+    static let joinConflictHeader = "时间冲突"
+    static let joinConflictFooter = "你已有行程与本场时间重叠，确认后仍可参加，请自行协调安排。"
+    static func joinConflictTitle(_ count: Int) -> String {
+        count == 1 ? "与 1 场已有行程冲突" : "与 \(count) 场已有行程冲突"
+    }
     static let reportAction = "举报活动"
     static let reportTargetLabel = "举报对象"
     static let reportReasonLabel = "举报原因"
@@ -111,7 +116,7 @@ enum ActivityDetailCopy {
     static let refundProcessing = "退款处理中…"
     static let refundedHint = "演示退款已完成，实际产品将原路退回"
     static let cancelWithRefundTitle = "取消参加并退款？"
-    static let cancelWithRefundMessage = "你已支付本次活动费用，取消参加后可申请演示退款。"
+    static let cancelWithRefundMessage = "你已支付本次活动费用。选择「取消并退款」后需填写退款申请，再确认才会退款。"
     static let cancelWithRefundConfirm = "取消并退款"
     static let cancelOnly = "仅取消参加"
 

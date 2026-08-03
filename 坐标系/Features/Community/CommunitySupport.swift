@@ -274,7 +274,7 @@ extension CommunityActionSheet {
         case .repost:
             CommunityRepostSheet(postID: postID)
         case .send:
-            CommunitySendSheet(postID: postID)
+            CommunityShareSheet(postID: postID)
         case .bookmark:
             CommunityBookmarkSheet(postID: postID)
         }

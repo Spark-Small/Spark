@@ -46,6 +46,22 @@ struct ActivityHostManageView: View {
                 }
             }
         }
+        .alert(
+            ActivityDetailCopy.hostManageCancelAlertTitle,
+            isPresented: $showCancelAlert
+        ) {
+            Button(ActivityDetailCopy.hostManageCancelActivity, role: .destructive) {
+                app.cancelHostedActivity(activityID)
+                dismiss()
+            }
+            Button("保留活动", role: .cancel) {}
+        } message: {
+            Text(
+                ActivityDetailCopy.hostManageCancelAlertMessage(
+                    title: live?.title ?? "该活动"
+                )
+            )
+        }
     }
 
     @ViewBuilder
@@ -155,6 +171,8 @@ struct ActivityHostManageView: View {
                 Button(ActivityDetailCopy.hostManageCancelActivity, role: .destructive) {
                     showCancelAlert = true
                 }
+                .fontWeight(.semibold)
+                .foregroundStyle(PlatformStatus.danger)
             } footer: {
                 Text(ActivityDetailCopy.hostManageCancelHint)
             }
@@ -170,19 +188,6 @@ struct ActivityHostManageView: View {
         }
         .onChange(of: live.date) { _, newValue in
             date = newValue
-        }
-        .confirmationDialog(
-            ActivityDetailCopy.hostManageCancelAlertTitle,
-            isPresented: $showCancelAlert,
-            titleVisibility: .visible
-        ) {
-            Button(ActivityDetailCopy.hostManageCancelActivity, role: .destructive) {
-                app.cancelHostedActivity(live.id)
-                dismiss()
-            }
-            Button("保留活动", role: .cancel) {}
-        } message: {
-            Text(ActivityDetailCopy.hostManageCancelAlertMessage(title: live.title))
         }
     }
 }

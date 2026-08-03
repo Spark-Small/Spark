@@ -66,6 +66,13 @@ enum DiscoverBuddyItem: Identifiable, Hashable {
         }
     }
 
+    /// 卡面一句状态：优先 lookingFor，否则回退状态行
+    var cardMoodLine: String {
+        let looking = profile.lookingFor.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !looking.isEmpty { return looking }
+        return cardStatusLine
+    }
+
     var matchScore: Int {
         BuddyMatchScorer.score(for: profile)
     }

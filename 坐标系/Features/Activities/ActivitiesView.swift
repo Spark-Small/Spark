@@ -64,7 +64,10 @@ struct ActivitiesView: View {
                 ActivityFavoritesView()
             }
             .sheet(isPresented: $model.showFilters) {
-                ActivityFilterSheet(quickFilters: $model.quickFilters)
+                ActivityFilterSheet(
+                    quickFilters: $model.quickFilters,
+                    dayFilter: $model.dayFilter
+                )
             }
             .sheet(item: $seeAllShelf) { shelf in
                 ActivityCatalogSeeAllSheet(shelf: shelf)
@@ -152,13 +155,18 @@ struct ActivitiesView: View {
     }
 
     private var hasActiveFilters: Bool {
-        !model.quickFilters.isEmpty || model.selectedCategory != .all
+        !model.quickFilters.isEmpty || model.selectedCategory != .all || model.dayFilter != nil
     }
 
     private var activeFiltersAccessibilityLabel: String {
         var parts: [String] = ["筛选中"]
         if model.selectedCategory != .all {
             parts.append(model.selectedCategory.title)
+        }
+        if let day = model.dayFilter {
+            parts.append(
+                day.formatted(.dateTime.year().month().day().locale(.autoupdatingCurrent))
+            )
         }
         if !model.quickFilters.isEmpty {
             parts.append("\(model.quickFilters.count) 项条件")

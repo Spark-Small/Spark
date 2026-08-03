@@ -108,8 +108,6 @@ enum PassPackageBuilder {
     }
 }
 
-typealias WalletPassPackageBuilder = PassPackageBuilder
-
 // MARK: - Minimal stored ZIP
 
 enum PassZip {

@@ -2,7 +2,9 @@
 //  BuddiesView.swift
 //  坐标系
 //
-//  一页一事：同好（精选 Hero + 双列网格 + 组织）| 陪玩（精选 Hero + 双列网格 + 语音厅）。
+//  一页一事：
+//  同好 = 情境活动卡 → 兴趣话题 → 状态人卡 → 组织
+//  陪玩 = 可预约人 → 语音厅（Discord 频道感）→ 更多陪玩
 //
 
 import SwiftUI
@@ -11,7 +13,6 @@ struct BuddiesView: View {
     @State private var path = NavigationPath()
     @State private var showCircleDiscover = false
     @State private var showFilterSheet = false
-    @State private var focusedBuddyID: DiscoverBuddyItem.ID?
     @State private var weather = GreetingWeatherStore.shared
     @State private var location = LocationService.shared
     @Namespace private var zoomNamespace
@@ -20,10 +21,17 @@ struct BuddiesView: View {
     @Environment(ActivitiesModel.self) private var activities
     @Environment(BuddiesModel.self) private var model
 
-    /// 网格里不重复展示当前 Hero 焦点人
-    private var gridItems: [DiscoverBuddyItem] {
-        guard let focusedBuddyID else { return model.stageItems }
-        return model.stageItems.filter { $0.id != focusedBuddyID }
+    /// 陪玩页前半：可预约；后半：更多
+    private var paidLeadItems: [DiscoverBuddyItem] {
+        Array(model.stageItems.prefix(4))
+    }
+
+    private var paidTrailItems: [DiscoverBuddyItem] {
+        Array(model.stageItems.dropFirst(4))
+    }
+
+    private var situationActivities: [Activity] {
+        BuddySituationCatalog.activities(from: activities)
     }
 
     var body: some View {
@@ -32,8 +40,11 @@ struct BuddiesView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: PlatformMetrics.sectionSpacing) {
-                    personBrowse
-                    secondaryShelf
+                    if model.isPaidPage {
+                        paidBrowse
+                    } else {
+                        socialBrowse
+                    }
                 }
                 .padding(.bottom, PlatformMetrics.sectionSpacing)
             }
@@ -42,7 +53,6 @@ struct BuddiesView: View {
             .background(PlatformSurface.groupedPage)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { buddiesToolbar }
-            .ignoresSafeArea(edges: model.stageItems.isEmpty ? [] : .top)
             .task(id: location.observationToken) {
                 await weather.refresh()
                 model.syncLocatedPlaceName(weather.reading?.placeName)
@@ -50,17 +60,9 @@ struct BuddiesView: View {
             .onChange(of: weather.reading?.placeName) { _, place in
                 model.syncLocatedPlaceName(place)
             }
-            .onChange(of: model.isPaidPage) { _, _ in
-                focusedBuddyID = model.stageItems.first?.id
-            }
-            .onChange(of: model.stageItems.map(\.id)) { _, ids in
-                if let focusedBuddyID, ids.contains(focusedBuddyID) { return }
-                focusedBuddyID = ids.first
-            }
             .buddyZoomNavigationDestination(namespace: zoomNamespace)
-            .navigationDestination(for: Activity.self) { activity in
-                ActivityDetailView(activity: activity)
-            }
+            .activityZoomSlot("buddies-situation")
+            .activityZoomNavigationDestination(namespace: zoomNamespace)
             .circleDetailNavigationDestination()
             .navigationDestination(for: VoiceHall.self) { hall in
                 BuddyVoiceHallRoomView(hall: hall)
@@ -93,13 +95,21 @@ struct BuddiesView: View {
                 }
             }
             .sheet(item: $model.bookingTarget) { companion in
-                BuddyBookingSheet(companion: companion) { scheduledAt, hours, slotLabel in
+                BuddyBookingSheet(
+                    companion: companion,
+                    initialDay: model.bookingInitialDay
+                ) { scheduledAt, hours, slotLabel in
                     _ = model.recordBooking(
                         companion: companion,
                         scheduledAt: scheduledAt,
                         hours: hours,
                         slotLabel: slotLabel
                     )
+                }
+                .onDisappear {
+                    if model.bookingTarget == nil {
+                        model.bookingInitialDay = nil
+                    }
                 }
             }
             .platformTransientFeedback($model.toastMessage)
@@ -133,64 +143,58 @@ struct BuddiesView: View {
                     }
                 )
             }
+            .sheet(item: Binding(
+                get: { model.pendingSafetyCheckInBooking },
+                set: { if $0 == nil { model.cancelPendingSafetyCheckIn() } }
+            )) { record in
+                TrustSafetyCheckInSheet(record: record) {
+                    model.cancelPendingSafetyCheckIn()
+                }
+            }
             .platformTabBarHiddenWhenPushed(path.isEmpty && !showCircleDiscover)
             .onAppear { normalizePageMode() }
         }
     }
 
-    // MARK: - Browse & shelves
+    // MARK: - 同好
 
     @ViewBuilder
-    private var personBrowse: some View {
+    private var socialBrowse: some View {
+        if !situationActivities.isEmpty {
+            BuddySituationRail(
+                activities: situationActivities,
+                zoomNamespace: zoomNamespace,
+                isJoined: { activities.isJoined($0) },
+                onJoin: { activity in
+                    _ = app.quickJoinActivity(activity) {
+                        path.append(ActivityZoomSource(activityID: activity.id, slot: "buddies-situation"))
+                    }
+                }
+            )
+        }
+
+        BuddyTopicInterestBar(hobby: Binding(
+            get: { model.filter.hobby },
+            set: { model.filter.hobby = $0 }
+        ))
+
         if model.stageItems.isEmpty {
             emptyState
         } else {
-            VStack(alignment: .leading, spacing: PlatformMetrics.sectionSpacing) {
-                BuddyPersonStage(items: model.stageItems, focusedID: $focusedBuddyID) { item in
-                    BuddyZoomNavigationLink(item: item, namespace: zoomNamespace) {
-                        BuddyDiscoverCard(
-                            item: item,
-                            enablesOpenTap: false,
-                            onGreet: { greet(item) },
-                            onInvite: { invite(item) }
-                        )
-                    }
-                }
-
-                if !gridItems.isEmpty {
-                    DiscoverBrowseSection(
-                        title: model.isPaidPage ? "更多陪玩" : "更多同好",
-                        subtitle: model.isPaidPage ? "左右对比价位与档期" : "下滑继续发现附近的人"
-                    ) {
-                        BuddyPersonGrid(
-                            items: gridItems,
-                            zoomNamespace: zoomNamespace,
-                            onChat: greet,
-                            onInvite: invite
-                        )
-                    }
-                }
+            DiscoverBrowseSection(
+                title: "附近同好",
+                subtitle: "一句状态 · 共同兴趣叠在照片上"
+            ) {
+                BuddyPersonGrid(
+                    items: model.stageItems,
+                    zoomNamespace: zoomNamespace,
+                    onChat: greet,
+                    onInvite: invite
+                )
             }
         }
-    }
 
-    @ViewBuilder
-    private var secondaryShelf: some View {
-        if model.isPaidPage {
-            DiscoverBrowseSection(
-                title: "语音厅",
-                subtitle: "进厅听麦，点麦位可打招呼或预约"
-            ) {
-                DiscoverHorizontalRail {
-                    ForEach(model.allVoiceHalls) { hall in
-                        BuddyVoiceHallShelfCard(hall: hall) {
-                            path.append(hall)
-                        }
-                        .platformPosterRailFrame()
-                    }
-                }
-            }
-        } else if !model.allCircles.isEmpty {
+        if !model.allCircles.isEmpty {
             DiscoverBrowseSection(
                 title: "兴趣组织",
                 subtitle: "加入即进群，和同好聊起来",
@@ -205,6 +209,47 @@ struct BuddiesView: View {
                         .platformPosterRailFrame()
                     }
                 }
+            }
+        }
+    }
+
+    // MARK: - 陪玩
+
+    @ViewBuilder
+    private var paidBrowse: some View {
+        if model.stageItems.isEmpty {
+            emptyState
+        } else {
+            DiscoverBrowseSection(
+                title: "可预约",
+                subtitle: "看档期与价位，点卡进资料"
+            ) {
+                BuddyPersonGrid(
+                    items: paidLeadItems,
+                    zoomNamespace: zoomNamespace,
+                    onChat: greet,
+                    onInvite: invite
+                )
+            }
+        }
+
+        if !model.allVoiceHalls.isEmpty {
+            BuddyVoiceChannelRail(halls: model.allVoiceHalls) { hall in
+                path.append(hall)
+            }
+        }
+
+        if !paidTrailItems.isEmpty {
+            DiscoverBrowseSection(
+                title: "更多陪玩",
+                subtitle: "继续下滑对比服务"
+            ) {
+                BuddyPersonGrid(
+                    items: paidTrailItems,
+                    zoomNamespace: zoomNamespace,
+                    onChat: greet,
+                    onInvite: invite
+                )
             }
         }
     }

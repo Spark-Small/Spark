@@ -2,59 +2,57 @@
 //  ActivityFilterSheet.swift
 //  坐标系
 //
+//  活动筛选：日期用系统 Wheel DatePicker（年 / 月 / 日滚动轴）。
+//
 
 import SwiftUI
 
-/// 把「今天 / 明天 / 附近 / 免费 / 有空位」收进筛选面板，首屏只留一行分类
+/// 把「日期 / 附近 / 免费 / 有空位」收进筛选面板，首屏只留一行分类
 struct ActivityFilterSheet: View {
     @Binding var quickFilters: Set<ActivityQuickFilter>
+    @Binding var dayFilter: Date?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.calendar) private var calendar
 
-    @State private var timeFilter: TimeOption = .any
+    @State private var restrictsDate = false
+    @State private var selectedDay = Date()
     @State private var nearby = false
     @State private var free = false
     @State private var available = false
 
-    private enum TimeOption: String, CaseIterable, Identifiable {
-        case any = "不限"
-        case today = "今天"
-        case tomorrow = "明天"
-
-        var id: String { rawValue }
-
-        var quickFilter: ActivityQuickFilter? {
-            switch self {
-            case .any: nil
-            case .today: .today
-            case .tomorrow: .tomorrow
-            }
-        }
-
-        init(from filters: Set<ActivityQuickFilter>) {
-            if filters.contains(.today) {
-                self = .today
-            } else if filters.contains(.tomorrow) {
-                self = .tomorrow
-            } else {
-                self = .any
-            }
-        }
+    private var earliestDay: Date {
+        calendar.startOfDay(for: Date())
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    Picker("时间", selection: $timeFilter) {
-                        ForEach(TimeOption.allCases) { option in
-                            Text(option.rawValue).tag(option)
-                        }
+                    Toggle("指定日期", isOn: $restrictsDate)
+
+                    if restrictsDate {
+                        DatePicker(
+                            "日期",
+                            selection: $selectedDay,
+                            in: earliestDay...,
+                            displayedComponents: .date
+                        )
+                        .datePickerStyle(.wheel)
+                        .labelsHidden()
+                        .environment(\.locale, Locale(identifier: "zh_CN"))
+                        .environment(\.calendar, Calendar(identifier: .gregorian))
+                        .frame(maxWidth: .infinity)
+                        .accessibilityLabel("日期")
+                        .accessibilityValue(dateAccessibilityValue)
                     }
-                    .pickerStyle(.segmented)
                 } header: {
                     Text("时间")
                 } footer: {
-                    Text("覆盖午间、晚间与各工作日，不限周末")
+                    Text(
+                        restrictsDate
+                            ? "滚动选择年、月、日，只看当天活动。"
+                            : "不限日期，覆盖各工作日与时段。"
+                    )
                 }
 
                 Section("条件") {
@@ -87,19 +85,47 @@ struct ActivityFilterSheet: View {
                 }
             }
             .onAppear { loadDraft() }
+            .onChange(of: restrictsDate) { _, enabled in
+                if enabled {
+                    selectedDay = max(calendar.startOfDay(for: selectedDay), earliestDay)
+                }
+            }
         }
         .platformSheet(.filter)
     }
 
+    private var dateAccessibilityValue: String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "zh_CN")
+        return selectedDay.formatted(
+            Date.FormatStyle(date: .complete, time: .omitted, locale: Locale(identifier: "zh_CN"), calendar: calendar)
+        )
+    }
+
     private func loadDraft() {
-        timeFilter = TimeOption(from: quickFilters)
         nearby = quickFilters.contains(.nearby)
         free = quickFilters.contains(.free)
         available = quickFilters.contains(.available)
+
+        if let dayFilter {
+            restrictsDate = true
+            selectedDay = calendar.startOfDay(for: dayFilter)
+        } else if quickFilters.contains(.today) {
+            restrictsDate = true
+            selectedDay = earliestDay
+        } else if quickFilters.contains(.tomorrow),
+                  let tomorrow = calendar.date(byAdding: .day, value: 1, to: earliestDay) {
+            restrictsDate = true
+            selectedDay = tomorrow
+        } else {
+            restrictsDate = false
+            selectedDay = earliestDay
+        }
     }
 
     private func resetDraft() {
-        timeFilter = .any
+        restrictsDate = false
+        selectedDay = earliestDay
         nearby = false
         free = false
         available = false
@@ -107,12 +133,10 @@ struct ActivityFilterSheet: View {
 
     private func applyDraft() {
         var next: Set<ActivityQuickFilter> = []
-        if let time = timeFilter.quickFilter {
-            next.insert(time)
-        }
         if nearby { next.insert(.nearby) }
         if free { next.insert(.free) }
         if available { next.insert(.available) }
         quickFilters = next
+        dayFilter = restrictsDate ? calendar.startOfDay(for: selectedDay) : nil
     }
 }

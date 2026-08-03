@@ -9,6 +9,9 @@ import Foundation
 @MainActor
 enum LocalCommercialSelfTests {
     static func runCriticalChecks() {
+        // 历史启动自检曾写入共享钱包；先清掉再跑，避免「最近交易」堆陪玩阿凯扣款
+        WalletStore.shared.purgeDebugSelfTestBookingCharges()
+
         let results = [
             checkGroupChatDedupByActivityID(),
             checkBookingStatusMachine(),
@@ -174,15 +177,20 @@ enum LocalCommercialSelfTests {
         guard record.status == .pendingConfirm else { return false }
         buddies.acceptBooking(record.id)
         guard buddies.bookingRecords.first?.status == .awaitingPayment else { return false }
-        // 自检走 Apple Pay，避免依赖演示余额
-        guard buddies.confirmPayment(record.id, method: .applePay) == .success else {
+        // 自检走 Apple Pay，避免依赖演示余额；结束后从共享账本移除，避免污染「最近交易」
+        let bookingID = record.id
+        guard buddies.confirmPayment(bookingID, method: .applePay) == .success else {
             print("LocalCommercialSelfTests: 预约支付失败")
             return false
         }
-        guard buddies.bookingRecords.first?.status == .paid else { return false }
-        buddies.completeBooking(record.id)
-        guard buddies.bookingRecords.first?.status == .completed else { return false }
-        return true
+        guard buddies.bookingRecords.first?.status == .paid else {
+            WalletStore.shared.removeEntries(relatedTo: bookingID)
+            return false
+        }
+        buddies.completeBooking(bookingID)
+        let ok = buddies.bookingRecords.first?.status == .completed
+        WalletStore.shared.removeEntries(relatedTo: bookingID)
+        return ok
     }
 
     @discardableResult

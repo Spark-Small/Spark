@@ -11,37 +11,77 @@ import SwiftUI
 
 struct BuddyDetailTrust {
     var name: String
-    var isVerified: Bool
+    var photoVerified: Bool
+    var isMember: Bool
     var badgeTitle: String?
     var metricsLine: String
     var chatAccessibility: String
 
+    @MainActor
     static func make(free buddy: CircleBuddy) -> BuddyDetailTrust {
-        let avg = averageRating(buddy.reviews)
-        let ratingPart = avg.map { String(format: "★ %.1f", $0) } ?? "暂无评分"
+        let flags = TrustPublicCredentials.flags(
+            nickname: buddy.profile.nickname,
+            currentUserName: "",
+            buddyItem: .free(buddy),
+            membershipActive: false
+        )
+        let card = TrustService.shared.publicCard(
+            for: buddy.profile.nickname,
+            currentUserName: "",
+            buddyItem: .free(buddy),
+            signals: TrustPrivateSignals(
+                profileRatio: 0.5,
+                isMember: flags.isMember,
+                isGuest: false,
+                hasPhone: false,
+                photoVerified: flags.photoVerified,
+                accountCreatedAt: nil,
+                friendCount: 0,
+                liveHostedCount: 0
+            )
+        )
+        let fact = card.factLines.first ?? buddy.topic
         return BuddyDetailTrust(
             name: buddy.profile.nickname,
-            isVerified: false,
+            photoVerified: flags.photoVerified,
+            isMember: flags.isMember,
             badgeTitle: buddy.circleName,
-            metricsLine: "\(ratingPart) · \(BuddyDetailCopy.reviewCount(buddy.reviews.count)) · \(buddy.topic)",
+            metricsLine: "\(card.level.title) · \(fact)",
             chatAccessibility: BuddyDetailCopy.greetAccessibility(nickname: buddy.profile.nickname)
         )
     }
 
+    @MainActor
     static func make(paid companion: PaidCompanion) -> BuddyDetailTrust {
-        BuddyDetailTrust(
+        let flags = TrustPublicCredentials.flags(
+            nickname: companion.profile.nickname,
+            currentUserName: "",
+            buddyItem: .paid(companion),
+            membershipActive: false
+        )
+        let card = TrustService.shared.publicCard(
+            for: companion.profile.nickname,
+            currentUserName: "",
+            buddyItem: .paid(companion),
+            signals: TrustPrivateSignals(
+                profileRatio: 0.5,
+                isMember: flags.isMember,
+                isGuest: false,
+                hasPhone: false,
+                photoVerified: flags.photoVerified,
+                accountCreatedAt: nil,
+                friendCount: 0,
+                liveHostedCount: 0
+            )
+        )
+        return BuddyDetailTrust(
             name: companion.profile.nickname,
-            isVerified: companion.isVerified,
+            photoVerified: flags.photoVerified,
+            isMember: flags.isMember,
             badgeTitle: companion.serviceType.rawValue,
-            metricsLine: "★ \(BuddyDetailCopy.ratingValue(companion.rating)) · \(BuddyDetailCopy.ordersValue(companion.orderCount)) · \(companion.responseTime)",
+            metricsLine: "\(card.level.title) · \(BuddyDetailCopy.ordersValue(companion.orderCount)) · \(companion.responseTime)",
             chatAccessibility: BuddyDetailCopy.greetAccessibility(nickname: companion.profile.nickname)
         )
-    }
-
-    private static func averageRating(_ reviews: [BuddyReview]) -> Double? {
-        guard !reviews.isEmpty else { return nil }
-        let sum = reviews.reduce(0) { $0 + $1.rating }
-        return Double(sum) / Double(reviews.count)
     }
 }
 
@@ -55,8 +95,13 @@ struct BuddyDetailTrustRow: View {
             Button(action: onProfile) {
                 HStack(alignment: .center) {
                     PlatformListAvatarView(name: trust.name)
-                    VStack(alignment: .leading) {
+                    VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
                         nameBadgesRow
+                        TrustCredentialBadgeStrip(
+                            photoVerified: trust.photoVerified,
+                            isMember: trust.isMember,
+                            revealLocked: false
+                        )
                         Text(trust.metricsLine)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -80,12 +125,6 @@ struct BuddyDetailTrustRow: View {
     private var nameBadgesRow: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(trust.name)
-            if trust.isVerified {
-                Image(systemName: "checkmark.seal.fill")
-                    .foregroundStyle(.tint)
-                    .symbolRenderingMode(.hierarchical)
-                    .accessibilityLabel(BuddyDetailCopy.verifiedBadge)
-            }
             if let badgeTitle = trust.badgeTitle {
                 Text(badgeTitle)
                     .foregroundStyle(.secondary)
@@ -97,9 +136,10 @@ struct BuddyDetailTrustRow: View {
     }
 
     private var accessibilitySummary: String {
-        [trust.name, trust.badgeTitle, trust.metricsLine]
-            .compactMap { $0 }
-            .joined(separator: "，")
+        var parts = [trust.name, trust.badgeTitle, trust.metricsLine].compactMap { $0 }
+        if trust.photoVerified { parts.append(TrustBadgeKind.photoVerified.title) }
+        if trust.isMember { parts.append(TrustBadgeKind.activeMember.title) }
+        return parts.joined(separator: "，")
     }
 }
 
@@ -241,8 +281,19 @@ struct BuddyDetailBasicInfoSection: View {
         LabeledContent(BuddyDetailCopy.heightLabel, value: profile.heightText)
         LabeledContent(BuddyDetailCopy.weightLabel, value: profile.weightText)
         LabeledContent(BuddyDetailCopy.cityLabel, value: profile.city)
-        LabeledContent(BuddyDetailCopy.distanceLabel, value: profile.distanceText)
-        LabeledContent(BuddyDetailCopy.activeLabel, value: profile.lastActiveText)
+        LabeledContent("UID", value: UserPublicID.formatDisplay(UserPublicID.code(for: profile.id)))
+            .textSelection(.enabled)
+        if PrivacyPreferences.showDistance {
+            LabeledContent(BuddyDetailCopy.distanceLabel, value: profile.distanceText)
+        }
+        if PrivacyPreferences.showOnline || !profile.lastActiveText.isEmpty {
+            if let status = PrivacyPreferences.statusLine(
+                isOnline: false,
+                lastActiveText: profile.lastActiveText
+            ) {
+                LabeledContent(BuddyDetailCopy.activeLabel, value: status)
+            }
+        }
         LabeledContent(BuddyDetailCopy.availabilityLabel, value: profile.availability)
         LabeledContent(BuddyDetailCopy.lookingLabel, value: profile.lookingFor)
     }
@@ -255,7 +306,6 @@ struct BuddyDetailServiceInfoSection: View {
         LabeledContent(BuddyDetailCopy.serviceTypeLabel, value: companion.serviceType.rawValue)
         LabeledContent(BuddyDetailCopy.specialtyLabel, value: companion.specialty)
         LabeledContent(BuddyDetailCopy.priceLabel, value: companion.priceText)
-        LabeledContent(BuddyDetailCopy.ratingLabel, value: BuddyDetailCopy.ratingValue(companion.rating))
         LabeledContent(BuddyDetailCopy.ordersLabel, value: BuddyDetailCopy.ordersValue(companion.orderCount))
         LabeledContent(BuddyDetailCopy.responseLabel, value: companion.responseTime)
         LabeledContent(
@@ -265,7 +315,7 @@ struct BuddyDetailServiceInfoSection: View {
     }
 }
 
-// MARK: - Match / schedule / reviews / related
+// MARK: - Match / schedule / related
 
 struct BuddyDetailMatchSection: View {
     let profile: BuddyProfile
@@ -292,6 +342,10 @@ struct BuddyDetailMatchSection: View {
 
 struct BuddyDetailScheduleSection: View {
     let slots: [String]
+    var allowsBooking = false
+    var onSelectBookableDay: ((Date) -> Void)? = nil
+
+    @State private var selectedDay: Date?
 
     var body: some View {
         if slots.isEmpty {
@@ -299,25 +353,26 @@ struct BuddyDetailScheduleSection: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         } else {
-            ForEach(slots, id: \.self) { slot in
-                Label(slot, systemImage: "clock")
-                    .font(.body)
-            }
-        }
-    }
-}
+            BuddyScheduleCalendarView(
+                slots: slots,
+                selectedDay: Binding(
+                    get: { selectedDay },
+                    set: { day in
+                        selectedDay = day
+                        if let day, allowsBooking {
+                            onSelectBookableDay?(day)
+                        }
+                    }
+                ),
+                allowsSelection: allowsBooking,
+                showsMonthPager: true
+            )
+            .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
 
-struct BuddyDetailReviewsSection: View {
-    let reviews: [BuddyReview]
-
-    var body: some View {
-        if reviews.isEmpty {
-            Text(BuddyDetailCopy.reviewsEmpty)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        } else {
-            ForEach(reviews) { review in
-                BuddyReviewRow(review: review)
+            if allowsBooking {
+                Text(BuddyDetailCopy.scheduleCalendarHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }

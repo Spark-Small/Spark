@@ -231,7 +231,7 @@ enum BuddyKind: String, CaseIterable, Identifiable {
 }
 
 struct BuddyFilter: Equatable {
-    /// 选人舞台默认同好
+    /// 搭子页默认同好；`.paid` 为陪玩
     var kind: BuddyKind = .free
     var gender: BuddyGender?
     var maxDistanceKM: Double = 20
@@ -375,7 +375,6 @@ struct CircleBuddy: Identifiable, Hashable {
     var topic: String
     var isOnline: Bool
     var scheduleSlots: [String]
-    var reviews: [BuddyReview]
     /// 与当前用户爱好匹配、可一起去的附近活动 id（示例用 title 关联）
     var relatedActivityTitles: [String]
 
@@ -401,12 +400,10 @@ struct PaidCompanion: Identifiable, Hashable {
     var serviceType: CompanionServiceType
     var specialty: String
     var hourlyPrice: Int
-    var rating: Double
     var orderCount: Int
     var isAvailable: Bool
     var responseTime: String
     var scheduleSlots: [String]
-    var reviews: [BuddyReview]
     var relatedActivityTitles: [String]
     /// 平台认证（演示角标）
     var isVerified: Bool
@@ -419,12 +416,10 @@ struct PaidCompanion: Identifiable, Hashable {
         serviceType: CompanionServiceType,
         specialty: String,
         hourlyPrice: Int,
-        rating: Double,
         orderCount: Int,
         isAvailable: Bool,
         responseTime: String,
         scheduleSlots: [String],
-        reviews: [BuddyReview],
         relatedActivityTitles: [String],
         isVerified: Bool = true
     ) {
@@ -432,12 +427,10 @@ struct PaidCompanion: Identifiable, Hashable {
         self.serviceType = serviceType
         self.specialty = specialty
         self.hourlyPrice = hourlyPrice
-        self.rating = rating
         self.orderCount = orderCount
         self.isAvailable = isAvailable
         self.responseTime = responseTime
         self.scheduleSlots = scheduleSlots
-        self.reviews = reviews
         self.relatedActivityTitles = relatedActivityTitles
         self.isVerified = isVerified
     }
@@ -477,14 +470,6 @@ struct VoiceHall: Identifiable, Hashable {
     var audienceText: String {
         "\(onMicNicknames.count) 麦上 · \(listenerCount) 围观"
     }
-}
-
-struct BuddyReview: Identifiable, Hashable {
-    let id: UUID
-    var author: String
-    var rating: Int
-    var comment: String
-    var dateText: String
 }
 
 struct CommunityPost: Identifiable, Hashable, Codable {

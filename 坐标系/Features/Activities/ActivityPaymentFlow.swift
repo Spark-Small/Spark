@@ -263,6 +263,7 @@ struct ActivityOrdersSheet: View {
     @State private var orders: [ActivityOrder] = []
     @State private var refundingID: UUID?
     @State private var refundError: String?
+    @State private var refundTarget: ActivityOrder?
 
     var body: some View {
         NavigationStack {
@@ -277,7 +278,7 @@ struct ActivityOrdersSheet: View {
                 } else {
                     ForEach(orders) { order in
                         ActivityOrderRow(order: order) {
-                            beginRefund(order)
+                            refundTarget = order
                         }
                         .disabled(refundingID != nil)
                     }
@@ -303,6 +304,11 @@ struct ActivityOrdersSheet: View {
                 Button("好的", role: .cancel) {}
             } message: {
                 Text(refundError ?? "")
+            }
+            .sheet(item: $refundTarget) { order in
+                RefundRequestSheet.activityOrder(order) { _, _ in
+                    beginRefund(order)
+                }
             }
             .onAppear(perform: reload)
         }

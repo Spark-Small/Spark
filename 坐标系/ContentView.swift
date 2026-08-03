@@ -160,7 +160,7 @@ final class AppModel {
         syncOrchestrator.handle(.activityCancelled(id))
     }
 
-    /// 列表/卡片快捷报名：无需 App 支付则直报，需支付则进详情
+    /// 列表/卡片快捷报名：无需 App 支付则直报，需支付 / 有时间冲突则进详情确认
     @discardableResult
     func quickJoinActivity(_ activity: Activity, openDetail: @escaping () -> Void) -> Bool {
         if activity.isFull {
@@ -168,6 +168,10 @@ final class AppModel {
             return false
         }
         if activity.requiresInAppPayment {
+            openDetail()
+            return false
+        }
+        if !activities.scheduleConflicts(with: activity).isEmpty {
             openDetail()
             return false
         }
@@ -452,10 +456,16 @@ struct ContentView: View {
     /// 登录后再构造，避免首帧前解码全量本地目录。
     @State private var model: AppModel?
     @State private var didRunDeferredStartup = false
+    /// 已登录用户遇协议版本升级时需重新确认；未登录走登录页勾选。
+    @State private var hasAcceptedLegalConsent = !LegalConsentPreference.needsConsent
 
     var body: some View {
         Group {
-            if !auth.isSignedIn {
+            if auth.isSignedIn, !hasAcceptedLegalConsent {
+                LegalConsentGate {
+                    hasAcceptedLegalConsent = true
+                }
+            } else if !auth.isSignedIn {
                 RootView(session: auth)
             } else if let model {
                 signedInRoot(model)
@@ -464,23 +474,27 @@ struct ContentView: View {
                 LaunchSurface.stage
                     .ignoresSafeArea()
                     .overlay {
-                        Image("LaunchEnvelopeMark")
+                        Image("LaunchMarkIcon")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 200, height: 200)
+                            // 与主屏幕 App 图标同为 60pt，衔接系统启动屏。
+                            .frame(width: 60, height: 60)
                             .accessibilityHidden(true)
                     }
             }
         }
-        .task {
+        .task(id: "\(auth.isSignedIn)-\(hasAcceptedLegalConsent)") {
+            // 未登录也可做轻量目录刷新；敏感权限仍在登录同意与主界面后再申请。
             await runDeferredStartupIfNeeded()
-        }
-        .task(id: auth.isSignedIn) {
             guard auth.isSignedIn else { return }
+            // 已登录但协议版本升级、尚未在 Gate 同意时，先等同意。
+            if !hasAcceptedLegalConsent, LegalConsentPreference.needsConsent { return }
+            hasAcceptedLegalConsent = true
             await ensureModelReady()
         }
         .animation(.spring(duration: 0.45, bounce: 0.12), value: auth.isSignedIn)
         .animation(.spring(duration: 0.4, bounce: 0.1), value: model?.hasCompletedOnboarding)
+        .animation(.easeOut(duration: 0.25), value: hasAcceptedLegalConsent)
     }
 
     @ViewBuilder
@@ -551,6 +565,9 @@ struct ContentView: View {
         .task {
             // 登录并完成引导后进入主界面时请求定位（仅系统未决定时会弹窗）
             LocationService.shared.promptWhenInUseIfNeeded()
+            ProductLifecycleStore.shared.recordOpen()
+            // 协议同意后：系统「跟踪」→「通知」Alert（未请求过且未决定时才弹）
+            await PermissionLaunchPrompts.requestPostLoginChainIfNeeded()
         }
     }
 

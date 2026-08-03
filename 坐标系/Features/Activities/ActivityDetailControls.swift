@@ -23,17 +23,16 @@ enum ActivityDetailControls {
         }
     }
 
-    /// 官方 glass 胶囊（纯文案）：凭证长条导航 / 聊天
+    /// 官方 glass 胶囊（纯文案）：对齐发现卡「参加」主 CTA
     struct GlassCapsuleButton: View {
         let title: String
         var accessibilityLabel: String? = nil
-        var controlSize: ControlSize = .small
+        var controlSize: ControlSize = .regular
         var action: () -> Void
 
         var body: some View {
             Button(title, action: action)
-                .font(.subheadline.weight(.medium))
-                .activityGlassCapsule(controlSize: controlSize)
+                .activityPrimaryCTA(controlSize: controlSize)
                 .accessibilityLabel(accessibilityLabel ?? title)
         }
     }

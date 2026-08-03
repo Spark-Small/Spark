@@ -530,7 +530,6 @@ enum SampleData {
                            photoAssets: buddyDemoPhotoAssets),
             circleName: "徐汇桌游群", topic: "社交", isOnline: false,
             scheduleSlots: ["周六 14:00", "周日 15:00"],
-            reviews: [BuddyReview(id: UUID(), author: "林夏", rating: 5, comment: "聊天舒服，选店也很有品位。", dateText: "5 天前")],
             relatedActivityTitles: ["思南公馆咖啡漫谈", "安福路独立书店半日"]
         ),
         CircleBuddy(
@@ -541,10 +540,6 @@ enum SampleData {
                            photoAssets: buddyDemoPhotoAssets),
             circleName: "黄浦夜骑群", topic: "骑行", isOnline: true,
             scheduleSlots: ["今晚 20:00", "周五 21:00", "周六上午"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "林屿", rating: 5, comment: "带队稳，新手也很安心。", dateText: "3 天前"),
-                BuddyReview(id: UUID(), author: "小周", rating: 5, comment: "路线讲解清楚，节奏刚好。", dateText: "1 周前")
-            ],
             relatedActivityTitles: ["外滩夜骑轻态局"]
         ),
         CircleBuddy(
@@ -554,7 +549,6 @@ enum SampleData {
                            tags: ["徒步", "露营", "植物"], avail: "周日全天", active: "今天活跃", looking: "想找轻徒步"),
             circleName: "松江徒步群", topic: "户外", isOnline: true,
             scheduleSlots: ["周日 09:00", "下周六全天"],
-            reviews: [BuddyReview(id: UUID(), author: "Yuna", rating: 4, comment: "节奏慢，适合放松。", dateText: "2 周前")],
             relatedActivityTitles: ["辰山植物园轻徒步"]
         ),
         CircleBuddy(
@@ -564,7 +558,6 @@ enum SampleData {
                            tags: ["美食", "夜市", "纪录片"], avail: "周五晚饭后", active: "30 分钟前活跃", looking: "想找探店局"),
             circleName: "徐汇吃喝群", topic: "美食", isOnline: true,
             scheduleSlots: ["周五 18:30", "周六 12:00"],
-            reviews: [BuddyReview(id: UUID(), author: "阿凯", rating: 5, comment: "路线扎实，人均控制得好。", dateText: "4 天前")],
             relatedActivityTitles: ["武康路美食散打"]
         ),
         CircleBuddy(
@@ -574,7 +567,6 @@ enum SampleData {
                            tags: ["羽毛球", "网球", "拉伸"], avail: "工作日 19:00 后", active: "昨天活跃", looking: "想找羽毛球搭档"),
             circleName: "静安羽球群", topic: "运动", isOnline: false,
             scheduleSlots: ["周一 19:30", "周三 19:30", "周五 20:00"],
-            reviews: [BuddyReview(id: UUID(), author: "Leo", rating: 5, comment: "打法干净，很适合固定搭子。", dateText: "1 周前")],
             relatedActivityTitles: ["羽毛球混双打野", "陆家嘴晨间拉伸局"]
         ),
         CircleBuddy(
@@ -584,7 +576,6 @@ enum SampleData {
                            tags: ["市集", "手作", "摄影"], avail: "本周末可约", active: "1 小时前活跃", looking: "想逛周末市集"),
             circleName: "徐汇桌游群", topic: "社交", isOnline: true,
             scheduleSlots: ["周六全天", "周日下午"],
-            reviews: [BuddyReview(id: UUID(), author: "Mia", rating: 5, comment: "拍照点找得很准。", dateText: "6 天前")],
             relatedActivityTitles: ["徐汇滨江市集漫逛", "世纪公园野餐拍照"]
         ),
         CircleBuddy(
@@ -594,7 +585,6 @@ enum SampleData {
                            tags: ["羽毛球", "网球", "拉伸"], avail: "今晚可约", active: "刚刚活跃", looking: "想找混双打野"),
             circleName: "静安羽球群", topic: "运动", isOnline: true,
             scheduleSlots: ["今晚 20:00", "周四 19:30"],
-            reviews: [BuddyReview(id: UUID(), author: "Yuna", rating: 5, comment: "约场准时，球商好。", dateText: "2 天前")],
             relatedActivityTitles: ["羽毛球混双打野", "网球入门对打"]
         ),
         CircleBuddy(
@@ -604,7 +594,6 @@ enum SampleData {
                            tags: ["跑步", "建筑", "咖啡"], avail: "今晚 19:30", active: "今天活跃", looking: "想找夜跑搭子"),
             circleName: "黄浦探店群", topic: "文化", isOnline: true,
             scheduleSlots: ["今晚 19:30", "周六 10:00"],
-            reviews: [BuddyReview(id: UUID(), author: "阿凯", rating: 5, comment: "节奏稳，路线讲解有趣。", dateText: "1 周前")],
             relatedActivityTitles: ["苏州河夜跑 5K", "衡复历史建筑散步"]
         ),
         CircleBuddy(
@@ -614,7 +603,6 @@ enum SampleData {
                            tags: ["摄影", "市集", "咖啡"], avail: "本周日", active: "3 小时前活跃", looking: "想找拍照搭子"),
             circleName: "黄浦夜骑群", topic: "骑行", isOnline: false,
             scheduleSlots: ["周日下午", "下周六"],
-            reviews: [BuddyReview(id: UUID(), author: "林夏", rating: 5, comment: "构图很会，人超好。", dateText: "4 天前")],
             relatedActivityTitles: ["外滩夜骑轻态局"]
         ),
         CircleBuddy(
@@ -624,7 +612,6 @@ enum SampleData {
                            tags: ["拉伸", "跑步", "咖啡"], avail: "明早 7:30", active: "昨天活跃", looking: "想找晨练搭子"),
             circleName: "浦东夜跑群", topic: "运动", isOnline: false,
             scheduleSlots: ["明早 7:30", "周五 7:30"],
-            reviews: [BuddyReview(id: UUID(), author: "Yuna", rating: 4, comment: "动作讲解清楚。", dateText: "1 周前")],
             relatedActivityTitles: ["陆家嘴晨间拉伸局"]
         ),
         // MARK: 成都同好
@@ -635,9 +622,6 @@ enum SampleData {
                            tags: ["骑行", "摄影", "美食"], avail: "今晚可约", active: "刚刚活跃", looking: "想找夜骑局"),
             circleName: "锦江夜骑群", topic: "骑行", isOnline: true,
             scheduleSlots: ["今晚 20:00", "周五 21:00", "周六上午"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "小满", rating: 5, comment: "带队清楚，新手也跟得上。", dateText: "2 天前")
-            ],
             relatedActivityTitles: []
         ),
         CircleBuddy(
@@ -647,9 +631,6 @@ enum SampleData {
                            tags: ["美食", "咖啡", "市集"], avail: "周五晚饭后", active: "30 分钟前活跃", looking: "想找火锅拼桌"),
             circleName: "武侯火锅群", topic: "美食", isOnline: true,
             scheduleSlots: ["周五 18:30", "周六 12:00"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "叙叙", rating: 5, comment: "店选得准，人均也好控。", dateText: "4 天前")
-            ],
             relatedActivityTitles: []
         ),
         CircleBuddy(
@@ -659,9 +640,6 @@ enum SampleData {
                            tags: ["羽毛球", "拉伸", "咖啡"], avail: "工作日 19:00 后", active: "今天活跃", looking: "想找羽毛球搭档"),
             circleName: "高新羽球群", topic: "运动", isOnline: false,
             scheduleSlots: ["周一 19:30", "周三 19:30", "周五 20:00"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "老白", rating: 5, comment: "打法干净，约场准时。", dateText: "1 周前")
-            ],
             relatedActivityTitles: []
         ),
         CircleBuddy(
@@ -671,9 +649,6 @@ enum SampleData {
                            tags: ["展览", "咖啡", "摄影"], avail: "本周末可约", active: "1 小时前活跃", looking: "想找慢逛搭子"),
             circleName: "宽窄慢逛群", topic: "玩乐", isOnline: true,
             scheduleSlots: ["周六下午", "周日 15:00"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "青禾", rating: 5, comment: "节奏舒服，拍照点很会找。", dateText: "5 天前")
-            ],
             relatedActivityTitles: []
         ),
         CircleBuddy(
@@ -683,9 +658,6 @@ enum SampleData {
                            tags: ["跑步", "美食", "拉伸"], avail: "今晚 19:30", active: "今天活跃", looking: "想找夜跑搭子"),
             circleName: "锦江夜骑群", topic: "运动", isOnline: true,
             scheduleSlots: ["今晚 19:30", "周六 10:00"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "阿川", rating: 5, comment: "配速稳，路线讲解有趣。", dateText: "3 天前")
-            ],
             relatedActivityTitles: []
         ),
         CircleBuddy(
@@ -695,9 +667,6 @@ enum SampleData {
                            tags: ["徒步", "摄影", "露营"], avail: "周日全天", active: "昨天活跃", looking: "想找轻徒步"),
             circleName: "龙泉徒步群", topic: "户外", isOnline: false,
             scheduleSlots: ["周日 09:00", "下周六全天"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "木子", rating: 4, comment: "不卷，适合放松。", dateText: "2 周前")
-            ],
             relatedActivityTitles: []
         ),
         CircleBuddy(
@@ -707,9 +676,6 @@ enum SampleData {
                            tags: ["桌游", "咖啡", "市集"], avail: "本周六下午", active: "2 小时前活跃", looking: "想找开黑局"),
             circleName: "宽窄慢逛群", topic: "娱乐", isOnline: true,
             scheduleSlots: ["周六 14:00", "周日 15:00"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "江晚", rating: 5, comment: "局风轻松，新人很友好。", dateText: "6 天前")
-            ],
             relatedActivityTitles: []
         ),
         CircleBuddy(
@@ -719,9 +685,6 @@ enum SampleData {
                            tags: ["摄影", "市集", "咖啡"], avail: "本周日", active: "3 小时前活跃", looking: "想找拍照搭子"),
             circleName: "武侯火锅群", topic: "社交", isOnline: false,
             scheduleSlots: ["周日下午", "下周六"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "南栀", rating: 5, comment: "构图很会，人超好处。", dateText: "4 天前")
-            ],
             relatedActivityTitles: []
         ),
         // MARK: 上海同好扩充（网格密度）
@@ -731,8 +694,7 @@ enum SampleData {
                            bio: "周末滨江骑行，也爱咖啡收尾。",
                            tags: ["骑行", "咖啡", "摄影"], avail: "周六上午", active: "刚刚活跃", looking: "想找骑行搭子"),
             circleName: "黄浦夜骑群", topic: "骑行", isOnline: true,
-            scheduleSlots: ["周六 09:00", "周日 16:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周六 09:00", "周日 16:00"], relatedActivityTitles: []
         ),
         CircleBuddy(
             profile: buddy(nick: "半夏", gender: .female, age: 26, h: 164, w: 49, km: 2.0,
@@ -740,8 +702,7 @@ enum SampleData {
                            bio: "桌游规则能教，剧本杀也欢迎新人。",
                            tags: ["桌游", "剧本杀", "咖啡"], avail: "本周六下午", active: "1 小时前活跃", looking: "想找开黑局"),
             circleName: "徐汇桌游群", topic: "娱乐", isOnline: true,
-            scheduleSlots: ["周六 14:00", "周日 15:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周六 14:00", "周日 15:00"], relatedActivityTitles: []
         ),
         CircleBuddy(
             profile: buddy(nick: "青杉", gender: .male, age: 32, h: 177, w: 73, km: 9.8,
@@ -749,8 +710,7 @@ enum SampleData {
                            bio: "佘山轻松线常客，不卷配速。",
                            tags: ["徒步", "摄影", "露营"], avail: "周日全天", active: "今天活跃", looking: "想找轻徒步"),
             circleName: "松江徒步群", topic: "户外", isOnline: false,
-            scheduleSlots: ["周日 09:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周日 09:00"], relatedActivityTitles: []
         ),
         CircleBuddy(
             profile: buddy(nick: "柚子", gender: .female, age: 24, h: 161, w: 47, km: 1.9,
@@ -758,8 +718,7 @@ enum SampleData {
                            bio: "羽毛球 2.5～3.0，固定局优先。",
                            tags: ["羽毛球", "拉伸", "网球"], avail: "今晚可约", active: "30 分钟前活跃", looking: "想找羽球搭档"),
             circleName: "静安羽球群", topic: "运动", isOnline: true,
-            scheduleSlots: ["今晚 20:00", "周三 19:30"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["今晚 20:00", "周三 19:30"], relatedActivityTitles: []
         ),
         CircleBuddy(
             profile: buddy(nick: "老陈", gender: .male, age: 33, h: 174, w: 69, km: 3.2,
@@ -767,8 +726,7 @@ enum SampleData {
                            bio: "控预算探店，火锅烧烤都行。",
                            tags: ["美食", "夜市", "探店"], avail: "周五晚饭后", active: "今天活跃", looking: "想找探店局"),
             circleName: "徐汇吃喝群", topic: "美食", isOnline: false,
-            scheduleSlots: ["周五 18:30", "周六 12:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周五 18:30", "周六 12:00"], relatedActivityTitles: []
         ),
         CircleBuddy(
             profile: buddy(nick: "安安", gender: .female, age: 22, h: 159, w: 45, km: 4.5,
@@ -776,8 +734,7 @@ enum SampleData {
                            bio: "夜跑配速友好，跑后拉伸。",
                            tags: ["跑步", "拉伸", "咖啡"], avail: "今晚 19:30", active: "刚刚活跃", looking: "想找夜跑搭子"),
             circleName: "浦东夜跑群", topic: "运动", isOnline: true,
-            scheduleSlots: ["今晚 19:30", "周五 19:30"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["今晚 19:30", "周五 19:30"], relatedActivityTitles: []
         ),
         CircleBuddy(
             profile: buddy(nick: "阿梨", gender: .female, age: 29, h: 167, w: 53, km: 2.4,
@@ -785,8 +742,7 @@ enum SampleData {
                            bio: "逛街探店不硬性购物，累了就坐。",
                            tags: ["逛街", "探店", "摄影"], avail: "本周末可约", active: "2 小时前活跃", looking: "想找逛街搭子"),
             circleName: "黄浦探店群", topic: "玩乐", isOnline: true,
-            scheduleSlots: ["周六下午", "周日 14:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周六下午", "周日 14:00"], relatedActivityTitles: []
         ),
         CircleBuddy(
             profile: buddy(nick: "言午", gender: .male, age: 27, h: 181, w: 75, km: 6.0,
@@ -794,8 +750,7 @@ enum SampleData {
                            bio: "网球入门对打，也可混打羽毛球。",
                            tags: ["网球", "羽毛球", "拉伸"], avail: "工作日 19:00 后", active: "昨天活跃", looking: "想找运动固搭"),
             circleName: "静安羽球群", topic: "运动", isOnline: false,
-            scheduleSlots: ["周一 19:30", "周四 19:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周一 19:30", "周四 19:00"], relatedActivityTitles: []
         ),
         CircleBuddy(
             profile: buddy(nick: "小满满", gender: .female, age: 25, h: 163, w: 48, km: 3.8,
@@ -803,8 +758,7 @@ enum SampleData {
                            bio: "市集手作摊常客，也拍胶片感照片。",
                            tags: ["市集", "手作", "摄影"], avail: "本周日", active: "今天活跃", looking: "想逛周末市集"),
             circleName: "徐汇桌游群", topic: "社交", isOnline: true,
-            scheduleSlots: ["周日下午"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周日下午"], relatedActivityTitles: []
         ),
         CircleBuddy(
             profile: buddy(nick: "禾川", gender: .male, age: 30, h: 176, w: 70, km: 5.6,
@@ -812,8 +766,7 @@ enum SampleData {
                            bio: "城市散步与建筑打卡，配速聊天。",
                            tags: ["跑步", "建筑", "咖啡"], avail: "周六上午", active: "3 小时前活跃", looking: "想找散步搭子"),
             circleName: "黄浦探店群", topic: "文化", isOnline: false,
-            scheduleSlots: ["周六 10:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周六 10:00"], relatedActivityTitles: []
         ),
         CircleBuddy(
             profile: buddy(nick: "苏苏", gender: .female, age: 27, h: 165, w: 50, km: 1.3,
@@ -821,8 +774,7 @@ enum SampleData {
                            bio: "奶茶探店与轻松聊天局。",
                            tags: ["探店", "咖啡", "展览"], avail: "今晚可约", active: "刚刚活跃", looking: "想找聊天局"),
             circleName: "徐汇吃喝群", topic: "社交", isOnline: true,
-            scheduleSlots: ["今晚 19:00", "周五 20:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["今晚 19:00", "周五 20:00"], relatedActivityTitles: []
         ),
         CircleBuddy(
             profile: buddy(nick: "阿白", gender: .male, age: 26, h: 173, w: 66, km: 4.1,
@@ -830,8 +782,7 @@ enum SampleData {
                            bio: "夜骑续摊局常客，配速能聊天。",
                            tags: ["骑行", "夜市", "摄影"], avail: "周五晚上", active: "今天活跃", looking: "想找夜骑局"),
             circleName: "黄浦夜骑群", topic: "骑行", isOnline: true,
-            scheduleSlots: ["周五 21:00", "周六 20:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周五 21:00", "周六 20:00"], relatedActivityTitles: []
         ),
         // MARK: 成都同好扩充
         CircleBuddy(
@@ -840,8 +791,7 @@ enum SampleData {
                            bio: "玉林串串与火锅拼桌，控辣控油。",
                            tags: ["美食", "火锅", "市集"], avail: "周五晚饭后", active: "1 小时前活跃", looking: "想找拼桌"),
             circleName: "武侯火锅群", topic: "美食", isOnline: true,
-            scheduleSlots: ["周五 18:30"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周五 18:30"], relatedActivityTitles: []
         ),
         CircleBuddy(
             profile: buddy(nick: "阿泽", gender: .male, age: 29, h: 178, w: 72, km: 1.5,
@@ -849,8 +799,7 @@ enum SampleData {
                            bio: "东湖夜骑，也可周末白天骑。",
                            tags: ["骑行", "摄影", "跑步"], avail: "今晚可约", active: "刚刚活跃", looking: "想找夜骑局"),
             circleName: "锦江夜骑群", topic: "骑行", isOnline: true,
-            scheduleSlots: ["今晚 20:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["今晚 20:00"], relatedActivityTitles: []
         ),
         CircleBuddy(
             profile: buddy(nick: "禾禾", gender: .female, age: 26, h: 165, w: 51, km: 3.0,
@@ -858,8 +807,7 @@ enum SampleData {
                            bio: "羽毛球双打招募，水平相近优先。",
                            tags: ["羽毛球", "拉伸", "咖啡"], avail: "工作日 19:00 后", active: "今天活跃", looking: "想找羽球搭档"),
             circleName: "高新羽球群", topic: "运动", isOnline: false,
-            scheduleSlots: ["周二 19:30", "周四 19:30"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周二 19:30", "周四 19:30"], relatedActivityTitles: []
         ),
         CircleBuddy(
             profile: buddy(nick: "清清", gender: .female, age: 28, h: 168, w: 52, km: 2.6,
@@ -867,8 +815,7 @@ enum SampleData {
                            bio: "宽窄慢逛与独立咖啡馆。",
                            tags: ["咖啡", "展览", "摄影"], avail: "本周末可约", active: "2 小时前活跃", looking: "想找慢逛搭子"),
             circleName: "宽窄慢逛群", topic: "玩乐", isOnline: true,
-            scheduleSlots: ["周六下午"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周六下午"], relatedActivityTitles: []
         ),
         CircleBuddy(
             profile: buddy(nick: "石头", gender: .male, age: 31, h: 175, w: 74, km: 7.5,
@@ -876,8 +823,7 @@ enum SampleData {
                            bio: "龙泉看花与轻徒步，节奏慢。",
                            tags: ["徒步", "摄影", "露营"], avail: "周日全天", active: "昨天活跃", looking: "想找轻徒步"),
             circleName: "龙泉徒步群", topic: "户外", isOnline: false,
-            scheduleSlots: ["周日 09:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周日 09:00"], relatedActivityTitles: []
         ),
         CircleBuddy(
             profile: buddy(nick: "橙子", gender: .female, age: 23, h: 158, w: 44, km: 4.0,
@@ -885,8 +831,7 @@ enum SampleData {
                            bio: "桌游缺人就喊，茶馆也能聊。",
                            tags: ["桌游", "咖啡", "市集"], avail: "本周六下午", active: "今天活跃", looking: "想找开黑局"),
             circleName: "宽窄慢逛群", topic: "娱乐", isOnline: true,
-            scheduleSlots: ["周六 14:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周六 14:00"], relatedActivityTitles: []
         )
     ]
 
@@ -897,13 +842,9 @@ enum SampleData {
                            bio: "可按你的节奏定制滨江/外滩骑行陪玩，含路线讲解与安全提醒。",
                            tags: ["骑行", "路线规划", "新手友好"], avail: "今日可约", active: "在线", looking: "可接夜骑陪玩"),
             serviceType: .activity, specialty: "夜骑领队 / 城市骑行陪玩",
-            hourlyPrice: 128, rating: 4.9, orderCount: 126, isAvailable: true,
+            hourlyPrice: 128, orderCount: 126, isAvailable: true,
             responseTime: "通常 10 分钟内",
             scheduleSlots: ["今日 20:00", "明日 19:00", "周六 21:00"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "匿名用户", rating: 5, comment: "第一次夜骑就很安心。", dateText: "2 天前"),
-                BuddyReview(id: UUID(), author: "Coco", rating: 5, comment: "讲解细致，性价比高。", dateText: "1 周前")
-            ],
             relatedActivityTitles: ["外滩夜骑轻态局"]
         ),
         PaidCompanion(
@@ -912,10 +853,9 @@ enum SampleData {
                            bio: "提供约场陪练与轻度技术指导，可单次也可包周。场地费另计。",
                            tags: ["羽毛球", "陪练", "纠正动作"], avail: "明日 18:00 后", active: "今天活跃", looking: "可接羽毛球陪练"),
             serviceType: .activity, specialty: "羽毛球陪练",
-            hourlyPrice: 168, rating: 4.8, orderCount: 89, isAvailable: true,
+            hourlyPrice: 168, orderCount: 89, isAvailable: true,
             responseTime: "通常 30 分钟内",
             scheduleSlots: ["明日 18:30", "周四 19:00"],
-            reviews: [BuddyReview(id: UUID(), author: "阿凯", rating: 5, comment: "陪练专注，动作提醒及时。", dateText: "3 天前")],
             relatedActivityTitles: ["羽毛球混双打野"]
         ),
         PaidCompanion(
@@ -924,10 +864,9 @@ enum SampleData {
                            bio: "陪你逛展、市集和独立书店，按兴趣路线规划，适合不想独自逛的周末。",
                            tags: ["展览", "市集", "拍照点"], avail: "档期已满", active: "昨天活跃", looking: "本周档期已满"),
             serviceType: .offline, specialty: "展览 / 市集线下陪逛",
-            hourlyPrice: 148, rating: 4.9, orderCount: 74, isAvailable: false,
+            hourlyPrice: 148, orderCount: 74, isAvailable: false,
             responseTime: "通常 1 小时内",
             scheduleSlots: ["下周六待开放"],
-            reviews: [BuddyReview(id: UUID(), author: "林夏", rating: 5, comment: "路线很会拍，体验完整。", dateText: "5 天前")],
             relatedActivityTitles: ["徐汇滨江市集漫逛"]
         ),
         PaidCompanion(
@@ -936,10 +875,9 @@ enum SampleData {
                            bio: "一对一或小团线下陪走，含集合指引与轻松讲解。门票与交通自理。",
                            tags: ["徒步", "野餐", "植物科普"], avail: "本周日可约", active: "今天活跃", looking: "可接轻徒步向导"),
             serviceType: .offline, specialty: "轻徒步线下向导",
-            hourlyPrice: 158, rating: 4.7, orderCount: 52, isAvailable: true,
+            hourlyPrice: 158, orderCount: 52, isAvailable: true,
             responseTime: "通常 20 分钟内",
             scheduleSlots: ["周日 09:00", "下周日 09:00"],
-            reviews: [BuddyReview(id: UUID(), author: "匿名用户", rating: 4, comment: "讲解轻松，适合野餐节奏。", dateText: "1 周前")],
             relatedActivityTitles: ["辰山植物园轻徒步"]
         ),
         PaidCompanion(
@@ -948,10 +886,9 @@ enum SampleData {
                            bio: "按预算定制街区美食路线，陪逛陪拍，消费各自买单，服务费按小时计。",
                            tags: ["探店", "预算控局", "夜市"], avail: "今晚可约", active: "刚刚活跃", looking: "可接探店陪吃"),
             serviceType: .offline, specialty: "美食探店陪吃",
-            hourlyPrice: 138, rating: 4.8, orderCount: 103, isAvailable: true,
+            hourlyPrice: 138, orderCount: 103, isAvailable: true,
             responseTime: "通常 15 分钟内",
             scheduleSlots: ["今晚 18:30", "周六 12:00"],
-            reviews: [BuddyReview(id: UUID(), author: "Mia", rating: 5, comment: "预算控得好，店也扎实。", dateText: "4 天前")],
             relatedActivityTitles: ["武康路美食散打"]
         ),
         PaidCompanion(
@@ -960,10 +897,9 @@ enum SampleData {
                            bio: "夜跑陪跑与拉伸指导，可按配速分组。",
                            tags: ["跑步", "拉伸", "陪跑"], avail: "今晚可约", active: "在线", looking: "可接夜跑陪跑"),
             serviceType: .activity, specialty: "夜跑陪跑",
-            hourlyPrice: 118, rating: 4.8, orderCount: 61, isAvailable: true,
+            hourlyPrice: 118, orderCount: 61, isAvailable: true,
             responseTime: "通常 20 分钟内",
             scheduleSlots: ["今晚 19:30", "周五 19:30"],
-            reviews: [BuddyReview(id: UUID(), author: "Leo", rating: 5, comment: "配速稳，拉伸也很到位。", dateText: "3 天前")],
             relatedActivityTitles: ["苏州河夜跑 5K"]
         ),
         PaidCompanion(
@@ -972,10 +908,9 @@ enum SampleData {
                            bio: "市集 / 野餐拍照陪拍，出图快，可按风格沟通。",
                            tags: ["摄影", "市集", "陪拍"], avail: "周末可约", active: "今天活跃", looking: "可接陪拍"),
             serviceType: .offline, specialty: "市集陪拍",
-            hourlyPrice: 158, rating: 4.9, orderCount: 47, isAvailable: true,
+            hourlyPrice: 158, orderCount: 47, isAvailable: true,
             responseTime: "通常 1 小时内",
             scheduleSlots: ["周六下午", "周日上午"],
-            reviews: [BuddyReview(id: UUID(), author: "Coco", rating: 5, comment: "出片自然，沟通顺。", dateText: "5 天前")],
             relatedActivityTitles: ["世纪公园野餐拍照"]
         ),
         // MARK: 成都陪玩
@@ -985,13 +920,9 @@ enum SampleData {
                            bio: "东湖 / 锦江夜骑陪玩，含路线讲解与安全提醒，可按配速定制。",
                            tags: ["骑行", "路线规划", "新手友好"], avail: "今日可约", active: "在线", looking: "可接夜骑陪玩"),
             serviceType: .activity, specialty: "夜骑领队 / 城市骑行陪玩",
-            hourlyPrice: 118, rating: 4.9, orderCount: 96, isAvailable: true,
+            hourlyPrice: 118, orderCount: 96, isAvailable: true,
             responseTime: "通常 10 分钟内",
             scheduleSlots: ["今日 20:00", "明日 19:00", "周六 21:00"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "匿名用户", rating: 5, comment: "第一次夜骑很安心。", dateText: "2 天前"),
-                BuddyReview(id: UUID(), author: "江晚", rating: 5, comment: "讲解细致，性价比高。", dateText: "1 周前")
-            ],
             relatedActivityTitles: []
         ),
         PaidCompanion(
@@ -1000,12 +931,9 @@ enum SampleData {
                            bio: "羽毛球约场陪练与轻度技术纠正，可单次也可包周。场地费另计。",
                            tags: ["羽毛球", "陪练", "纠正动作"], avail: "明日 18:00 后", active: "今天活跃", looking: "可接羽毛球陪练"),
             serviceType: .activity, specialty: "羽毛球陪练",
-            hourlyPrice: 158, rating: 4.8, orderCount: 72, isAvailable: true,
+            hourlyPrice: 158, orderCount: 72, isAvailable: true,
             responseTime: "通常 30 分钟内",
             scheduleSlots: ["明日 18:30", "周四 19:00"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "老白", rating: 5, comment: "陪练专注，提醒及时。", dateText: "3 天前")
-            ],
             relatedActivityTitles: []
         ),
         PaidCompanion(
@@ -1014,12 +942,9 @@ enum SampleData {
                            bio: "按预算定制火锅 / 串串路线，陪吃陪逛，消费各自买单。",
                            tags: ["探店", "火锅", "预算控局"], avail: "今晚可约", active: "刚刚活跃", looking: "可接探店陪吃"),
             serviceType: .offline, specialty: "火锅探店陪吃",
-            hourlyPrice: 128, rating: 4.9, orderCount: 88, isAvailable: true,
+            hourlyPrice: 128, orderCount: 88, isAvailable: true,
             responseTime: "通常 15 分钟内",
             scheduleSlots: ["今晚 18:30", "周六 12:00"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "木子", rating: 5, comment: "控辣控预算都很稳。", dateText: "4 天前")
-            ],
             relatedActivityTitles: []
         ),
         PaidCompanion(
@@ -1028,12 +953,9 @@ enum SampleData {
                            bio: "宽窄 / 少城慢逛陪玩，含点位讲解与拍照指导。",
                            tags: ["漫步", "展览", "拍照点"], avail: "档期已满", active: "昨天活跃", looking: "本周档期已满"),
             serviceType: .offline, specialty: "少城慢逛陪逛",
-            hourlyPrice: 138, rating: 4.9, orderCount: 61, isAvailable: false,
+            hourlyPrice: 138, orderCount: 61, isAvailable: false,
             responseTime: "通常 1 小时内",
             scheduleSlots: ["下周六待开放"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "青禾", rating: 5, comment: "路线很会拍，体验完整。", dateText: "5 天前")
-            ],
             relatedActivityTitles: []
         ),
         PaidCompanion(
@@ -1042,12 +964,9 @@ enum SampleData {
                            bio: "龙泉山轻徒步向导，含集合指引与轻松讲解。门票与交通自理。",
                            tags: ["徒步", "看花", "植物科普"], avail: "本周日可约", active: "今天活跃", looking: "可接轻徒步向导"),
             serviceType: .offline, specialty: "轻徒步线下向导",
-            hourlyPrice: 148, rating: 4.7, orderCount: 39, isAvailable: true,
+            hourlyPrice: 148, orderCount: 39, isAvailable: true,
             responseTime: "通常 20 分钟内",
             scheduleSlots: ["周日 09:00", "下周日 09:00"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "匿名用户", rating: 4, comment: "节奏轻松，适合拍照。", dateText: "1 周前")
-            ],
             relatedActivityTitles: []
         ),
         PaidCompanion(
@@ -1056,12 +975,9 @@ enum SampleData {
                            bio: "夜跑陪跑与拉伸指导，可按配速分组。",
                            tags: ["跑步", "拉伸", "陪跑"], avail: "今晚可约", active: "在线", looking: "可接夜跑陪跑"),
             serviceType: .activity, specialty: "夜跑陪跑",
-            hourlyPrice: 108, rating: 4.8, orderCount: 54, isAvailable: true,
+            hourlyPrice: 108, orderCount: 54, isAvailable: true,
             responseTime: "通常 20 分钟内",
             scheduleSlots: ["今晚 19:30", "周五 19:30"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "叙叙", rating: 5, comment: "配速稳，拉伸到位。", dateText: "3 天前")
-            ],
             relatedActivityTitles: []
         ),
         PaidCompanion(
@@ -1070,12 +986,9 @@ enum SampleData {
                            bio: "市集 / 玉林拍照陪拍，出图快，可按风格沟通。",
                            tags: ["摄影", "市集", "陪拍"], avail: "周末可约", active: "今天活跃", looking: "可接陪拍"),
             serviceType: .offline, specialty: "市集陪拍",
-            hourlyPrice: 148, rating: 4.9, orderCount: 41, isAvailable: true,
+            hourlyPrice: 148, orderCount: 41, isAvailable: true,
             responseTime: "通常 1 小时内",
             scheduleSlots: ["周六下午", "周日上午"],
-            reviews: [
-                BuddyReview(id: UUID(), author: "小满", rating: 5, comment: "出片自然，沟通顺。", dateText: "5 天前")
-            ],
             relatedActivityTitles: []
         ),
         // MARK: 上海陪玩扩充
@@ -1085,10 +998,9 @@ enum SampleData {
                            bio: "滨江骑行陪玩，含安全提醒与补给建议。",
                            tags: ["骑行", "新手友好", "路线规划"], avail: "今日可约", active: "在线", looking: "可接夜骑陪玩"),
             serviceType: .activity, specialty: "城市骑行陪玩",
-            hourlyPrice: 118, rating: 4.8, orderCount: 58, isAvailable: true,
+            hourlyPrice: 118, orderCount: 58, isAvailable: true,
             responseTime: "通常 15 分钟内",
-            scheduleSlots: ["今日 20:00", "周六 09:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["今日 20:00", "周六 09:00"], relatedActivityTitles: []
         ),
         PaidCompanion(
             profile: buddy(nick: "柚子", gender: .female, age: 24, h: 161, w: 47, km: 1.9,
@@ -1096,10 +1008,9 @@ enum SampleData {
                            bio: "羽毛球陪练，可轻度纠正动作，场地费另计。",
                            tags: ["羽毛球", "陪练", "纠正动作"], avail: "今晚可约", active: "在线", looking: "可接羽毛球陪练"),
             serviceType: .activity, specialty: "羽毛球陪练",
-            hourlyPrice: 158, rating: 4.9, orderCount: 72, isAvailable: true,
+            hourlyPrice: 158, orderCount: 72, isAvailable: true,
             responseTime: "通常 20 分钟内",
-            scheduleSlots: ["今晚 20:00", "周三 19:30"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["今晚 20:00", "周三 19:30"], relatedActivityTitles: []
         ),
         PaidCompanion(
             profile: buddy(nick: "老陈", gender: .male, age: 33, h: 174, w: 69, km: 3.2,
@@ -1107,10 +1018,9 @@ enum SampleData {
                            bio: "按预算定制探店路线，陪吃陪逛。",
                            tags: ["探店", "预算控局", "夜市"], avail: "今晚可约", active: "刚刚活跃", looking: "可接探店陪吃"),
             serviceType: .offline, specialty: "美食探店陪吃",
-            hourlyPrice: 128, rating: 4.7, orderCount: 91, isAvailable: true,
+            hourlyPrice: 128, orderCount: 91, isAvailable: true,
             responseTime: "通常 15 分钟内",
-            scheduleSlots: ["今晚 18:30", "周六 12:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["今晚 18:30", "周六 12:00"], relatedActivityTitles: []
         ),
         PaidCompanion(
             profile: buddy(nick: "安安", gender: .female, age: 22, h: 159, w: 45, km: 4.5,
@@ -1118,10 +1028,9 @@ enum SampleData {
                            bio: "夜跑陪跑与跑后拉伸，可按配速分组。",
                            tags: ["跑步", "拉伸", "陪跑"], avail: "今晚可约", active: "在线", looking: "可接夜跑陪跑"),
             serviceType: .activity, specialty: "夜跑陪跑",
-            hourlyPrice: 108, rating: 4.8, orderCount: 44, isAvailable: true,
+            hourlyPrice: 108, orderCount: 44, isAvailable: true,
             responseTime: "通常 20 分钟内",
-            scheduleSlots: ["今晚 19:30"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["今晚 19:30"], relatedActivityTitles: []
         ),
         PaidCompanion(
             profile: buddy(nick: "阿梨", gender: .female, age: 29, h: 167, w: 53, km: 2.4,
@@ -1129,10 +1038,9 @@ enum SampleData {
                            bio: "逛街探店陪逛，不劝买，适合不想独自逛的周末。",
                            tags: ["逛街", "探店", "拍照点"], avail: "周末可约", active: "今天活跃", looking: "可接陪逛"),
             serviceType: .offline, specialty: "逛街探店陪逛",
-            hourlyPrice: 138, rating: 4.9, orderCount: 36, isAvailable: true,
+            hourlyPrice: 138, orderCount: 36, isAvailable: true,
             responseTime: "通常 1 小时内",
-            scheduleSlots: ["周六下午", "周日 14:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周六下午", "周日 14:00"], relatedActivityTitles: []
         ),
         PaidCompanion(
             profile: buddy(nick: "言午", gender: .male, age: 27, h: 181, w: 75, km: 6.0,
@@ -1140,10 +1048,9 @@ enum SampleData {
                            bio: "网球 / 羽毛球陪练，入门友好。",
                            tags: ["网球", "羽毛球", "陪练"], avail: "明日可约", active: "今天活跃", looking: "可接球类陪练"),
             serviceType: .activity, specialty: "网球羽毛球陪练",
-            hourlyPrice: 168, rating: 4.8, orderCount: 53, isAvailable: true,
+            hourlyPrice: 168, orderCount: 53, isAvailable: true,
             responseTime: "通常 30 分钟内",
-            scheduleSlots: ["明日 19:00", "周四 19:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["明日 19:00", "周四 19:00"], relatedActivityTitles: []
         ),
         PaidCompanion(
             profile: buddy(nick: "小满满", gender: .female, age: 25, h: 163, w: 48, km: 3.8,
@@ -1151,10 +1058,9 @@ enum SampleData {
                            bio: "市集陪拍，出图快，可沟通风格。",
                            tags: ["摄影", "市集", "陪拍"], avail: "周末可约", active: "今天活跃", looking: "可接陪拍"),
             serviceType: .offline, specialty: "市集陪拍",
-            hourlyPrice: 148, rating: 4.9, orderCount: 29, isAvailable: true,
+            hourlyPrice: 148, orderCount: 29, isAvailable: true,
             responseTime: "通常 1 小时内",
-            scheduleSlots: ["周六下午", "周日上午"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周六下午", "周日上午"], relatedActivityTitles: []
         ),
         PaidCompanion(
             profile: buddy(nick: "苏苏", gender: .female, age: 27, h: 165, w: 50, km: 1.3,
@@ -1162,10 +1068,9 @@ enum SampleData {
                            bio: "展览 / 书店线下陪逛，按兴趣规划路线。",
                            tags: ["展览", "书店", "咖啡"], avail: "档期已满", active: "昨天活跃", looking: "本周档期已满"),
             serviceType: .offline, specialty: "展览书店陪逛",
-            hourlyPrice: 142, rating: 4.8, orderCount: 40, isAvailable: false,
+            hourlyPrice: 142, orderCount: 40, isAvailable: false,
             responseTime: "通常 1 小时内",
-            scheduleSlots: ["下周六待开放"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["下周六待开放"], relatedActivityTitles: []
         ),
         PaidCompanion(
             profile: buddy(nick: "青杉", gender: .male, age: 32, h: 177, w: 73, km: 9.8,
@@ -1173,10 +1078,9 @@ enum SampleData {
                            bio: "轻徒步向导，含集合指引；门票交通自理。",
                            tags: ["徒步", "野餐", "植物科普"], avail: "本周日可约", active: "今天活跃", looking: "可接轻徒步向导"),
             serviceType: .offline, specialty: "轻徒步向导",
-            hourlyPrice: 152, rating: 4.7, orderCount: 33, isAvailable: true,
+            hourlyPrice: 152, orderCount: 33, isAvailable: true,
             responseTime: "通常 20 分钟内",
-            scheduleSlots: ["周日 09:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周日 09:00"], relatedActivityTitles: []
         ),
         PaidCompanion(
             profile: buddy(nick: "阿白", gender: .male, age: 26, h: 173, w: 66, km: 4.1,
@@ -1184,10 +1088,9 @@ enum SampleData {
                            bio: "夜骑续摊陪玩，可按配速定制。",
                            tags: ["骑行", "夜骑", "新手友好"], avail: "周五可约", active: "在线", looking: "可接夜骑陪玩"),
             serviceType: .activity, specialty: "夜骑陪玩",
-            hourlyPrice: 122, rating: 4.8, orderCount: 47, isAvailable: true,
+            hourlyPrice: 122, orderCount: 47, isAvailable: true,
             responseTime: "通常 10 分钟内",
-            scheduleSlots: ["周五 21:00", "周六 20:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周五 21:00", "周六 20:00"], relatedActivityTitles: []
         ),
         // MARK: 成都陪玩扩充
         PaidCompanion(
@@ -1196,10 +1099,9 @@ enum SampleData {
                            bio: "火锅 / 串串陪吃，控辣控预算。",
                            tags: ["火锅", "探店", "预算控局"], avail: "今晚可约", active: "刚刚活跃", looking: "可接探店陪吃"),
             serviceType: .offline, specialty: "火锅陪吃",
-            hourlyPrice: 118, rating: 4.9, orderCount: 55, isAvailable: true,
+            hourlyPrice: 118, orderCount: 55, isAvailable: true,
             responseTime: "通常 15 分钟内",
-            scheduleSlots: ["今晚 18:30"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["今晚 18:30"], relatedActivityTitles: []
         ),
         PaidCompanion(
             profile: buddy(nick: "阿泽", gender: .male, age: 29, h: 178, w: 72, km: 1.5,
@@ -1207,10 +1109,9 @@ enum SampleData {
                            bio: "东湖夜骑陪玩，含路线讲解。",
                            tags: ["骑行", "路线规划", "新手友好"], avail: "今日可约", active: "在线", looking: "可接夜骑陪玩"),
             serviceType: .activity, specialty: "夜骑陪玩",
-            hourlyPrice: 112, rating: 4.8, orderCount: 62, isAvailable: true,
+            hourlyPrice: 112, orderCount: 62, isAvailable: true,
             responseTime: "通常 10 分钟内",
-            scheduleSlots: ["今日 20:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["今日 20:00"], relatedActivityTitles: []
         ),
         PaidCompanion(
             profile: buddy(nick: "禾禾", gender: .female, age: 26, h: 165, w: 51, km: 3.0,
@@ -1218,10 +1119,9 @@ enum SampleData {
                            bio: "羽毛球陪练，工作日晚饭后灵活。",
                            tags: ["羽毛球", "陪练", "拉伸"], avail: "工作日可约", active: "今天活跃", looking: "可接羽毛球陪练"),
             serviceType: .activity, specialty: "羽毛球陪练",
-            hourlyPrice: 148, rating: 4.8, orderCount: 49, isAvailable: true,
+            hourlyPrice: 148, orderCount: 49, isAvailable: true,
             responseTime: "通常 30 分钟内",
-            scheduleSlots: ["周二 19:30", "周四 19:30"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周二 19:30", "周四 19:30"], relatedActivityTitles: []
         ),
         PaidCompanion(
             profile: buddy(nick: "清清", gender: .female, age: 28, h: 168, w: 52, km: 2.6,
@@ -1229,10 +1129,9 @@ enum SampleData {
                            bio: "少城慢逛陪逛，含点位与拍照建议。",
                            tags: ["漫步", "展览", "拍照点"], avail: "周末可约", active: "今天活跃", looking: "可接陪逛"),
             serviceType: .offline, specialty: "少城慢逛陪逛",
-            hourlyPrice: 132, rating: 4.9, orderCount: 38, isAvailable: true,
+            hourlyPrice: 132, orderCount: 38, isAvailable: true,
             responseTime: "通常 1 小时内",
-            scheduleSlots: ["周六下午"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周六下午"], relatedActivityTitles: []
         ),
         PaidCompanion(
             profile: buddy(nick: "石头", gender: .male, age: 31, h: 175, w: 74, km: 7.5,
@@ -1240,10 +1139,9 @@ enum SampleData {
                            bio: "龙泉轻徒步向导，节奏慢适合拍照。",
                            tags: ["徒步", "看花", "植物科普"], avail: "本周日可约", active: "昨天活跃", looking: "可接轻徒步向导"),
             serviceType: .offline, specialty: "轻徒步向导",
-            hourlyPrice: 138, rating: 4.7, orderCount: 27, isAvailable: true,
+            hourlyPrice: 138, orderCount: 27, isAvailable: true,
             responseTime: "通常 20 分钟内",
-            scheduleSlots: ["周日 09:00"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周日 09:00"], relatedActivityTitles: []
         ),
         PaidCompanion(
             profile: buddy(nick: "橙子", gender: .female, age: 23, h: 158, w: 44, km: 4.0,
@@ -1251,10 +1149,9 @@ enum SampleData {
                            bio: "市集陪拍与轻松出片，可沟通风格。",
                            tags: ["摄影", "市集", "陪拍"], avail: "周末可约", active: "今天活跃", looking: "可接陪拍"),
             serviceType: .offline, specialty: "市集陪拍",
-            hourlyPrice: 128, rating: 4.8, orderCount: 22, isAvailable: true,
+            hourlyPrice: 128, orderCount: 22, isAvailable: true,
             responseTime: "通常 1 小时内",
-            scheduleSlots: ["周六下午"],
-            reviews: [], relatedActivityTitles: []
+            scheduleSlots: ["周六下午"], relatedActivityTitles: []
         )
     ]
 

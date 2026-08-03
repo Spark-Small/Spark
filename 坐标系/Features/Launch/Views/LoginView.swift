@@ -16,6 +16,9 @@ struct LoginView: View {
     @State private var errorMessage: String?
     @State private var revealStep = 0
     @State private var weather = GreetingWeatherStore.shared
+    @State private var hasAgreedToLegal = false
+    @State private var showLegalAlert = false
+    @State private var pendingLoginAction: (() -> Void)?
     @FocusState private var focusedField: Field?
 
     private enum Mode { case choices, phone }
@@ -36,21 +39,30 @@ struct LoginView: View {
                 ScrollView {
                     VStack(spacing: 0) {
                         header(note: note)
+                            .padding(.horizontal, 36)
 
                         Spacer(minLength: 36)
 
-                        controls
-                            .opacity(revealStep >= Reveal.controls.rawValue ? 1 : 0)
+                        Group {
+                            if mode == .choices {
+                                choiceControls
+                                    .padding(.horizontal, 36)
+                            } else {
+                                phoneControls
+                            }
+                        }
+                        .opacity(revealStep >= Reveal.controls.rawValue ? 1 : 0)
 
                         Spacer(minLength: 36)
 
                         chrome(legalFooter, step: .footer)
+                            .padding(.horizontal, 36)
                             .padding(.bottom, max(proxy.safeAreaInsets.bottom, 20) + 8)
                     }
-                    .padding(.horizontal, 36)
                     .padding(.top, max(proxy.safeAreaInsets.top, 20) + 24)
                     .frame(minHeight: proxy.size.height)
                     .animation(LaunchMotion.chromeFade, value: revealStep)
+                    .animation(LaunchMotion.chromeFade, value: mode)
                 }
                 .scrollIndicators(.hidden)
                 .scrollDismissesKeyboard(.interactively)
@@ -59,10 +71,26 @@ struct LoginView: View {
                 }
             }
         }
+        .legalConsentAlert(
+            isPresented: $showLegalAlert,
+            onAgree: {
+                hasAgreedToLegal = true
+                let action = pendingLoginAction
+                pendingLoginAction = nil
+                action?()
+                Task { await PermissionLaunchPrompts.requestTrackingAfterConsentIfNeeded() }
+            },
+            onReject: {
+                pendingLoginAction = nil
+            }
+        )
         .task {
             async let reveal: Void = runStaggeredReveal()
             await LaunchWeather.refreshIfAuthorized(weather)
             await reveal
+            if LegalConsentPreference.isAccepted {
+                await PermissionLaunchPrompts.requestTrackingAfterConsentIfNeeded()
+            }
         }
         .accessibilityElement(children: .contain)
     }
@@ -105,39 +133,35 @@ struct LoginView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    @ViewBuilder
-    private var controls: some View {
-        switch mode {
-        case .choices: choiceControls
-        case .phone: phoneControls
-        }
-    }
-
     private var choiceControls: some View {
         VStack(spacing: 12) {
             chrome(
-                WeChatLoginButton { session.signInDemoWeChat() },
+                WeChatLoginButton {
+                    requireLegalConsent { session.signInDemoWeChat() }
+                },
                 step: .controls,
                 offset: 8
             )
             chrome(
                 SecondaryButton(title: "使用 Apple 登录", systemImage: "apple.logo") {
-                    session.signInDemoApple()
+                    requireLegalConsent { session.signInDemoApple() }
                 },
                 step: .controls,
                 offset: 8
             )
             chrome(
                 SecondaryButton(title: "手机号登录") {
-                    withAnimation(LaunchMotion.chromeFade) { mode = .phone }
-                    focusedField = .phone
+                    requireLegalConsent {
+                        withAnimation(LaunchMotion.chromeFade) { mode = .phone }
+                        focusedField = .phone
+                    }
                 },
                 step: .controls,
                 offset: 8
             )
             chrome(
                 QuietTextButton(title: "以访客身份继续") {
-                    session.continueAsGuest()
+                    requireLegalConsent { session.continueAsGuest() }
                 }
                 .padding(.top, 6),
                 step: .controls,
@@ -147,54 +171,71 @@ struct LoginView: View {
     }
 
     private var phoneControls: some View {
-        VStack(spacing: 16) {
-            PaperField(title: "手机号") {
-                TextField("", text: $phone, prompt: Text("手机号码").foregroundStyle(.tertiary))
+        Form {
+            Section {
+                TextField("手机号码", text: $phone)
                     .keyboardType(.phonePad)
                     .textContentType(.telephoneNumber)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
                     .focused($focusedField, equals: .phone)
-            }
-
-            PaperField(title: "验证码") {
-                SecureField("", text: $code, prompt: Text("六位验证码").foregroundStyle(.tertiary))
+                SecureField("验证码", text: $code)
                     .keyboardType(.numberPad)
                     .textContentType(.oneTimeCode)
                     .focused($focusedField, equals: .code)
             }
 
             if let errorMessage {
-                Text(errorMessage)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            PrimaryButton(
-                title: "继续",
-                isEnabled: phone.trimmingCharacters(in: .whitespacesAndNewlines).count >= 8
-                    && !code.isEmpty
-            ) {
-                submitPhone()
-            }
-
-            QuietTextButton(title: "其他登录方式") {
-                focusedField = nil
-                withAnimation(LaunchMotion.chromeFade) {
-                    mode = .choices
-                    errorMessage = nil
+                Section {
+                    Text(errorMessage)
+                        .foregroundStyle(PlatformStatus.danger)
                 }
             }
-            .padding(.top, 2)
+
+            Section {
+                Button("继续") {
+                    requireLegalConsent(submitPhone)
+                }
+                .fontWeight(.semibold)
+                .disabled(
+                    phone.trimmingCharacters(in: .whitespacesAndNewlines).count < 8
+                        || code.isEmpty
+                )
+
+                Button("其他登录方式") {
+                    focusedField = nil
+                    withAnimation(LaunchMotion.chromeFade) {
+                        mode = .choices
+                        errorMessage = nil
+                    }
+                }
+            } footer: {
+                Text("本地演示验证码：\(LocalAuthSession.demoCode)")
+            }
         }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .scrollDisabled(true)
+        .listSectionSpacing(.compact)
+        // 嵌在登录页 ScrollView 内：收起 Form 自身滚动，高度随内容。
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var legalFooter: some View {
-        Text("继续即表示你同意《用户协议》与《隐私政策》")
-            .font(.caption2)
-            .foregroundStyle(.tertiary)
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-            .accessibilityLabel("继续即表示你同意用户协议与隐私政策")
+        LegalConsentCheckbox(
+            isChecked: $hasAgreedToLegal,
+            showAlert: $showLegalAlert
+        )
+    }
+
+    private func requireLegalConsent(_ action: @escaping () -> Void) {
+        if hasAgreedToLegal {
+            action()
+        } else {
+            pendingLoginAction = action
+            showLegalAlert = true
+        }
     }
 
     private func chrome<Content: View>(

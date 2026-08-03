@@ -12,7 +12,10 @@ final class BuddiesModel {
     var filter = BuddyFilter()
     var inviteTarget: BuddyInviteTarget?
     var bookingTarget: PaidCompanion?
+    /// 打开预约 Sheet 时预选的自然日（详情日历点选）
+    var bookingInitialDay: Date?
     var pendingPaymentBookingID: BuddyBookingRecord.ID?
+    var pendingSafetyCheckInBookingID: BuddyBookingRecord.ID?
     var toastMessage: String?
     var onRecordsChanged: (() -> Void)?
     var onMembershipChanged: (() -> Void)?
@@ -199,9 +202,6 @@ final class BuddiesModel {
 
     var isPaidPage: Bool { filter.kind == .paid }
 
-    /// 兼容详情 / 旧调用
-    var items: [DiscoverBuddyItem] { stageItems }
-
     private var freeDiscoveryKey: String {
         "free|\(usesSystemLocation)|\(locatedPlaceName ?? "")|\(selectedCityID)|\(filter.gender?.rawValue ?? "")|\(filter.maxDistanceKM)|\(filter.hobby ?? "")|\(blockedUserNames.sorted().joined(separator: ","))|\(hiddenBuddyNames.sorted().joined(separator: ","))"
     }
@@ -310,23 +310,6 @@ final class BuddiesModel {
         flash("已取消关注「\(guild.name)」")
     }
 
-    /// 兼容旧调用：未加入则走确认链路，已加入则离开
-    func toggleCircleJoin(_ circle: InterestCircle) {
-        if isJoined(circle) {
-            leaveCircle(circle)
-        } else {
-            beginJoin(.circle(circle))
-        }
-    }
-
-    func toggleGuildJoin(_ guild: CompanionGuild) {
-        if isJoined(guild) {
-            leaveGuild(guild)
-        } else {
-            beginJoin(.guild(guild))
-        }
-    }
-
     func prefs(kind: OrgMembershipKind, name: String) -> OrgMembershipPrefs {
         membershipPrefs[kind.prefsKey(name: name)] ?? .fresh()
     }
@@ -372,14 +355,29 @@ final class BuddiesModel {
         usesSystemLocation = true
     }
 
-    func invite(_ nickname: String) { inviteTarget = BuddyInviteTarget(nickname: nickname) }
-    func book(_ companion: PaidCompanion) { bookingTarget = companion }
+    func invite(_ nickname: String) {
+        inviteTarget = BuddyInviteTarget(nickname: nickname)
+    }
+    func book(_ companion: PaidCompanion, initialDay: Date? = nil) {
+        if YouthModePreference.isEnabled {
+            flash(GuestAccessGate.youthCommerceReason)
+            return
+        }
+        bookingInitialDay = initialDay
+        bookingTarget = companion
+    }
 
     @discardableResult
     func recordInvite(nickname: String, activity: Activity) -> BuddyInviteRecord {
         let record = inviteService.createInvite(nickname: nickname, activity: activity)
         inviteRecords.insert(record, at: 0)
         inviteTarget = nil
+        TrustService.shared.record(
+            .inviteSent,
+            domain: .buddy,
+            actorKey: trustActorKey(),
+            subjectKey: nickname
+        )
         persist()
         onRecordsChanged?()
         flash("已发给对方，等待回执")
@@ -401,6 +399,12 @@ final class BuddiesModel {
         guard let index = inviteRecords.firstIndex(where: { $0.id == id }) else { return }
         guard inviteRecords[index].status == .pending else { return }
         inviteRecords[index] = inviteService.advanceInvite(inviteRecords[index], to: .accepted)
+        TrustService.shared.record(
+            .inviteAccepted,
+            domain: .buddy,
+            actorKey: trustActorKey(),
+            subjectKey: inviteRecords[index].nickname
+        )
         persist()
         onRecordsChanged?()
         flash("\(inviteRecords[index].nickname) 已接受邀约")
@@ -410,6 +414,12 @@ final class BuddiesModel {
         guard let index = inviteRecords.firstIndex(where: { $0.id == id }) else { return }
         guard inviteRecords[index].status == .pending else { return }
         inviteRecords[index] = inviteService.advanceInvite(inviteRecords[index], to: .declined)
+        TrustService.shared.record(
+            .inviteDeclined,
+            domain: .buddy,
+            actorKey: trustActorKey(),
+            subjectKey: inviteRecords[index].nickname
+        )
         persist()
         onRecordsChanged?()
         flash("\(inviteRecords[index].nickname) 婉拒了邀约")
@@ -435,6 +445,7 @@ final class BuddiesModel {
         }
         bookingRecords.insert(candidate, at: 0)
         bookingTarget = nil
+        bookingInitialDay = nil
         persist()
         onRecordsChanged?()
         flash("已提交预约，等待陪玩确认")
@@ -508,6 +519,12 @@ final class BuddiesModel {
         paid.paymentMethod = method.displayName
         bookingRecords[index] = paid
         pendingPaymentBookingID = nil
+        TrustService.shared.record(
+            .bookingPaid,
+            domain: .booking,
+            actorKey: trustActorKey(),
+            subjectKey: paid.companionNickname
+        )
         NotificationService.scheduleBookingReminder(
             bookingID: id,
             companion: paid.companionNickname,
@@ -628,9 +645,48 @@ final class BuddiesModel {
         guard bookingRecords[index].canComplete else { return }
         bookingRecords[index] = bookingService.advanceBooking(bookingRecords[index], to: .completed)
         NotificationService.cancelBookingReminder(bookingID: id)
+        TrustService.shared.record(
+            .bookingCompleted,
+            domain: .booking,
+            actorKey: trustActorKey(),
+            subjectKey: bookingRecords[index].companionNickname
+        )
         persist()
         onRecordsChanged?()
-        flash("订单已完成")
+        if !TrustService.shared.hasCheckedIn(bookingID: id) {
+            pendingSafetyCheckInBookingID = id
+            flash("订单已完成，可确认履约情况")
+        } else {
+            flash("订单已完成")
+        }
+    }
+
+    func cancelPendingSafetyCheckIn() {
+        pendingSafetyCheckInBookingID = nil
+    }
+
+    var pendingSafetyCheckInBooking: BuddyBookingRecord? {
+        guard let id = pendingSafetyCheckInBookingID else { return nil }
+        return bookingRecords.first { $0.id == id }
+    }
+
+    /// 拉黑后清理未完成邀约 / 待支付预约
+    func purgeSocialLinks(with nickname: String) {
+        inviteRecords = inviteRecords.map { record in
+            guard record.nickname.caseInsensitiveCompare(nickname) == .orderedSame,
+                  record.status == .pending
+            else { return record }
+            return inviteService.advanceInvite(record, to: .declined)
+        }
+        let cancellable = bookingRecords.filter {
+            $0.companionNickname.caseInsensitiveCompare(nickname) == .orderedSame
+                && ($0.status == .pendingConfirm || $0.status == .awaitingPayment)
+        }
+        for record in cancellable {
+            cancelBooking(record.id)
+        }
+        persist()
+        onRecordsChanged?()
     }
 
     func refundBooking(_ id: BuddyBookingRecord.ID) {
@@ -651,6 +707,12 @@ final class BuddiesModel {
         bookingRecords[index] = bookingService.advanceBooking(record, to: .refunded)
         NotificationService.cancelBookingReminder(bookingID: id)
         WalletPassStore.shared.void(relatedID: record.id)
+        TrustService.shared.record(
+            .bookingRefunded,
+            domain: .booking,
+            actorKey: trustActorKey(),
+            subjectKey: record.companionNickname
+        )
         persist()
         onRecordsChanged?()
         flash(method.affectsWalletBalance ? "已退回钱包余额" : "已申请退款，预计原路退回")
@@ -662,12 +724,19 @@ final class BuddiesModel {
             || bookingRecords[index].status == .paid
             || bookingRecords[index].status == .inProgress
         else { return }
+        let companion = bookingRecords[index].companionNickname
         bookingRecords[index] = bookingService.advanceBooking(bookingRecords[index], to: .cancelled)
         if pendingPaymentBookingID == id {
             pendingPaymentBookingID = nil
         }
         NotificationService.cancelBookingReminder(bookingID: id)
         WalletPassStore.shared.void(relatedID: id)
+        TrustService.shared.record(
+            .bookingCancelled,
+            domain: .booking,
+            actorKey: trustActorKey(),
+            subjectKey: companion
+        )
         persist()
         onRecordsChanged?()
         flash("已取消预约")
@@ -784,6 +853,10 @@ final class BuddiesModel {
             guard !Task.isCancelled else { return }
             try? await repository.replaceAsync(with: snapshot, generation: generation)
         }
+    }
+
+    private func trustActorKey() -> String {
+        AppPersistence.loadProfile().user.name
     }
 }
 

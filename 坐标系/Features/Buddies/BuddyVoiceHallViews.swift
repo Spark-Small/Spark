@@ -2,57 +2,11 @@
 //  BuddyVoiceHallViews.swift
 //  坐标系
 //
-//  陪玩页第二幕：Soul 式语音厅（演示场；非真实时音频）。
-//  麦位 → 半屏资料卡（不离厅、不 Zoom）；空麦位申请上麦。
+//  语音厅房间：麦位 → 半屏资料卡（不离厅、不 Zoom）；空麦位申请上麦。
+//  发现页频道卡见 BuddyBrowseShelves.BuddyVoiceChannelCard。
 //
 
 import SwiftUI
-
-struct BuddyVoiceHallShelfCard: View {
-    let hall: VoiceHall
-    var onOpen: () -> Void
-
-    var body: some View {
-        Button(action: onOpen) {
-            ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: PlatformMetrics.radiusPoster, style: .continuous)
-                    .fill(PlatformStatus.warning.opacity(0.16))
-                    .overlay {
-                        Image(systemName: hall.systemImage)
-                            .font(.largeTitle)
-                            .platformSymbolStyle(.status(PlatformStatus.warning))
-                    }
-                    .aspectRatio(PlatformMetrics.posterCardAspectRatio, contentMode: .fit)
-
-                PlatformMediaCaptionBadge(
-                    title: hall.isLive ? "直播中" : "休息中",
-                    tint: hall.isLive ? PlatformStatus.success : .secondary
-                )
-            }
-            .overlay(alignment: .bottom) {
-                VStack(alignment: .leading, spacing: PlatformMetrics.minContentGap) {
-                    Text(hall.title)
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                    Text(hall.topic)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(PlatformMetrics.captionBadgeInset)
-                .colorScheme(.dark)
-                .allowsHitTesting(false)
-            }
-            .clipShape(PlatformMetrics.posterShape)
-            .contentShape(PlatformMetrics.posterShape)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(hall.title)，\(hall.topic)，\(hall.isLive ? "直播中" : "休息中")")
-        .accessibilityHint("进入语音厅")
-    }
-}
 
 struct BuddyVoiceHallRoomView: View {
     let hall: VoiceHall
@@ -184,13 +138,21 @@ struct BuddyVoiceHallRoomView: View {
             get: { buddies.bookingTarget },
             set: { buddies.bookingTarget = $0 }
         )) { companion in
-            BuddyBookingSheet(companion: companion) { scheduledAt, hours, slotLabel in
+            BuddyBookingSheet(
+                companion: companion,
+                initialDay: buddies.bookingInitialDay
+            ) { scheduledAt, hours, slotLabel in
                 _ = buddies.recordBooking(
                     companion: companion,
                     scheduledAt: scheduledAt,
                     hours: hours,
                     slotLabel: slotLabel
                 )
+            }
+            .onDisappear {
+                if buddies.bookingTarget == nil {
+                    buddies.bookingInitialDay = nil
+                }
             }
         }
         .platformTransientFeedback($toast)

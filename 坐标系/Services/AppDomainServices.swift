@@ -155,12 +155,62 @@ struct AppProfileSyncService {
 }
 
 @MainActor
+struct TrustBehaviorSyncService {
+    func handle(_ event: AppDomainEvent, app: AppModel) {
+        let actor = app.user.name
+        switch event {
+        case .activityJoined:
+            TrustService.shared.record(.activityJoined, domain: .activity, actorKey: actor)
+        case .activityLeft:
+            TrustService.shared.record(.activityLeft, domain: .activity, actorKey: actor)
+        case .activityPublished:
+            TrustService.shared.record(.activityHosted, domain: .activity, actorKey: actor)
+        case .activityCancelled:
+            TrustService.shared.record(.activityHostCancelled, domain: .activity, actorKey: actor)
+        case .profileUpdated(_, let user):
+            TrustService.shared.record(
+                .profileCompletionChanged,
+                domain: .account,
+                actorKey: user.name,
+                value: ProfileCompletion.ratio(for: user)
+            )
+        case .onboardingCompleted:
+            TrustService.shared.record(.onboardingCompleted, domain: .account, actorKey: actor)
+        case .userBlocked(let name):
+            TrustService.shared.record(
+                .blocked,
+                domain: .social,
+                actorKey: actor,
+                subjectKey: name
+            )
+        case .userUnblocked(let name):
+            TrustService.shared.record(
+                .unblocked,
+                domain: .social,
+                actorKey: actor,
+                subjectKey: name
+            )
+        case .moderationTicketAdded(let ticket) where ticket.targetKind == .person:
+            TrustService.shared.record(
+                .personReported,
+                domain: .moderation,
+                actorKey: actor,
+                subjectKey: ticket.postTitle
+            )
+        default:
+            break
+        }
+    }
+}
+
+@MainActor
 struct AppSafetySyncService {
     func blockUser(_ name: String, app: AppModel) {
         app.blockedUserNames.insert(name)
         app.buddies.blockedUserNames = app.blockedUserNames
         app.community.blockedUserNames = app.blockedUserNames
         app.messages.deleteDirectChat(with: name)
+        app.buddies.purgeSocialLinks(with: name)
     }
 
     func unblockUser(_ name: String, app: AppModel) {

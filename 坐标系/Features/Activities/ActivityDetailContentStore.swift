@@ -131,7 +131,7 @@ enum ActivityDetailContentStore {
     }
 }
 
-/// 发起人信任摘要：本地场次 + 目录画像 + 演示徽章 / 评分
+/// 发起人摘要：本地场次 + 目录画像 + 演示徽章（人对人星级已下线）
 struct ActivityHostTrust: Hashable {
     let name: String
     let hostedCount: Int
@@ -140,39 +140,33 @@ struct ActivityHostTrust: Hashable {
     let isVerified: Bool
     /// 会员徽章
     let isMember: Bool
-    /// 等级 1…5
+    /// 等级 1…5（演示档位，与行为信用 TrustLevel 分账）
     let level: Int
-    /// 评分 4.5–5.0
-    let rating: Double
 
     var hostedText: String { "举办\u{00A0}\(hostedCount)\u{00A0}场" }
     var completionText: String { "履约\u{00A0}\(completionRate)%" }
-    var ratingText: String { String(format: "%.1f", rating) }
     var levelText: String { "Lv.\(level)" }
     /// 第二行整行文案（避免 HStack 在窄宽下把「场」拆到下一行）
     var metricsLine: String {
-        "\(hostedText) · \(completionText) · ★\u{00A0}\(ratingText)"
+        "\(hostedText) · \(completionText)"
     }
 
     static func make(hostName: String, liveHostedCount: Int) -> ActivityHostTrust {
         let profile = SampleData.author(named: hostName)
         let hosted = max(liveHostedCount, profile.hostedCount, 1)
         let seed = abs(hostName.stableSeed)
-        // 演示数据：稳定种子，避免详情页硬编码营销数
         let rate = 86 + seed % 13
         let isOfficial = profile.roleLabel.contains("官方")
         let isVerified = isOfficial || hosted >= 8 || seed % 3 == 0
         let isMember = isOfficial || profile.roleLabel.contains("活跃") || seed % 2 == 0
         let level = min(5, max(1, hosted / 3 + 1))
-        let rating = 4.5 + Double(seed % 6) / 10.0
         return ActivityHostTrust(
             name: hostName,
             hostedCount: hosted,
             completionRate: rate,
             isVerified: isVerified,
             isMember: isMember,
-            level: level,
-            rating: rating
+            level: level
         )
     }
 }

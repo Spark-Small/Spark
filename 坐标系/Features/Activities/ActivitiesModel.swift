@@ -11,6 +11,8 @@ import Observation
 final class ActivitiesModel {
     var selectedCategory: ActivityCategory = .all
     var quickFilters: Set<ActivityQuickFilter> = []
+    /// 按自然日筛选；`nil` 表示不限日期（替代筛选里的今天 / 明天分段）
+    var dayFilter: Date? = nil
     var activities: [Activity]
     var favoriteIDs: Set<UUID>
     var joinedIDs: Set<UUID>
@@ -47,7 +49,7 @@ final class ActivitiesModel {
 
     /// 默认浏览态：精选 Hero + 目录模块（筛选时隐藏精选）
     var showsBrowseModules: Bool {
-        selectedCategory == .all && quickFilters.isEmpty
+        selectedCategory == .all && quickFilters.isEmpty && dayFilter == nil
     }
 
     private var catalogIndexByID: [UUID: Int] {
@@ -77,6 +79,7 @@ final class ActivitiesModel {
         let key = RecommendationShelvesCacheKey(
             category: selectedCategory,
             filters: quickFilters,
+            dayFilter: dayFilter.map { Calendar.current.startOfDay(for: $0).timeIntervalSince1970 },
             activityRevision: activities.map(\.id),
             joinedIDs: joinedIDs,
             featuredIDs: Set(featured.map(\.id))
@@ -134,6 +137,17 @@ final class ActivitiesModel {
     func isFavorite(_ id: Activity.ID) -> Bool { favoriteIDs.contains(id) }
     func isJoined(_ id: Activity.ID) -> Bool { joinedIDs.contains(id) }
     func isWaitlisted(_ id: Activity.ID) -> Bool { waitlistIDs.contains(id) }
+
+    /// 与已参加 / 我发起的未结束活动时间重叠的场次（不含候选本身）
+    func scheduleConflicts(with candidate: Activity) -> [Activity] {
+        activities
+            .filter {
+                !$0.isLifecycleEnded
+                    && (joinedIDs.contains($0.id) || $0.hostName == currentUserName)
+                    && candidate.scheduleOverlaps($0)
+            }
+            .sorted { $0.date < $1.date }
+    }
 
     func isHost(_ activity: Activity) -> Bool {
         activity.hostName == currentUserName
@@ -199,10 +213,12 @@ final class ActivitiesModel {
 
     func clearQuickFilters() {
         quickFilters = []
+        dayFilter = nil
     }
 
     func toggleQuickFilter(_ filter: ActivityQuickFilter) {
         if filter.isTimeFilter {
+            dayFilter = nil
             if quickFilters.contains(filter) {
                 quickFilters.remove(filter)
             } else {
@@ -506,15 +522,20 @@ final class ActivitiesModel {
     }
 
     private func matchesQuickFilters(_ activity: Activity) -> Bool {
-        guard !quickFilters.isEmpty else { return true }
         let calendar = Calendar.current
+
+        if let dayFilter {
+            guard calendar.isDate(activity.date, inSameDayAs: dayFilter) else { return false }
+        }
+
+        guard !quickFilters.isEmpty else { return true }
 
         return quickFilters.allSatisfy { filter in
             switch filter {
             case .today:
-                calendar.isDateInToday(activity.date) && !activity.isPast
+                dayFilter == nil && calendar.isDateInToday(activity.date) && !activity.isPast
             case .tomorrow:
-                calendar.isDateInTomorrow(activity.date)
+                dayFilter == nil && calendar.isDateInTomorrow(activity.date)
             case .nearby:
                 activity.isNearby && !activity.isPast
             case .free:
@@ -601,6 +622,7 @@ final class ActivitiesModel {
 private struct RecommendationShelvesCacheKey: Equatable {
     var category: ActivityCategory
     var filters: Set<ActivityQuickFilter>
+    var dayFilter: TimeInterval?
     var activityRevision: [UUID]
     var joinedIDs: Set<UUID>
     var featuredIDs: Set<UUID>

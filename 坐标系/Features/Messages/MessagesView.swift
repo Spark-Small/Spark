@@ -18,6 +18,7 @@ struct MessagesView: View {
     @State private var path = NavigationPath()
     @State private var showStartChat = false
     @State private var showRequests = false
+    @State private var showAddFriendByUID = false
     @State private var focusMessageID: ChatMessage.ID?
 
     private var blockedNames: [String] { Array(app.blockedUserNames) }
@@ -95,6 +96,13 @@ struct MessagesView: View {
             .sheet(isPresented: $showStartChat) {
                 StartChatSheet { conversationID in
                     openConversation(model.conversations.first { $0.id == conversationID })
+                }
+            }
+            .sheet(isPresented: $showAddFriendByUID) {
+                AddFriendByUIDSheet { nickname in
+                    openConversation(
+                        app.startDirectChat(with: nickname, deliverGreeting: false)
+                    )
                 }
             }
             .sheet(isPresented: $showRequests) {
@@ -234,19 +242,13 @@ struct MessagesView: View {
             }
         }
 
-        ToolbarItem(placement: .topBarLeading) {
-            if model.requestBadgeCount > 0 {
-                Button(MessagesCopy.messageRequestsInboxEntry, systemImage: "person.badge.plus") {
-                    showRequests = true
-                }
-                .badge(model.requestBadgeCount)
-            }
-        }
-
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button(MessagesCopy.startChat, systemImage: "bubble.left.and.bubble.right") {
                     showStartChat = true
+                }
+                Button(MessagesCopy.addFriendByUID, systemImage: "person.badge.plus") {
+                    showAddFriendByUID = true
                 }
                 Button(MessagesCopy.markAllRead, systemImage: "envelope.open") {
                     model.markAllRead()

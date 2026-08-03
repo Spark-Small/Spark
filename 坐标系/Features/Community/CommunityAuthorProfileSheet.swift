@@ -33,6 +33,12 @@ struct CommunityAuthorFallbackSheet: View {
     }
 
     var body: some View {
+        let flags = TrustPublicCredentials.flags(
+            nickname: name,
+            currentUserName: app.user.name,
+            buddyItem: buddyMatch,
+            membershipActive: false
+        )
         MessagesFormSheet(title: "作者资料") {
             List {
                 Section {
@@ -46,6 +52,11 @@ struct CommunityAuthorFallbackSheet: View {
                             Text(profile.city)
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
+                            TrustCredentialBadgeStrip(
+                                photoVerified: flags.photoVerified,
+                                isMember: flags.isMember,
+                                revealLocked: false
+                            )
                         }
                     } icon: {
                         PlatformSystemAvatar(side: PlatformConversationListRow.imageSide)
@@ -67,6 +78,13 @@ struct CommunityAuthorFallbackSheet: View {
                         labeledStat(title: "分享", value: "\(recentPosts.count)")
                     }
                 }
+
+                TrustPublicProfileSections(
+                    nickname: name,
+                    currentUserName: app.user.name,
+                    buddyItem: buddyMatch,
+                    compact: true
+                )
 
                 if !hostedActivities.isEmpty {
                     Section("TA 发起的活动") {

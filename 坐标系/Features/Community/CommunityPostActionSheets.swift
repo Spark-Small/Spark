@@ -583,8 +583,6 @@ struct CommunityShareSheet: View {
     }
 }
 
-typealias CommunitySendSheet = CommunityShareSheet
-
 // MARK: - Repost (保留详情；主入口并入分享 Sheet)
 
 struct CommunityRepostSheet: View {

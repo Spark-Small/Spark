@@ -18,6 +18,7 @@ struct MessagesFriendsListView: View {
     @State private var searchText = ""
     @State private var profileRoute: FriendProfileRoute?
     @State private var showRequests = false
+    @State private var showAddFriendByUID = false
 
     private var friends: [FriendListEntry] {
         MessagesContactRoster.nicknames(
@@ -40,6 +41,7 @@ struct MessagesFriendsListView: View {
             $0.name.localizedCaseInsensitiveContains(trimmed)
                 || model.displayName(for: $0.name).localizedCaseInsensitiveContains(trimmed)
                 || model.remark(for: $0.name).localizedCaseInsensitiveContains(trimmed)
+                || UserPublicDirectory.uid(forNickname: $0.name).contains(UserPublicID.normalize(trimmed))
         }
     }
 
@@ -91,14 +93,26 @@ struct MessagesFriendsListView: View {
         )
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button(MessagesCopy.messageRequestsTitle, systemImage: "person.badge.plus") {
-                    showRequests = true
+                Menu {
+                    Button(MessagesCopy.addFriendByUID, systemImage: "person.badge.plus") {
+                        showAddFriendByUID = true
+                    }
+                    Button(MessagesCopy.messageRequestsTitle, systemImage: "person.crop.circle.badge.questionmark") {
+                        showRequests = true
+                    }
+                } label: {
+                    Label(MessagesCopy.add, systemImage: "plus")
                 }
                 .badge(model.requestBadgeCount)
             }
         }
         .sheet(isPresented: $showRequests) {
             MessageRequestsSheet(onOpen: onOpenConversation)
+        }
+        .sheet(isPresented: $showAddFriendByUID) {
+            AddFriendByUIDSheet { nickname in
+                onOpenChat(nickname)
+            }
         }
         .navigationDestination(item: $profileRoute) { route in
             FriendProfileDetailView(nickname: route.name) {

@@ -73,9 +73,22 @@ struct FriendProfileDetailView: View {
                     .platformConversationListRowChrome()
             }
 
+            TrustPublicProfileSections(
+                nickname: nickname,
+                currentUserName: app.user.name,
+                buddyItem: buddyItem,
+                compact: false
+            )
+
             Section {
                 LabeledContent(MessagesCopy.friendNicknameLabel, value: nickname)
                     .platformConversationListRowChrome()
+                LabeledContent(
+                    "UID",
+                    value: UserPublicID.formatDisplay(UserPublicDirectory.uid(forNickname: nickname))
+                )
+                .textSelection(.enabled)
+                .platformConversationListRowChrome()
                 LabeledContent(
                     MessagesCopy.friendRemarkLabel,
                     value: remark.isEmpty ? MessagesCopy.friendRemarkPlaceholder : remark
@@ -315,7 +328,13 @@ struct FriendProfileDetailView: View {
     }
 
     private var header: some View {
-        Label {
+        let flags = TrustPublicCredentials.flags(
+            nickname: nickname,
+            currentUserName: app.user.name,
+            buddyItem: buddyItem,
+            membershipActive: false
+        )
+        return Label {
             VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
                 Text(displayName)
                     .font(.body.weight(.semibold))
@@ -324,6 +343,11 @@ struct FriendProfileDetailView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+                TrustCredentialBadgeStrip(
+                    photoVerified: flags.photoVerified,
+                    isMember: flags.isMember,
+                    revealLocked: false
+                )
                 if let profile {
                     Text(profile.metricsText)
                         .font(.subheadline)

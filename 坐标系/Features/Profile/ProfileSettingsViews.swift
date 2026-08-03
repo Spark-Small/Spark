@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct ProfileSettingsView: View {
     @Environment(AppModel.self) private var app
@@ -25,35 +26,73 @@ struct ProfileSettingsView: View {
                     Label("账号与安全", systemImage: "lock.shield")
                         .platformContentSymbolStyle()
                 }
+            }
 
+            Section {
                 NavigationLink {
                     SettingsNotificationsView()
                 } label: {
                     Label("通知设置", systemImage: "bell.badge")
                         .platformContentSymbolStyle()
                 }
-
                 NavigationLink {
                     SettingsPrivacyView()
                 } label: {
                     Label("隐私", systemImage: "hand.raised.fill")
                         .platformContentSymbolStyle()
                 }
+                NavigationLink {
+                    SettingsPermissionsView()
+                } label: {
+                    Label("系统权限", systemImage: "checkmark.shield")
+                        .platformContentSymbolStyle()
+                }
+                NavigationLink {
+                    SettingsYouthModeView()
+                } label: {
+                    Label("青少年模式", systemImage: "figure.and.child.holdinghands")
+                        .platformContentSymbolStyle()
+                }
+            } header: {
+                Text("隐私与安全")
+            }
 
+            Section {
+                NavigationLink {
+                    SettingsHelpFeedbackView()
+                } label: {
+                    Label("帮助与反馈", systemImage: "questionmark.circle")
+                        .platformContentSymbolStyle()
+                }
+                NavigationLink {
+                    SettingsAnnouncementsView()
+                } label: {
+                    Label("运营公告", systemImage: "megaphone")
+                        .platformContentSymbolStyle()
+                }
+                NavigationLink {
+                    SettingsStorageView()
+                } label: {
+                    Label("存储与导出", systemImage: "externaldrive")
+                        .platformContentSymbolStyle()
+                }
                 NavigationLink {
                     ModerationTicketsView()
                 } label: {
                     Label("举报记录", systemImage: "flag.fill")
                         .platformContentSymbolStyle()
                 }
-
                 NavigationLink {
                     BlockedUsersView()
                 } label: {
                     Label("已拉黑", systemImage: "hand.raised.slash")
                         .platformContentSymbolStyle()
                 }
+            } header: {
+                Text("服务与治理")
+            }
 
+            Section {
                 NavigationLink {
                     SettingsAboutView()
                 } label: {
@@ -130,33 +169,133 @@ struct ProfileSettingsView: View {
 
 private struct SettingsAccountView: View {
     @Environment(AppModel.self) private var app
+    @AppStorage("profile.membership.active") private var membershipActive = false
+    @State private var showCreateAccount = false
+    @State private var showEditProfile = false
 
-    private var loginValue: String {
-        if app.auth.isGuest { return "访客" }
-        return app.auth.phoneNumber.isEmpty ? "—" : app.auth.phoneNumber
+    private var completionPercent: Int {
+        Int((ProfileCompletion.ratio(for: app.user) * 100).rounded())
+    }
+
+    private var photoVerified: Bool {
+        _ = PhotoVerificationStore.shared.isVerified
+        return PhotoVerificationStore.shared.isVerified(for: app.user.name)
     }
 
     var body: some View {
         Form {
-            Section("账号") {
+            Section {
+                HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
+                    ProfileAvatarView(
+                        user: app.user,
+                        completion: ProfileCompletion.ratio(for: app.user)
+                    )
+                    VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
+                        Text(app.user.name)
+                            .font(.headline)
+                        Text(app.auth.accountStatusLabel)
+                            .font(.subheadline)
+                            .foregroundStyle(app.auth.isGuest ? PlatformStatus.warning : .secondary)
+                        Text("资料完整度 \(completionPercent)%")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                        if !app.auth.isGuest {
+                            TrustCredentialBadgeStrip(
+                                photoVerified: photoVerified,
+                                isMember: membershipActive,
+                                revealLocked: true
+                            )
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                .accessibilityElement(children: .combine)
+            }
+
+            if !app.auth.isGuest {
+                Section {
+                    TrustCredentialStatusRows(
+                        photoVerified: photoVerified,
+                        isMember: membershipActive
+                    )
+                    NavigationLink {
+                        PhotoVerificationView()
+                    } label: {
+                        Label(
+                            photoVerified ? "管理形象认证" : "开始形象认证",
+                            systemImage: photoVerified ? "checkmark.seal.fill" : "camera.viewfinder"
+                        )
+                        .platformContentSymbolStyle()
+                    }
+                    NavigationLink {
+                        ProfileMembershipView()
+                    } label: {
+                        Label(
+                            membershipActive ? "会员中心" : "开通会员",
+                            systemImage: membershipActive ? "checkmark.seal.fill" : "checkmark.seal"
+                        )
+                        .platformContentSymbolStyle()
+                    }
+                } header: {
+                    Text("认证与徽章")
+                }
+            }
+
+            Section("身份") {
+                LabeledContent("登录状态", value: app.auth.accountStatusLabel)
+                LabeledContent("登录方式", value: app.auth.loginMethodLabel)
+                LabeledContent("手机号", value: app.auth.maskedPhoneLabel)
                 LabeledContent("昵称", value: app.user.name)
-                LabeledContent("账号", value: app.user.handle)
-                LabeledContent("登录方式", value: loginValue)
+                LabeledContent("账号", value: app.user.handle.isEmpty ? "—" : app.user.handle)
                 LabeledContent("常驻城市", value: app.user.city.isEmpty ? "—" : app.user.city)
             }
 
             Section {
-                LabeledContent("用户 ID", value: app.user.id.uuidString)
-                    .textSelection(.enabled)
-            } header: {
-                Text("身份")
+                if app.auth.isGuest {
+                    Button("创建账号，升级身份") {
+                        showCreateAccount = true
+                    }
+                    .fontWeight(.semibold)
+                } else {
+                    Button("编辑个人资料") {
+                        showEditProfile = true
+                    }
+                }
             } footer: {
-                Text("本机稳定 UUID，游客与登录用户都会获得。当前账号数据保存在本机。")
+                Text(
+                    app.auth.isGuest
+                        ? GuestAccessGate.identityReason
+                        : "完善头像、兴趣与简介，有助于搭子匹配与活动推荐。"
+                )
+            }
+
+            Section {
+                LabeledContent("UID", value: app.user.publicUIDDisplay)
+                    .textSelection(.enabled)
+                Button(MessagesCopy.copyUID) {
+                    UIPasteboard.general.string = app.user.publicUID
+                }
+            } header: {
+                Text("对外 UID")
+            } footer: {
+                Text("9 位数字账号，可复制给朋友用于添加好友。内部仍使用稳定 UUID，注销后会重新分配。")
             }
         }
         .navigationTitle("账号与安全")
         .navigationBarTitleDisplayMode(.inline)
         .platformSecondaryPage()
+        .sheet(isPresented: $showCreateAccount) {
+            ProfileCreateAccountSheet(
+                session: app.auth,
+                reason: GuestAccessGate.identityReason
+            )
+        }
+        .sheet(isPresented: $showEditProfile) {
+            EditProfileSheet(user: Binding(
+                get: { app.user },
+                set: { updated in app.updateProfile(updated) }
+            ))
+        }
     }
 }
 
@@ -190,7 +329,7 @@ private struct SettingsNotificationsView: View {
             } header: {
                 Text("推送偏好（本地）")
             } footer: {
-                Text("开启活动提醒时会请求系统通知权限，并在报名/预约后写入本地提醒。")
+                Text("开启活动提醒时会请求系统通知权限。搭子上线与社区摘要为本地偏好占位，正式版将接运营推送。")
             }
         }
         .navigationTitle("通知设置")
@@ -223,17 +362,21 @@ private struct SettingsNotificationsView: View {
     }
 }
 
-private struct SettingsPrivacyView: View {
-    @AppStorage("settings.privacy.showDistance") private var showDistance = true
-    @AppStorage("settings.privacy.showOnline") private var showOnline = true
-    @AppStorage("settings.privacy.allowInvite") private var allowInvite = true
+struct SettingsPrivacyView: View {
+    @AppStorage(PrivacyPreferenceKey.showDistance) private var showDistance = true
+    @AppStorage(PrivacyPreferenceKey.showOnline) private var showOnline = true
+    @AppStorage(PrivacyPreferenceKey.allowInvite) private var allowInvite = true
 
     var body: some View {
         Form {
-            Section("资料可见性") {
+            Section {
                 Toggle("展示大致距离", isOn: $showDistance)
                 Toggle("展示在线状态", isOn: $showOnline)
                 Toggle("允许陌生人邀约", isOn: $allowInvite)
+            } header: {
+                Text("资料可见性")
+            } footer: {
+                Text("距离与在线影响搭子卡 / 详情展示；「允许陌生人邀约」会记入信任中心，正式版用于拦截入站邀约。")
             }
         }
         .navigationTitle("隐私")
@@ -243,10 +386,10 @@ private struct SettingsPrivacyView: View {
 }
 
 private struct SettingsAboutView: View {
+    @State private var updateMessage: String?
+
     private var version: String {
-        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-        return "\(short) (\(build))"
+        ProductLifecycleStore.shared.versionLabel
     }
 
     var body: some View {
@@ -254,6 +397,9 @@ private struct SettingsAboutView: View {
             Section {
                 LabeledContent("版本", value: version)
                 LabeledContent("产品", value: "坐标系")
+                Button("检查更新") {
+                    updateMessage = "已是最新版本 \(version)"
+                }
             }
             Section("说明") {
                 Text("坐标系帮你发现活动、找到搭子，并把社区分享与消息串成一条闭环。")
@@ -263,11 +409,25 @@ private struct SettingsAboutView: View {
             Section("合规") {
                 NavigationLink("用户协议") { UserAgreementView() }
                 NavigationLink("隐私政策") { PrivacyPolicyView() }
+                NavigationLink("社区公约") { CommunityGuidelinesView() }
+                NavigationLink("青少年模式") { SettingsYouthModeView() }
+            }
+            Section {
+                NavigationLink("开源与致谢") { SettingsAcknowledgmentsView() }
+                NavigationLink("运营公告") { SettingsAnnouncementsView() }
             }
         }
         .navigationTitle("关于坐标系")
         .navigationBarTitleDisplayMode(.inline)
         .platformSecondaryPage()
+        .alert("检查更新", isPresented: Binding(
+            get: { updateMessage != nil },
+            set: { if !$0 { updateMessage = nil } }
+        )) {
+            Button("好的", role: .cancel) { updateMessage = nil }
+        } message: {
+            Text(updateMessage ?? "")
+        }
     }
 }
 
@@ -405,7 +565,7 @@ private struct ModerationTicketDetailView: View {
     }
 }
 
-private struct BlockedUsersView: View {
+struct BlockedUsersView: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {

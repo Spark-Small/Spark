@@ -75,18 +75,4 @@ enum CreatorInsightsService {
             posts: postInsights
         )
     }
-
-    static func activityOnlySnapshot(
-        activities: ActivitiesModel
-    ) -> CreatorInsightsSnapshot {
-        let activityInsights = activities.hostedActivities
-            .sorted { $0.date > $1.date }
-            .map { activity in
-                CreatorActivityInsight(
-                    activity: activity,
-                    commentCount: ActivityCommentsStore.comments(for: activity.id).count
-                )
-            }
-        return CreatorInsightsSnapshot(activities: activityInsights, posts: [])
-    }
 }

@@ -31,8 +31,10 @@ struct AppSyncOrchestrator {
     private let profileSync = AppProfileSyncService()
     private let derivedState = AppDerivedStateService()
     private let safetySync = AppSafetySyncService()
+    private let trustSync = TrustBehaviorSyncService()
 
     func handle(_ event: AppDomainEvent) {
+        trustSync.handle(event, app: app)
         switch event {
         case .activityJoined(let activityID):
             activityConversation.handleJoin(activityID: activityID, app: app)

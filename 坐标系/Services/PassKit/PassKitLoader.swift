@@ -27,5 +27,3 @@ enum PassKitLoader {
         return PKPassLibrary().containsPass(pk)
     }
 }
-
-typealias WalletPassKitLoader = PassKitLoader

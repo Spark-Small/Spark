@@ -2,12 +2,12 @@
 //  BuddyGridCard.swift
 //  坐标系
 //
-//  同好 / 陪玩双列卡：封面叠字；卡内 CTA（同好「聊天」/ 陪玩「邀约」）。
+//  同好 / 陪玩双列卡：照片上叠距离与共同兴趣；底部一句状态（微信附近的人语义）。
 //
 
 import SwiftUI
 
-/// 双列发现网格人物卡：点封面进详情；底栏 CTA 在卡内、不进 NavigationLink
+/// 双列发现人物卡：点封面进详情；陪玩保留底栏邀约 CTA
 struct BuddyGridCard: View {
     let item: DiscoverBuddyItem
     var zoomNamespace: Namespace.ID
@@ -24,13 +24,6 @@ struct BuddyGridCard: View {
     private var isPaid: Bool {
         if case .paid = item { return true }
         return false
-    }
-
-    private var actionTitle: String {
-        switch item {
-        case .free: "聊天"
-        case .paid: item.inviteEnabled ? "邀约" : "暂不可约"
-        }
     }
 
     var body: some View {
@@ -50,7 +43,7 @@ struct BuddyGridCard: View {
         ZStack(alignment: .bottom) {
             BuddyZoomNavigationLink(item: item, namespace: zoomNamespace) {
                 coverFill
-                    .overlay(alignment: .topLeading) { leadingBadge }
+                    .overlay(alignment: .topLeading) { overlayTagRow }
                     .overlay(alignment: .topTrailing) { trailingBadge }
             }
             .accessibilityLabel(accessibilitySummary)
@@ -69,7 +62,7 @@ struct BuddyGridCard: View {
         VStack(alignment: .leading, spacing: PlatformMetrics.stackedMediaSpacing) {
             BuddyZoomNavigationLink(item: item, namespace: zoomNamespace) {
                 coverFill
-                    .overlay(alignment: .topLeading) { leadingBadge }
+                    .overlay(alignment: .topLeading) { overlayTagRow }
                     .overlay(alignment: .topTrailing) { trailingBadge }
                     .clipShape(PlatformMetrics.cardShape)
             }
@@ -89,6 +82,29 @@ struct BuddyGridCard: View {
             .clipped()
     }
 
+    /// 叠在照片上：距离 + 共同兴趣（无共同则取个人爱好）
+    private var overlayTagRow: some View {
+        FlowTagRow(tags: overlayTags)
+            .padding(PlatformMetrics.captionBadgeInset)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
+    private var overlayTags: [String] {
+        var tags: [String] = []
+        if PrivacyPreferences.showDistance {
+            tags.append(profile.distanceText)
+        }
+        let shared = BuddyMatchScorer.sharedHobbies(with: profile)
+        if !shared.isEmpty {
+            tags.append(contentsOf: shared.prefix(2))
+        } else {
+            tags.append(contentsOf: profile.tags.prefix(2))
+        }
+        return Array(tags.prefix(3))
+    }
+
+    @ViewBuilder
     private func footer(onMedia: Bool) -> some View {
         HStack(alignment: .bottom, spacing: PlatformMetrics.cardFooterSpacing) {
             VStack(alignment: .leading, spacing: PlatformMetrics.minContentGap) {
@@ -104,74 +120,78 @@ struct BuddyGridCard: View {
                         .accessibilityHidden(true)
                 }
 
-                Text(primaryMeta)
-                    .font(.caption.weight(.semibold))
+                Text(item.cardMoodLine)
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(onMedia ? .primary : .secondary)
-                    .lineLimit(1)
-
-                Text(secondaryMeta)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
                     .lineLimit(DiscoverAccessibility.metaLineLimit(for: dynamicTypeSize))
+
+                if isPaid {
+                    Text(paidMetaLine)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .colorScheme(onMedia ? .dark : .light)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
 
-            Button(actionTitle, action: onAction)
-                .font(.subheadline.weight(.semibold))
-                .activityPrimaryCTA(controlSize: .regular)
-                .disabled(isPaid && !item.inviteEnabled)
-                .accessibilityLabel("\(actionTitle)，\(profile.nickname)")
-        }
-    }
-
-    @ViewBuilder
-    private var leadingBadge: some View {
-        if case .paid(let companion) = item, companion.isVerified {
-            PlatformMediaCaptionBadge(title: "认证", tint: .accentColor)
-        } else if item.isOnline {
-            PlatformMediaCaptionBadge(title: "在线", tint: PlatformStatus.success)
+            if isPaid {
+                Button(item.inviteEnabled ? "邀约" : "暂不可约", action: onAction)
+                    .font(.subheadline.weight(.semibold))
+                    .activityPrimaryCTA(controlSize: .regular)
+                    .disabled(!item.inviteEnabled)
+                    .accessibilityLabel("\(item.inviteEnabled ? "邀约" : "暂不可约")，\(profile.nickname)")
+            }
         }
     }
 
     @ViewBuilder
     private var trailingBadge: some View {
-        if case .paid(let companion) = item, companion.isAvailable {
-            PlatformMediaCaptionBadge(title: "可约", tint: PlatformStatus.success)
+        let flags = TrustPublicCredentials.flags(
+            nickname: profile.nickname,
+            currentUserName: "",
+            buddyItem: item,
+            membershipActive: false
+        )
+        Group {
+            if case .paid(let companion) = item, companion.isAvailable {
+                PlatformMediaCaptionBadge(title: "可约", tint: PlatformStatus.success)
+            } else if flags.photoVerified {
+                PlatformMediaCaptionBadge(title: "形象认证", tint: .accentColor)
+            } else if item.isOnline, PrivacyPreferences.showOnline {
+                PlatformMediaCaptionBadge(title: "在线", tint: PlatformStatus.success)
+            }
         }
     }
 
-    private var primaryMeta: String {
-        switch item {
-        case .paid(let companion):
-            return companion.isAvailable ? companion.priceText : "暂不可约"
-        case .free:
-            return item.cardHobbyLine
-        }
-    }
-
-    private var secondaryMeta: String {
-        switch item {
-        case .paid:
-            return [item.cardHobbyLine, profile.distanceText, item.cardStatusLine]
-                .filter { !$0.isEmpty }
-                .joined(separator: " · ")
-        case .free:
-            return [profile.distanceText, "\(profile.age)岁", item.cardStatusLine]
-                .filter { !$0.isEmpty }
-                .joined(separator: " · ")
-        }
+    private var paidMetaLine: String {
+        guard case .paid(let companion) = item else { return "" }
+        return PrivacyPreferences.buddyCardMeta(
+            distanceText: profile.distanceText,
+            statusLine: companion.isAvailable ? companion.priceText : "暂不可约",
+            extra: [item.cardHobbyLine].filter { !$0.isEmpty }
+        )
     }
 
     private var accessibilitySummary: String {
-        switch item {
-        case .paid(let companion):
-            return "\(profile.nickname)，\(companion.priceText)，\(item.cardHobbyLine)"
-        case .free:
-            return "\(profile.nickname)，\(item.cardHobbyLine)"
+        let tags = overlayTags.joined(separator: "，")
+        return "\(profile.nickname)，\(item.cardMoodLine)，\(tags)"
+    }
+}
+
+/// 照片角上的小标签行（距离 / 兴趣）
+private struct FlowTagRow: View {
+    let tags: [String]
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(tags, id: \.self) { tag in
+                PlatformCaptionBadge(title: tag, chrome: .material)
+            }
         }
+        .colorScheme(.dark)
     }
 }
 

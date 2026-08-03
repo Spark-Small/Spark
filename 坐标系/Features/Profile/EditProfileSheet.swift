@@ -240,12 +240,15 @@ struct EditProfileSheet: View {
 
     private var identityIDSection: some View {
         Section {
-            LabeledContent("用户 ID", value: user.id.uuidString)
+            LabeledContent("UID", value: user.publicUIDDisplay)
                 .textSelection(.enabled)
+            Button(MessagesCopy.copyUID) {
+                UIPasteboard.general.string = user.publicUID
+            }
         } header: {
-            Text("身份")
+            Text("对外 UID")
         } footer: {
-            Text("本机稳定 UUID。游客与登录用户共用；登录或登出不会更换，注销账号后会重新分配。")
+            Text("9 位数字账号，可分享给朋友添加。登录或登出不会更换；注销账号后会重新分配。")
         }
     }
 
@@ -268,6 +271,9 @@ struct EditProfileSheet: View {
         if let avatarLocalName {
             if let old = user.avatarLocalName, old != avatarLocalName {
                 CommunityPhotoStore.delete(named: old)
+                PhotoVerificationStore.shared.clear()
+            } else if user.avatarLocalName == nil {
+                PhotoVerificationStore.shared.clear()
             }
             user.avatarLocalName = avatarLocalName
         }

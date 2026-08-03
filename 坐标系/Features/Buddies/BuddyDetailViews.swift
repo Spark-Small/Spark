@@ -44,7 +44,10 @@ struct BuddyDetailRouteView: View {
                             app.openMessages(conversationID: convo.id)
                         }
                     },
-                    onInvite: { buddies.book(companion) }
+                    onInvite: { buddies.book(companion) },
+                    onBookDay: { day in
+                        buddies.book(companion, initialDay: day)
+                    }
                 )
             }
         }
@@ -102,13 +105,21 @@ struct BuddyDetailRouteView: View {
             get: { buddies.bookingTarget },
             set: { buddies.bookingTarget = $0 }
         )) { companion in
-            BuddyBookingSheet(companion: companion) { scheduledAt, hours, slotLabel in
+            BuddyBookingSheet(
+                companion: companion,
+                initialDay: buddies.bookingInitialDay
+            ) { scheduledAt, hours, slotLabel in
                 _ = buddies.recordBooking(
                     companion: companion,
                     scheduledAt: scheduledAt,
                     hours: hours,
                     slotLabel: slotLabel
                 )
+            }
+            .onDisappear {
+                if buddies.bookingTarget == nil {
+                    buddies.bookingInitialDay = nil
+                }
             }
         }
     }
@@ -137,6 +148,7 @@ struct CircleBuddyDetailView: View {
 
     @Environment(ActivitiesModel.self) private var activities
     @Environment(BuddiesModel.self) private var buddies
+    @Environment(AppModel.self) private var app
     @State private var authorDestination: CommunityAuthorDestination?
 
     private var relatedActivities: [Activity] {
@@ -166,8 +178,13 @@ struct CircleBuddyDetailView: View {
                 BuddyDetailIdentitySection(
                     profile: buddy.profile,
                     pitch: buddy.profile.lookingFor,
-                    statusLine: buddy.isOnline ? BuddyDetailCopy.online : buddy.profile.lastActiveText,
-                    statusTint: buddy.isOnline ? PlatformStatus.success : .secondary
+                    statusLine: identityStatusLine(
+                        isOnline: buddy.isOnline,
+                        lastActive: buddy.profile.lastActiveText
+                    ),
+                    statusTint: buddy.isOnline && PrivacyPreferences.showOnline
+                        ? PlatformStatus.success
+                        : .secondary
                 )
             }
 
@@ -215,11 +232,12 @@ struct CircleBuddyDetailView: View {
                 Text(BuddyDetailCopy.scheduleTitle)
             }
 
-            Section {
-                BuddyDetailReviewsSection(reviews: buddy.reviews)
-            } header: {
-                Text(BuddyDetailCopy.reviewsTitle)
-            }
+            TrustPublicProfileSections(
+                nickname: buddy.profile.nickname,
+                currentUserName: app.user.name,
+                buddyItem: .free(buddy),
+                compact: false
+            )
 
             if !relatedActivities.isEmpty {
                 Section {
@@ -236,7 +254,12 @@ struct CircleBuddyDetailView: View {
         .navigationTitle(buddy.profile.nickname)
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            BuddyDetailActionBar(onGreet: onGreet, onInvite: onInvite)
+            BuddyDetailActionBar(
+                inviteEnabled: true,
+                inviteTitle: BuddyDetailCopy.invite,
+                onGreet: onGreet,
+                onInvite: onInvite
+            )
         }
         .communityAuthorSheet($authorDestination)
     }
@@ -249,9 +272,11 @@ struct PaidCompanionDetailView: View {
     var source: BuddyProfileSource = .discover
     var onGreet: () -> Void
     var onInvite: () -> Void
+    var onBookDay: ((Date) -> Void)? = nil
 
     @Environment(ActivitiesModel.self) private var activities
     @Environment(BuddiesModel.self) private var buddies
+    @Environment(AppModel.self) private var app
     @State private var authorDestination: CommunityAuthorDestination?
 
     private var relatedActivities: [Activity] {
@@ -286,8 +311,7 @@ struct PaidCompanionDetailView: View {
                     pitch: companion.specialty,
                     statusLine: companion.priceText,
                     metricsFooter: String(
-                        format: "%@ · %@ · %@",
-                        BuddyDetailCopy.ratingValue(companion.rating) + " 分",
+                        format: "%@ · %@",
                         BuddyDetailCopy.ordersValue(companion.orderCount),
                         companion.responseTime
                     ),
@@ -329,16 +353,27 @@ struct PaidCompanionDetailView: View {
             }
 
             Section {
-                BuddyDetailScheduleSection(slots: companion.scheduleSlots)
+                BuddyDetailScheduleSection(
+                    slots: companion.scheduleSlots,
+                    allowsBooking: companion.isAvailable,
+                    onSelectBookableDay: { day in
+                        if let onBookDay {
+                            onBookDay(day)
+                        } else {
+                            onInvite()
+                        }
+                    }
+                )
             } header: {
                 Text(BuddyDetailCopy.scheduleTitle)
             }
 
-            Section {
-                BuddyDetailReviewsSection(reviews: companion.reviews)
-            } header: {
-                Text(BuddyDetailCopy.reviewsTitle)
-            }
+            TrustPublicProfileSections(
+                nickname: companion.profile.nickname,
+                currentUserName: app.user.name,
+                buddyItem: .paid(companion),
+                compact: false
+            )
 
             if !relatedActivities.isEmpty {
                 Section {
@@ -365,4 +400,14 @@ struct PaidCompanionDetailView: View {
         }
         .communityAuthorSheet($authorDestination)
     }
+}
+
+private func identityStatusLine(isOnline: Bool, lastActive: String) -> String {
+    if let line = PrivacyPreferences.statusLine(isOnline: isOnline, lastActiveText: lastActive) {
+        return line
+    }
+    if isOnline, !PrivacyPreferences.showOnline {
+        return lastActive.isEmpty ? "近期活跃" : lastActive
+    }
+    return lastActive
 }

@@ -2,7 +2,7 @@
 //  ProfileView.swift
 //  坐标系
 //
-//  「我的」根页：资料卡 + 个人内容库预览 + 设置。
+//  「我的」根页：资料卡 + 凭证架 + 内容库预览 + 设置。
 //
 
 import SwiftUI
@@ -12,16 +12,35 @@ struct ProfileView: View {
     @Environment(ActivitiesModel.self) private var activities
     @Environment(BuddiesModel.self) private var buddies
     @Environment(CommunityModel.self) private var community
+    @AppStorage("profile.membership.active") private var membershipActive = false
 
     @State private var showEditProfile = false
     @State private var showCreateAccount = false
+    @State private var createAccountReason = GuestAccessGate.identityReason
+    @State private var youthBlockedMessage: String?
+    @State private var showSettingsFromTip = false
     @State private var path = NavigationPath()
     @Namespace private var zoomNamespace
 
+    private var photoVerified: Bool {
+        _ = PhotoVerificationStore.shared.isVerified
+        return PhotoVerificationStore.shared.isVerified(for: app.user.name)
+    }
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: PlatformMetrics.sectionSpacing) {
+                    if let tip = lifecycleTips.first {
+                        ProductLifecycleBanner(
+                            tip: tip,
+                            onDismiss: {
+                                ProductLifecycleStore.shared.dismissTip(tip.id)
+                            },
+                            onOpenSettings: tip.id == "privacy"
+                                ? { showSettingsFromTip = true }
+                                : nil
+                        )
+                    }
                     profileSection
                     ProfileActivityCredentialsShelf {
                         path.append(ProfileRoute.activityLibrary)
@@ -30,7 +49,7 @@ struct ProfileView: View {
                         onSeeAll: { path.append(ProfileRoute.buddies) },
                         onOpenBooking: { path.append(ProfileRoute.booking($0)) }
                     )
-                    publishedShelf
+                    contentLibraryShelf
                     circlesShelf
                 }
             }
@@ -46,7 +65,24 @@ struct ProfileView: View {
                 ))
             }
             .sheet(isPresented: $showCreateAccount) {
-                ProfileCreateAccountSheet(session: app.auth)
+                ProfileCreateAccountSheet(
+                    session: app.auth,
+                    reason: createAccountReason
+                )
+            }
+            .navigationDestination(isPresented: $showSettingsFromTip) {
+                ProfileSettingsView()
+            }
+            .alert(
+                "青少年模式",
+                isPresented: Binding(
+                    get: { youthBlockedMessage != nil },
+                    set: { if !$0 { youthBlockedMessage = nil } }
+                )
+            ) {
+                Button("好的", role: .cancel) { youthBlockedMessage = nil }
+            } message: {
+                Text(youthBlockedMessage ?? "")
             }
             .activityZoomNavigationDestination(namespace: zoomNamespace)
             .navigationDestination(for: CommunityPost.self) { post in
@@ -67,7 +103,12 @@ struct ProfileView: View {
     @ToolbarContentBuilder
     private var profileToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            accountMenu
+            Button {
+                path.append(ProfileRoute.orders)
+            } label: {
+                Label("我的订单", systemImage: "list.bullet.rectangle")
+            }
+            .accessibilityLabel("我的订单")
         }
         ToolbarItem(placement: .topBarTrailing) {
             NavigationLink {
@@ -78,35 +119,6 @@ struct ProfileView: View {
         }
     }
 
-    @ViewBuilder
-    private var accountMenu: some View {
-        Menu {
-            if app.auth.isGuest {
-                Button("手机号创建账号", systemImage: "phone") {
-                    showCreateAccount = true
-                }
-                Button("使用 Apple 创建", systemImage: "apple.logo") {
-                    app.auth.signInDemoApple()
-                }
-                Button("使用微信创建", systemImage: "message") {
-                    app.auth.signInDemoWeChat()
-                }
-            } else {
-                Button("编辑个人资料", systemImage: "person.crop.circle") {
-                    showEditProfile = true
-                }
-                NavigationLink {
-                    ProfileSettingsView()
-                } label: {
-                    Label("账号设置", systemImage: "lock.shield")
-                }
-            }
-        } label: {
-            Text(app.auth.isGuest ? "创建账号" : "账号")
-        }
-        .accessibilityHint(app.auth.isGuest ? "选择创建账号方式" : "打开账号操作")
-    }
-
     // MARK: - Navigation
 
     @ViewBuilder
@@ -114,8 +126,16 @@ struct ProfileView: View {
         switch route {
         case .activityLibrary:
             ProfileActivityCredentialsView()
-        case .published(let segment):
-            ProfilePublishedView(initialSegment: segment)
+        case .contentLibrary:
+            ProfileContentLibraryView()
+        case .membership:
+            ProfileMembershipView()
+        case .wallet:
+            ProfileWalletView()
+        case .orders:
+            ProfileOrdersView()
+        case .trust:
+            TrustPrivateDashboardView()
         case .circles:
             ProfileCirclesListView()
         case .buddies:
@@ -129,14 +149,29 @@ struct ProfileView: View {
 
     private var profileSection: some View {
         VStack(alignment: .leading, spacing: PlatformMetrics.sectionHeaderSpacing) {
-            Button {
-                showEditProfile = true
-            } label: {
-                profileIdentityRow
+            HStack(alignment: .top, spacing: PlatformConversationListRow.imageToTextPadding) {
+                Button {
+                    openIdentity()
+                } label: {
+                    profileIdentityRow
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .accessibilityHint(
+                    app.auth.isGuest ? "创建账号后编辑个人资料" : "打开个人资料编辑"
+                )
+
+                Button {
+                    path.append(ProfileRoute.trust)
+                } label: {
+                    Image(systemName: "checkmark.seal")
+                        .font(.body.weight(.semibold))
+                        .platformContentSymbolStyle()
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 6)
+                .accessibilityLabel("我的信誉")
             }
-            .buttonStyle(.plain)
-            .contentShape(Rectangle())
-            .accessibilityHint("打开个人资料编辑")
 
             commercialButtons
         }
@@ -145,17 +180,17 @@ struct ProfileView: View {
 
     private var commercialButtons: some View {
         HStack(spacing: PlatformMetrics.railCardSpacing) {
-            NavigationLink {
-                ProfileMembershipView()
+            Button {
+                openCommerce { path.append(ProfileRoute.membership) }
             } label: {
-                Text("开通会员")
+                Text(membershipActive ? "会员中心" : "开通会员")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .tint(.primary)
 
-            NavigationLink {
-                ProfileWalletView()
+            Button {
+                openCommerce { path.append(ProfileRoute.wallet) }
             } label: {
                 Text("我的钱包")
                     .frame(maxWidth: .infinity)
@@ -176,25 +211,37 @@ struct ProfileView: View {
             VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
                 Text(app.user.name)
                     .font(.title2.weight(.bold))
+                    .lineLimit(1)
                 Text(app.user.handle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 if app.auth.isGuest {
-                    Text("访客")
+                    Text("访客 · 创建账号解锁交易与资料")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(PlatformStatus.warning)
+                } else {
+                    TrustCredentialBadgeStrip(
+                        photoVerified: photoVerified,
+                        isMember: membershipActive
+                    )
                 }
             }
 
             Spacer(minLength: 0)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            [app.user.name, app.user.handle, app.auth.isGuest ? "访客" : nil]
-                .compactMap { $0 }
-                .filter { !$0.isEmpty }
-                .joined(separator: "，")
-        )
+        .accessibilityLabel(identityAccessibilityLabel)
+    }
+
+    private var identityAccessibilityLabel: String {
+        var parts = [app.user.name, app.user.handle]
+        if app.auth.isGuest {
+            parts.append("访客")
+        } else {
+            parts.append(photoVerified ? "形象认证已通过" : "形象认证未认证")
+            parts.append(membershipActive ? "会员已开通" : "会员未开通")
+        }
+        return parts.filter { !$0.isEmpty }.joined(separator: "，")
     }
 
     // MARK: - Previews
@@ -217,16 +264,16 @@ struct ProfileView: View {
 
     // MARK: - Shelves
 
-    private var publishedShelf: some View {
+    private var contentLibraryShelf: some View {
         DiscoverBrowseSection(
-            title: "我的发布",
-            onSeeAll: { path.append(ProfileRoute.published(.posts)) }
+            title: "我的内容库",
+            onSeeAll: { path.append(ProfileRoute.contentLibrary) }
         ) {
             if publishedPostsPreview.isEmpty && publishedActivitiesPreview.isEmpty {
                 ProfileShelfEmptyState(
-                    title: "还没有发布内容",
-                    systemImage: "square.and.pencil",
-                    description: "发社区分享或发起活动后，这里会显示最近内容。"
+                    title: "内容库还是空的",
+                    systemImage: "square.stack.3d.up",
+                    description: "发布、收藏的活动与分享、赞过与转发，都会收在「我的内容库」。"
                 )
             } else {
                 DiscoverHorizontalRail {
@@ -236,7 +283,7 @@ struct ProfileView: View {
                 }
             }
         }
-        .activityZoomSlot("profile-published")
+        .activityZoomSlot("profile-content-library")
     }
 
     private enum PublishedShelfItem: Identifiable {
@@ -332,13 +379,52 @@ struct ProfileView: View {
             }
         }
     }
+
+    // MARK: - Guest gates
+
+    private func openIdentity() {
+        createAccountReason = GuestAccessGate.identityReason
+        if GuestAccessGate.allow(app.auth, presentCreateAccount: $showCreateAccount) {
+            showEditProfile = true
+        }
+    }
+
+    private func openCommerce(_ action: () -> Void) {
+        if YouthModePreference.isEnabled {
+            youthBlockedMessage = GuestAccessGate.youthCommerceReason
+            return
+        }
+        createAccountReason = GuestAccessGate.commerceReason
+        if GuestAccessGate.allow(app.auth, presentCreateAccount: $showCreateAccount) {
+            action()
+        }
+    }
+
+    private func presentCreateAccount(reason: String) {
+        createAccountReason = reason
+        showCreateAccount = true
+    }
+
+    private var lifecycleTips: [ProductLifecycleTip] {
+        let hasOrders = !ActivityPaymentStore.allOrders().isEmpty
+            || !buddies.bookingRecords.isEmpty
+        return ProductLifecycleStore.shared.activeTips(
+            isGuest: app.auth.isGuest,
+            profileComplete: ProfileCompletion.ratio(for: app.user) >= 0.8,
+            hasOrders: hasOrders
+        )
+    }
 }
 
 // MARK: - Routes
 
 private enum ProfileRoute: Hashable {
     case activityLibrary
-    case published(ProfilePublishedView.Segment)
+    case contentLibrary
+    case membership
+    case wallet
+    case orders
+    case trust
     case circles
     case buddies
     case booking(BuddyBookingRecord.ID)

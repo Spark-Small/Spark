@@ -32,6 +32,8 @@ struct ActivityDetailView: View {
     @State private var reportMessage: String?
     @State private var joinIssueMessage: String?
     @State private var cancelRefundActivityID: Activity.ID?
+    /// 取消参加并走退款申请表单时暂存的已支付订单
+    @State private var cancelAndRefundOrder: ActivityOrder?
     /// 评论 / 相关轨等次要内容：转场首帧后再挂，减轻 Zoom 合成负载
     @State private var revealsSecondaryContent = false
 
@@ -175,10 +177,15 @@ struct ActivityDetailView: View {
             )
         }
         .sheet(isPresented: $showJoinConfirm) {
-            ActivityJoinConfirmSheet(activity: live) { note in
+            ActivityJoinConfirmSheet(
+                activity: live,
+                conflicts: model.scheduleConflicts(with: live)
+            ) { note in
                 pendingJoinNote = note
                 if !live.requiresInAppPayment || ActivityPaymentStore.hasPaid(for: live.id) {
                     completeJoin(for: live, note: note)
+                } else if app.auth.isGuest {
+                    joinIssueMessage = GuestAccessGate.commerceReason
                 } else {
                     showPaymentSheet = true
                 }
@@ -216,14 +223,19 @@ struct ActivityDetailView: View {
                 cancelRefundActivityID = nil
             }
             Button(ActivityDetailCopy.cancelWithRefundConfirm, role: .destructive) {
-                if let id = cancelRefundActivityID {
-                    app.cancelActivityRegistration(id, refundIfPaid: true)
-                    ordersRevision += 1
+                if let id = cancelRefundActivityID,
+                   let order = ActivityPaymentStore.paidOrder(for: id) {
+                    cancelAndRefundOrder = order
                 }
                 cancelRefundActivityID = nil
             }
         } message: {
             Text(ActivityDetailCopy.cancelWithRefundMessage)
+        }
+        .sheet(item: $cancelAndRefundOrder) { order in
+            RefundRequestSheet.activityOrder(order) { _, _ in
+                performCancelAndRefund(order: order)
+            }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomBar(live)
@@ -254,6 +266,14 @@ struct ActivityDetailView: View {
             )
         }
         .id(contentRevision)
+
+        if !ActivityRecommender.matchedFriends(for: live).isEmpty {
+            Section {
+                friendsGoingRow(for: live)
+            } header: {
+                Text("好友也在")
+            }
+        }
 
         Section {
             ActivityDetailHostTrustRow(
@@ -472,6 +492,26 @@ struct ActivityDetailView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .lineLimit(3)
         }
+    }
+
+    private func friendsGoingRow(for activity: Activity) -> some View {
+        let friends = ActivityRecommender.matchedFriends(for: activity)
+        let preview = friends.prefix(3).joined(separator: "、")
+        let suffix = friends.count > 3 ? " 等 \(friends.count) 位好友" : ""
+        return Button {
+            showPeopleSheet = true
+        } label: {
+            Label {
+                Text("\(preview)\(suffix)也报名了")
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.leading)
+            } icon: {
+                Image(systemName: "person.2.fill")
+            }
+            .platformContentSymbolStyle()
+        }
+        .accessibilityHint("查看全部报名伙伴")
     }
 
     // MARK: - Sections
@@ -760,6 +800,17 @@ struct ActivityDetailView: View {
         guard let order = ActivityPaymentStore.paidOrder(for: activityID) else { return }
         _ = ActivityPaymentStore.requestRefund(orderID: order.id)
         ActivityPaymentStore.finalizeRefund(orderID: order.id)
+        ordersRevision += 1
+    }
+
+    /// 用户填写退款申请并确认后：退款 + 取消参加（避免二次退款）
+    private func performCancelAndRefund(order: ActivityOrder) {
+        if let error = ActivityPaymentStore.requestRefund(orderID: order.id) {
+            joinIssueMessage = error
+            return
+        }
+        ActivityPaymentStore.finalizeRefund(orderID: order.id)
+        app.cancelActivityRegistration(order.activityID, refundIfPaid: false)
         ordersRevision += 1
     }
 }

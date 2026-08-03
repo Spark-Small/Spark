@@ -51,6 +51,3 @@ enum PassConfiguration {
         )
     }
 }
-
-/// 兼容旧符号
-typealias WalletPassConfiguration = PassConfiguration

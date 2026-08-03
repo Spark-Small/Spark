@@ -88,14 +88,15 @@ struct WalletPassCredentialStripChrome: View {
 // MARK: - Activity strip / card
 
 /// 长条凭证（未展开）。
-/// - `titleOnly`：首页堆叠预览，只露标题
-/// - 默认：清单密度——标题 + 一行时间 + 一行地点
+/// - `titleOnly`：首页堆叠预览，标题下露一行日程；有地点时右下「导航」
+/// - 默认：清单密度——标题 + 一行时间 + 一行地点 + 右下「导航」
 struct ProfileActivityCredentialStrip: View {
     let activity: Activity
     var voided: Bool = false
     var titleOnly: Bool = false
 
     @Environment(WalletPassStore.self) private var passStore
+    @State private var showNavigationPicker = false
 
     private var isVoided: Bool {
         voided || passStore.resolvedActivityPass(for: activity, voided: true)?.voided == true
@@ -104,15 +105,16 @@ struct ProfileActivityCredentialStrip: View {
     private var content: WalletPassFaceContent {
         var face = WalletPassFaceFactory.activity(activity, voided: isVoided)
         face.subtitleText = ""
-        face.showsNavigateButton = false
         face.showsDetailButton = false
+        let schedule = WalletPassFaceFactory.listScheduleLine(from: activity.date)
         if titleOnly {
+            face.subtitleText = schedule
             face.headerLabel = ""
             face.headerValue = ""
             face.locationText = ""
             face.locationLabel = ""
         } else {
-            face.headerLabel = WalletPassFaceFactory.listScheduleLine(from: activity.date)
+            face.headerLabel = schedule
             face.headerValue = ""
             face.locationLabel = ""
         }
@@ -123,10 +125,18 @@ struct ProfileActivityCredentialStrip: View {
     }
 
     var body: some View {
+        let face = content
         WalletPassCredentialStripChrome(
-            content: content,
+            content: face,
             photo: activity.coverPhoto,
+            onNavigate: face.showsNavigateButton ? { showNavigationPicker = true } : nil,
             fillsCanonicalHeight: titleOnly
+        )
+        .activityMapNavigationDialog(
+            activity: Binding(
+                get: { showNavigationPicker ? activity : nil },
+                set: { showNavigationPicker = $0 != nil }
+            )
         )
     }
 }
@@ -176,7 +186,7 @@ struct ProfileActivityCredentialCard: View {
 
 // MARK: - Booking strip / card
 
-/// 陪玩长条凭证（未展开）：与活动长条同一套 chrome；右下聊天；点按进入展开票面。
+/// 陪玩长条凭证（未展开）：左上姓名 / 日程，右下聊天；与活动条同密度。
 struct ProfileBookingCredentialStrip: View {
     let record: BuddyBookingRecord
     var photo: CommunityPhotoRef? = nil
@@ -199,7 +209,16 @@ struct ProfileBookingCredentialStrip: View {
             statusOverride: statusOverride,
             voided: isVoided
         )
+        // 左上两行：姓名 / 日程（与「我的活动」同字段）；右下聊天
+        face.logoText = record.companionNickname
+        face.subtitleText = WalletPassFaceFactory.listScheduleLine(from: record.scheduledAt)
+        face.headerLabel = ""
+        face.headerValue = ""
+        face.locationText = ""
+        face.locationLabel = ""
         face.showsDetailButton = false
+        face.showsNavigateButton = false
+        face.showsMessageButton = true
         if let pass = passStore.resolvedBookingPass(for: record.id, voided: voided || isVoided) {
             face.voided = pass.voided || isVoided
         }
@@ -211,7 +230,8 @@ struct ProfileBookingCredentialStrip: View {
         WalletPassCredentialStripChrome(
             content: face,
             photo: photo,
-            onMessage: face.showsMessageButton ? { requestMessage() } : nil
+            onMessage: face.showsMessageButton ? { requestMessage() } : nil,
+            fillsCanonicalHeight: true
         )
     }
 

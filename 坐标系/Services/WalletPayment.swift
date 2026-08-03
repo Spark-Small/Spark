@@ -279,6 +279,33 @@ final class WalletStore {
         entries.filter { $0.relatedID == id }
     }
 
+    /// 移除某业务相关流水（Debug 自检清理；退款场景勿用）
+    func removeEntries(relatedTo id: UUID) {
+        let removed = entries.filter { $0.relatedID == id }
+        guard !removed.isEmpty else { return }
+        for entry in removed {
+            // 冲正曾计入余额的演示扣款 / 入账
+            balanceCents -= entry.balanceDeltaCents
+        }
+        entries.removeAll { $0.relatedID == id }
+        persist()
+        syncLegacyBalance()
+    }
+
+    /// 清除 DEBUG 自检留下的「陪玩 · 阿凯」Apple Pay 空扣款（不影响余额）
+    func purgeDebugSelfTestBookingCharges() {
+        let title = SampleData.paidCompanions.first.map { "陪玩 · \($0.profile.nickname)" }
+        let before = entries.count
+        entries.removeAll { entry in
+            entry.kind == .bookingPayment
+                && entry.method == .applePay
+                && entry.balanceDeltaCents == 0
+                && (title == nil || entry.title == title)
+        }
+        guard entries.count != before else { return }
+        persist()
+    }
+
     /// 将最近一笔尚未关联业务 id 的同类型流水挂上 relatedID
     func attachRelatedID(_ relatedID: UUID, toKind kind: WalletEntryKind, amountCents: Int) {
         guard let index = entries.firstIndex(where: {
@@ -398,6 +425,7 @@ struct CoordinatePaymentSheet: View {
     var onCancel: () -> Void = {}
 
     @Environment(WalletStore.self) private var wallet
+    @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var selectedMethod: PaymentMethod
     @State private var isProcessing = false
@@ -511,6 +539,12 @@ struct CoordinatePaymentSheet: View {
         paymentTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(900))
             guard !Task.isCancelled else { return }
+            if app.auth.isGuest {
+                isProcessing = false
+                paymentTask = nil
+                errorMessage = GuestAccessGate.commerceReason
+                return
+            }
             let outcome = onConfirm(selectedMethod)
             isProcessing = false
             paymentTask = nil

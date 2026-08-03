@@ -2,7 +2,7 @@
 //  CommunityLibraryViews.swift
 //  坐标系
 //
-//  社区「更多」入口：收藏 / 赞过 / 我的分享 / 转发 / 公约。
+//  社区「更多」入口与「我的内容库」共用：收藏 / 赞过 / 我的分享 / 转发 / 公约。
 //
 
 import SwiftUI
@@ -36,7 +36,7 @@ struct CommunityLibraryRouter: View {
 
 // MARK: - Shared list
 
-private struct CommunityPostLibraryList: View {
+struct CommunityPostLibraryList: View {
     let title: String
     let emptyTitle: String
     let emptySystemImage: String
@@ -71,7 +71,7 @@ private struct CommunityPostLibraryList: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .platformSecondaryPage()
-        // 分享 / 活动详情目的地由社区栈根注册
+        // 分享详情目的地由外层 NavigationStack 注册
     }
 
     private func librarySecondary(for post: CommunityPost) -> String {
@@ -93,7 +93,7 @@ struct CommunityBookmarksView: View {
             title: "收藏的分享",
             emptyTitle: "还没有收藏分享",
             emptySystemImage: "bookmark",
-            emptyDescription: "在社区分享里点收藏，种草与复盘会出现在这里",
+            emptyDescription: "在社区分享里点收藏，种草与复盘会出现在这里；也可在「我的内容库」统一查看。",
             posts: model.bookmarkedPosts,
             footnote: { model.bookmarkCollection(for: $0.id) }
         )
@@ -108,7 +108,7 @@ struct CommunityLikedPostsView: View {
             title: "赞过的",
             emptyTitle: "还没有赞过分享",
             emptySystemImage: "heart",
-            emptyDescription: "点赞过的分享会出现在这里",
+            emptyDescription: "点赞过的分享会出现在这里；也可在「我的内容库」统一查看。",
             posts: model.likedPosts
         )
     }
@@ -122,7 +122,7 @@ struct CommunityMyPostsView: View {
             title: "我的分享",
             emptyTitle: "还没有发布分享",
             emptySystemImage: "square.and.pencil",
-            emptyDescription: "发布的活动图文会出现在这里",
+            emptyDescription: "发布的活动图文会出现在这里；完整创作凭证见「我的内容库」。",
             posts: model.myPosts
         )
     }
@@ -136,7 +136,7 @@ struct CommunityMyRepostsView: View {
             title: "我的转发",
             emptyTitle: "还没有转发",
             emptySystemImage: "arrow.2.squarepath",
-            emptyDescription: "转发到社区的分享会出现在这里",
+            emptyDescription: "转发到社区的分享会出现在这里；也可在「我的内容库」统一查看。",
             posts: model.myReposts
         )
     }

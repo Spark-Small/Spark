@@ -161,6 +161,14 @@ struct ProfileBuddiesView: View {
                 onCancel: { buddies.cancelPendingPayment() }
             )
         }
+        .sheet(item: Binding(
+            get: { buddies.pendingSafetyCheckInBooking },
+            set: { if $0 == nil { buddies.cancelPendingSafetyCheckIn() } }
+        )) { record in
+            TrustSafetyCheckInSheet(record: record) {
+                buddies.cancelPendingSafetyCheckIn()
+            }
+        }
     }
 
     @ViewBuilder

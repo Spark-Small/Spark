@@ -142,13 +142,21 @@ struct BuddyGuildDetailView: View {
             get: { buddies.bookingTarget },
             set: { buddies.bookingTarget = $0 }
         )) { companion in
-            BuddyBookingSheet(companion: companion) { scheduledAt, hours, slotLabel in
+            BuddyBookingSheet(
+                companion: companion,
+                initialDay: buddies.bookingInitialDay
+            ) { scheduledAt, hours, slotLabel in
                 _ = buddies.recordBooking(
                     companion: companion,
                     scheduledAt: scheduledAt,
                     hours: hours,
                     slotLabel: slotLabel
                 )
+            }
+            .onDisappear {
+                if buddies.bookingTarget == nil {
+                    buddies.bookingInitialDay = nil
+                }
             }
         }
         .platformTransientFeedback($toast)

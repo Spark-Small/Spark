@@ -20,11 +20,11 @@ nonisolated enum BuddyDetailCopy {
     static let reasonTitle = "推荐理由"
     static let scheduleTitle = "可约档期"
     static let scheduleEmpty = "暂未公开档期"
-    static let reviewsTitle = "评价"
-    static let reviewsEmpty = "还没有评价"
+    static let scheduleCalendarHint = "点选「可约」日期即可下单，无需先私信沟通。"
     static let relatedTitle = "可以一起去"
     static let circleTitle = "所在组织"
     static let trustTitle = "资料"
+    static let trustArchiveTitle = "信任档案"
 
     static let verifiedBadge = "平台认证"
     static let online = "在线"
@@ -44,19 +44,11 @@ nonisolated enum BuddyDetailCopy {
     static let serviceTypeLabel = "服务类型"
     static let specialtyLabel = "擅长"
     static let priceLabel = "价格"
-    static let ratingLabel = "评分"
     static let ordersLabel = "成单"
     static let responseLabel = "响应"
 
     static func ageValue(_ age: Int) -> String { "\(age) 岁" }
     static func ordersValue(_ count: Int) -> String { "\(count) 单" }
-    static func ratingValue(_ rating: Double) -> String {
-        String(format: "%.1f", rating)
-    }
-
-    static func reviewCount(_ count: Int) -> String {
-        count == 0 ? "暂无评价" : "\(count) 条评价"
-    }
 
     static func photosCount(_ count: Int) -> String { "\(count) 张" }
 

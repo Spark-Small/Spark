@@ -648,9 +648,9 @@ enum PlatformMetrics {
     static var posterCardAspectRatio: CGFloat { 3 / 4 }
     static var featuredCardAspectRatio: CGFloat { 3 / 4 }
     static var editorialCardAspectRatio: CGFloat { 4 / 5 }
-    /// 搭子人像竖卡（宽:高）— 详情 Hero / 旧舞台
+    /// 搭子人像竖卡（宽:高）— 详情头图
     static var personCardAspectRatio: CGFloat { 9 / 16 }
-    /// 搭子发现网格竖卡（宽:高）；短于舞台，一屏约 4～6 人
+    /// 搭子发现网格竖卡（宽:高）；一屏约 4～6 人
     static var personGridCardAspectRatio: CGFloat { 3 / 4 }
     /// 同好 / 陪玩发现网格列数
     static var personGridColumnCount: Int { 2 }
@@ -666,10 +666,6 @@ enum PlatformMetrics {
     static var profileBookingCredentialRailVisibleFraction: CGFloat { 0.29 }
     /// 个人内容库竖海报（圈子）：一屏约三张完整卡，并露出第四张提示横滑。
     static var profileLibraryRailVisibleFraction: CGFloat { 0.29 }
-    /// 背景大图轻微放大（切换时）
-    static var personStageBackgroundScale: CGFloat { 1.06 }
-    /// 舞台外框与精选 Hero 同比例（3:4）
-    static var personStageAspectRatio: CGFloat { featuredCardAspectRatio }
     static var cardInfoSpacing: CGFloat { g(0.75) }
     static var metaSymbolSpacing: CGFloat { g(0.75) }
     /// 分区标题簇水平间距 = 系统图文间距

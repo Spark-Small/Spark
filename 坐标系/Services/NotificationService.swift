@@ -130,6 +130,20 @@ enum NotificationService {
         return UserDefaults.standard.bool(forKey: PreferenceKey.message)
     }
 
+    static func isBuddyOnlineEnabled() -> Bool {
+        if UserDefaults.standard.object(forKey: PreferenceKey.buddy) == nil {
+            return true
+        }
+        return UserDefaults.standard.bool(forKey: PreferenceKey.buddy)
+    }
+
+    static func isCommunityDigestEnabled() -> Bool {
+        if UserDefaults.standard.object(forKey: PreferenceKey.community) == nil {
+            return false
+        }
+        return UserDefaults.standard.bool(forKey: PreferenceKey.community)
+    }
+
     /// 新消息本地通知（尊重「新消息通知」开关；免打扰由调用方跳过）
     static func scheduleMessageNotification(conversationID: UUID, title: String, body: String) {
         guard isMessagePushEnabled() else { return }

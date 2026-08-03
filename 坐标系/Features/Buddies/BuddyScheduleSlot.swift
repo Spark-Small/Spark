@@ -8,12 +8,60 @@
 import Foundation
 
 enum BuddyScheduleSlot {
+    /// 日历日期下方状态
+    enum DayAvailability: Equatable, Sendable {
+        case bookable
+        case full
+        case pending
+        case none
+
+        /// 日期下短标签：可约 / 有档期感用「可约」；已满 / 待开放
+        var caption: String? {
+            switch self {
+            case .bookable: "可约"
+            case .full: "已满"
+            case .pending: "待开放"
+            case .none: nil
+            }
+        }
+
+        var isSelectable: Bool { self == .bookable }
+
+        /// 合并同日多档：有可约优先，其次待开放，再次已满
+        static func merge(_ lhs: DayAvailability, _ rhs: DayAvailability) -> DayAvailability {
+            let rank: (DayAvailability) -> Int = {
+                switch $0 {
+                case .bookable: 3
+                case .pending: 2
+                case .full: 1
+                case .none: 0
+                }
+            }
+            return rank(lhs) >= rank(rhs) ? lhs : rhs
+        }
+    }
+
+    struct Resolved: Identifiable, Hashable, Sendable {
+        var id: String { label }
+        let label: String
+        let start: Date
+        let bookable: Bool
+        let availability: DayAvailability
+
+        func dayStart(calendar: Calendar = .current) -> Date {
+            calendar.startOfDay(for: start)
+        }
+    }
+
     /// 将「今晚 20:00」「明日 18:30」「周六下午」等解析为 Date；解析失败则回退到约 24h 后。
     static func resolveDate(from label: String, reference: Date = .now) -> Date {
         let calendar = Calendar.current
         let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if trimmed.contains("待开放") || trimmed.contains("已满") {
+            if let date = resolveRelativeDay(trimmed, calendar: calendar, reference: reference) {
+                return date
+            }
             return reference.addingTimeInterval(60 * 60 * 24 * 7)
         }
 
@@ -26,6 +74,57 @@ enum BuddyScheduleSlot {
 
     static func isBookable(_ label: String) -> Bool {
         !label.contains("待开放") && !label.contains("已满")
+    }
+
+    static func availability(for label: String) -> DayAvailability {
+        if label.contains("已满") { return .full }
+        if label.contains("待开放") { return .pending }
+        if isBookable(label) { return .bookable }
+        return .none
+    }
+
+    static func resolveAll(
+        _ labels: [String],
+        reference: Date = .now,
+        calendar: Calendar = .current
+    ) -> [Resolved] {
+        labels.map { label in
+            let start = resolveDate(from: label, reference: reference)
+            let status = availability(for: label)
+            return Resolved(
+                label: label,
+                start: start,
+                bookable: status == .bookable,
+                availability: status
+            )
+        }
+        .sorted { $0.start < $1.start }
+    }
+
+    /// 按自然日汇总可约状态（用于月历格子下方文案）
+    static func dayAvailabilityMap(
+        slots: [String],
+        reference: Date = .now,
+        calendar: Calendar = .current
+    ) -> [Date: DayAvailability] {
+        var map: [Date: DayAvailability] = [:]
+        for resolved in resolveAll(slots, reference: reference, calendar: calendar) {
+            let day = resolved.dayStart(calendar: calendar)
+            let existing = map[day] ?? .none
+            map[day] = DayAvailability.merge(existing, resolved.availability)
+        }
+        return map
+    }
+
+    static func slots(
+        on day: Date,
+        from labels: [String],
+        reference: Date = .now,
+        calendar: Calendar = .current
+    ) -> [Resolved] {
+        let dayStart = calendar.startOfDay(for: day)
+        return resolveAll(labels, reference: reference, calendar: calendar)
+            .filter { calendar.isDate($0.start, inSameDayAs: dayStart) }
     }
 
     private static func resolveRelativeDay(
@@ -55,6 +154,8 @@ enum BuddyScheduleSlot {
             if label.contains("下周日") { dayOffset += 7 }
         } else if label.contains("周一") {
             dayOffset = daysUntil(weekday: 2, from: reference, calendar: calendar)
+        } else if label.contains("周二") {
+            dayOffset = daysUntil(weekday: 3, from: reference, calendar: calendar)
         } else if label.contains("周三") {
             dayOffset = daysUntil(weekday: 4, from: reference, calendar: calendar)
         } else if label.contains("周四") {
@@ -89,7 +190,7 @@ enum BuddyScheduleSlot {
         comps.hour = hour
         comps.minute = minute
         guard let resolved = calendar.date(from: comps) else { return nil }
-        if resolved <= reference {
+        if resolved <= reference, !label.contains("待开放"), !label.contains("已满") {
             return calendar.date(byAdding: .day, value: 1, to: resolved) ?? resolved
         }
         return resolved

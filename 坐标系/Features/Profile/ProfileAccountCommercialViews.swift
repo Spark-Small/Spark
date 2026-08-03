@@ -10,14 +10,26 @@ import SwiftUI
 struct ProfileCreateAccountSheet: View {
     @Bindable var session: LocalAuthSession
     @Environment(\.dismiss) private var dismiss
+    /// 弹层说明：交易门槛 / 资料门槛等
+    var reason: String = GuestAccessGate.commerceReason
 
     @State private var phone = ""
     @State private var code = ""
     @State private var errorMessage: String?
+    @State private var hasAgreedToLegal = false
+    @State private var showLegalAlert = false
+    @State private var pendingCreateAction: (() -> Void)?
 
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Text(reason)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
                 Section("手机号") {
                     TextField("手机号码", text: $phone)
                         .keyboardType(.phonePad)
@@ -36,10 +48,41 @@ struct ProfileCreateAccountSheet: View {
 
                 Section {
                     Button("创建账号") {
-                        createAccount()
+                        requireLegalConsent(createAccount)
                     }
+                    .fontWeight(.semibold)
                 } footer: {
-                    Text("本地演示验证码：\(LocalAuthSession.demoCode)")
+                    VStack(alignment: .center, spacing: 10) {
+                        Text("本地演示验证码：\(LocalAuthSession.demoCode)")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        LegalConsentCheckbox(
+                            isChecked: $hasAgreedToLegal,
+                            showAlert: $showLegalAlert
+                        )
+                    }
+                }
+
+                Section {
+                    Button {
+                        requireLegalConsent {
+                            session.signInDemoApple()
+                            dismiss()
+                        }
+                    } label: {
+                        Label("使用 Apple 创建", systemImage: "apple.logo")
+                    }
+                    Button {
+                        requireLegalConsent {
+                            session.signInDemoWeChat()
+                            dismiss()
+                        }
+                    } label: {
+                        Label("使用微信创建", systemImage: "message")
+                    }
+                } header: {
+                    Text("其他方式")
+                } footer: {
+                    Text("演示环境下一键绑定身份；正式版将接入系统 Sign in with Apple 与微信开放平台。")
                 }
             }
             .navigationTitle("创建账号")
@@ -50,7 +93,29 @@ struct ProfileCreateAccountSheet: View {
                 }
             }
         }
+        .legalConsentAlert(
+            isPresented: $showLegalAlert,
+            onAgree: {
+                hasAgreedToLegal = true
+                let action = pendingCreateAction
+                pendingCreateAction = nil
+                action?()
+                Task { await PermissionLaunchPrompts.requestTrackingAfterConsentIfNeeded() }
+            },
+            onReject: {
+                pendingCreateAction = nil
+            }
+        )
         .platformSheet(.form)
+    }
+
+    private func requireLegalConsent(_ action: @escaping () -> Void) {
+        if hasAgreedToLegal {
+            action()
+        } else {
+            pendingCreateAction = action
+            showLegalAlert = true
+        }
     }
 
     private func createAccount() {
@@ -69,12 +134,33 @@ struct ProfileMembershipView: View {
     @State private var isProcessing = false
     @State private var errorMessage: String?
     @State private var issuedPassID: UUID?
+    @State private var showCreateAccount = false
 
     private let membershipCents = 2_800
 
     var body: some View {
         Form {
+            if app.auth.isGuest {
+                Section {
+                    Text(GuestAccessGate.commerceReason)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Button("创建账号后开通") {
+                        showCreateAccount = true
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+
             Section("会员状态") {
+                TrustCredentialBadgeStrip(
+                    photoVerified: {
+                        _ = PhotoVerificationStore.shared.isVerified
+                        return PhotoVerificationStore.shared.isVerified(for: app.user.name)
+                    }(),
+                    isMember: isActive,
+                    revealLocked: true
+                )
                 LabeledContent("当前状态", value: isActive ? "已开通" : "未开通")
                 if !isActive {
                     LabeledContent("开通费用", value: WalletMoney.formatted(cents: membershipCents))
@@ -117,14 +203,24 @@ struct ProfileMembershipView: View {
                 Button(isActive ? "会员已开通" : "确认开通会员") {
                     activateMembership()
                 }
-                .disabled(isActive || isProcessing)
+                .disabled(isActive || isProcessing || app.auth.isGuest)
             } footer: {
-                Text("本地演示：从钱包余额扣款；开通后签发会员通行证。")
+                Text(
+                    app.auth.isGuest
+                        ? GuestAccessGate.commerceReason
+                        : "本地演示：从钱包余额扣款；开通后签发会员通行证。"
+                )
             }
         }
         .navigationTitle("会员中心")
         .navigationBarTitleDisplayMode(.inline)
         .platformSecondaryPage()
+        .sheet(isPresented: $showCreateAccount) {
+            ProfileCreateAccountSheet(
+                session: app.auth,
+                reason: GuestAccessGate.commerceReason
+            )
+        }
         .alert("无法开通", isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
@@ -141,6 +237,11 @@ struct ProfileMembershipView: View {
     }
 
     private func activateMembership() {
+        if YouthModePreference.isEnabled {
+            errorMessage = GuestAccessGate.youthCommerceReason
+            return
+        }
+        guard GuestAccessGate.allow(app.auth, presentCreateAccount: $showCreateAccount) else { return }
         guard !isActive, !isProcessing else { return }
         isProcessing = true
         let outcome = wallet.charge(
@@ -168,20 +269,37 @@ struct ProfileWalletView: View {
     @Environment(AppModel.self) private var app
     @AppStorage("profile.membership.active") private var membershipActive = false
     @State private var showTopUp = false
+    @State private var showCreateAccount = false
 
     private var tier: WalletBankCardTier { wallet.cardTier }
 
     var body: some View {
         Form {
+            if app.auth.isGuest {
+                Section {
+                    Text(GuestAccessGate.commerceReason)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Button("创建账号后使用钱包") {
+                        showCreateAccount = true
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+
             Section {
                 WalletBankBalanceCard(
                     balanceText: wallet.balanceText,
                     tier: tier,
                     userID: app.user.id,
                     nickname: app.user.name,
-                    onTopUp: { showTopUp = true }
+                    isMember: membershipActive,
+                    onTopUp: app.auth.isGuest
+                        ? { showCreateAccount = true }
+                        : { showTopUp = true }
                 )
-                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 4, trailing: 16))
+                // 与下方 insetGrouped 分区同宽：水平交给系统分组页边
+                .listRowInsets(PlatformWalletPassListRow.insets)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             } footer: {
@@ -212,8 +330,18 @@ struct ProfileWalletView: View {
                     Label("会员", systemImage: "checkmark.seal")
                         .platformContentSymbolStyle()
                 }
+                NavigationLink {
+                    ProfileOrdersView()
+                } label: {
+                    Label("我的订单", systemImage: "list.bullet.rectangle")
+                        .platformContentSymbolStyle()
+                }
             } footer: {
-                Text("活动票与陪玩预约凭证在「我的」内容库查看；点卡片可充值。")
+                if YouthModePreference.isEnabled {
+                    Text(GuestAccessGate.youthCommerceReason)
+                } else {
+                    Text("活动票与陪玩预约凭证在「我的」内容库查看；点卡片可充值。")
+                }
             }
 
             Section {
@@ -241,14 +369,27 @@ struct ProfileWalletView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("充值", systemImage: "plus") {
-                    showTopUp = true
+                    if YouthModePreference.isEnabled {
+                        // 钱包页用 footer 提示即可：直接拦截
+                        return
+                    }
+                    if GuestAccessGate.allow(app.auth, presentCreateAccount: $showCreateAccount) {
+                        showTopUp = true
+                    }
                 }
+                .disabled(YouthModePreference.isEnabled)
             }
         }
         .animation(.snappy, value: wallet.balanceCents)
         .animation(.snappy, value: tier)
         .sheet(isPresented: $showTopUp) {
             WalletTopUpSheet()
+        }
+        .sheet(isPresented: $showCreateAccount) {
+            ProfileCreateAccountSheet(
+                session: app.auth,
+                reason: GuestAccessGate.commerceReason
+            )
         }
     }
 }

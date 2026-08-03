@@ -17,7 +17,7 @@ struct BookingCredentialExpandedView: View {
 
     @State private var showAddToWallet = false
     @State private var showReschedule = false
-    @State private var confirmRefund = false
+    @State private var refundTarget: BuddyBookingRecord?
     @State private var confirmCancel = false
     @State private var confirmDelete = false
 
@@ -103,19 +103,18 @@ struct BookingCredentialExpandedView: View {
                 }
             )
         }
-        .confirmationDialog(
-            "申请退款？",
-            isPresented: $confirmRefund,
-            titleVisibility: .visible
-        ) {
-            Button("申请退款", role: .destructive) {
-                if let record {
-                    buddies.refundBooking(record.id)
-                }
+        .sheet(item: Binding(
+            get: { buddies.pendingSafetyCheckInBooking },
+            set: { if $0 == nil { buddies.cancelPendingSafetyCheckIn() } }
+        )) { checkInRecord in
+            TrustSafetyCheckInSheet(record: checkInRecord) {
+                buddies.cancelPendingSafetyCheckIn()
             }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text("退款后当前预约将结束。")
+        }
+        .sheet(item: $refundTarget) { target in
+            RefundRequestSheet.booking(target) { _, _ in
+                buddies.refundBooking(target.id)
+            }
         }
         .alert("取消预约？", isPresented: $confirmCancel) {
             Button("取消预约", role: .destructive) {
@@ -284,7 +283,7 @@ struct BookingCredentialExpandedView: View {
             }
 
             Section {
-                Button("删除记录", role: .destructive) {
+                Button("删除记录", systemImage: "trash", role: .destructive) {
                     confirmDelete = true
                 }
             }
@@ -311,6 +310,7 @@ struct BookingCredentialExpandedView: View {
             || record.canComplete
             || record.canRefund
             || record.canReschedule
+            || (record.status == .completed && !TrustService.shared.hasCheckedIn(bookingID: record.id))
     }
 
     @ViewBuilder
@@ -330,6 +330,11 @@ struct BookingCredentialExpandedView: View {
                 buddies.completeBooking(record.id)
             }
         }
+        if record.status == .completed, !TrustService.shared.hasCheckedIn(bookingID: record.id) {
+            Button("履约确认", systemImage: "checkmark.shield") {
+                buddies.pendingSafetyCheckInBookingID = record.id
+            }
+        }
         if record.canReschedule {
             Button("改期", systemImage: "calendar") {
                 showReschedule = true
@@ -337,7 +342,7 @@ struct BookingCredentialExpandedView: View {
         }
         if record.canRefund {
             Button("申请退款", systemImage: "arrow.uturn.backward", role: .destructive) {
-                confirmRefund = true
+                refundTarget = record
             }
         }
         if record.canWithdraw || record.status == .paid || record.status == .inProgress {

@@ -104,29 +104,6 @@ struct QuietTextButton: View {
     }
 }
 
-struct PaperField<Content: View>: View {
-    let title: String
-    @ViewBuilder var content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            content
-                .font(.body)
-                .foregroundStyle(.primary)
-                .padding(.vertical, 12)
-                .padding(.horizontal, 14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color(.tertiarySystemFill))
-                )
-        }
-    }
-}
-
 // MARK: - Motion helpers
 
 struct FloatingAnimationModifier: ViewModifier {

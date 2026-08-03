@@ -11,6 +11,7 @@ import UIKit
 
 struct ActivityJoinConfirmSheet: View {
     let activity: Activity
+    var conflicts: [Activity] = []
     var onConfirm: (_ note: String?) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -42,6 +43,34 @@ struct ActivityJoinConfirmSheet: View {
                     Text(activity.requiresInAppPayment
                         ? ActivityDetailCopy.joinConfirmPaidHint
                         : ActivityDetailCopy.joinConfirmMessage)
+                }
+
+                if !conflicts.isEmpty {
+                    Section {
+                        ForEach(conflicts) { conflict in
+                            VStack(alignment: .leading, spacing: PlatformMetrics.detailMicroSpacing) {
+                                Text(conflict.title)
+                                    .font(.body.weight(.semibold))
+                                Text(Formatters.activityEventTime(from: conflict.date))
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                Text(conflict.location)
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                    .lineLimit(1)
+                            }
+                            .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
+                        }
+                    } header: {
+                        Label(
+                            ActivityDetailCopy.joinConflictTitle(conflicts.count),
+                            systemImage: "exclamationmark.triangle.fill"
+                        )
+                        .foregroundStyle(PlatformStatus.warning)
+                        .accessibilityLabel(ActivityDetailCopy.joinConflictHeader)
+                    } footer: {
+                        Text(ActivityDetailCopy.joinConflictFooter)
+                    }
                 }
 
                 Section("留言") {

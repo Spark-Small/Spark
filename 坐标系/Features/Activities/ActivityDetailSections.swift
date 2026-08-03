@@ -220,32 +220,31 @@ struct ActivityDetailHostTrustRow: View {
         }
     }
 
-    /// 第一行：名称与徽章同一文本基线
+    /// 第一行：名称 · 级别 · 形象认证 / 会员图标
     private var nameBadgesRow: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(trust.name)
-
-            if trust.isVerified {
-                Image(systemName: "checkmark.seal.fill")
-                    .foregroundStyle(.tint)
-                    .symbolRenderingMode(.hierarchical)
-                    .accessibilityLabel("已认证")
-            }
-            if trust.isMember {
-                Image(systemName: "crown.fill")
-                    .foregroundStyle(.secondary)
-                    .symbolRenderingMode(.hierarchical)
-                    .accessibilityLabel("会员")
-            }
             Text(trust.levelText)
                 .foregroundStyle(.secondary)
                 .accessibilityLabel("等级 \(trust.level)")
+            if trust.isVerified {
+                Image(systemName: TrustBadgeKind.photoVerified.systemImage)
+                    .foregroundStyle(.tint)
+                    .symbolRenderingMode(.hierarchical)
+                    .accessibilityLabel(TrustBadgeKind.photoVerified.title)
+            }
+            if trust.isMember {
+                Image(systemName: TrustBadgeKind.activeMember.systemImage)
+                    .foregroundStyle(.secondary)
+                    .symbolRenderingMode(.hierarchical)
+                    .accessibilityLabel(TrustBadgeKind.activeMember.title)
+            }
         }
         .font(.body)
         .lineLimit(1)
     }
 
-    /// 第二行：单行不换行，避免「场」孤行导致文案块变高、相对头像视觉失中
+    /// 第二行：履约摘要
     private var metricsRow: some View {
         Text(trust.metricsLine)
             .font(.subheadline)
@@ -256,12 +255,11 @@ struct ActivityDetailHostTrustRow: View {
 
     private var accessibilitySummary: String {
         var parts = [trust.name]
-        if trust.isVerified { parts.append("已认证") }
-        if trust.isMember { parts.append("会员") }
         parts.append(trust.levelText)
+        if trust.isVerified { parts.append(TrustBadgeKind.photoVerified.title) }
+        if trust.isMember { parts.append(TrustBadgeKind.activeMember.title) }
         parts.append(trust.hostedText)
         parts.append(trust.completionText)
-        parts.append("评分 \(trust.ratingText)")
         return parts.joined(separator: "，")
     }
 }
@@ -745,8 +743,8 @@ struct ActivityDetailRelatedCircleRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .center) {
-            NavigationLink(value: circle) {
+        NavigationLink(value: circle) {
+            HStack(alignment: .center, spacing: PlatformConversationListRow.imageToTextPadding) {
                 Image(systemName: circle.systemImage)
                     .font(.title2)
                     .platformContentSymbolStyle()
@@ -755,13 +753,9 @@ struct ActivityDetailRelatedCircleRow: View {
                         height: dynamicTypeSize.listAvatarSide
                     )
                     .background(Color.accentColor.opacity(0.14), in: Circle())
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(ActivityDetailCopy.relatedCircleJoin)
+                    .accessibilityHidden(true)
 
-            NavigationLink(value: circle) {
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
                     Text(circle.name)
                         .font(.body)
                         .foregroundStyle(.primary)
@@ -773,10 +767,8 @@ struct ActivityDetailRelatedCircleRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
-            .navigationLinkIndicatorVisibility(.hidden)
-            .accessibilityLabel("\(circle.name)，\(subtitle)")
         }
+        .accessibilityLabel("\(circle.name)，\(subtitle)")
     }
 }
 

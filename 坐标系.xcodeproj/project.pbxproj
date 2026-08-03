@@ -351,9 +351,10 @@
 				INFOPLIST_FILE = "坐标系/Info.plist";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "用于把已报名的活动写入系统日历";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "用于把已报名的活动写入系统日历";
-				INFOPLIST_KEY_NSCameraUsageDescription = "用于扫一扫识别搭子或活动群二维码（后续版本）";
+				INFOPLIST_KEY_NSCameraUsageDescription = "用于形象认证自拍，以及后续扫一扫识别搭子或活动群二维码";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "用于展示本地天气、计算活动距离与附近推荐";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于发起活动封面、头像与社区分享时选择图片";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "请放心，坐标系无法获取你在其他应用内的隐私。开启权限仅用于更优质、安全的个性化服务与内容推荐；开启后可在系统「设置 → 隐私与安全性」中随时关闭。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -391,9 +392,10 @@
 				INFOPLIST_FILE = "坐标系/Info.plist";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "用于把已报名的活动写入系统日历";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "用于把已报名的活动写入系统日历";
-				INFOPLIST_KEY_NSCameraUsageDescription = "用于扫一扫识别搭子或活动群二维码（后续版本）";
+				INFOPLIST_KEY_NSCameraUsageDescription = "用于形象认证自拍，以及后续扫一扫识别搭子或活动群二维码";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "用于展示本地天气、计算活动距离与附近推荐";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用于发起活动封面、头像与社区分享时选择图片";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "请放心，坐标系无法获取你在其他应用内的隐私。开启权限仅用于更优质、安全的个性化服务与内容推荐；开启后可在系统「设置 → 隐私与安全性」中随时关闭。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
