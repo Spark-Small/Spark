@@ -15,6 +15,11 @@ struct BuddyFilterSheet: View {
     var needsLocationPermission: Bool
     var onUseSystemLocation: () -> Void
     var onOpenSettings: () -> Void
+    /// 当前页的排序（免费为人列表排序，预约为此价排序）
+    var peopleSort: BuddyPeopleSort = .recommended
+    var bookingSort: BuddyBookingSort = .recommended
+    var onPeopleSortChange: ((BuddyPeopleSort) -> Void)?
+    var onBookingSortChange: ((BuddyBookingSort) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var path = NavigationPath()
@@ -25,6 +30,9 @@ struct BuddyFilterSheet: View {
     @State private var draftAvailableOnly = false
     @State private var draftUsesSystemLocation = true
     @State private var draftSelectedCityID = BuddyCityCatalog.default.id
+    @State private var draftPeopleSort: BuddyPeopleSort = .recommended
+    @State private var draftBookingSort: BuddyBookingSort = .recommended
+    @State private var draftServiceType: CompanionServiceType?
 
     private var draftCity: BuddyCityChoice {
         BuddyCityCatalog.city(id: draftSelectedCityID) ?? BuddyCityCatalog.default
@@ -45,7 +53,11 @@ struct BuddyFilterSheet: View {
                 genderSection
                 distanceSection
                 hobbySection
-                availabilitySection
+                if filter.kind == .paid {
+                    serviceTypeSection
+                    availabilitySection
+                }
+                sortSection
             }
             .navigationTitle("筛选")
             .navigationBarTitleDisplayMode(.inline)
@@ -149,11 +161,11 @@ struct BuddyFilterSheet: View {
                 if let symbol {
                     Text(symbol)
                         .foregroundStyle(value?.tint ?? .primary)
-                        .frame(width: 28, alignment: .center)
+                        .frame(width: PlatformMetrics.seeAllRankColumnWidth, alignment: .center)
                 } else {
                     Image(systemName: "infinity")
                         .foregroundStyle(.secondary)
-                        .frame(width: 28, alignment: .center)
+                        .frame(width: PlatformMetrics.seeAllRankColumnWidth, alignment: .center)
                 }
                 Text(title)
                     .foregroundStyle(.primary)
@@ -196,7 +208,7 @@ struct BuddyFilterSheet: View {
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, PlatformMetrics.captionBadgePaddingVertical)
         } header: {
             Text("距离")
         } footer: {
@@ -223,6 +235,39 @@ struct BuddyFilterSheet: View {
         } footer: {
             Text("点进去选择一项兴趣；列表含全部可选标签。")
         }
+    }
+
+    private var serviceTypeSection: some View {
+        Section {
+            serviceTypeRow(nil, title: BuddyPaidBrowseCopy.serviceTypeAll, systemImage: "square.grid.2x2")
+            ForEach(CompanionServiceType.allCases) { type in
+                serviceTypeRow(type, title: type.rawValue, systemImage: type.systemImage)
+            }
+        } header: {
+            Text(BuddyPaidBrowseCopy.filterServiceTypeTitle)
+        } footer: {
+            Text(BuddyPaidBrowseCopy.filterServiceTypeFooter)
+        }
+    }
+
+    private func serviceTypeRow(_ value: CompanionServiceType?, title: String, systemImage: String) -> some View {
+        let selected = draftServiceType == value
+        return Button {
+            draftServiceType = value
+        } label: {
+            HStack {
+                Label(title, systemImage: systemImage)
+                    .platformContentSymbolStyle()
+                    .foregroundStyle(.primary)
+                Spacer()
+                if selected {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(.tint)
+                }
+            }
+        }
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private var availabilitySection: some View {
@@ -254,6 +299,72 @@ struct BuddyFilterSheet: View {
         }
         .accessibilityLabel(title)
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private var sortSection: some View {
+        let isPaid = filter.kind == .paid
+        return Section {
+            if isPaid {
+                ForEach(BuddyBookingSort.allCases) { option in
+                    sortRow(
+                        title: option.rawValue,
+                        systemImage: bookingSortSymbol(option),
+                        selected: draftBookingSort == option
+                    ) {
+                        draftBookingSort = option
+                    }
+                }
+            } else {
+                ForEach(BuddyPeopleSort.allCases) { option in
+                    sortRow(
+                        title: option.rawValue,
+                        systemImage: peopleSortSymbol(option),
+                        selected: draftPeopleSort == option
+                    ) {
+                        draftPeopleSort = option
+                    }
+                }
+            }
+        } header: {
+            Text("排序")
+        } footer: {
+            Text(isPaid
+                ? "比价排序：推荐优先认证与可约；价格从低到高；最早可约按档期排序。"
+                : "推荐优先意图重合与活跃度；附近按距离；刚活跃按最近在线时间。")
+        }
+    }
+
+    private func sortRow(title: String, systemImage: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Label(title, systemImage: systemImage)
+                    .platformContentSymbolStyle()
+                    .foregroundStyle(.primary)
+                Spacer()
+                if selected {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(.tint)
+                }
+            }
+        }
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private func peopleSortSymbol(_ sort: BuddyPeopleSort) -> String {
+        switch sort {
+        case .recommended: "sparkles"
+        case .nearby: "location"
+        case .active: "bolt"
+        }
+    }
+
+    private func bookingSortSymbol(_ sort: BuddyBookingSort) -> String {
+        switch sort {
+        case .recommended: "sparkles"
+        case .price: "tag"
+        case .earliest: "calendar"
+        }
     }
 
     // MARK: - Drill-in lists
@@ -369,6 +480,9 @@ struct BuddyFilterSheet: View {
         draftAvailableOnly = filter.availableOnly
         draftUsesSystemLocation = usesSystemLocation
         draftSelectedCityID = selectedCityID
+        draftPeopleSort = peopleSort
+        draftBookingSort = bookingSort
+        draftServiceType = filter.serviceType
     }
 
     private func resetDraft() {
@@ -378,6 +492,9 @@ struct BuddyFilterSheet: View {
         draftAvailableOnly = false
         draftUsesSystemLocation = true
         draftSelectedCityID = BuddyCityCatalog.default.id
+        draftPeopleSort = .recommended
+        draftBookingSort = .recommended
+        draftServiceType = nil
         path = NavigationPath()
     }
 
@@ -386,10 +503,17 @@ struct BuddyFilterSheet: View {
         filter.maxDistanceKM = draftMaxDistanceKM
         filter.hobby = draftHobby
         filter.availableOnly = draftAvailableOnly
+        filter.serviceType = draftServiceType
         usesSystemLocation = draftUsesSystemLocation
         selectedCityID = draftSelectedCityID
         if draftUsesSystemLocation {
             onUseSystemLocation()
+        }
+        if draftPeopleSort != peopleSort {
+            onPeopleSortChange?(draftPeopleSort)
+        }
+        if draftBookingSort != bookingSort {
+            onBookingSortChange?(draftBookingSort)
         }
     }
 

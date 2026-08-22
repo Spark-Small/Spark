@@ -2,7 +2,7 @@
 //  BuddyMemberCopy.swift
 //  坐标系
 //
-//  组织 / 工会成员轻量卡、成员列表、语音厅麦位文案。
+//  圈子 / 工会成员轻量卡、成员列表、语音厅麦位文案。
 //
 
 import Foundation
@@ -43,7 +43,7 @@ nonisolated enum BuddyMemberCopy {
 
     static func memberCount(_ count: Int) -> String { "共 \(count) 人" }
 
-    static func circleSource(name: String) -> String { "同在组织「\(name)」" }
+    static func circleSource(name: String) -> String { "同在圈子「\(name)」" }
 
     static func guildSource(name: String) -> String { "来自工会「\(name)」" }
 
@@ -93,6 +93,15 @@ struct BuddyMemberProfileTarget: Identifiable, Hashable {
     let item: DiscoverBuddyItem
     var source: BuddyProfileSource
     var role: String
+    /// 从圈子 / 工会群进入时携带的本群昵称
+    var groupAlias: String? = nil
 
     var id: UUID { item.id }
+
+    var profileDisplayName: String {
+        GroupNicknameDisplay.formatted(
+            realName: item.profile.nickname,
+            groupAlias: groupAlias
+        )
+    }
 }

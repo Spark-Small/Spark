@@ -58,7 +58,7 @@
 | **发现货架**（Hero、竖大卡、横滑轨、海报、焦点卡） | Design 组件 + `PlatformMetrics` 中系统读不到的几何（宽高比、轨可见比、货架节奏） | 调用 `HeroMediaCard` / `PlatformCatalog*` / `DiscoverBrowseLayout` 等；**不**在业务里写裸 `0.88`、`16/9`、卡片 padding |
 | **控件**（CTA、筛选 chip、顶栏 glass） | 系统 `ButtonStyle` + `controlSize` + `buttonBorderShape` | 选风格与尺寸档，不自算芯片内外边距 |
 | **消息** | 系统 `List` / glass + `PlatformMessagesChrome` | 顶栏：**左**通讯录；**右**加号菜单（发起聊天等）。好友与群聊同一列表；好友请求在通讯录右上角。发起聊天：选 1 人私聊、多人建群。**禁止**品牌皮肤 |
-| **搭子** | 情境活动卡 + 兴趣话题 + 状态人卡；陪玩中段语音厅 | 默认同好；筛选 Sheet；右上「陪玩」；同好：情境→话题→人→组织；陪玩：可预约→语音厅→更多；邀约/预约本地闭环；信任见 `Docs/TrustBehaviorModel.md` |
+| **搭子** | 找人玩：免费 / 预约 | 人优先；搜索即意图；Discover 分区节奏；方案 `Docs/BuddiesProductPlan.md` |
 
 **`PlatformMetrics` 的正确角色：**
 
@@ -201,7 +201,7 @@
 | 发现 · 有精选 | `.ignoresSafeArea(edges: .top)`，玻璃顶栏浮在媒体上 |
 | 发现 · 无精选 | 遵守顶部安全区 |
 | 详情 | **遵守**顶栏安全区；头图 `detailHeroTopInset = 0`；`.contentMargins(.top, 0)` 去掉 Form 多余顶距 |
-| 底栏参加区 | `safeAreaInset(edge: .bottom)`，按钮自行 padding，无整条 `.bar` |
+| 底栏参加区 | iOS 26 `.safeAreaBar(edge: .bottom)`，可随 Tab 下滑收纳；按钮自行 padding，无整条自定义 `.bar` |
 
 ## 4.3 页面边距
 
@@ -238,19 +238,20 @@
 
 ## 5.1 根结构
 
-- `TabView` + 五 Tab：活动 / 搭子 / 社区 / 消息 / 我的  
-- `.tabBarMinimizeBehavior(.onScrollDown)`（下滑收纳）  
-- 各 Tab 内 `NavigationStack`
+- `TabView(selection:)` + `Tab(_:systemImage:value:)`：活动 / 搭子 / 社区 / 消息 / 我的  
+- `.tabBarMinimizeBehavior(.onScrollDown)`（一级页下滑收纳，WWDC25）  
+- 各 Tab 内 `NavigationStack`  
+- Tab Bar 显隐（官方 `toolbarVisibility`）：只在被推入页 `.hidden`（`.tabPushDestination`）。根页不写显隐。不要写在 Sheet 上，不要在根页按 path 开关
 
 ## 5.2 Title 模式
 
 | 页面 | `navigationBarTitleDisplayMode` |
 |------|----------------------------------|
 | 活动发现 | `.inline`（Photos 式中间胶囊，不用 Large Title 抢 Hero） |
-| 搭子选人 | `.inline`（「筛选」· 右侧「陪玩」；无穿顶 Hero） |
+| 搭子选人 | `.inline`（「筛选」· 中间「免费 \| 预约」·「我的预约」） |
 | 消息收件箱 | `.inline`（左通讯录 · 右加号；好友与群聊同列表） |
 | 社区 Feed | `.inline`（左更多：收藏 / 赞过 / 我的分享 / 转发 / 公约 · 右发分享） |
-| 活动详情 | 无大标题；工具栏 glass 操作 |
+| 活动详情 | `.inline`（滚动后顶栏显示活动名；工具栏 glass 操作） |
 | Sheet / 二级列表 | `.inline` |
 | 需要层级列表且无 Hero 时 | 可用 `.large`（非活动发现默认） |
 
@@ -267,18 +268,13 @@
 
 **搭子选人顶栏**
 
-- Leading：系统文字按钮「筛选」（地区 / 性别 / 距离 / 兴趣 / 可约，同一 Form Sheet；有条件时 symbol fill）  
-- Principal：无（默认同好；陪玩态由右侧按钮选中表达）  
-- Trailing：单个文字按钮「陪玩」（点按进入陪玩，再点返回同好；选中时 semibold）  
-- **一页一事**：同好页 = 情境找局 + 选人 + 组织；陪玩页 = 预约 + 语音厅  
-- **同好页**：情境活动卡（`PlatformContinueCard`）→ 兴趣话题 chips → 双列状态人卡 → 兴趣组织  
-- **陪玩页**：可预约双列 → 语音厅频道卡（Discord 感，中段）→ 更多陪玩  
-- **人卡**：照片叠距离 / 共同兴趣；底部一句状态（`lookingFor` / 活跃）；同好无卡内 CTA，陪玩保留邀约  
-- **邀约闭环（本地演示）**：绑活动发出 → `pending` 待回执 → 模拟接受/婉拒 → 邀请记录可「进群」  
-- **预约闭环（本地演示）**：点选档期 → `pendingConfirm` 待接单 → `awaitingPayment` 可支付 → 支付后私聊；拒单为 `cancelled`  
-- **信任**：详情 Form 挂 `TrustPublicProfileSections`（徽章 + 履约事实，无人对人星评）；「⋯」含不感兴趣 / 举报 / 拉黑；陪玩可有「平台认证」角标；底栏打招呼 + 邀约/预约（`activityDetailBottom*CTA`）。模型见 `Docs/TrustBehaviorModel.md`  
-- **详情分区**：头图（3:4）→（可选）来源行 → 身份决策 → 资料信任行 → 基本资料 → 关于/服务 → 共同兴趣 → 组织 → 档期 → 信任档案 → 相关活动横滑轨  
-- **成员入口**：组织 / 工会头像、语音厅麦位 → 半屏 `BuddyMemberProfileSheet`（`.confirm`，不 Zoom）；「查看全部」→ `BuddyMemberListSheet`（`.browser`）；完整资料经视图式 `NavigationLink` 推入并带 `BuddyProfileSource`  
+- Leading：圆形 glass 筛选（`platformToolbarCircleStyle`）  
+- Principal：系统 **segmented**「免费 \| 预约」  
+- Trailing：圆形 glass「我的预约」+ 系统 `.badge`  
+- **预约**：「搭子·陪玩」品牌头 + 意图四入口 + Hero 匹配 + 热门轨 + 快捷三卡 + 擅长分类 + 排行榜 + 更多服务者；语音厅殿后
+- 搜索：系统 `.searchable`；排序：`PlatformFilterChipBar`
+- **免费**：「搭子·同好」头 +「为你精选」横滑 ≤4 +「更多附近」双列墙；附近/活跃平铺
+- 陪玩详情：分段「服务 / 资料 / 评价」；底栏私信 + 快速下单
 
 **我的顶栏与身份区**
 
@@ -315,7 +311,7 @@ Source(PassSourceFactory)
 
 - 一级内容库：我的活动 / 我的发布 / 我的圈子 / 我的陪玩预约卡片轨；**不含收藏聚合**
 - 收藏分域：社区分享 → 社区左上角 Menu「收藏的分享」；活动 → 活动页「更多」→「收藏的活动」
-- 根页用 `platformTabBarHiddenWhenPushed(path.isEmpty)`；推入任一二级页后隐藏 Tab Bar
+- 栈内 push 用 `.tabPushDestination`（目的地 `.toolbarVisibility(.hidden, for: .tabBar)`）。根页不写显隐。Sheet 不要改 Tab 显隐
 - Accessibility Dynamic Type：圈子海报卡可切图下堆叠；活动 / 陪玩 / 发布凭证以票面叠字为主（`ProfileCredentialCards`）
 
 **详情顶栏**
@@ -323,8 +319,7 @@ Source(PassSourceFactory)
 - `.toolbarBackground(.hidden, for: .navigationBar)`  
 - Trailing：`GlassIconMenu`（分享/更多）；搭子详情为系统 `Menu`（不感兴趣 / 举报 / 拉黑）  
 - Zoom cover 预览态可有关闭钮  
-- 隐藏 Tab Bar：`.platformSecondaryPage()`（封装 `.toolbar(.hidden, for: .tabBar)`）  
-- 有 `NavigationPath` 的 Tab 根页：`.platformTabBarHiddenWhenPushed(path.isEmpty)`
+- Tab Bar：一级页可见（根页不写显隐）；栈内 push 用 `.tabPushDestination`（`.toolbarVisibility(.hidden, for: .tabBar)`）。不要写在 Sheet 上，不要在根页按 path 开关
 
 ## 5.4 Back Button
 
@@ -337,9 +332,9 @@ Source(PassSourceFactory)
 
 `NavigationLink(value:)` + `matchedTransitionSource` + `navigationTransition(.zoom)`  
 
-封装：`ActivityZoomNavigationLink` / `activityZoomNavigationDestination`；搭子选人：`BuddyZoomNavigationLink` / `buddyZoomNavigationDestination`；组织：`circleDetailNavigationDestination`。
+封装：`ActivityZoomNavigationLink` / `activityZoomNavigationDestination`；搭子选人：`BuddyZoomNavigationLink` / `buddyZoomNavigationDestination`；圈子：`TabNavigationState` + `circleBrowseNavigationDestination` + `CircleMemberNavigationLink`。
 
-同一栈内同类型 `navigationDestination` 只保留栈根一份；二级页用 `…IfNeeded` / `circleDetailNavigationDestination`（Environment 判断已注册则跳过）。**Sheet 会继承呈现方 Environment**：自带 `NavigationStack` 的 Sheet 若要值跳组织 / 活动 Zoom / 搭子，须确认不会误继承「已注册」标记（见 `.cursor/rules/navigation-destination.mdc`）。
+同一栈内同类型 `navigationDestination` 只保留栈根一份（Environment `hasCircleBrowseDestination` 等判断已注册则跳过）。Sheet 用 `independentNavigationSheetChrome` 清掉继承标记（见 `.cursor/rules/navigation-destination.mdc`）。
 
 活动 Zoom 源 id 用 `ActivityZoomSource`（`activityID` + `slot` + `intent`），同一活动在多货架中不得撞号；用 `activityZoomSlot(_:)` 分槽。`intent`：`.browseDetail`（默认）→ 完整详情；`.participantPass`（「我的」长条凭证）→ `ActivityCredentialExpandedView` 展开完整票面。
 
@@ -361,16 +356,17 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
 | **Wallet Pass Face** | 展开态履约票面 | 3:4 | poster | 头图认票 + 长条凭证码 + 地点/系统 glass 导航；安排/细则在票面下 Form；Wallet 在右上角 |
 | **Profile Circle Poster** | 「我的圈子」预览 | 2:3 竖海报 | poster | `ProfileLibraryShelfCard`；圈子卡不显示「已加入」 |
 | **Editorial 焦点** | 焦点大卡 | 4:5 | 24 | 轨宽 ~0.88 |
-| **Person 搭子** | 双列状态人卡 | 网格 3:4 | discover | 无穿顶 Hero；叠距离/兴趣；一句状态；默认同好 / 右上「陪玩」 |
-| **Situation 情境** | 活动横卡轨 | 16:9 | continue | 同好首幕；`PlatformContinueCard`；兴趣重合优先 |
-| **Topic 话题** | 兴趣 chips | — | chip | `BuddyHobbyOption` ↔ `filter.hobby` |
-| **Circle 组织** | 同好末幕 | 3:4 | poster | 轨宽 ~0.36；加入=进组织群；次于选人 |
-| **Voice 语音厅** | 陪玩中段频道卡 | 横卡 ~0.86 | continue | Discord 感：厅名·麦位·在听·进厅 |
+| **Person 找人** | 双列照片卡 + 精选轨 | 3:4 | people | 精选 ≤4 横滑；`BuddyPickRail` / `BuddyGridCard` |
+| **Booking 预约** | 市场货架 + 排行 | 轨 / 榜行 | service | `BuddyPaidMarketViews` + `BuddyServiceCard` |
+| **Browse 顶栏** | 想找+搜索+排序 | — | browse | 压缩首屏；`BuddyPeopleBrowseHeader` |
+| **Catalog 预约顶** | 搜索+比价排序 | — | catalog | `BuddyBookingCatalogHeader` |
+| **Circle 圈子** | 免费末幕 | 3:4 | poster | 次于选人 |
+| **Voice 语音厅** | 预约列表后 | 横卡 | continue | 试水再预约 |
 | **Detail Hero** | 详情头图 | 3:4 | card（圆角卡） | 安全区下；天气胶囊；相册控件 |
-| **Detail Related** | 相关活动轨 | 16:9 横卡 | rail | Form 内横滑；露邻卡；非 List 行 |
+| **Detail Related** | 相关活动推荐 | 16:9 横卡 | rail | Form header + 横滑轨；`PlatformEventCard`；footer 说明推荐逻辑 |
 | **Compose Cover** | 发布封面 | 高 160 | media | Sheet 表单内 |
 
-活动紧凑横卡统一使用 `PlatformActivityCompactCard`：组件只负责 16:9 媒体、状态角标、两行标题、单行 meta 与 Dynamic Type；导航、Zoom 和轨宽由调用层负责。
+活动紧凑横卡统一使用 `PlatformEventCard`（发现页「快被约满」同构）：16:9 媒体、状态角标、标题/时间/meta 与右下角参加 CTA；导航、Zoom 和轨宽由调用层负责。详情相关活动见 `DetailRelatedActivitiesRail` + 调用方 Section header。
 
 ## 6.2 卡内布局通则
 
@@ -549,7 +545,7 @@ Sheet 档位：
    - **默认** `.hierarchical` — Toolbar、glass、次要 meta、占位图  
    - **状态** `.monochrome` + `PlatformStatus` — 成功 / 警告 / 危险 / 点赞激活  
    - **角标** `.palette` — 媒体删除钮、已发送勾等双层符号  
-   - **多色** `.multicolor` — 设置入口、筛选条件、分类 / 组织内容图标、公约列表  
+   - **多色** `.multicolor` — 设置入口、筛选条件、分类 / 圈子内容图标、公约列表  
 3. **勿强制彩色**：Tab Bar、Toolbar Menu、Navigation chevron、破坏性 `role`、系统选中 tint。  
 4. 与文字并排：优先 `Label`；列表行主操作除外。  
 5. 权重跟随正文 Dynamic Type，不写死 pointSize（列表标准头像位图除外）。  
@@ -633,8 +629,9 @@ Form
 ├─ Section 发起人（header「发起人」）
 ├─ Section* 行程 / 费用 / 装备 / 须知（按 blueprint 排序）
 ├─ [可选] 管理 / 订单
+├─ [已参加] Section 活动凭证（订单区下方）
 ├─ Section 活动讨论（转场后再挂）
-└─ Section 相关活动（横滑轨，视图式推入）
+└─ Section 相关活动（横滑轨贴边；header 同参加须知）
 + safeAreaInset 底栏 CTA
 + toolbar glass
 + listSectionSpacing(.compact)
@@ -652,7 +649,7 @@ Form
 | 成员/订单/支付 | `.browser` | List/Form；成员轻量卡与「全部成员」同档 |
 | 参加成功 | `.confirm` | 短栈 |
 | 举报活动 | `.form` | 原因 + 情况说明 + 证明材料；提交后 Alert 收尾确认 |
-| 导航 App | `confirmationDialog` | Apple / 高德 / 百度等离散动作 |
+| 导航 App | `.navigationPicker` | inset List；`LabeledContent` 活动地址 + 地图 App 行；系统 `.medium` 单档 |
 | 分享活动 | `PlatformShareSheet` | 系统 `UIActivityViewController` 的 SwiftUI 桥接；iPhone 从底部呈现 |
 
 ## 12.4 Alert / Confirmation Dialog
@@ -665,10 +662,9 @@ Form
 | 需理解后果的多结果决策 | `.alert` | 如「仅取消 / 取消并退款」；按钮角色明确 |
 | 退出登录 / 注销账号 | `.alert` | 设置页账号后果确认；破坏动作 `.destructive`，必须有 `.cancel` |
 | 删除预约记录 / 取消预约 | `.alert` | 陪玩订单详情后果确认；破坏动作 `.destructive`，必须有 `.cancel` |
-| 退出组织 / 用户举报 / 拉黑 / 删除会话 | `.alert` | 后果确认或选择举报原因；破坏动作 `.destructive`，必须有 `.cancel` |
+| 退出圈子 / 用户举报 / 拉黑 / 删除会话 | `.alert` | 后果确认或选择举报原因；破坏动作 `.destructive`，必须有 `.cancel` |
 | 活动举报受理收尾 | `.alert` | Sheet 提交材料后弹出「已收到反馈」；单一「好的」 |
 | 菜单触发的移出群聊 | `.confirmationDialog` | `titleVisibility: .visible`；破坏动作必须 `.destructive`，必须有 `.cancel` |
-| 离散动作选择 | `.confirmationDialog` | 如选择导航 App；不使用 Form Sheet |
 | 有输入、摘要、支付或下一步 | `.platformSheet(.confirm/.form/.browser)` | 不压缩为 Alert/Dialog |
 | 非阻塞成功反馈 | `platformTransientFeedback` | 触觉 + VoiceOver；不弹成功 Alert |
 
@@ -691,7 +687,7 @@ Form
 | Zoom | `Design/ActivityZoomNavigation.swift`、`Features/Buddies/BuddyZoomNavigation.swift` |
 | Sheet | `Design/PlatformSheet.swift` |
 | 发现页 | `Features/Activities/ActivitiesView.swift` |
-| 搭子选人 | `Features/Buddies/BuddiesView.swift`、`BuddyBrowseShelves.swift`、`BuddyGridCard.swift`、`BuddyPosterShelfCard.swift`、`BuddyOrgInfoViews.swift`、`BuddyMemberProfileSheet.swift`、`BuddyMemberListSheet.swift`、`BuddyMemberCopy.swift`、`BuddyVoiceHallViews.swift`、`BuddiesModeSwitch.swift`、`BuddyFilterSheet.swift`、`BuddyBookingSheet.swift`、`BuddyScheduleSlot.swift`、`BuddyCityCatalog.swift` |
+| 搭子选人 | `Features/Buddies/BuddiesView.swift`、`BuddyBrowseShelves.swift`、`BuddyPaidMarketViews.swift`、`BuddyLobbyCard.swift`、`BuddyGridCard.swift`、`BuddyPosterShelfCard.swift`、`BuddyOrgInfoViews.swift`、`BuddyMemberProfileSheet.swift`、`BuddyMemberListSheet.swift`、`BuddyMemberCopy.swift`、`BuddyVoiceHallViews.swift`、`BuddiesModeSwitch.swift`、`BuddyFilterSheet.swift`、`BuddyBookingSheet.swift`、`BuddyScheduleSlot.swift`、`BuddyCityCatalog.swift` |
 | 详情 | `Features/Activities/ActivityDetailView.swift`、`ActivityDetailSections.swift` |
 | Tab 折叠 | `ContentView.swift` |
 

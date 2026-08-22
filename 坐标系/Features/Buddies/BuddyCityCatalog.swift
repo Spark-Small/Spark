@@ -19,7 +19,7 @@ struct BuddyCityChoice: Identifiable, Hashable {
     /// 完整省 · 市
     var menuTitle: String { "\(province) · \(city)" }
 
-    /// 与种子数据 `profile.city` / 组织城市匹配
+    /// 与种子数据 `profile.city` / 圈子城市匹配
     func matches(locationText: String) -> Bool {
         locationText.localizedCaseInsensitiveContains(city)
             || locationText.localizedCaseInsensitiveContains(province)

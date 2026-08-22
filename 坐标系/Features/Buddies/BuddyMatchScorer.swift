@@ -62,6 +62,55 @@ enum BuddyMatchScorer {
         }
         return "\(cardHobbyLine(for: profile)) · \(profile.availability)"
     }
+
+    /// 列表「为什么推给你」：搜索意图契合 · 共同兴趣 · 距离 · 活跃
+    static func browseReason(
+        for profile: BuddyProfile,
+        isOnline: Bool = false,
+        intentQuery: String = ""
+    ) -> String {
+        var parts: [String] = []
+        let intent = intentQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !intent.isEmpty, profile.matchesQuery(intent) {
+            parts.append("契合搜索")
+        }
+        let shared = sharedHobbies(with: profile)
+        if !shared.isEmpty {
+            parts.append("共同 \(shared.prefix(2).joined(separator: "·"))")
+        } else if !profile.tags.isEmpty {
+            parts.append(profile.tags.prefix(2).joined(separator: "·"))
+        }
+        if PrivacyPreferences.showDistance {
+            parts.append(profile.distanceText)
+        }
+        if isOnline, PrivacyPreferences.showOnline {
+            parts.append("在线")
+        } else if !profile.lastActiveText.isEmpty {
+            parts.append(profile.lastActiveText)
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// 是否与当前搜索意图重合（卡面角标）
+    static func matchesIntent(_ profile: BuddyProfile, query: String) -> Bool {
+        let intent = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !intent.isEmpty else { return false }
+        return profile.matchesQuery(intent)
+    }
+
+    /// 打招呼带上对方意图或共同兴趣，避免空话
+    static func greetMessage(for profile: BuddyProfile) -> String {
+        let looking = profile.lookingFor.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !looking.isEmpty {
+            return "你好，看到你想「\(looking)」，我也想一起，方便聊聊吗？"
+        }
+        let shared = sharedHobbies(with: profile)
+        if !shared.isEmpty {
+            let hobbies = shared.prefix(2).joined(separator: "、")
+            return "你好，看到我们都喜欢\(hobbies)，想一起玩吗？"
+        }
+        return "你好，想一起玩吗？"
+    }
 }
 
 extension BuddyProfile {
@@ -72,8 +121,22 @@ extension BuddyProfile {
            !tags.contains(where: { $0.localizedCaseInsensitiveContains(hobby) }) {
             return false
         }
+        let q = filter.query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !q.isEmpty, !matchesQuery(q) { return false }
         if filter.availableOnly, availability.contains("已满") { return false }
         return true
+    }
+
+    func matchesQuery(_ query: String) -> Bool {
+        let haystacks = [nickname, lookingFor, bio, hobbiesText, availability] + tags
+        return haystacks.contains { $0.localizedCaseInsensitiveContains(query) }
+    }
+
+    func matchesKeywords(_ keywords: [String]) -> Bool {
+        let haystacks = [lookingFor, bio, hobbiesText, availability] + tags
+        return keywords.contains { key in
+            haystacks.contains { $0.localizedCaseInsensitiveContains(key) }
+        }
     }
 }
 

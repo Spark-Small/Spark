@@ -6,9 +6,14 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 @main
 struct 坐标系App: App {
+    init() {
+        AppNotificationRouter.shared.install()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

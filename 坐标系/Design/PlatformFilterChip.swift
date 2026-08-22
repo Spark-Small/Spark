@@ -18,7 +18,7 @@ struct PlatformFilterChipButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: PlatformMetrics.detailMicroSpacing) {
                 if let symbolColor {
                     Image(systemName: systemImage)
                         .symbolRenderingMode(.palette)

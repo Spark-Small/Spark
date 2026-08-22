@@ -2,27 +2,40 @@
 //  BuddiesModeSwitch.swift
 //  坐标系
 //
-//  顶栏右侧：单个「陪玩」文字按钮；默认同好，点按进入陪玩，再点返回。
+//  顶栏右侧：搭子 / 陪玩单图标切换 + 筛选。
 //
 
 import SwiftUI
 
-/// 默认同好；右侧仅「陪玩」文字开关
+enum BuddiesCopy {
+    static let rootTitle = "搭子"
+}
+
 struct BuddiesModeSwitchToolbar: ToolbarContent {
     @Binding var kind: BuddyKind
-
-    private var isPaid: Bool { kind == .paid }
+    var hasActiveFilters: Bool
+    var filterAccessibilityValue: String
+    var onFilter: () -> Void
 
     var body: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            Button("陪玩") {
-                kind = isPaid ? .free : .paid
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button {
+                kind = kind == .paid ? .free : .paid
+            } label: {
+                Image(systemName: "arrow.left.arrow.right")
             }
-            .fontWeight(isPaid ? .semibold : .regular)
-            .accessibilityLabel("陪玩")
-            .accessibilityValue(isPaid ? "已打开" : "未打开")
-            .accessibilityHint(isPaid ? "再点一次返回同好" : "切换到陪玩")
-            .accessibilityAddTraits(isPaid ? .isSelected : [])
+            .accessibilityLabel(kind == .paid ? "陪玩" : "搭子")
+            .accessibilityHint(kind == .paid ? "切换到搭子" : "切换到陪玩")
+
+            Button(
+                hasActiveFilters ? "筛选（已启用）" : "筛选",
+                systemImage: "slider.horizontal.3"
+            ) {
+                onFilter()
+            }
+            .symbolVariant(hasActiveFilters ? .fill : .none)
+            .accessibilityHint("打开筛选：地区、性别、距离、兴趣")
+            .accessibilityValue(filterAccessibilityValue)
         }
     }
 }
@@ -32,8 +45,16 @@ struct BuddiesModeSwitchToolbar: ToolbarContent {
         @State private var kind = BuddyKind.free
         var body: some View {
             NavigationStack {
-                Text(kind == .paid ? "陪玩" : "同好")
-                    .toolbar { BuddiesModeSwitchToolbar(kind: $kind) }
+                Text(kind == .paid ? "陪玩" : "搭子")
+                    .platformTabRootScrollChrome(title: BuddiesCopy.rootTitle)
+                    .platformTabRootToolbar {
+                        BuddiesModeSwitchToolbar(
+                            kind: $kind,
+                            hasActiveFilters: false,
+                            filterAccessibilityValue: "上海",
+                            onFilter: {}
+                        )
+                    }
             }
         }
     }

@@ -38,12 +38,12 @@ struct ActivityHostManageView: View {
         }
         .navigationTitle(ActivityDetailCopy.hostManageTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
         .sheet(isPresented: $showContentEditor) {
             if let live {
                 ActivityDetailContentEditorSheet(activity: live) {
                     contentRevision += 1
                 }
+                .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
         .alert(

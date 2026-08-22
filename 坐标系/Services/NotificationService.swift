@@ -52,6 +52,10 @@ enum NotificationService {
         content.title = "活动即将开始"
         content.body = "「\(title)」约 1 小时后开始，别迟到哦"
         content.sound = .default
+        content.userInfo = [
+            "activityID": activityID.uuidString,
+            "kind": "activity-reminder"
+        ]
 
         let comps = Calendar.current.dateComponents(
             [.year, .month, .day, .hour, .minute],
@@ -104,6 +108,10 @@ enum NotificationService {
         content.title = "陪玩预约提醒"
         content.body = "与 \(companion) 的预约约 30 分钟后开始"
         content.sound = .default
+        content.userInfo = [
+            "bookingID": bookingID.uuidString,
+            "kind": "booking-reminder"
+        ]
 
         let comps = Calendar.current.dateComponents(
             [.year, .month, .day, .hour, .minute],

@@ -9,15 +9,6 @@ import SwiftUI
 
 // MARK: - Booking detail
 
-/// 历史入口：预约管理已并入陪玩凭证页。
-struct BuddyBookingDetailView: View {
-    let recordID: BuddyBookingRecord.ID
-
-    var body: some View {
-        BookingCredentialExpandedView(recordID: recordID)
-    }
-}
-
 func bookingStatusColor(_ status: BookingOrderStatus) -> Color {
     switch status {
     case .pendingConfirm: .orange
@@ -39,6 +30,7 @@ struct BuddyInviteDetailView: View {
     @Environment(MessagesModel.self) private var messages
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
+    @State private var peerContactRoute: PeerContactRoute?
 
     private var record: BuddyInviteRecord? {
         buddies.inviteRecords.first { $0.id == recordID }
@@ -71,10 +63,19 @@ struct BuddyInviteDetailView: View {
                     }
 
                     Section {
-                        Button("发消息", systemImage: "message") {
-                            if let convo = app.startDirectChat(with: record.nickname) {
-                                app.openMessages(conversationID: convo.id)
-                            }
+                        Button {
+                            peerContactRoute = app.openPeerContact(
+                                with: record.nickname,
+                                context: .inviteBuddy(activityTitle: record.activityTitle)
+                            )
+                        } label: {
+                            Label(
+                                app.peerContactActionTitle(
+                                    for: record.nickname,
+                                    context: .inviteBuddy(activityTitle: record.activityTitle)
+                                ),
+                                systemImage: "message"
+                            )
                         }
                         if let activity = relatedActivity {
                             NavigationLink {
@@ -126,7 +127,7 @@ struct BuddyInviteDetailView: View {
         }
         .navigationTitle("邀约详情")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
+        .peerContactDestination(route: $peerContactRoute)
     }
 }
 

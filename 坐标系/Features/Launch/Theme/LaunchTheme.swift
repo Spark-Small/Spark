@@ -12,10 +12,10 @@ enum LaunchSurface {
     static let stage = Color(.systemGroupedBackground)
     /// 邀请函纸面：系统灰，避免纯白卡片感。
     static let invitationPaper = Color(.systemGray6)
-    /// 信封品牌红。
-    static let envelope = Color(red: 0.98, green: 0.10, blue: 0.16)
-    static let envelopeLift = Color(red: 1.00, green: 0.28, blue: 0.31)
-    static let envelopeDeep = Color(red: 0.96, green: 0.07, blue: 0.13)
+    /// 信封品牌红（与 AppIcon.icon 渐变一致，Display P3）。
+    static let envelope = Color(.displayP3, red: 0.914, green: 0.276, blue: 0.338)
+    static let envelopeLift = Color(.displayP3, red: 0.917, green: 0.352, blue: 0.448)
+    static let envelopeDeep = Color(.displayP3, red: 0.910, green: 0.199, blue: 0.228)
 }
 
 enum LaunchGeometry {

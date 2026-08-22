@@ -49,7 +49,7 @@ struct DiscoverSectionTitleRow<Trailing: View>: View {
     private var titleCluster: some View {
         let label = HStack(spacing: PlatformMetrics.sectionChevronSpacing) {
             Text(title)
-                .font(.title2.weight(.bold))
+                .font(.title3.weight(.bold))
                 .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -148,7 +148,7 @@ struct DiscoverHorizontalRail<Content: View>: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: spacing) {
+            LazyHStack(alignment: .top, spacing: spacing) {
                 content()
             }
             .modifier(DiscoverRailSnapLayoutModifier(enabled: !reduceMotion))
@@ -195,5 +195,59 @@ private struct DiscoverRailSnapBehaviorModifier: ViewModifier {
         } else {
             content
         }
+    }
+}
+
+// MARK: - Page chrome
+
+extension View {
+    /// 发现类 ScrollView 页：分组底 + 底 safe inset（与活动 Tab 发现页一致）。
+    func discoverBrowseScrollChrome() -> some View {
+        scrollDismissesKeyboard(.interactively)
+            .scrollEdgeEffectStyle(.soft, for: .top)
+            .background(PlatformSurface.groupedPage)
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: PlatformMetrics.sectionSpacing)
+            }
+    }
+
+    /// 非横滑内容（Hero、竖向列表）：与分区标题 / 横滑轨首卡共用 `contentInset` 对齐线。
+    func discoverBrowseContentInset() -> some View {
+        padding(.horizontal, PlatformMetrics.contentInset)
+    }
+
+    /// 发现页主列：分区之间统一 `sectionSpacing`，左对齐撑满。
+    func discoverBrowsePageColumn() -> some View {
+        frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, PlatformMetrics.sectionHeaderSpacing)
+            .padding(.bottom, PlatformMetrics.sectionSpacing)
+    }
+}
+
+extension View {
+    /// Form 内相关活动 / 最近浏览横滑轨：负水平 inset，页边交给 `DiscoverHorizontalRail`。
+    func platformFormRelatedRailRow() -> some View {
+        listRowInsets(
+            EdgeInsets(
+                top: PlatformMetrics.sectionHeaderSpacing,
+                leading: -PlatformMetrics.contentInset,
+                bottom: PlatformMetrics.sectionHeaderSpacing,
+                trailing: -PlatformMetrics.contentInset
+            )
+        )
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+    }
+
+    /// Form 内贴边行：与头图 Section 相同，inset 归零（卡片铺满 Section 白框）
+    func platformFormEdgeToEdgeRow() -> some View {
+        listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+    }
+
+    /// Form 内横滑轨贴边（同 `platformFormEdgeToEdgeRow`）
+    func platformFormFullBleedRailRow() -> some View {
+        platformFormEdgeToEdgeRow()
     }
 }

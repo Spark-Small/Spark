@@ -2,19 +2,21 @@
 //  BuddyMemberProfileSheet.swift
 //  坐标系
 //
-//  组织 / 工会 / 语音厅：半屏成员资料卡（系统 Form + confirm detent）。
-//  小圆头像不走 Zoom；完整资料用视图式 NavigationLink 推入。
+//  圈子 / 工会 / 语音厅：半屏成员资料卡（系统 Form + browser detent）。
+//  完整资料走 CircleBrowseRoute.member，与 Tab 栈成员导航一致。
 //
 
 import SwiftUI
 
 struct BuddyMemberProfileSheet: View {
     let target: BuddyMemberProfileTarget
-    var onMessage: (DiscoverBuddyItem) -> Void
     var onBook: ((PaidCompanion) -> Void)? = nil
     var onLeaveMic: (() -> Void)? = nil
 
+    @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
+    @State private var navigation = TabNavigationState()
+    @State private var peerContactRoute: PeerContactRoute?
 
     private var profile: BuddyProfile { target.item.profile }
 
@@ -24,7 +26,9 @@ struct BuddyMemberProfileSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        @Bindable var navigation = navigation
+
+        NavigationStack(path: $navigation.path) {
             Form {
                 Section {
                     header
@@ -49,10 +53,9 @@ struct BuddyMemberProfileSheet: View {
 
                 Section {
                     Button {
-                        onMessage(target.item)
-                        dismiss()
+                        openPeerChat()
                     } label: {
-                        Label(BuddyMemberCopy.message, systemImage: "bubble.left")
+                        Label(contactActionTitle, systemImage: contactActionSymbol)
                             .frame(maxWidth: .infinity)
                     }
                     .fontWeight(.semibold)
@@ -78,9 +81,11 @@ struct BuddyMemberProfileSheet: View {
                 }
 
                 Section {
-                    NavigationLink {
-                        BuddyDetailRouteView(item: target.item, source: target.source)
-                    } label: {
+                    CircleMemberNavigationLink(
+                        item: target.item,
+                        source: target.source,
+                        groupAlias: target.groupAlias
+                    ) {
                         Label(BuddyMemberCopy.openFullProfile, systemImage: "person.crop.circle")
                     }
                 }
@@ -92,7 +97,14 @@ struct BuddyMemberProfileSheet: View {
                     Button(BuddyMemberCopy.done) { dismiss() }
                 }
             }
+            .peerContactDestination(route: $peerContactRoute)
+            .circleMemberSheetNavigationDestination()
         }
+        .tabNavigationState(navigation)
+        .independentNavigationSheetChrome(
+            dismissSheet: { dismiss() },
+            resetMemberSheetDestination: true
+        )
         .platformSheet(.browser)
     }
 
@@ -100,7 +112,7 @@ struct BuddyMemberProfileSheet: View {
         VStack(spacing: PlatformMetrics.cardInfoSpacing) {
             PlatformListAvatarView(name: profile.nickname, side: 72)
 
-            Text(profile.nickname)
+            Text(target.profileDisplayName)
                 .font(.title3.weight(.bold))
                 .multilineTextAlignment(.center)
 
@@ -121,5 +133,25 @@ struct BuddyMemberProfileSheet: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
         .accessibilityElement(children: .combine)
+    }
+
+    private var contactActionTitle: String {
+        app.peerContactActionTitle(
+            for: profile.nickname,
+            context: .forMemberTarget(target)
+        )
+    }
+
+    private var contactActionSymbol: String {
+        app.messages.canStartDirectChat(with: profile.nickname, context: .forMemberTarget(target))
+            ? "bubble.left"
+            : "person.badge.plus"
+    }
+
+    private func openPeerChat() {
+        peerContactRoute = app.openPeerContact(
+            with: profile.nickname,
+            context: .forMemberTarget(target)
+        )
     }
 }

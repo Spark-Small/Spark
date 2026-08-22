@@ -2,7 +2,7 @@
 //  TrustPublicSections.swift
 //  坐标系
 //
-//  信任档案：等级 + 徽章 + 近 90 天履约事实（Form Section，与「可约档期」同级字样）。
+//  信任档案：等级 + 形象认证 + 履约徽章 + 近 90 天事实（单一 Form Section）。
 //
 
 import SwiftUI
@@ -56,66 +56,54 @@ struct TrustPublicProfileSections: View {
     var body: some View {
         let data = card
         let flags = credentials
+        let extraBadges = earnedTrustBadges(from: data.badges)
 
-        if compact {
-            Section {
-                TrustLevelStrip(level: data.level)
-                TrustCredentialBadgeStrip(
-                    photoVerified: flags.photoVerified,
-                    isMember: flags.isMember,
-                    revealLocked: isSelf
+        Section {
+            TrustLevelStrip(level: data.level)
+
+            if flags.photoVerified {
+                Label(
+                    TrustBadgeKind.photoVerified.title,
+                    systemImage: TrustBadgeKind.photoVerified.systemImage
                 )
-                TrustFactLabeledRows(
-                    facts: data.facts,
-                    responseHint: data.responseHint
+                .symbolRenderingMode(.multicolor)
+                .platformContentSymbolStyle()
+            } else if isSelf {
+                Label(
+                    "形象认证未点亮",
+                    systemImage: "person.crop.circle.badge.questionmark"
                 )
-            } header: {
-                Text(BuddyDetailCopy.trustArchiveTitle)
-            }
-        } else {
-            Section {
-                TrustLevelStrip(level: data.level)
-                TrustCredentialBadgeStrip(
-                    photoVerified: flags.photoVerified,
-                    isMember: flags.isMember,
-                    revealLocked: isSelf
-                )
-            } header: {
-                Text(BuddyDetailCopy.trustArchiveTitle)
+                .foregroundStyle(.secondary)
+                .platformContentSymbolStyle()
             }
 
-            Section {
-                if isSelf {
-                    TrustCredentialStatusRows(
-                        photoVerified: flags.photoVerified,
-                        isMember: flags.isMember
-                    )
-                }
-                TrustBadgeRow(badges: earnedExtraBadges(from: data.badges))
-                if !isSelf,
-                   !flags.photoVerified,
-                   !flags.isMember,
-                   earnedExtraBadges(from: data.badges).isEmpty {
-                    Text("认证徽章将随形象认证与会员点亮。")
-                        .foregroundStyle(.secondary)
-                }
-            } header: {
-                Text("认证与徽章")
+            if !extraBadges.isEmpty {
+                TrustBadgeRow(badges: extraBadges)
+            } else if !isSelf, !flags.photoVerified {
+                Text("认证徽章将随形象认证点亮。")
+                    .foregroundStyle(.secondary)
             }
 
-            Section {
-                TrustFactLabeledRows(
-                    facts: data.facts,
-                    responseHint: data.responseHint
-                )
-            } header: {
-                Text("近 90 天履约事实")
+            TrustFactLabeledRows(
+                facts: data.facts,
+                responseHint: data.responseHint
+            )
+        } header: {
+            Text(BuddyDetailCopy.trustArchiveTitle)
+        } footer: {
+            if compact {
+                EmptyView()
+            } else {
+                Text("会员标识不在信任档案中展示；履约事实来自近 90 天行为记录。")
             }
         }
     }
 
-    private func earnedExtraBadges(from badges: [TrustBadge]) -> [TrustBadge] {
-        badges.filter { $0.kind != .photoVerified && $0.kind != .activeMember }
+    /// 信任档案内：不含形象认证（单独展示）与会员徽章
+    private func earnedTrustBadges(from badges: [TrustBadge]) -> [TrustBadge] {
+        badges.filter {
+            $0.kind != .photoVerified && $0.kind != .activeMember
+        }
     }
 }
 
@@ -136,6 +124,5 @@ struct TrustPublicPreviewView: View {
         }
         .navigationTitle(BuddyDetailCopy.trustArchiveTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
     }
 }

@@ -10,7 +10,6 @@ import SwiftUI
 
 struct FriendProfileDetailView: View {
     let nickname: String
-    var onOpenChat: () -> Void
 
     @Environment(MessagesModel.self) private var model
     @Environment(BuddiesModel.self) private var buddies
@@ -25,8 +24,9 @@ struct FriendProfileDetailView: View {
     @State private var confirmDelete = false
     @State private var feedback: String?
     @State private var remarkDraft = ""
-    @State private var photoViewer: FriendMomentsPhotoViewer?
+    @State private var photoViewer: CommunityPhotoDestination?
     @State private var selectedPostID: CommunityPost.ID?
+    @State private var chatSheet: PeerChatRoute?
 
     private var buddyItem: DiscoverBuddyItem? { buddies.item(for: nickname) }
     private var profile: BuddyProfile? { buddyItem?.profile }
@@ -106,7 +106,7 @@ struct FriendProfileDetailView: View {
                         .platformConversationListRowChrome()
                 } else {
                     FriendMomentsPhotoGrid(photos: momentsPhotos) { index in
-                        photoViewer = FriendMomentsPhotoViewer(photos: momentsPhotos, startIndex: index)
+                        photoViewer = CommunityPhotoDestination(photos: momentsPhotos, startIndex: index)
                     }
                     .listRowBackground(Color.clear)
                     .platformConversationListRowChrome()
@@ -157,7 +157,6 @@ struct FriendProfileDetailView: View {
             }
         }
         .platformConversationListChrome()
-        .platformSecondaryPage()
         .navigationTitle(displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -184,9 +183,9 @@ struct FriendProfileDetailView: View {
                 }
             }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .platformDetailBottomBar {
             FriendProfileActionBar(
-                onMessage: onOpenChat,
+                onMessage: openChat,
                 onCall: {
                     guard let conversation = app.startDirectChat(with: nickname, deliverGreeting: false),
                           let call = model.startVoiceCall(in: conversation.id)
@@ -196,10 +195,16 @@ struct FriendProfileDetailView: View {
                 }
             )
         }
-        .sheet(item: $photoViewer) { viewer in
-            CommunityPhotoViewer(photos: viewer.photos, startIndex: viewer.startIndex)
-                .platformSheet(.browser)
+        .sheet(item: $chatSheet) { route in
+            NavigationStack {
+                ConversationDetailView(
+                    conversationID: route.conversationID,
+                    chatContext: route.chatContext
+                )
+            }
+            .toolbarVisibility(.hidden, for: .tabBar)
         }
+        .communityPhotoCover($photoViewer)
         .sheet(isPresented: Binding(
             get: { selectedPostID != nil },
             set: { if !$0 { selectedPostID = nil } }
@@ -208,6 +213,7 @@ struct FriendProfileDetailView: View {
                 NavigationStack {
                     CommunityPostDetailView(postID: selectedPostID)
                 }
+                .toolbarVisibility(.hidden, for: .tabBar)
                 .platformSheet(.browser)
             }
         }
@@ -225,6 +231,7 @@ struct FriendProfileDetailView: View {
                 .platformConversationListChrome()
                 .navigationTitle(MessagesCopy.friendEditRemark)
                 .navigationBarTitleDisplayMode(.inline)
+                .toolbarVisibility(.hidden, for: .tabBar)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button(MessagesCopy.cancel) { showRemarkEditor = false }
@@ -263,6 +270,7 @@ struct FriendProfileDetailView: View {
                 .platformConversationListChrome()
                 .navigationTitle(MessagesCopy.friendSetGroup)
                 .navigationBarTitleDisplayMode(.inline)
+                .toolbarVisibility(.hidden, for: .tabBar)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button(MessagesCopy.cancel) { showGroupPicker = false }
@@ -327,6 +335,15 @@ struct FriendProfileDetailView: View {
         }
     }
 
+    private func openChat() {
+        let context: ConversationChatContext = {
+            if let buddyItem { return .forBuddyItem(buddyItem) }
+            return .communityAuthor
+        }()
+        guard let convo = app.startDirectChat(with: nickname, deliverGreeting: false) else { return }
+        chatSheet = PeerChatRoute(conversationID: convo.id, chatContext: context)
+    }
+
     private var header: some View {
         let flags = TrustPublicCredentials.flags(
             nickname: nickname,
@@ -345,7 +362,7 @@ struct FriendProfileDetailView: View {
                 }
                 TrustCredentialBadgeStrip(
                     photoVerified: flags.photoVerified,
-                    isMember: flags.isMember,
+                    isMember: false,
                     revealLocked: false
                 )
                 if let profile {
@@ -362,12 +379,6 @@ struct FriendProfileDetailView: View {
 }
 
 // MARK: - Moments grid / post row
-
-private struct FriendMomentsPhotoViewer: Identifiable {
-    let id = UUID()
-    let photos: [CommunityPhotoRef]
-    let startIndex: Int
-}
 
 private struct FriendMomentsPhotoGrid: View {
     let photos: [CommunityPhotoRef]

@@ -12,7 +12,7 @@ import SwiftUI
 // MARK: - Shared chrome
 
 private enum PlatformCatalogCardChrome {
-    static var shape: RoundedRectangle { PlatformMetrics.posterShape }
+    static var shape: RoundedRectangle { PlatformMetrics.cardShape }
     /// 与 `PlatformMetrics.captionBadgeInset` 对齐
     static var inset: CGFloat { PlatformMetrics.captionBadgeInset }
     /// 卡内信息行距
@@ -83,109 +83,6 @@ private struct PlatformCatalogHeroFooter: View {
     }
 }
 
-// MARK: - 活动紧凑横卡（16:9）
-
-/// 活动页与个人内容库共用的小卡：16:9 封面内叠放标题与时间。
-/// 外层负责 NavigationLink / Zoom 和轨道宽度，本组件只管理卡内视觉。
-struct PlatformActivityCompactCard: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    var photo: CommunityPhotoRef?
-    var badge: String? = nil
-    var title: String
-    var metaLine: String
-
-    var body: some View {
-        Group {
-            if DiscoverAccessibility.prefersStackedCardChrome(for: dynamicTypeSize) {
-                stackedBody
-            } else {
-                overlayBody
-            }
-        }
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            ActivityCardStatus.openAccessibilityLabel(
-                status: badge,
-                title: title,
-                parts: metaLine
-            )
-        )
-        .accessibilityHint(ActivityCardStatus.openHint)
-    }
-
-    private var stackedBody: some View {
-        VStack(alignment: .leading, spacing: PlatformMetrics.stackedMediaSpacing) {
-            cover
-            copy(onMedia: false)
-        }
-    }
-
-    private var overlayBody: some View {
-        ZStack {
-            cover
-
-            if let badge, !badge.isEmpty {
-                PlatformMediaCaptionBadge(title: badge)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(PlatformMetrics.captionBadgeInset)
-            }
-
-            copy(onMedia: true)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-            .padding(PlatformMetrics.captionBadgeInset)
-        }
-        .clipShape(PlatformMetrics.mediaShape)
-        .contentShape(PlatformMetrics.mediaShape)
-        .colorScheme(.dark)
-    }
-
-    private var cover: some View {
-        PlatformCatalogCoverFill(
-            photo: photo,
-            aspectRatio: PlatformMetrics.activityCardAspectRatio
-        )
-        .overlay(alignment: .topLeading) {
-            if DiscoverAccessibility.prefersStackedCardChrome(for: dynamicTypeSize),
-               let badge,
-               !badge.isEmpty {
-                PlatformMediaCaptionBadge(title: badge)
-                    .padding(PlatformMetrics.captionBadgeInset)
-            }
-        }
-        .clipShape(PlatformMetrics.mediaShape)
-    }
-
-    private func copy(onMedia: Bool) -> some View {
-        VStack(
-            alignment: .leading,
-            spacing: PlatformConversationListRow.textToSecondarySpacing
-        ) {
-            titleView(onMedia: onMedia)
-
-            Text(metaLine)
-                .font(.caption)
-                .foregroundStyle(onMedia ? .white.opacity(0.82) : .secondary)
-                .lineLimit(DiscoverAccessibility.metaLineLimit(for: dynamicTypeSize))
-        }
-    }
-
-    @ViewBuilder
-    private func titleView(onMedia: Bool) -> some View {
-        let text = Text(title)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(onMedia ? .white : .primary)
-            .multilineTextAlignment(.leading)
-
-        if dynamicTypeSize.isAccessibilitySize {
-            text.fixedSize(horizontal: false, vertical: true)
-        } else {
-            text.lineLimit(2)
-        }
-    }
-}
-
 // MARK: - 跟进横卡（16:9）
 
 /// 左下信息 + 右下参加；封面 zoom 打开
@@ -246,8 +143,7 @@ struct PlatformContinueCard: View {
     private var coverLink: some View {
         ActivityZoomNavigationLink(
             activityID: activityID,
-            namespace: zoomNamespace,
-            clip: .rail
+            namespace: zoomNamespace
         ) {
             PlatformCatalogCoverFill(
                 photo: photo,
@@ -268,12 +164,12 @@ struct PlatformContinueCard: View {
 
 // MARK: - 赛事 / 专题横卡（16:9）
 
-/// 左下信息 + 右下参加；左上角标；封面 zoom 打开
+/// 左下信息 + 右下参加；左上角标；封面 zoom 或 `onCoverTap` 打开详情
 struct PlatformEventCard: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var activityID: Activity.ID
-    var zoomNamespace: Namespace.ID
+    var zoomNamespace: Namespace.ID? = nil
     var photo: CommunityPhotoRef?
     var badge: String?
     var title: String
@@ -281,6 +177,7 @@ struct PlatformEventCard: View {
     var metaLine: String
     var isJoined = false
     var isFull = false
+    var onCoverTap: (() -> Void)? = nil
     var onJoin: (() -> Void)?
 
     private var prefersStacked: Bool {
@@ -327,25 +224,40 @@ struct PlatformEventCard: View {
         .accessibilityElement(children: .contain)
     }
 
+    @ViewBuilder
     private var coverLink: some View {
-        ActivityZoomNavigationLink(
-            activityID: activityID,
-            namespace: zoomNamespace,
-            clip: .rail
-        ) {
-            PlatformCatalogCoverFill(
-                photo: photo,
-                aspectRatio: PlatformMetrics.continueCardAspectRatio
-            )
+        let cover = PlatformCatalogCoverFill(
+            photo: photo,
+            aspectRatio: PlatformMetrics.continueCardAspectRatio
+        )
+
+        if let zoomNamespace {
+            ActivityZoomNavigationLink(
+                activityID: activityID,
+                namespace: zoomNamespace
+            ) {
+                cover
+            }
+            .accessibilityLabel(openAccessibilityLabel)
+            .accessibilityHint(ActivityCardStatus.openHint)
+        } else if let onCoverTap {
+            Button(action: onCoverTap) {
+                cover
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(openAccessibilityLabel)
+            .accessibilityHint(ActivityCardStatus.openHint)
+        } else {
+            cover
+                .accessibilityHidden(true)
         }
-        .accessibilityLabel(openAccessibilityLabel)
-        .accessibilityHint(ActivityCardStatus.openHint)
     }
 
     @ViewBuilder
     private func badgeView(onMedia: Bool) -> some View {
         if let badge, !badge.isEmpty {
             PlatformMediaCaptionBadge(title: badge, onMedia: onMedia)
+                .allowsHitTesting(false)
         }
     }
 
@@ -360,7 +272,7 @@ struct PlatformEventCard: View {
 
 // MARK: - 榜单竖海报（3:4）
 
-/// 排名角标 + 海报 + 底标题/类型；整卡 zoom（手机密度；比例 / 轨宽见 `PlatformMetrics`）
+/// 排名角标 + 海报 + 底标题/类型；封面 zoom（手机密度；比例 / 轨宽见 `PlatformMetrics`）
 struct PlatformPosterRankCard: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -372,46 +284,53 @@ struct PlatformPosterRankCard: View {
     var genre: String
 
     var body: some View {
+        ZStack(alignment: .bottom) {
+            coverLink
+
+            VStack(spacing: PlatformMetrics.cardInfoSpacing) {
+                Text(title)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(DiscoverAccessibility.titleLineLimit(for: dynamicTypeSize))
+                Text(genre)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(DiscoverAccessibility.metaLineLimit(for: dynamicTypeSize))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(PlatformCatalogCardChrome.inset)
+            .colorScheme(.dark)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+        .overlay(alignment: .topLeading) {
+            Text("\(rank)")
+                .font(.title2.weight(.bold))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, PlatformMetrics.captionBadgePaddingHorizontal)
+                .padding(.vertical, PlatformMetrics.captionBadgePaddingVertical)
+                .background(.thinMaterial, in: Capsule())
+                .padding(.leading, PlatformMetrics.rankBadgeLeading)
+                .padding(.top, PlatformMetrics.rankBadgeTop)
+                .colorScheme(.dark)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+        .clipShape(PlatformCatalogCardChrome.shape)
+        .contentShape(PlatformCatalogCardChrome.shape)
+        .accessibilityElement(children: .contain)
+    }
+
+    private var coverLink: some View {
         ActivityZoomNavigationLink(
             activityID: activityID,
-            namespace: zoomNamespace,
-            clip: .poster
+            namespace: zoomNamespace
         ) {
-            ZStack(alignment: .bottom) {
-                PlatformCatalogCoverFill(
-                    photo: photo,
-                    aspectRatio: PlatformMetrics.posterCardAspectRatio
-                )
-
-                VStack(spacing: PlatformMetrics.cardInfoSpacing) {
-                    Text(title)
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.primary)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(DiscoverAccessibility.titleLineLimit(for: dynamicTypeSize))
-                    Text(genre)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(DiscoverAccessibility.metaLineLimit(for: dynamicTypeSize))
-                }
-                .frame(maxWidth: .infinity)
-                .padding(PlatformCatalogCardChrome.inset)
-                .colorScheme(.dark)
-                .accessibilityHidden(true)
-            }
-            .overlay(alignment: .topLeading) {
-                Text("\(rank)")
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, PlatformMetrics.captionBadgePaddingHorizontal)
-                    .padding(.vertical, PlatformMetrics.captionBadgePaddingVertical)
-                    .background(.thinMaterial, in: Capsule())
-                    .padding(.leading, PlatformMetrics.rankBadgeLeading)
-                    .padding(.top, PlatformMetrics.rankBadgeTop)
-                    .colorScheme(.dark)
-                    .accessibilityHidden(true)
-            }
-            .clipShape(PlatformCatalogCardChrome.shape)
+            PlatformCatalogCoverFill(
+                photo: photo,
+                aspectRatio: PlatformMetrics.posterCardAspectRatio
+            )
         }
         .accessibilityLabel("第 \(rank) 名，\(title)，\(genre)")
         .accessibilityHint(ActivityCardStatus.openHint)
@@ -468,8 +387,7 @@ struct PlatformEditorialCard: View {
     private var coverLink: some View {
         ActivityZoomNavigationLink(
             activityID: activityID,
-            namespace: zoomNamespace,
-            clip: .editorial
+            namespace: zoomNamespace
         ) {
             PlatformCatalogCoverFill(
                 photo: photo,
@@ -484,6 +402,7 @@ struct PlatformEditorialCard: View {
     private func badgeView(onMedia: Bool) -> some View {
         if let badge, !badge.isEmpty {
             PlatformMediaCaptionBadge(title: badge, onMedia: onMedia)
+                .allowsHitTesting(false)
         }
     }
 
@@ -534,25 +453,34 @@ struct PlatformEditorialCard: View {
 // MARK: - Rail helpers
 
 extension View {
-    /// 跟进 / 热场横卡轨：接近一整张，露邻卡
+    /// 跟进 / 热场横卡轨：页边内一屏 1 卡全宽（`PlatformContinueCard` / `PlatformEventCard`）
     func platformContinueRailFrame() -> some View {
-        containerRelativeFrame(.horizontal) { length, _ in
-            length * PlatformMetrics.continueRailVisibleFraction
-        }
+        containerRelativeFrame(
+            .horizontal,
+            count: PlatformMetrics.discoverRailFullWidthColumnCount,
+            span: 1,
+            spacing: PlatformMetrics.railCardSpacing
+        )
     }
 
-    /// 焦点大卡轨：露邻卡
+    /// 焦点大卡轨：页边内一屏 1 卡全宽（`PlatformEditorialCard`）
     func platformEditorialRailFrame() -> some View {
-        containerRelativeFrame(.horizontal) { length, _ in
-            length * PlatformMetrics.editorialRailVisibleFraction
-        }
+        containerRelativeFrame(
+            .horizontal,
+            count: PlatformMetrics.discoverRailFullWidthColumnCount,
+            span: 1,
+            spacing: PlatformMetrics.railCardSpacing
+        )
     }
 
-    /// 榜单海报轨：露出邻卡
+    /// 榜单海报轨：页边内一屏 2 卡（`PlatformPosterRankCard`）
     func platformPosterRailFrame() -> some View {
-        containerRelativeFrame(.horizontal) { length, _ in
-            length * PlatformMetrics.posterRailVisibleFraction
-        }
+        containerRelativeFrame(
+            .horizontal,
+            count: PlatformMetrics.posterRailColumnCount,
+            span: 1,
+            spacing: PlatformMetrics.railCardSpacing
+        )
     }
 
     /// 「我的」Wallet 票面轨：与竖海报同宽占比，高度由票面 3:4 比例推导。

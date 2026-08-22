@@ -159,10 +159,10 @@ enum TrustBadgeKind: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .photoVerified: "形象认证"
+        case .photoVerified: "认证"
         case .phoneVerified: "手机已验证"
         case .identityVerified: "实名认证"
-        case .activeMember: "活跃会员"
+        case .activeMember: "会员"
         case .reliableHost: "靠谱发起人"
         case .trustedNeighbor: "可信伙伴"
         }
@@ -170,10 +170,10 @@ enum TrustBadgeKind: String, Codable, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
-        case .photoVerified: "person.crop.circle.badge.checkmark"
+        case .photoVerified: "checkmark.seal.fill"
         case .phoneVerified: "phone.badge.checkmark"
         case .identityVerified: "person.text.rectangle"
-        case .activeMember: "checkmark.seal.fill"
+        case .activeMember: "crown.fill"
         case .reliableHost: "flag.checkered"
         case .trustedNeighbor: "hand.thumbsup.circle.fill"
         }

@@ -14,13 +14,12 @@ struct CommunityPostDetailView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
 
-    @State private var draft = ""
     @State private var showBookmarkSheet = false
     @State private var showReportSheet = false
     @State private var confirmDelete = false
     @State private var authorDestination: CommunityAuthorDestination?
-    @State private var blockedCommentWord: String?
-    @FocusState private var isCommentFocused: Bool
+    @State private var photoDestination: CommunityPhotoDestination?
+    @State private var commentComposer = CommunityPostCommentComposerState()
 
     private var post: CommunityPost? {
         model.post(id: postID)
@@ -34,9 +33,9 @@ struct CommunityPostDetailView: View {
                 ContentUnavailableView("动态不存在", systemImage: "photo.on.rectangle")
             }
         }
-        .platformSecondaryPage()
         .sheet(isPresented: $showBookmarkSheet) {
             CommunityBookmarkSheet(postID: postID)
+                .toolbarVisibility(.hidden, for: .tabBar)
         }
         .alert(
             "举报这条分享",
@@ -52,6 +51,7 @@ struct CommunityPostDetailView: View {
             Text("选择举报原因。举报后内容会从你的信息流中隐藏。")
         }
         .communityAuthorSheet($authorDestination)
+        .communityPhotoCover($photoDestination)
         .confirmationDialog(
             "删除这条分享？",
             isPresented: $confirmDelete,
@@ -64,14 +64,6 @@ struct CommunityPostDetailView: View {
             Button("取消", role: .cancel) {}
         } message: {
             Text("删除后无法恢复")
-        }
-        .alert("评论需要修改", isPresented: Binding(
-            get: { blockedCommentWord != nil },
-            set: { if !$0 { blockedCommentWord = nil } }
-        )) {
-            Button("知道了", role: .cancel) {}
-        } message: {
-            Text("检测到敏感词「\(blockedCommentWord ?? "")」，请修改后再发送。")
         }
     }
 
@@ -98,7 +90,15 @@ struct CommunityPostDetailView: View {
 
                 if !post.displayPhotos.isEmpty {
                     CommunityMediaPager(pageCount: post.displayPhotos.count) { index in
-                        CommunityRemotePhoto(ref: post.displayPhotos[index])
+                        Button {
+                            photoDestination = CommunityPhotoDestination(
+                                photos: post.displayPhotos,
+                                startIndex: index
+                            )
+                        } label: {
+                            CommunityRemotePhoto(ref: post.displayPhotos[index])
+                        }
+                        .buttonStyle(.plain)
                     }
                     .communityRowToContentSpacing()
                 }
@@ -119,51 +119,41 @@ struct CommunityPostDetailView: View {
                             : PlatformConversationListRow.textToSecondarySpacing
                     )
 
-                Text("评论 \(post.comments.count)")
+                Text("评论 \(post.commentCount)")
                     .font(.headline)
                     .communityRowToContentSpacing()
 
-                if post.comments.isEmpty {
-                    Text("还没有评论，来抢沙发吧")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .communityInlineSpacing()
-                } else {
-                    ForEach(post.comments.filter { $0.parentID == nil }) { comment in
-                        CommunityCommentRow(
-                            comment: comment,
-                            allowsTextSelection: true,
-                            showsLike: true,
-                            isLiked: model.isCommentLiked(comment.id),
-                            onLike: {
-                                model.toggleCommentLike(postID: post.id, commentID: comment.id)
-                            }
-                        )
-                        .communityInlineSpacing()
-                        .contextMenu {
-                            if model.isOwnComment(comment) {
-                                Button("删除评论", role: .destructive) {
-                                    model.deleteComment(postID: post.id, commentID: comment.id)
-                                }
-                            }
-                        }
-                    }
-                }
+                PlatformReviewsCommentsHost(
+                    target: .community(post.id),
+                    currentUserName: model.currentUserName,
+                    layout: .embedded,
+                    composerPlacement: .external,
+                    externalDraft: commentComposer.draftBinding,
+                    externalReplyTarget: commentComposer.replyTargetBinding,
+                    contentOwnerName: post.author,
+                    emptyTitle: "还没有评论，来抢沙发吧",
+                    emptyHint: "我来说两句…",
+                    placeholder: "我来说两句...",
+                    onChanged: { model.syncComments(for: postID) }
+                )
+                .communityInlineSpacing()
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            PlatformReviewsCommentComposer(
+                target: .community(post.id),
+                currentUserName: model.currentUserName,
+                draft: commentComposer.draftBinding,
+                replyTarget: commentComposer.replyTargetBinding,
+                placeholder: "我来说两句...",
+                onChanged: { model.syncComments(for: postID) }
+            )
+        }
         .communityDetailScrollChrome()
+        .id(model.commentRevision)
         .navigationTitle("分享详情")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { detailToolbar(for: post) }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            CommunityCommentComposer(
-                draft: $draft,
-                placeholder: "我来说两句...",
-                authorName: model.currentUserName,
-                isFocused: $isCommentFocused,
-                onSend: sendComment
-            )
-        }
     }
 
     @ToolbarContentBuilder
@@ -187,19 +177,27 @@ struct CommunityPostDetailView: View {
             }
         }
     }
+}
 
-    private func sendComment() {
-        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        switch model.addComment(to: postID, text: draft) {
-        case .posted:
-            draft = ""
-            isCommentFocused = false
-        case .blocked(let word):
-            blockedCommentWord = word
-        case .invalid:
-            break
-        }
+/// 社区详情内嵌评论：集中管理底栏输入栏与线程区共用的 draft / reply 状态。
+@Observable
+@MainActor
+private final class CommunityPostCommentComposerState {
+    var draft = ""
+    var replyTarget: PlatformReview?
+
+    var draftBinding: Binding<String> {
+        Binding(
+            get: { self.draft },
+            set: { self.draft = $0 }
+        )
+    }
+
+    var replyTargetBinding: Binding<PlatformReview?> {
+        Binding(
+            get: { self.replyTarget },
+            set: { self.replyTarget = $0 }
+        )
     }
 }
 

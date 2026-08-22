@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// 精选 Hero：封面框死比例内裁切；叠字贴卡片底边（顶安全区交给系统顶栏）
+/// 精选 Hero：3:4 卡片；水平页边与发现货架一致（`PlatformMetrics.contentInset`）。
 struct ActivityFeaturedCard: View {
     @Environment(ActivitiesModel.self) private var activities
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -71,8 +71,8 @@ struct ActivityFeaturedCard: View {
                 .clipped()
             }
         }
-        .clipShape(PlatformMetrics.fullBleedShape)
-        .contentShape(PlatformMetrics.fullBleedShape)
+        .clipShape(PlatformMetrics.cardShape)
+        .contentShape(PlatformMetrics.cardShape)
         .accessibilityElement(children: .contain)
     }
 
@@ -146,10 +146,11 @@ struct ActivityFeaturedCard: View {
     }
 }
 
-/// 发现流大卡 — 16:9
+/// 发现流大卡 — 16:9；封面 Zoom
 struct ActivityDiscoverCard: View {
     let activity: Activity
     var isJoined: Bool = false
+    var zoomNamespace: Namespace.ID? = nil
     var enablesOpenTap = true
     var onOpen: () -> Void = {}
     var onJoin: (() -> Void)?
@@ -161,6 +162,7 @@ struct ActivityDiscoverCard: View {
             activity: activity,
             isJoined: isJoined,
             layout: .discover,
+            zoomNamespace: zoomNamespace,
             enablesOpenTap: enablesOpenTap,
             onOpen: onOpen,
             onJoin: onJoin

@@ -30,6 +30,14 @@ enum PlatformStatus {
     static var accent: Color { .accentColor }
 }
 
+/// 域操作色 — 仅用于明确指定的主转化按钮
+enum PlatformAction {
+    /// 活动页关键操作 — 四叶草紫色瓣（App Icon petal-06 / 信封印章）
+    static var cloverPurple: Color {
+        Color(.displayP3, red: 0.58228, green: 0.46771, blue: 0.84753)
+    }
+}
+
 extension DynamicTypeSize {
     init(uiContentSizeCategory category: UIContentSizeCategory) {
         switch category {
@@ -84,9 +92,29 @@ extension DynamicTypeSize {
         (listAvatarSide * 1.85).rounded(.toNearestOrAwayFromZero)
     }
 
+    /// Apple 账号式资料头像 ≈ 列表头像 × 2.5（约 100pt @默认字号）
+    var accountHeaderAvatarSide: CGFloat {
+        (listAvatarSide * 2.5).rounded(.toNearestOrAwayFromZero)
+    }
+
     /// 好友动态封面 ≈ 列表头像 × 1.6
     var friendPostCoverSide: CGFloat {
         (listAvatarSide * 1.6).rounded(.toNearestOrAwayFromZero)
+    }
+
+    /// 评论 Sheet 主楼头像 ≈ 列表 × 0.9（默认 ≈36pt）
+    var commentThreadRootAvatarSide: CGFloat {
+        (listAvatarSide * 0.9).rounded(.toNearestOrAwayFromZero)
+    }
+
+    /// 评论 Sheet 回复头像 ≈ 主楼 × 2/3（默认 ≈24pt）
+    var commentThreadReplyAvatarSide: CGFloat {
+        max(20, (commentThreadRootAvatarSide * (2.0 / 3.0)).rounded(.toNearestOrAwayFromZero))
+    }
+
+    /// 回复行左缩进 = 主楼头像 + subtitleCell 图↔文间距（与主楼正文列对齐）
+    var commentThreadReplyLeadingInset: CGFloat {
+        commentThreadRootAvatarSide + PlatformConversationListRow.imageToTextPadding
     }
 }
 
@@ -124,6 +152,9 @@ enum PlatformListAvatar {
             guard let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
             return UIImage(data: data)
         case .file(let url):
+            if CommunityPhotoStore.isVideo(url: url) {
+                return await CommunityPhotoStore.posterImage(for: url)
+            }
             guard let data = try? Data(contentsOf: url) else { return nil }
             return UIImage(data: data)
         case .asset(let name):
@@ -644,7 +675,7 @@ enum PlatformMetrics {
     static var continueCardAspectRatio: CGFloat { 16 / 9 }
     /// 「我的」个人内容库竖海报（宽:高），参考 Apple TV 榜单小卡。
     static var profileLibraryCardAspectRatio: CGFloat { 2 / 3 }
-    /// 榜单 / 组织 / 语音厅竖海报（宽:高）；略扁于经典 2:3，降低货架轨高
+    /// 榜单 / 圈子 / 语音厅竖海报（宽:高）；略扁于经典 2:3，降低货架轨高
     static var posterCardAspectRatio: CGFloat { 3 / 4 }
     static var featuredCardAspectRatio: CGFloat { 3 / 4 }
     static var editorialCardAspectRatio: CGFloat { 4 / 5 }
@@ -656,13 +687,14 @@ enum PlatformMetrics {
     static var personGridColumnCount: Int { 2 }
     static var radiusEditorial: CGFloat { g(3) }
     static var radiusPoster: CGFloat { g(1.75) }
-    /// 轨可见比例为构图分数，非 pt
-    static var editorialRailVisibleFraction: CGFloat { 0.88 }
-    /// 海报轨卡宽占比：约两张半 + 露边；配合 3:4 控制轨高
-    static var posterRailVisibleFraction: CGFloat { 0.36 }
+    /// 轨可见列数：页边由 `DiscoverHorizontalRail.contentMargins` 承担，卡宽相对「页边内可视宽」
+    /// 焦点大卡 / 跟进 / 热场：一屏 1 卡全宽
+    static var discoverRailFullWidthColumnCount: Int { 1 }
+    /// 榜单海报：一屏 2 卡全宽
+    static var posterRailColumnCount: Int { 2 }
     /// 「我的活动 / 发布」凭证横卡：系统相对容器一屏两列。
     static var profileActivityCredentialRailColumnCount: Int { 2 }
-    /// 「我的陪玩」预约凭证竖卡：一屏约三张完整卡，并露出第四张。
+    /// 「我的 → 陪玩预约」凭证竖卡：一屏约三张完整卡，并露出第四张。
     static var profileBookingCredentialRailVisibleFraction: CGFloat { 0.29 }
     /// 个人内容库竖海报（圈子）：一屏约三张完整卡，并露出第四张提示横滑。
     static var profileLibraryRailVisibleFraction: CGFloat { 0.29 }
@@ -673,7 +705,6 @@ enum PlatformMetrics {
     /// chevron 与标题间距 = 系统主副文间距
     static var sectionChevronSpacing: CGFloat { systemTextToSecondaryPadding }
     static var seeAllRankColumnWidth: CGFloat { g(4.5) }
-    static var continueRailVisibleFraction: CGFloat { 0.86 }
     /// 双 CTA 场景右留白（搭子卡）
     static var heroDualActionTrailingReserve: CGFloat { g(21) }
 
@@ -856,6 +887,13 @@ extension View {
             .background(.ultraThinMaterial, in: PlatformMetrics.processingOverlayShape)
     }
 
+    /// 详情主转化底栏：iOS 26 `safeAreaBar`，下滑可随 Tab 收纳
+    func platformDetailBottomBar<Bar: View>(
+        @ViewBuilder bar: () -> Bar
+    ) -> some View {
+        safeAreaBar(edge: .bottom, spacing: 0, content: bar)
+    }
+
     /// 详情底栏悬浮 CTA 水平边距（Features 不手写 token）
     func activityDetailBottomBarChrome() -> some View {
         self.padding(.horizontal, PlatformMetrics.contentInset)
@@ -965,16 +1003,6 @@ enum PlatformConversationListRow {
 }
 
 extension View {
-    /// 二级页：隐藏底部 TabBar（一级 Tab 根页不要用）
-    func platformSecondaryPage() -> some View {
-        toolbar(.hidden, for: .tabBar)
-    }
-
-    /// 有导航栈时：非根页隐藏 TabBar
-    func platformTabBarHiddenWhenPushed(_ isRoot: Bool) -> some View {
-        toolbar(isRoot ? .automatic : .hidden, for: .tabBar)
-    }
-
     /// 消息模块：隐藏 List / Form 行与分节分隔线
     func platformMessagesSeparatorsHidden() -> some View {
         self
@@ -1024,6 +1052,11 @@ extension View {
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
             .navigationLinkIndicatorVisibility(.hidden)
+    }
+
+    /// 二级页隐藏 Tab 底栏。
+    func platformHiddenTabBar() -> some View {
+        toolbarVisibility(.hidden, for: .tabBar)
     }
 }
 

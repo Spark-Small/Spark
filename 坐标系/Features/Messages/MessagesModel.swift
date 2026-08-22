@@ -19,6 +19,7 @@ final class MessagesModel {
 
     private(set) var conversations: [ChatConversation]
     private(set) var friendRequests: [FriendRequest]
+    private(set) var outgoingFriendRequests: [OutgoingFriendRequest]
     /// 昵称（小写）→ 备注
     private(set) var friendRemarks: [String: String]
     /// 昵称（小写）→ 好友分组
@@ -56,6 +57,7 @@ final class MessagesModel {
         let resolved = snapshot ?? resolvedRepository.load()
         conversations = resolved.conversations
         friendRequests = resolved.friendRequests
+        outgoingFriendRequests = resolved.outgoingFriendRequests
         friendRemarks = resolved.friendRemarks
         friendGroups = resolved.friendGroups
         groupMembersByConversation = Dictionary(
@@ -384,12 +386,13 @@ final class MessagesModel {
         persist()
     }
 
-    /// 发起好友聊天。已存在时：`deliverGreeting == true` 会把问候作为新消息发出。
+    /// 发起好友聊天。已存在时：`deliverGreeting == true` 会把问候作为新消息发出；
+    /// `deliverGreeting == false` 时仅打开空会话，不自动发消息。
     @discardableResult
     func startChat(
         with nickname: String,
         greeting: String = MessagesCopy.defaultGreeting,
-        deliverGreeting: Bool = true
+        deliverGreeting: Bool = false
     ) -> ChatConversation? {
         let name = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedGreeting = greeting.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -409,24 +412,44 @@ final class MessagesModel {
         }
 
         let id = UUID()
+        let deliversSeed = deliverGreeting
         let seed = trimmedGreeting.isEmpty ? MessagesCopy.defaultGreeting : trimmedGreeting
         let conversation = ChatConversation(
             id: id,
             title: name,
             subtitle: MessagesCopy.friendSubtitle,
-            lastMessage: seed,
+            lastMessage: deliversSeed ? seed : MessagesCopy.emptyThreadTitle,
             updatedAt: .now,
             unreadCount: 0,
             kind: .direct,
-            lastMessageIsMe: true
+            lastMessageIsMe: deliversSeed
         )
         conversations.insert(conversation, at: 0)
-        threads[id] = [
-            ChatMessage(id: UUID(), sender: "我", text: seed, sentAt: .now, isMe: true)
-        ]
+        if deliversSeed {
+            threads[id] = [
+                ChatMessage(id: UUID(), sender: "我", text: seed, sentAt: .now, isMe: true)
+            ]
+        } else {
+            threads[id] = []
+        }
         persist()
         onConversationsChanged?()
         return conversation
+    }
+
+    /// 从最新消息向前统计连续发出的消息数（跳过系统提示）。
+    func trailingOutboundCount(for conversationID: ChatConversation.ID) -> Int {
+        guard let thread = threads[conversationID] else { return 0 }
+        var count = 0
+        for message in thread.reversed() {
+            if message.isSystem { continue }
+            if message.isMe {
+                count += 1
+            } else {
+                break
+            }
+        }
+        return count
     }
 
     /// 选好友发起：1 人私聊，2 人及以上建群（含自己为多人）。
@@ -548,7 +571,7 @@ final class MessagesModel {
         return conversation
     }
 
-    /// 兴趣组织群：加入组织后进入；一组织一群。
+    /// 兴趣圈子群：加入圈子后进入；一圈子一群。
     @discardableResult
     func startCircleChat(
         for circle: InterestCircle,
@@ -606,7 +629,7 @@ final class MessagesModel {
         return conversation
     }
 
-    /// 退出组织群：从列表移除本机会话（演示）
+    /// 退出圈子群：从列表移除本机会话（演示）
     func leaveCircleChat(circleID: InterestCircle.ID, leaverName: String) {
         guard let conversation = conversations.first(where: {
             $0.kind == .circle && $0.relatedCircleID == circleID
@@ -696,6 +719,32 @@ final class MessagesModel {
                 ownerName: conversations.first(where: { $0.id == id })?.ownerName,
                 memberNames: conversations.first(where: { $0.id == id })?.memberNames ?? []
             )
+    }
+
+    func groupAlias(for nickname: String, in conversationID: ChatConversation.ID) -> String? {
+        let name = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return nil }
+        return groupMembers(for: conversationID).first {
+            $0.nickname.caseInsensitiveCompare(name) == .orderedSame
+        }?.groupAlias
+    }
+
+    /// 设置成员在本群的昵称；传空字符串表示清除群昵称
+    func setGroupAlias(_ alias: String, forMember nickname: String, in conversationID: ChatConversation.ID) {
+        let name = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        if groupMembersByConversation[conversationID] == nil {
+            _ = groupMembers(for: conversationID)
+        }
+        let trimmed = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        let nextAlias: String? = trimmed.isEmpty ? nil : trimmed
+        groupMembersByConversation[conversationID] = groupMembers(for: conversationID).map { member in
+            guard member.nickname.caseInsensitiveCompare(name) == .orderedSame else { return member }
+            var updated = member
+            updated.groupAlias = nextAlias
+            return updated
+        }
+        persist()
     }
 
     func role(of nickname: String, in conversationID: ChatConversation.ID) -> GroupMemberRole {
@@ -1061,6 +1110,45 @@ final class MessagesModel {
         applyGroupMemberMutation(result, to: conversationID)
     }
 
+    /// 群主转让：原群主降为成员，新群主唯一。
+    func transferGroupOwnership(to nickname: String, in conversationID: ChatConversation.ID) {
+        let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let index = index(of: conversationID) else { return }
+
+        let next = groupMembers(for: conversationID).map { member -> GroupMemberRecord in
+            var updated = member
+            if updated.role == .owner {
+                updated.role = .member
+            }
+            if updated.nickname.caseInsensitiveCompare(trimmed) == .orderedSame {
+                updated.role = .owner
+            }
+            return updated
+        }
+        conversations[index].ownerName = trimmed
+        groupMembersByConversation[conversationID] = next
+        conversations[index].memberNames = next.map(\.nickname)
+        appendSystemTip("「\(trimmed)」已成为群主", audience: .everyone, to: conversationID)
+        persist()
+        onConversationsChanged?()
+    }
+
+    /// 添加群管理员（最多 3 名，不含群主）。
+    func addGroupAdmin(_ nickname: String, in conversationID: ChatConversation.ID) {
+        let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let admins = groupMembers(for: conversationID).filter { $0.role == .admin }
+        guard admins.count < 3 else { return }
+        guard role(of: trimmed, in: conversationID) == .member else { return }
+        updateMemberRole(trimmed, role: .admin, in: conversationID)
+    }
+
+    /// 移除群管理员身份（降为普通成员）。
+    func removeGroupAdmin(_ nickname: String, in conversationID: ChatConversation.ID) {
+        guard role(of: nickname, in: conversationID) == .admin else { return }
+        updateMemberRole(nickname, role: .member, in: conversationID)
+    }
+
     private func applyGroupMemberMutation(
         _ result: GroupMemberMutationResult,
         to conversationID: ChatConversation.ID
@@ -1164,6 +1252,21 @@ final class MessagesModel {
         appendSystemTip(MessagesCopy.groupRenamed(trimmed), audience: .everyone, to: conversationID)
     }
 
+    /// 清空群聊本地消息记录（保留会话）
+    func clearChatHistory(in conversationID: ChatConversation.ID) {
+        threads[conversationID] = []
+        guard let index = index(of: conversationID) else {
+            persist()
+            return
+        }
+        conversations[index].lastMessage = MessagesCopy.emptyThreadTitle
+        conversations[index].lastMessageIsMe = false
+        conversations[index].updatedAt = .now
+        conversations[index].unreadCount = 0
+        persist()
+        onConversationsChanged?()
+    }
+
     func kickMember(_ name: String, from conversationID: ChatConversation.ID) {
         removeMember(name, from: conversationID)
     }
@@ -1175,6 +1278,7 @@ final class MessagesModel {
     func acceptMessageRequest(_ id: ChatConversation.ID) {
         guard let index = index(of: id) else { return }
         conversations[index].isMessageRequest = false
+        conversations[index].isFriend = true
         conversations[index].requestSource = nil
         conversations[index].requestPreviewText = nil
         conversations[index].unreadCount = 0
@@ -1190,6 +1294,9 @@ final class MessagesModel {
         friendRequests[idx].status = .accepted
         let name = friendRequests[idx].fromName
         let message = friendRequests[idx].message
+        outgoingFriendRequests.removeAll {
+            $0.toName.caseInsensitiveCompare(name) == .orderedSame
+        }
 
         // 去掉同名消息请求，避免双入口
         for request in messageRequests where request.title.caseInsensitiveCompare(name) == .orderedSame {
@@ -1201,6 +1308,7 @@ final class MessagesModel {
         }) {
             if let cidx = index(of: existing.id) {
                 conversations[cidx].isMessageRequest = false
+                conversations[cidx].isFriend = true
                 conversations[cidx].peerIsActive = true
             }
             let alreadyHasPeerGreeting = threads[existing.id]?.contains {
@@ -1227,7 +1335,8 @@ final class MessagesModel {
                 unreadCount: 0,
                 kind: .direct,
                 lastMessageIsMe: false,
-                peerIsActive: true
+                peerIsActive: true,
+                isFriend: true
             )
             conversations.insert(conversation, at: 0)
             threads[chatID] = [
@@ -1251,8 +1360,47 @@ final class MessagesModel {
         return conversations.contains {
             $0.kind == .direct
                 && !$0.isMessageRequest
+                && $0.isFriend
                 && $0.title.caseInsensitiveCompare(name) == .orderedSame
         }
+    }
+
+    func canStartDirectChat(with nickname: String, context: ConversationChatContext) -> Bool {
+        if context.bypassesFriendGate { return true }
+        return isDirectFriend(with: nickname)
+    }
+
+    func hasPendingOutgoingFriendRequest(to nickname: String) -> Bool {
+        let name = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return false }
+        return outgoingFriendRequests.contains {
+            $0.status == .pending && $0.toName.caseInsensitiveCompare(name) == .orderedSame
+        }
+    }
+
+    enum SendFriendRequestResult: Equatable {
+        case sent
+        case alreadyFriend
+        case alreadyPending
+        case invalidName
+    }
+
+    @discardableResult
+    func sendFriendRequest(to nickname: String, message: String) -> SendFriendRequestResult {
+        let name = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return .invalidName }
+        if isDirectFriend(with: name) { return .alreadyFriend }
+        if hasPendingOutgoingFriendRequest(to: name) { return .alreadyPending }
+
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        let body = trimmed.isEmpty ? MessagesCopy.defaultFriendRequestMessage : trimmed
+        outgoingFriendRequests.insert(
+            OutgoingFriendRequest(toName: name, message: body),
+            at: 0
+        )
+        persist()
+        onConversationsChanged?()
+        return .sent
     }
 
     /// 通过对外数字 UID 添加好友（本地演示：直接建好友会话）。
@@ -1274,6 +1422,7 @@ final class MessagesModel {
             $0.kind == .direct && $0.title.caseInsensitiveCompare(hit.nickname) == .orderedSame
         }) {
             conversations[existing].isMessageRequest = false
+            conversations[existing].isFriend = true
             conversations[existing].peerIsActive = true
             conversations[existing].subtitle = MessagesCopy.friendSubtitle
         }
@@ -1533,6 +1682,7 @@ final class MessagesModel {
                 uniqueKeysWithValues: threads.map { ($0.key.uuidString, $0.value) }
             ),
             friendRequests: friendRequests,
+            outgoingFriendRequests: outgoingFriendRequests,
             friendRemarks: friendRemarks,
             friendGroups: friendGroups,
             groupMembers: Dictionary(

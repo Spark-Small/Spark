@@ -2,133 +2,10 @@
 //  ProfileCredentialFolderViews.swift
 //  坐标系
 //
-//  「我的」活动 / 陪玩凭证：首页预览架 + 活动场次清单（时间分组 · 星标发起 · 只看发起）。
+//  「我的」活动 / 陪玩凭证：场次清单与陪玩预约分区。
 //
 
 import SwiftUI
-
-/// 「我的」首页凭证预览堆张数（活动 / 陪玩一致）。
-enum ProfileCredentialPreviewLimits {
-    static let shelfPassCount = 4
-}
-
-// MARK: - Home shelves
-
-/// 「我的活动」首页凭证预览架。
-struct ProfileActivityCredentialsShelf: View {
-    var onSeeAll: () -> Void
-
-    @Environment(ActivitiesModel.self) private var activities
-    @Environment(WalletPassStore.self) private var passStore
-    @Environment(\.activityZoomNamespace) private var inheritedZoomNamespace
-
-    @Namespace private var localZoomNamespace
-
-    private var zoomNamespace: Namespace.ID {
-        inheritedZoomNamespace ?? localZoomNamespace
-    }
-
-    /// 未结束且凭证有效（作废票仅凭证夹可见）。
-    private var preview: [Activity] {
-        let joined = activities.joinedActivities
-            .filter { !activities.isHost($0) && !$0.isPast }
-        let hosted = activities.hostedActivities
-            .filter { !$0.isPast }
-        return Array(
-            (joined + hosted)
-                .filter {
-                    passStore.shouldShowActivityOnPreviewRail(
-                        $0,
-                        isJoined: activities.isJoined($0.id),
-                        isHost: activities.isHost($0)
-                    )
-                }
-                .sorted { $0.date < $1.date }
-                .prefix(ProfileCredentialPreviewLimits.shelfPassCount)
-        )
-    }
-
-    var body: some View {
-        DiscoverBrowseSection(title: "我的活动", onSeeAll: onSeeAll) {
-            if preview.isEmpty {
-                ProfileShelfEmptyState(
-                    title: "还没有活动凭证",
-                    systemImage: "ticket",
-                    description: "参加或发起活动后，这里会以票面展示你的活动凭证。"
-                )
-            } else {
-                WalletPassStack(items: preview, style: .collapsed) { activity in
-                    ActivityZoomNavigationLink(
-                        activity: activity,
-                        namespace: zoomNamespace,
-                        clip: .passStrip,
-                        intent: .participantPass
-                    ) {
-                        ProfileActivityCredentialStrip(
-                            activity: activity,
-                            titleOnly: true
-                        )
-                        .overlay(alignment: .topTrailing) {
-                            if activities.isHost(activity) {
-                                ProfileHostedStarMark()
-                                    .padding(.top, WalletPassChromePadding.vertical)
-                                    .padding(.trailing, WalletPassChromePadding.horizontal)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-                .padding(.horizontal, PlatformMetrics.contentInset)
-            }
-        }
-        .activityZoomSlot("profile-activities")
-    }
-}
-
-/// 「我的陪玩」首页凭证预览架。
-struct ProfileBookingCredentialsShelf: View {
-    var onSeeAll: () -> Void
-    var onOpenBooking: (BuddyBookingRecord.ID) -> Void
-
-    @Environment(BuddiesModel.self) private var buddies
-    @Environment(WalletPassStore.self) private var passStore
-
-    private var preview: [BuddyBookingRecord] {
-        Array(
-            buddies.bookingRecords
-                .filter { passStore.shouldShowBookingOnPreviewRail($0) }
-                .sorted { $0.scheduledAt < $1.scheduledAt }
-                .prefix(ProfileCredentialPreviewLimits.shelfPassCount)
-        )
-    }
-
-    var body: some View {
-        DiscoverBrowseSection(title: "我的陪玩", onSeeAll: onSeeAll) {
-            if preview.isEmpty {
-                ProfileShelfEmptyState(
-                    title: "还没有预约凭证",
-                    systemImage: "ticket",
-                    description: "支付陪玩预约后，这里会以票面展示你的预约凭证。"
-                )
-            } else {
-                WalletPassStack(items: preview, style: .collapsed) { record in
-                    // 与活动 Zoom link 同构：plain Button + 外层导航，避免 NavigationLink 改条宽/条高
-                    Button {
-                        onOpenBooking(record.id)
-                    } label: {
-                        ProfileBookingCredentialStrip(
-                            record: record,
-                            photo: buddies.item(for: record.companionNickname)?.profile.coverPhoto
-                        )
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, PlatformMetrics.contentInset)
-            }
-        }
-    }
-}
 
 // MARK: - Activity library
 
@@ -252,7 +129,6 @@ struct ProfileActivityCredentialsView: View {
         .listSectionSpacing(.compact)
         .navigationTitle("我的活动")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 ProfileHostedStarFilterButton(showHostedOnly: $showHostedOnly)
@@ -336,10 +212,12 @@ struct ProfileActivityCredentialsView: View {
 
 
 
-// 陪玩预约凭证夹（有效 / 已作废）— 嵌在「我的陪玩」List 的 bookings 分段内。
+// 陪玩预约凭证夹（有效 / 已作废）— 「我的 → 陪玩预约」。
 struct ProfileBookingCredentialsSection: View {
     @Environment(BuddiesModel.self) private var buddies
     @Environment(WalletPassStore.self) private var passStore
+    @Environment(AppModel.self) private var app
+    @State private var peerContactRoute: PeerContactRoute?
 
     private var activeRecords: [BuddyBookingRecord] {
         buddies.bookingRecords.filter { passStore.shouldShowBookingOnPreviewRail($0) }
@@ -383,7 +261,7 @@ struct ProfileBookingCredentialsSection: View {
                         NavigationLink {
                             BookingCredentialExpandedView(recordID: record.id)
                         } label: {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing * 2) {
                                 Text(record.companionNickname)
                                     .font(.body.weight(.semibold))
                                 Text("\(record.statusLabel) · 支付后生成预约凭证")
@@ -407,6 +285,7 @@ struct ProfileBookingCredentialsSection: View {
                 }
             }
         }
+        .peerContactDestination(route: $peerContactRoute)
         .onAppear {
             for record in activeRecords {
                 _ = passStore.issueBookingTicket(for: record)
@@ -430,7 +309,13 @@ struct ProfileBookingCredentialsSection: View {
                 record: record,
                 photo: buddies.item(for: record.companionNickname)?.profile.coverPhoto,
                 statusOverride: voided ? "已作废" : nil,
-                voided: voided
+                voided: voided,
+                onRequestMessage: {
+                    peerContactRoute = app.openPeerContact(
+                        with: record.companionNickname,
+                        context: .forBooking(record)
+                    )
+                }
             )
         }
         .buttonStyle(.plain)

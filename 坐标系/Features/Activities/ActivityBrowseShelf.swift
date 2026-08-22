@@ -213,7 +213,7 @@ enum ActivityBrowseShelfBuilder {
         }
 
         // 10. 一级品类：竖海报墙，换视觉节奏
-        for category in ActivityCategory.allCases where category != .all {
+        for category in ActivityCategory.allCases where !category.isBrowseAggregate {
             let pool = open.filter { $0.category == category }
             let items = ranked(from: pool, limit: 8)
             append(

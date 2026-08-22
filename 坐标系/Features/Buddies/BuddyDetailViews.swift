@@ -10,6 +10,8 @@ import SwiftUI
 struct BuddyDetailRouteView: View {
     let item: DiscoverBuddyItem
     var source: BuddyProfileSource = .discover
+    /// 从群成员入口进入时展示 真实名（群昵称）
+    var groupAlias: String? = nil
 
     @Environment(BuddiesModel.self) private var buddies
     @Environment(AppModel.self) private var app
@@ -18,6 +20,28 @@ struct BuddyDetailRouteView: View {
 
     @State private var showReport = false
     @State private var confirmBlock = false
+    @State private var peerContactRoute: PeerContactRoute?
+
+    private var profileTitle: String {
+        GroupNicknameDisplay.formatted(
+            realName: item.profile.nickname,
+            groupAlias: groupAlias
+        )
+    }
+
+    private func greetTitle(for item: DiscoverBuddyItem) -> String {
+        app.peerContactActionTitle(
+            for: item.profile.nickname,
+            context: .forBuddyItem(item)
+        )
+    }
+
+    private func openGreet(for item: DiscoverBuddyItem) {
+        peerContactRoute = app.openPeerContact(
+            with: item.profile.nickname,
+            context: .forBuddyItem(item)
+        )
+    }
 
     var body: some View {
         Group {
@@ -26,32 +50,31 @@ struct BuddyDetailRouteView: View {
                 CircleBuddyDetailView(
                     buddy: buddy,
                     source: source,
-                    onGreet: {
-                        let greeting = "你好！我想约你一起「\(buddy.profile.lookingFor)」——你最近有空吗？"
-                        if let convo = app.startDirectChat(with: buddy.profile.nickname, greeting: greeting) {
-                            app.openMessages(conversationID: convo.id)
-                        }
-                    },
+                    groupAlias: groupAlias,
+                    greetTitle: greetTitle(for: .free(buddy)),
+                    onGreet: { openGreet(for: .free(buddy)) },
                     onInvite: { buddies.invite(buddy.profile.nickname) }
                 )
             case .paid(let companion):
                 PaidCompanionDetailView(
                     companion: companion,
                     source: source,
-                    onGreet: {
-                        let greeting = "你好！我看到你提供「\(companion.specialty)」，想预约一下。你最近方便吗？"
-                        if let convo = app.startDirectChat(with: companion.profile.nickname, greeting: greeting) {
-                            app.openMessages(conversationID: convo.id)
-                        }
-                    },
-                    onInvite: { buddies.book(companion) },
+                    groupAlias: groupAlias,
+                    greetTitle: greetTitle(for: .paid(companion)),
+                    onGreet: { openGreet(for: .paid(companion)) },
+                    onQuickBook: { buddies.book(companion) },
                     onBookDay: { day in
                         buddies.book(companion, initialDay: day)
+                    },
+                    onBookService: { sku in
+                        buddies.book(companion, serviceSKU: sku)
                     }
                 )
             }
         }
-        .platformSecondaryPage()
+        .navigationTitle(profileTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .peerContactDestination(route: $peerContactRoute)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
@@ -93,35 +116,6 @@ struct BuddyDetailRouteView: View {
         } message: {
             Text("拉黑后将不再收到对方的互动与消息。")
         }
-        .sheet(item: Binding(
-            get: { buddies.inviteTarget },
-            set: { buddies.inviteTarget = $0 }
-        )) { target in
-            BuddyInviteSheet(nickname: target.nickname, activities: activities.inviteableActivities) { activity in
-                buddies.recordInvite(nickname: target.nickname, activity: activity)
-            }
-        }
-        .sheet(item: Binding(
-            get: { buddies.bookingTarget },
-            set: { buddies.bookingTarget = $0 }
-        )) { companion in
-            BuddyBookingSheet(
-                companion: companion,
-                initialDay: buddies.bookingInitialDay
-            ) { scheduledAt, hours, slotLabel in
-                _ = buddies.recordBooking(
-                    companion: companion,
-                    scheduledAt: scheduledAt,
-                    hours: hours,
-                    slotLabel: slotLabel
-                )
-            }
-            .onDisappear {
-                if buddies.bookingTarget == nil {
-                    buddies.bookingInitialDay = nil
-                }
-            }
-        }
     }
 
     private func submitBuddyReport(reason: String) {
@@ -143,25 +137,29 @@ struct BuddyDetailRouteView: View {
 struct CircleBuddyDetailView: View {
     let buddy: CircleBuddy
     var source: BuddyProfileSource = .discover
+    var groupAlias: String? = nil
+    var greetTitle = BuddyDetailCopy.greet
     var onGreet: () -> Void
     var onInvite: () -> Void
 
     @Environment(ActivitiesModel.self) private var activities
-    @Environment(BuddiesModel.self) private var buddies
     @Environment(AppModel.self) private var app
-    @State private var authorDestination: CommunityAuthorDestination?
 
     private var relatedActivities: [Activity] {
-        buddy.relatedActivityTitles.compactMap { activities.activity(matchingTitle: $0) }
+        Array(
+            activities.activities(matchingTitles: buddy.relatedActivityTitles)
+                .prefix(ActivityRelatedRecommender.displayLimit)
+        )
     }
 
     var body: some View {
         let matchSection = BuddyDetailMatchSection(profile: buddy.profile)
 
         Form {
+            // Meetup 式：封面 → 身份（含简介）→ 共同点 → 基本资料 → 圈子/档期 → 信任档案
             Section {
                 BuddyDetailHeroGallery(profile: buddy.profile)
-                    .listRowInsets(EdgeInsets())
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             }
@@ -175,35 +173,22 @@ struct CircleBuddyDetailView: View {
             }
 
             Section {
-                BuddyDetailIdentitySection(
+                BuddyDetailProfileHeader(
                     profile: buddy.profile,
-                    pitch: buddy.profile.lookingFor,
-                    statusLine: identityStatusLine(
-                        isOnline: buddy.isOnline,
-                        lastActive: buddy.profile.lastActiveText
-                    ),
-                    statusTint: buddy.isOnline && PrivacyPreferences.showOnline
-                        ? PlatformStatus.success
-                        : .secondary
+                    config: BuddyDetailProfileHeaderFactory.free(buddy: buddy),
+                    groupAlias: groupAlias,
+                    showsFollow: true,
+                    isFollowing: app.isFollowing(buddy.profile.nickname),
+                    onToggleFollow: { app.toggleFollow(buddy.profile.nickname) }
                 )
             }
 
-            Section {
-                BuddyDetailTrustRow(
-                    trust: .make(free: buddy),
-                    onProfile: {
-                        authorDestination = buddies.authorDestination(for: buddy.profile.nickname)
-                    },
-                    onChat: onGreet
-                )
-            } header: {
-                Text(BuddyDetailCopy.trustTitle)
-            }
-
-            Section {
-                BuddyDetailBasicInfoSection(profile: buddy.profile)
-            } header: {
-                Text(BuddyDetailCopy.basicInfoTitle)
+            if buddy.profile.hasVoiceIntro {
+                Section {
+                    BuddyPublicVoiceIntroRow(profile: buddy.profile)
+                } header: {
+                    Text(BuddyVoiceIntroCopy.publicSectionTitle)
+                }
             }
 
             Section {
@@ -213,21 +198,28 @@ struct CircleBuddyDetailView: View {
             }
 
             Section {
-                Text(buddy.profile.bio)
-                    .font(.body)
-                    .foregroundStyle(.primary)
+                BuddyDetailBasicInfoSection(profile: buddy.profile)
             } header: {
-                Text(BuddyDetailCopy.aboutTitle)
+                Text(BuddyDetailCopy.basicInfoTitle)
             }
 
             Section {
-                BuddyDetailCircleRow(circleName: buddy.circleName, topic: buddy.topic)
+                BuddyDetailCircleRow(
+                    circleName: buddy.circleName,
+                    topic: buddy.topic,
+                    profileSource: source
+                )
             } header: {
                 Text(BuddyDetailCopy.circleTitle)
             }
 
             Section {
-                BuddyDetailScheduleSection(slots: buddy.scheduleSlots)
+                BuddyDetailScheduleSection(
+                    slots: buddy.scheduleSlots,
+                    allowsBooking: !buddy.scheduleSlots.isEmpty,
+                    scheduleHint: BuddyBookingFlowCopy.freeScheduleHint,
+                    onSelectBookableDay: { _ in onInvite() }
+                )
             } header: {
                 Text(BuddyDetailCopy.scheduleTitle)
             }
@@ -241,9 +233,11 @@ struct CircleBuddyDetailView: View {
 
             if !relatedActivities.isEmpty {
                 Section {
-                    BuddyDetailRelatedRail(activities: relatedActivities)
+                    DetailRelatedActivitiesRail(activities: relatedActivities)
                 } header: {
                     Text(BuddyDetailCopy.relatedTitle)
+                } footer: {
+                    Text(BuddyDetailCopy.relatedFooter)
                 }
             }
         }
@@ -251,17 +245,15 @@ struct CircleBuddyDetailView: View {
         .contentMargins(.top, 0, for: .scrollContent)
         .scrollEdgeEffectStyle(.soft, for: .top)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .navigationTitle(buddy.profile.nickname)
-        .navigationBarTitleDisplayMode(.inline)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .platformDetailBottomBar {
             BuddyDetailActionBar(
                 inviteEnabled: true,
                 inviteTitle: BuddyDetailCopy.invite,
+                greetTitle: greetTitle,
                 onGreet: onGreet,
                 onInvite: onInvite
             )
         }
-        .communityAuthorSheet($authorDestination)
     }
 }
 
@@ -270,29 +262,41 @@ struct CircleBuddyDetailView: View {
 struct PaidCompanionDetailView: View {
     let companion: PaidCompanion
     var source: BuddyProfileSource = .discover
+    var groupAlias: String? = nil
+    var greetTitle = BuddyDetailCopy.greet
     var onGreet: () -> Void
-    var onInvite: () -> Void
+    var onQuickBook: () -> Void
     var onBookDay: ((Date) -> Void)? = nil
+    var onBookService: ((BuddyCompanionServiceSKU) -> Void)? = nil
 
     @Environment(ActivitiesModel.self) private var activities
-    @Environment(BuddiesModel.self) private var buddies
     @Environment(AppModel.self) private var app
-    @State private var authorDestination: CommunityAuthorDestination?
+    @State private var selectedTab: PaidCompanionDetailTab = .profile
+    @State private var reviewRefreshToken = 0
 
     private var relatedActivities: [Activity] {
-        companion.relatedActivityTitles.compactMap { activities.activity(matchingTitle: $0) }
+        Array(
+            activities.activities(matchingTitles: companion.relatedActivityTitles)
+                .prefix(ActivityRelatedRecommender.displayLimit)
+        )
+    }
+
+    private var serviceSKUs: [BuddyCompanionServiceSKU] {
+        BuddyCompanionServiceMenu.skus(for: companion)
+    }
+
+    private var reviewStats: PlatformReviewStats {
+        PlatformReviewsStore.stats(for: .companion(companion.id))
     }
 
     var body: some View {
-        let matchSection = BuddyDetailMatchSection(profile: companion.profile)
-
         Form {
             Section {
                 BuddyDetailHeroGallery(
                     profile: companion.profile,
                     verifiedBadge: companion.isVerified
                 )
-                .listRowInsets(EdgeInsets())
+                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             }
@@ -306,108 +310,160 @@ struct PaidCompanionDetailView: View {
             }
 
             Section {
-                BuddyDetailIdentitySection(
+                BuddyDetailProfileHeader(
                     profile: companion.profile,
-                    pitch: companion.specialty,
-                    statusLine: companion.priceText,
-                    metricsFooter: String(
-                        format: "%@ · %@",
-                        BuddyDetailCopy.ordersValue(companion.orderCount),
-                        companion.responseTime
-                    ),
-                    statusTint: PlatformStatus.warning
+                    config: BuddyDetailProfileHeaderFactory.paid(companion: companion),
+                    groupAlias: groupAlias,
+                    showsFollow: true,
+                    isFollowing: app.isFollowing(companion.profile.nickname),
+                    onToggleFollow: { app.toggleFollow(companion.profile.nickname) }
                 )
             }
 
             Section {
-                BuddyDetailTrustRow(
-                    trust: .make(paid: companion),
-                    onProfile: {
-                        authorDestination = buddies.authorDestination(for: companion.profile.nickname)
-                    },
-                    onChat: onGreet
-                )
-            } header: {
-                Text(BuddyDetailCopy.trustTitle)
-            }
-
-            Section {
-                BuddyDetailBasicInfoSection(profile: companion.profile)
-            } header: {
-                Text(BuddyDetailCopy.basicInfoTitle)
-            }
-
-            Section {
-                BuddyDetailServiceInfoSection(companion: companion)
-                Text(companion.profile.bio)
-                    .font(.body)
-                    .foregroundStyle(.primary)
-            } header: {
-                Text(BuddyDetailCopy.serviceTitle)
-            }
-
-            Section {
-                matchSection
-            } header: {
-                Text(matchSection.sectionTitle)
-            }
-
-            Section {
-                BuddyDetailScheduleSection(
-                    slots: companion.scheduleSlots,
-                    allowsBooking: companion.isAvailable,
-                    onSelectBookableDay: { day in
-                        if let onBookDay {
-                            onBookDay(day)
-                        } else {
-                            onInvite()
-                        }
+                Picker("详情分区", selection: $selectedTab) {
+                    ForEach(PaidCompanionDetailTab.allCases) { tab in
+                        Text(tabTitle(tab)).tag(tab)
                     }
-                )
-            } header: {
-                Text(BuddyDetailCopy.scheduleTitle)
+                }
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
             }
 
-            TrustPublicProfileSections(
-                nickname: companion.profile.nickname,
-                currentUserName: app.user.name,
-                buddyItem: .paid(companion),
-                compact: false
-            )
-
-            if !relatedActivities.isEmpty {
-                Section {
-                    BuddyDetailRelatedRail(activities: relatedActivities)
-                } header: {
-                    Text(BuddyDetailCopy.relatedTitle)
-                }
+            switch selectedTab {
+            case .service:
+                serviceTabSections
+            case .profile:
+                profileTabSections
+            case .reviews:
+                PlatformReviewsRatedTab(
+                    companion: companion,
+                    currentUserName: app.user.name,
+                    onChanged: { reviewRefreshToken += 1 }
+                )
+                .id(reviewRefreshToken)
             }
         }
         .listSectionSpacing(.compact)
         .contentMargins(.top, 0, for: .scrollContent)
         .scrollEdgeEffectStyle(.soft, for: .top)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .navigationTitle(companion.profile.nickname)
-        .navigationBarTitleDisplayMode(.inline)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .platformDetailBottomBar {
             BuddyDetailActionBar(
                 inviteEnabled: companion.isAvailable,
-                inviteTitle: companion.isAvailable ? BuddyDetailCopy.book : BuddyDetailCopy.bookUnavailable,
-                emphasizeInvite: source.emphasizesBooking,
+                inviteTitle: companion.isAvailable
+                    ? BuddyDetailCopy.quickBook
+                    : BuddyDetailCopy.bookUnavailable,
+                greetTitle: greetTitle,
+                emphasizeInvite: true,
                 onGreet: onGreet,
-                onInvite: onInvite
+                onInvite: onQuickBook
             )
         }
-        .communityAuthorSheet($authorDestination)
     }
-}
 
-private func identityStatusLine(isOnline: Bool, lastActive: String) -> String {
-    if let line = PrivacyPreferences.statusLine(isOnline: isOnline, lastActiveText: lastActive) {
-        return line
+    @ViewBuilder
+    private var serviceTabSections: some View {
+        Section {
+            ForEach(serviceSKUs) { sku in
+                BuddyCompanionServiceSKURow(
+                    sku: sku,
+                    bookEnabled: companion.isAvailable,
+                    onBook: {
+                        if sku.isNegotiable {
+                            onGreet()
+                        } else if let onBookService {
+                            onBookService(sku)
+                        } else {
+                            onQuickBook()
+                        }
+                    }
+                )
+            }
+        } header: {
+            Text(BuddyDetailCopy.serviceMenuTitle)
+        } footer: {
+            Text(BuddyDetailCopy.serviceMenuFooter)
+        }
+
+        Section {
+            BuddyDetailScheduleSection(
+                slots: companion.scheduleSlots,
+                allowsBooking: companion.isAvailable,
+                onSelectBookableDay: { day in
+                    if let onBookDay {
+                        onBookDay(day)
+                    } else {
+                        onQuickBook()
+                    }
+                }
+            )
+        } header: {
+            Text(BuddyDetailCopy.scheduleTitle)
+        }
+
+        if !relatedActivities.isEmpty {
+            Section {
+                DetailRelatedActivitiesRail(activities: relatedActivities)
+            } header: {
+                Text(BuddyDetailCopy.relatedTitle)
+            } footer: {
+                Text(BuddyDetailCopy.relatedFooter)
+            }
+        }
     }
-    if isOnline, !PrivacyPreferences.showOnline {
-        return lastActive.isEmpty ? "近期活跃" : lastActive
+
+    @ViewBuilder
+    private var profileTabSections: some View {
+        // 与同好详情一致：身份卡含简介；共同点 → 基本资料 → 服务 → 信任
+        if companion.profile.hasVoiceIntro {
+            Section {
+                BuddyPublicVoiceIntroRow(profile: companion.profile)
+            } header: {
+                Text(BuddyVoiceIntroCopy.publicSectionTitle)
+            }
+        }
+
+        let matchSection = BuddyDetailMatchSection(profile: companion.profile)
+        Section {
+            matchSection
+        } header: {
+            Text(matchSection.sectionTitle)
+        }
+
+        Section {
+            BuddyDetailPerformanceSection(companion: companion)
+        } header: {
+            Text(BuddyDetailCopy.performanceTitle)
+        }
+
+        Section {
+            BuddyDetailBasicInfoSection(profile: companion.profile)
+        } header: {
+            Text(BuddyDetailCopy.basicInfoTitle)
+        }
+
+        Section {
+            BuddyDetailServiceInfoSection(companion: companion)
+        } header: {
+            Text(BuddyDetailCopy.serviceTitle)
+        }
+
+        TrustPublicProfileSections(
+            nickname: companion.profile.nickname,
+            currentUserName: app.user.name,
+            buddyItem: .paid(companion),
+            compact: false
+        )
     }
-    return lastActive
+
+    private func tabTitle(_ tab: PaidCompanionDetailTab) -> String {
+        switch tab {
+        case .service, .profile:
+            tab.rawValue
+        case .reviews:
+            "评价 \(reviewStats.total)"
+        }
+    }
 }

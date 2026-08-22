@@ -136,6 +136,24 @@ enum Formatters {
         return nil
     }
 
+    /// 用户评价时间：昨天 23:30 / 2天前 / 7月20日
+    static func reviewPostedTime(from date: Date, relativeTo now: Date = .now) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return "今天 \(shortTime.string(from: date))"
+        }
+        if calendar.isDateInYesterday(date) {
+            return "昨天 \(shortTime.string(from: date))"
+        }
+        let start = calendar.startOfDay(for: date)
+        let today = calendar.startOfDay(for: now)
+        let days = calendar.dateComponents([.day], from: start, to: today).day ?? 0
+        if days > 0, days < 7 {
+            return "\(days)天前"
+        }
+        return monthDay.string(from: date)
+    }
+
     /// 互动数字：1033 → 1,033；105000 → 10.5万
     static func compactCount(_ value: Int) -> String {
         if value >= 10_000 {

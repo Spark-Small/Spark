@@ -2,10 +2,23 @@
 //  BuddyOrgJoinFlow.swift
 //  坐标系
 //
-//  兴趣组织加入链路：确认 → 成功（进群）→ 邀请成员。
+//  兴趣圈子加入链路：确认 → 成功（进群）。
 //
 
 import SwiftUI
+
+nonisolated enum BuddyOrgJoinCopy {
+    static let confirmTitle = "加入圈子"
+    static let confirmJoinCTA = "确认加入"
+
+    static let confirmChatRowTitle = "加入后"
+    static let confirmChatRowValue = "进入圈子群聊"
+    static let confirmChatFooter = "群聊将出现在「消息」，你可在圈子资料中随时退出。"
+
+    static let confirmGuildRowTitle = "关注后"
+    static let confirmGuildRowValue = "查看工会陪玩"
+    static let confirmGuildFooter = "可在工会资料中随时取消关注。"
+}
 
 struct BuddyOrgJoinConfirmSheet: View {
     let target: BuddyOrgJoinTarget
@@ -14,17 +27,22 @@ struct BuddyOrgJoinConfirmSheet: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    private var name: String {
+    private var displayName: String {
         switch target {
-        case .circle(let c): c.name
-        case .guild(let g): g.name
+        case .circle(let c):
+            let count = SampleData.circleBuddies.filter { $0.circleName == c.name }.count
+            return "\(c.name)（\(count)）"
+        case .guild(let g):
+            return g.name
         }
     }
 
-    private var subtitle: String {
+    private var subtitle: String? {
         switch target {
-        case .circle(let c): "\(c.city) · \(c.topic) · \(c.memberCount) 人"
-        case .guild(let g): "\(g.city) · \(g.specialty) · \(g.priceFromText)"
+        case .circle:
+            return nil
+        case .guild(let g):
+            return "\(g.city) · \(g.specialty) · \(g.priceFromText)"
         }
     }
 
@@ -42,6 +60,22 @@ struct BuddyOrgJoinConfirmSheet: View {
         }
     }
 
+    private var joinOutcomeRow: (title: String, value: String) {
+        switch target {
+        case .circle:
+            return (BuddyOrgJoinCopy.confirmChatRowTitle, BuddyOrgJoinCopy.confirmChatRowValue)
+        case .guild:
+            return (BuddyOrgJoinCopy.confirmGuildRowTitle, BuddyOrgJoinCopy.confirmGuildRowValue)
+        }
+    }
+
+    private var joinOutcomeFooter: String {
+        switch target {
+        case .circle: BuddyOrgJoinCopy.confirmChatFooter
+        case .guild: BuddyOrgJoinCopy.confirmGuildFooter
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -51,39 +85,36 @@ struct BuddyOrgJoinConfirmSheet: View {
                             .font(.largeTitle)
                             .platformSymbolStyle(.multicolor)
                             .frame(width: 72, height: 72)
-                            .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: PlatformMetrics.radiusCard, style: .continuous))
 
-                        Text(name)
+                        Text(displayName)
                             .font(.title3.weight(.bold))
                             .multilineTextAlignment(.center)
 
-                        Text(subtitle)
-                            .font(.subheadline)
+                        if let subtitle {
+                            Text(subtitle)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+
+                        Text(summary)
+                            .font(.body)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
                 }
 
-                Section("组织说明") {
-                    Text(summary)
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                }
-
                 Section {
-                    Label("加入后进入组织群聊，可看成员与公告", systemImage: "bubble.left.and.bubble.right")
-                        .platformContentSymbolStyle()
-                        .font(.subheadline)
-                    Label("可随时在组织资料或消息里退出", systemImage: "arrow.uturn.backward")
-                        .platformContentSymbolStyle()
-                        .font(.subheadline)
+                    LabeledContent(joinOutcomeRow.title, value: joinOutcomeRow.value)
                 } footer: {
-                    Text("本地演示：加入状态与群聊会保存在本机。")
+                    Text(joinOutcomeFooter)
                 }
             }
-            .navigationTitle("加入组织")
+            .navigationTitle(BuddyOrgJoinCopy.confirmTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -93,7 +124,7 @@ struct BuddyOrgJoinConfirmSheet: View {
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("确认加入") {
+                    Button(BuddyOrgJoinCopy.confirmJoinCTA) {
                         onConfirm()
                         dismiss()
                     }
@@ -110,7 +141,6 @@ struct BuddyOrgJoinSuccessSheet: View {
     var hasConversation: Bool
     var onEnterChat: () -> Void
     var onViewOrg: () -> Void
-    var onInvite: () -> Void
     var onDone: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -118,46 +148,36 @@ struct BuddyOrgJoinSuccessSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: PlatformMetrics.sectionSpacing) {
-                Spacer(minLength: 12)
+                Spacer(minLength: PlatformMetrics.cardFooterSpacing)
 
                 Image(systemName: success.systemImage)
-                    .font(.system(size: 44))
+                    .font(.largeTitle)
                     .platformSymbolStyle(.multicolor)
+                    .accessibilityHidden(true)
 
-                Text("已加入组织")
+                Text("已加入圈子")
                     .font(.title2.weight(.bold))
 
                 Text("「\(success.name)」")
                     .font(.headline)
 
-                Text(
-                    hasConversation
-                        ? "组织群聊已就绪。可先打个招呼，或稍后再从消息 · 群聊进入。"
-                        : "可在「我的 · 我的圈子」里找到它，也可邀请同好一起加入。"
-                )
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
+                if !hasConversation {
+                    Text("可在「我的 · 我的圈子」里找到它。")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
 
                 Spacer()
 
-                VStack(spacing: 12) {
+                VStack(spacing: PlatformMetrics.cardFooterSpacing) {
                     if hasConversation {
                         Button("进入群聊") {
                             onEnterChat()
                             dismiss()
                         }
                         .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                    }
-
-                    if hasConversation {
-                        Button("查看组织资料") {
-                            onViewOrg()
-                            dismiss()
-                        }
-                        .buttonStyle(.bordered)
                         .controlSize(.large)
                     } else {
                         Button("查看资料") {
@@ -167,23 +187,10 @@ struct BuddyOrgJoinSuccessSheet: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                     }
-
-                    Button("邀请成员") {
-                        onInvite()
-                        dismiss()
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
-
-                    Button("完成") {
-                        onDone()
-                        dismiss()
-                    }
-                    .buttonStyle(.borderless)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, PlatformMetrics.contentInset)
-                .padding(.bottom, 8)
+                .padding(.bottom, PlatformMetrics.minContentGap)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

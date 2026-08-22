@@ -2,42 +2,44 @@
 //  BuddiesView.swift
 //  坐标系
 //
-//  一页一事：
-//  同好 = 情境活动卡 → 兴趣话题 → 状态人卡 → 组织
-//  陪玩 = 可预约人 → 语音厅（Discord 频道感）→ 更多陪玩
+//  找人玩：搭子双列墙；陪玩 = 精选横滑 + 推荐榜（穿插快捷长条）。
 //
 
 import SwiftUI
 
 struct BuddiesView: View {
-    @State private var path = NavigationPath()
+    @State private var navigation = TabNavigationState()
     @State private var showCircleDiscover = false
     @State private var showFilterSheet = false
+    @State private var peopleSort: BuddyPeopleSort = .recommended
+    @State private var bookingSort: BuddyBookingSort = .recommended
+    @State private var boardPeriod: BuddyPaidBoardPeriod = .week
     @State private var weather = GreetingWeatherStore.shared
     @State private var location = LocationService.shared
+    @State private var peerContactRoute: PeerContactRoute?
     @Namespace private var zoomNamespace
 
     @Environment(AppModel.self) private var app
     @Environment(ActivitiesModel.self) private var activities
     @Environment(BuddiesModel.self) private var model
 
-    /// 陪玩页前半：可预约；后半：更多
-    private var paidLeadItems: [DiscoverBuddyItem] {
-        Array(model.stageItems.prefix(4))
+    private var paidPeople: [DiscoverBuddyItem] {
+        model.sortedBookings(model.stageItems, by: bookingSort)
     }
 
-    private var paidTrailItems: [DiscoverBuddyItem] {
-        Array(model.stageItems.dropFirst(4))
+    private var searchPrompt: String {
+        model.isPaidPage ? "搜昵称或擅长" : "搜搭子、羽毛球、夜骑…"
     }
 
-    private var situationActivities: [Activity] {
-        BuddySituationCatalog.activities(from: activities)
+    private var activeQuery: String {
+        model.filter.query.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     var body: some View {
+        @Bindable var navigation = navigation
         @Bindable var model = model
 
-        NavigationStack(path: $path) {
+        NavigationStack(path: $navigation.path) {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: PlatformMetrics.sectionSpacing) {
                     if model.isPaidPage {
@@ -46,13 +48,29 @@ struct BuddiesView: View {
                         socialBrowse
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, PlatformMetrics.sectionSpacing)
             }
             .scrollDismissesKeyboard(.interactively)
-            .scrollEdgeEffectStyle(.soft, for: .top)
             .background(PlatformSurface.groupedPage)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { buddiesToolbar }
+            .safeAreaInset(edge: .bottom) {
+                Color.clear
+                    .frame(height: PlatformMetrics.sectionSpacing)
+            }
+            .platformTabRootScrollChrome(title: BuddiesCopy.rootTitle)
+            .searchable(
+                text: $model.filter.query,
+                placement: .navigationBarDrawer(displayMode: .automatic),
+                prompt: searchPrompt
+            )
+            .platformTabRootToolbar {
+                BuddiesModeSwitchToolbar(
+                    kind: $model.filter.kind,
+                    hasActiveFilters: model.hasActiveBrowseFilters,
+                    filterAccessibilityValue: model.browseRegionAccessibilityLabel,
+                    onFilter: { showFilterSheet = true }
+                )
+            }
             .task(id: location.observationToken) {
                 await weather.refresh()
                 model.syncLocatedPlaceName(weather.reading?.placeName)
@@ -61,14 +79,15 @@ struct BuddiesView: View {
                 model.syncLocatedPlaceName(place)
             }
             .buddyZoomNavigationDestination(namespace: zoomNamespace)
-            .activityZoomSlot("buddies-situation")
-            .activityZoomNavigationDestination(namespace: zoomNamespace)
-            .circleDetailNavigationDestination()
+            .circleBrowseNavigationDestination()
+            .peerContactDestination(route: $peerContactRoute)
             .navigationDestination(for: VoiceHall.self) { hall in
                 BuddyVoiceHallRoomView(hall: hall)
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
             .navigationDestination(isPresented: $showCircleDiscover) {
                 ProfileCircleDiscoverView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
             .sheet(isPresented: $showFilterSheet) {
                 BuddyFilterSheet(
@@ -86,125 +105,113 @@ struct BuddiesView: View {
                     },
                     onOpenSettings: {
                         NotificationService.openSystemSettings()
-                    }
+                    },
+                    peopleSort: peopleSort,
+                    bookingSort: bookingSort,
+                    onPeopleSortChange: { peopleSort = $0 },
+                    onBookingSortChange: { bookingSort = $0 }
                 )
-            }
-            .sheet(item: $model.inviteTarget) { target in
-                BuddyInviteSheet(nickname: target.nickname, activities: activities.inviteableActivities) { activity in
-                    model.recordInvite(nickname: target.nickname, activity: activity)
-                }
-            }
-            .sheet(item: $model.bookingTarget) { companion in
-                BuddyBookingSheet(
-                    companion: companion,
-                    initialDay: model.bookingInitialDay
-                ) { scheduledAt, hours, slotLabel in
-                    _ = model.recordBooking(
-                        companion: companion,
-                        scheduledAt: scheduledAt,
-                        hours: hours,
-                        slotLabel: slotLabel
-                    )
-                }
-                .onDisappear {
-                    if model.bookingTarget == nil {
-                        model.bookingInitialDay = nil
-                    }
-                }
+                .toolbarVisibility(.hidden, for: .tabBar)
             }
             .platformTransientFeedback($model.toastMessage)
+            .sensoryFeedback(.success, trigger: model.toastMessage)
+            .buddyBookingChrome(
+                buddies: model,
+                app: app,
+                peerContactRoute: $peerContactRoute
+            )
             .buddyOrgJoinChrome(
                 buddies: model,
-                openCircle: { path.append($0) },
+                openCircle: { navigation.openCircle($0) },
                 openConversation: { app.openMessages(conversationID: $0) }
             )
-            .sheet(item: Binding(
-                get: { model.pendingPaymentBooking },
-                set: { if $0 == nil { model.cancelPendingPayment() } }
-            )) { record in
-                BookingPaymentSheet(
-                    record: record,
-                    onConfirm: { method in
-                        let outcome = model.confirmPayment(record.id, method: method)
-                        guard outcome == .success else { return outcome }
-                        let greeting =
-                            "你好！我想预约 \(Formatters.monthDay.string(from: record.scheduledAt)) "
-                            + "\(Formatters.shortTime.string(from: record.scheduledAt)) 开始的 \(record.hours) 小时陪玩，方便确认一下吗？"
-                        if let convo = app.startDirectChat(
-                            with: record.companionNickname,
-                            greeting: greeting
-                        ) {
-                            app.openMessages(conversationID: convo.id)
-                        }
-                        return .success
-                    },
-                    onCancel: {
-                        model.cancelPendingPayment()
-                    }
-                )
-            }
-            .sheet(item: Binding(
-                get: { model.pendingSafetyCheckInBooking },
-                set: { if $0 == nil { model.cancelPendingSafetyCheckIn() } }
-            )) { record in
-                TrustSafetyCheckInSheet(record: record) {
-                    model.cancelPendingSafetyCheckIn()
-                }
-            }
-            .platformTabBarHiddenWhenPushed(path.isEmpty && !showCircleDiscover)
             .onAppear { normalizePageMode() }
+            .onChange(of: model.filter.kind) { _, _ in
+                peopleSort = .recommended
+                bookingSort = .recommended
+            }
         }
+        .tabNavigationState(navigation)
     }
 
-    // MARK: - 同好
+    // MARK: - 免费找人
+
+    private var socialPeople: [DiscoverBuddyItem] {
+        model.sortedPeople(model.stageItems, by: peopleSort)
+    }
+
+    private func gridTitle(picksEmpty: Bool, query: String) -> String {
+        if !query.isEmpty { return "搜索结果" }
+        if picksEmpty {
+            return switch peopleSort {
+            case .recommended: "推荐"
+            case .nearby: "附近的人"
+            case .active: "刚活跃"
+            }
+        }
+        return "更多附近"
+    }
+
+    private func gridSubtitle(picksEmpty: Bool, query: String) -> String {
+        if !query.isEmpty { return "已按「\(query)」筛选" }
+        if picksEmpty {
+            return switch peopleSort {
+            case .recommended: "看照片与状态，直接聊天"
+            case .nearby: "按距离排序"
+            case .active: "最近活跃的人"
+            }
+        }
+        return "继续浏览"
+    }
 
     @ViewBuilder
     private var socialBrowse: some View {
-        if !situationActivities.isEmpty {
-            BuddySituationRail(
-                activities: situationActivities,
-                zoomNamespace: zoomNamespace,
-                isJoined: { activities.isJoined($0) },
-                onJoin: { activity in
-                    _ = app.quickJoinActivity(activity) {
-                        path.append(ActivityZoomSource(activityID: activity.id, slot: "buddies-situation"))
-                    }
-                }
-            )
-        }
+        let people = socialPeople
+        let showPicks = peopleSort == .recommended && people.count > BuddyDiscoveryPicks.limit
+        let (picks, rest) = showPicks
+            ? BuddyDiscoveryPicks.split(people)
+            : ([], people)
 
-        BuddyTopicInterestBar(hobby: Binding(
-            get: { model.filter.hobby },
-            set: { model.filter.hobby = $0 }
-        ))
-
-        if model.stageItems.isEmpty {
+        if people.isEmpty {
             emptyState
         } else {
+            if !picks.isEmpty {
+                BuddyPickRail(
+                    items: picks,
+                    title: "为你精选",
+                    subtitle: activeQuery.isEmpty
+                        ? "找有趣的人，一起玩更快乐"
+                        : "与「\(activeQuery)」更契合",
+                    intentQuery: activeQuery,
+                    zoomNamespace: zoomNamespace,
+                    onChat: greet
+                )
+            }
+
             DiscoverBrowseSection(
-                title: "附近同好",
-                subtitle: "一句状态 · 共同兴趣叠在照片上"
+                title: gridTitle(picksEmpty: picks.isEmpty, query: activeQuery),
+                subtitle: gridSubtitle(picksEmpty: picks.isEmpty, query: activeQuery)
             ) {
                 BuddyPersonGrid(
-                    items: model.stageItems,
+                    items: rest,
+                    intentQuery: activeQuery,
                     zoomNamespace: zoomNamespace,
-                    onChat: greet,
-                    onInvite: invite
+                    onChat: greet
                 )
             }
         }
 
         if !model.allCircles.isEmpty {
             DiscoverBrowseSection(
-                title: "兴趣组织",
-                subtitle: "加入即进群，和同好聊起来",
+                title: "兴趣圈子",
+                subtitle: "找人之后，也可以进群继续聊",
                 showsChevron: true,
                 onSeeAll: { showCircleDiscover = true }
             ) {
                 DiscoverHorizontalRail {
                     ForEach(model.allCircles) { circle in
                         BuddyPosterShelfCard.circle(circle) {
-                            path.append(circle)
+                            navigation.openCircle(circle)
                         }
                         .platformPosterRailFrame()
                     }
@@ -213,65 +220,76 @@ struct BuddiesView: View {
         }
     }
 
-    // MARK: - 陪玩
+    // MARK: - 预约
+
+    private var paidBoardItems: [DiscoverBuddyItem] {
+        BuddyPaidMarketCatalog.ranked(paidPeople, period: boardPeriod)
+    }
+
+    private var paidFeaturedCompanions: [PaidCompanion] {
+        let companions = paidPeople.compactMap { item -> PaidCompanion? in
+            guard case .paid(let companion) = item else { return nil }
+            return companion
+        }
+        let available = companions.filter(\.isAvailable)
+        let rest = companions.filter { !$0.isAvailable }
+        return Array((available + rest).prefix(5))
+    }
 
     @ViewBuilder
     private var paidBrowse: some View {
-        if model.stageItems.isEmpty {
-            emptyState
-        } else {
+        @Bindable var model = model
+
+        if !paidFeaturedCompanions.isEmpty {
             DiscoverBrowseSection(
-                title: "可预约",
-                subtitle: "看档期与价位，点卡进资料"
+                title: "精选陪玩",
+                subtitle: "先看近期可约、响应更快的人选"
             ) {
-                BuddyPersonGrid(
-                    items: paidLeadItems,
+                BuddyFeaturedCompanionRail(
+                    companions: paidFeaturedCompanions,
                     zoomNamespace: zoomNamespace,
-                    onChat: greet,
-                    onInvite: invite
+                    onBook: { model.book($0) }
                 )
             }
+        }
+
+        if paidPeople.isEmpty {
+            emptyState
+        } else {
+            BuddyPaidLeaderboard(
+                items: paidBoardItems,
+                period: $boardPeriod,
+                zoomNamespace: zoomNamespace,
+                onBook: invite,
+                onQuickEntry: handlePaidQuickEntry
+            )
         }
 
         if !model.allVoiceHalls.isEmpty {
             BuddyVoiceChannelRail(halls: model.allVoiceHalls) { hall in
-                path.append(hall)
-            }
-        }
-
-        if !paidTrailItems.isEmpty {
-            DiscoverBrowseSection(
-                title: "更多陪玩",
-                subtitle: "继续下滑对比服务"
-            ) {
-                BuddyPersonGrid(
-                    items: paidTrailItems,
-                    zoomNamespace: zoomNamespace,
-                    onChat: greet,
-                    onInvite: invite
-                )
+                navigation.path.append(hall)
             }
         }
     }
 
-    // MARK: - Toolbar
-
-    @ToolbarContentBuilder
-    private var buddiesToolbar: some ToolbarContent {
-        @Bindable var model = model
-
-        ToolbarItem(placement: .topBarLeading) {
-            Button("筛选", systemImage: "line.3.horizontal.decrease") {
-                showFilterSheet = true
+    private func handlePaidQuickEntry(_ entry: BuddyPaidQuickEntry) {
+        switch entry {
+        case .quickMatch:
+            model.filter.serviceType = nil
+            model.filter.availableOnly = true
+            bookingSort = .earliest
+        case .voiceParty:
+            if let hall = model.allVoiceHalls.first(where: \.isLive) ?? model.allVoiceHalls.first {
+                navigation.path.append(hall)
+            } else {
+                model.filter.serviceType = .voice
+                model.filter.availableOnly = false
+                bookingSort = .recommended
             }
-            .symbolVariant(model.hasActiveBrowseFilters ? .fill : .none)
-            .accessibilityLabel(model.hasActiveBrowseFilters ? "筛选（已启用）" : "筛选")
-            .accessibilityHint("打开筛选：地区、性别、距离、兴趣、可约")
-            .accessibilityValue(model.browseRegionAccessibilityLabel)
         }
-
-        BuddiesModeSwitchToolbar(kind: $model.filter.kind)
     }
+
+    // MARK: - Browse
 
     private func normalizePageMode() {
         if model.filter.kind != .paid {
@@ -280,12 +298,10 @@ struct BuddiesView: View {
     }
 
     private func greet(_ item: DiscoverBuddyItem) {
-        if let convo = app.startDirectChat(
+        peerContactRoute = app.openPeerContact(
             with: item.profile.nickname,
-            greeting: "你好，想一起玩吗？"
-        ) {
-            app.openMessages(conversationID: convo.id)
-        }
+            context: .forBuddyItem(item)
+        )
     }
 
     private func invite(_ item: DiscoverBuddyItem) {
@@ -300,51 +316,58 @@ struct BuddiesView: View {
     private var emptyState: some View {
         let isPaid = model.isPaidPage
         let filtered = model.hasActiveBrowseFilters
+            || !model.filter.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let locating = model.usesSystemLocation
             && (model.locatedPlaceName == nil || model.locatedPlaceName?.isEmpty == true)
         return ContentUnavailableView {
             Label(
                 filtered
-                    ? (isPaid ? "没有符合的陪玩" : "没有符合的同好")
+                    ? (isPaid ? "没有符合的陪玩" : "没有找到符合的人")
                     : (locating
-                        ? "正在定位附近的人"
-                        : (isPaid ? "附近暂无陪玩" : "附近暂无同好")),
-                systemImage: filtered ? "line.3.horizontal.decrease" : "person.2.slash"
+                        ? "正在获取位置…"
+                        : (isPaid ? "附近暂无可约的陪玩" : "附近暂时没有人")),
+                systemImage: filtered ? "magnifyingglass" : (locating ? "location.fill" : "mappin.and.ellipse")
             )
         } description: {
             Text(
                 filtered
-                    ? "试试放宽性别、距离或兴趣，或换个城市看看"
+                    ? "试试换个搜索词，或者放宽筛选条件"
                     : (locating
-                        ? "定位完成后会按城市推荐；也可在筛选里指定城市"
+                        ? "定位完成后会按城市推荐，也可在筛选里手动指定城市"
                         : (isPaid
-                            ? "可以先逛语音厅，或稍后再来"
-                            : "可以先去兴趣组织看看"))
+                            ? "可以扩大搜索范围，或切换到搭子页先找人聊天"
+                            : "可以扩大搜索距离，或换个搜索词再试试"))
             )
         } actions: {
             if filtered {
-                PrimaryButton(title: "清除筛选") {
+                Button("清除筛选") {
                     model.resetBrowseFilters()
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
                 Button("调整筛选") {
                     showFilterSheet = true
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.large)
             } else if locating {
                 Button("指定城市") {
                     showFilterSheet = true
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
             } else if isPaid {
-                Button("浏览同好") {
+                Button("找搭子") {
                     model.showSocialPage()
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
             } else {
-                Button("浏览兴趣组织") {
-                    showCircleDiscover = true
+                Button("放宽筛选") {
+                    showFilterSheet = true
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
             }
         }
         .frame(maxWidth: .infinity)

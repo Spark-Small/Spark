@@ -85,8 +85,8 @@ struct ActivityReportSheet: View {
                                     Image(uiImage: image)
                                         .resizable()
                                         .scaledToFill()
-                                        .frame(width: 72, height: 72)
-                                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                        .frame(width: PlatformMetrics.detailRelatedThumb, height: PlatformMetrics.detailRelatedThumb)
+                                        .clipShape(RoundedRectangle(cornerRadius: PlatformMetrics.radiusMedia, style: .continuous))
                                         .accessibilityLabel("证据 \(index + 1)")
                                 }
                             }

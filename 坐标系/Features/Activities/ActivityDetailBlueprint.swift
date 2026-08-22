@@ -73,7 +73,7 @@ struct ActivityDetailBlueprint {
             return learning(activity)
         case .entertainment:
             return entertainment(activity)
-        case .all:
+        case .all, .forYou:
             return social(activity)
         }
     }

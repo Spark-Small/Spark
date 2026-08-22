@@ -14,6 +14,7 @@ struct ActivityDetailDecisionCard: View {
     var onPeople: () -> Void
 
     @State private var calendarMessage: String?
+    @State private var showCalendarAccessAlert = false
     @State private var showNavigationPicker = false
 
     var body: some View {
@@ -38,7 +39,14 @@ struct ActivityDetailDecisionCard: View {
                         actionLabel: ActivityDetailCopy.calendarAction
                     ) {
                         Task {
-                            calendarMessage = await ActivityCalendar.add(activity, withReminders: true)
+                            switch await ActivityCalendar.add(activity, withReminders: true) {
+                            case .added(let withReminders):
+                                calendarMessage = ActivityCalendar.successMessage(withReminders: withReminders)
+                            case .accessDenied:
+                                showCalendarAccessAlert = true
+                            case .failed:
+                                calendarMessage = ActivityDetailCopy.calendarFailedMessage
+                            }
                         }
                     }
 
@@ -76,24 +84,11 @@ struct ActivityDetailDecisionCard: View {
                 .accessibilityLabel(ActivityDetailCopy.peopleRowAccessibility)
                 .accessibilityHint("查看参加成员")
         }
-        .confirmationDialog(
-            ActivityDetailCopy.navigationSheetTitle,
-            isPresented: $showNavigationPicker,
-            titleVisibility: .visible
-        ) {
-            Button("Apple 地图") {
-                ActivityNavigation.openInAppleMaps(activity)
-            }
-            Button("高德地图") {
-                ActivityNavigation.openInAmap(activity)
-            }
-            Button("百度地图") {
-                ActivityNavigation.openInBaiduMaps(activity)
-            }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text(activity.location)
+        .sheet(isPresented: $showNavigationPicker) {
+            ActivityNavigationPickerSheet(activity: activity)
+                .toolbarVisibility(.hidden, for: .tabBar)
         }
+        .activityCalendarAccessAlert(isPresented: $showCalendarAccessAlert)
     }
 
     private var locationModule: some View {
@@ -191,7 +186,7 @@ struct ActivityDetailDecisionCard: View {
     }
 }
 
-/// 发起人：系统副标题单元格 — 头像与双行文案垂直居中，图文水平间距由 HStack 默认系统间距承担
+/// 发起人：Form 行内默认 VStack + 系统 HStack 间距（与资料页身份行一致）
 struct ActivityDetailHostTrustRow: View {
     let trust: ActivityHostTrust
     var onHost: () -> Void
@@ -203,8 +198,30 @@ struct ActivityDetailHostTrustRow: View {
                 HStack(alignment: .center) {
                     PlatformListAvatarView(name: trust.name)
                     VStack(alignment: .leading) {
-                        nameBadgesRow
-                        metricsRow
+                        HStack {
+                            Text(trust.name)
+                            Text(trust.levelText)
+                                .foregroundStyle(.secondary)
+                            if trust.isVerified {
+                                Image(systemName: TrustBadgeKind.photoVerified.systemImage)
+                                    .foregroundStyle(.tint)
+                                    .symbolRenderingMode(.hierarchical)
+                                    .accessibilityLabel(TrustBadgeKind.photoVerified.title)
+                            }
+                            if trust.isMember {
+                                Image(systemName: TrustBadgeKind.activeMember.systemImage)
+                                    .foregroundStyle(.secondary)
+                                    .symbolRenderingMode(.hierarchical)
+                                    .accessibilityLabel(TrustBadgeKind.activeMember.title)
+                            }
+                        }
+                        .font(.body)
+                        .lineLimit(1)
+                        Text(trust.metricsLine)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -218,39 +235,6 @@ struct ActivityDetailHostTrustRow: View {
                 action: onChat
             )
         }
-    }
-
-    /// 第一行：名称 · 级别 · 形象认证 / 会员图标
-    private var nameBadgesRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(trust.name)
-            Text(trust.levelText)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel("等级 \(trust.level)")
-            if trust.isVerified {
-                Image(systemName: TrustBadgeKind.photoVerified.systemImage)
-                    .foregroundStyle(.tint)
-                    .symbolRenderingMode(.hierarchical)
-                    .accessibilityLabel(TrustBadgeKind.photoVerified.title)
-            }
-            if trust.isMember {
-                Image(systemName: TrustBadgeKind.activeMember.systemImage)
-                    .foregroundStyle(.secondary)
-                    .symbolRenderingMode(.hierarchical)
-                    .accessibilityLabel(TrustBadgeKind.activeMember.title)
-            }
-        }
-        .font(.body)
-        .lineLimit(1)
-    }
-
-    /// 第二行：履约摘要
-    private var metricsRow: some View {
-        Text(trust.metricsLine)
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.85)
     }
 
     private var accessibilitySummary: String {
@@ -274,6 +258,21 @@ enum ActivityDetailStepSymbol {
     }
 }
 
+/// 详情正文行：图标 + 内容，系统 HStack 默认间距
+private struct ActivityDetailSectionRow<Icon: View, Content: View>: View {
+    var alignment: VerticalAlignment = .top
+    @ViewBuilder var icon: () -> Icon
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        HStack(alignment: alignment) {
+            icon()
+            content()
+        }
+        .font(.body)
+    }
+}
+
 struct ActivityDetailTimelineCard: View {
     let items: [ActivityDetailTimelineItem]
 
@@ -281,27 +280,24 @@ struct ActivityDetailTimelineCard: View {
         VStack(alignment: .leading) {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 let step = index + 1
-                Label {
+                ActivityDetailSectionRow {
+                    Image(systemName: ActivityDetailStepSymbol.systemName(step))
+                        .foregroundStyle(.secondary)
+                        .symbolRenderingMode(.hierarchical)
+                } content: {
                     VStack(alignment: .leading) {
-                        HStack(alignment: .firstTextBaseline) {
+                        HStack {
                             Text(item.time)
                                 .monospacedDigit()
                             Text(item.title)
                         }
-                        .font(.body)
                         .foregroundStyle(.primary)
                         Text(item.detail)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                } icon: {
-                    Image(systemName: ActivityDetailStepSymbol.systemName(step))
-                        .foregroundStyle(.secondary)
-                        .symbolRenderingMode(.hierarchical)
                 }
-                .labelStyle(.titleAndIcon)
-                .font(.body)
                 .accessibilityLabel("\(step). \(item.time)，\(item.title)。\(item.detail)")
             }
         }
@@ -327,18 +323,16 @@ struct ActivityDetailFeeCard: View {
                         .font(.body)
                         .foregroundStyle(.primary)
                     ForEach(Array(refundNotes.enumerated()), id: \.offset) { _, note in
-                        Label {
+                        ActivityDetailSectionRow {
+                            Image(systemName: "info.circle")
+                                .foregroundStyle(.secondary)
+                                .symbolRenderingMode(.hierarchical)
+                        } content: {
                             Text(note)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
-                        } icon: {
-                            Image(systemName: "info.circle")
-                                .foregroundStyle(.secondary)
-                                .symbolRenderingMode(.hierarchical)
                         }
-                        .labelStyle(.titleAndIcon)
-                        .font(.body)
                     }
                 }
             }
@@ -351,12 +345,7 @@ struct ActivityDetailFeeCard: View {
                 .font(.body)
                 .foregroundStyle(.primary)
             ForEach(items) { item in
-                Label {
-                    Text(item.text)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                } icon: {
+                ActivityDetailSectionRow {
                     if item.included {
                         Image(systemName: "checkmark.circle.fill")
                             .platformSymbolStyle(.status(PlatformStatus.success))
@@ -365,9 +354,11 @@ struct ActivityDetailFeeCard: View {
                             .platformSymbolStyle(.hierarchical)
                             .foregroundStyle(.secondary)
                     }
+                } content: {
+                    Text(item.text)
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .labelStyle(.titleAndIcon)
-                .font(.body)
             }
         }
     }
@@ -379,23 +370,20 @@ struct ActivityDetailGearGrid: View {
     var body: some View {
         VStack(alignment: .leading) {
             ForEach(items) { item in
-                Label {
+                ActivityDetailSectionRow {
+                    Image(systemName: item.systemImage)
+                        .foregroundStyle(.secondary)
+                        .symbolRenderingMode(.hierarchical)
+                } content: {
                     VStack(alignment: .leading) {
                         Text(item.title)
-                            .font(.body)
                             .foregroundStyle(.primary)
                         Text(item.detail)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                } icon: {
-                    Image(systemName: item.systemImage)
-                        .foregroundStyle(.secondary)
-                        .symbolRenderingMode(.hierarchical)
                 }
-                .labelStyle(.titleAndIcon)
-                .font(.body)
             }
         }
     }
@@ -408,18 +396,15 @@ struct ActivityDetailNumberedNotes: View {
         VStack(alignment: .leading) {
             ForEach(Array(notes.enumerated()), id: \.offset) { index, note in
                 let step = index + 1
-                Label {
-                    Text(note)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                } icon: {
+                ActivityDetailSectionRow {
                     Image(systemName: ActivityDetailStepSymbol.systemName(step))
                         .foregroundStyle(.secondary)
                         .symbolRenderingMode(.hierarchical)
+                } content: {
+                    Text(note)
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .labelStyle(.titleAndIcon)
-                .font(.body)
                 .accessibilityLabel("\(step). \(note)")
             }
         }
@@ -428,10 +413,12 @@ struct ActivityDetailNumberedNotes: View {
 
 struct ActivityDetailPeopleSheet: View {
     let activity: Activity
-    var onOpenProfile: (String) -> Void
-    var onMessage: (String) -> Void
 
+    @Environment(AppModel.self) private var app
+    @Environment(BuddiesModel.self) private var buddies
     @Environment(\.dismiss) private var dismiss
+    @State private var path = NavigationPath()
+    @State private var memberContactRoute: PeerContactRoute?
 
     private var members: [String] {
         var names = [activity.hostName]
@@ -442,14 +429,12 @@ struct ActivityDetailPeopleSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 Section {
                     ForEach(Array(members.enumerated()), id: \.offset) { index, name in
-                        HStack() {
-                            Button {
-                                onOpenProfile(name)
-                            } label: {
+                        HStack {
+                            NavigationLink(value: name) {
                                 Label {
                                     VStack(alignment: .leading) {
                                         Text(name)
@@ -468,18 +453,11 @@ struct ActivityDetailPeopleSheet: View {
 
                             Spacer(minLength: 0)
 
-                            if index == 0 {
-                                Text(ActivityDetailCopy.peopleOrganizerBadge)
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.tint)
-                            }
-
                             ActivityDetailControls.GlassIconButton(
                                 systemImage: "bubble.left",
                                 accessibilityLabel: "私信\(name)"
                             ) {
-                                onMessage(name)
-                                dismiss()
+                                openMemberChat(with: name)
                             }
                         }
                     }
@@ -496,14 +474,68 @@ struct ActivityDetailPeopleSheet: View {
             .navigationTitle("活动成员")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") {
+                ToolbarItem(placement: .topBarLeading) {
+                    peopleSheetBackButton(dismissesSheet: true)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(ActivityDetailCopy.peopleSheetDone) {
                         dismiss()
                     }
                 }
             }
+            .navigationDestination(for: String.self) { name in
+                memberProfile(name)
+                    .toolbarVisibility(.hidden, for: .tabBar)
+                    .navigationBarBackButtonHidden(true)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            peopleSheetBackButton(dismissesSheet: false)
+                        }
+                    }
+            }
+            .peerContactDestination(route: $memberContactRoute)
         }
+        .independentNavigationSheetChrome()
         .platformSheet(.browser)
+    }
+
+    @ViewBuilder
+    private func memberProfile(_ name: String) -> some View {
+        let context: ConversationChatContext = name == activity.hostName
+            ? .activityHost(activityID: activity.id)
+            : .activityMember(activityID: activity.id)
+        if let item = buddies.item(for: name) {
+            BuddyDetailRouteView(item: item)
+        } else {
+            CommunityAuthorProfileView(
+                name: name,
+                chatContextOverride: context
+            )
+        }
+    }
+
+    private func openMemberChat(with name: String) {
+        let context: ConversationChatContext = name == activity.hostName
+            ? .activityHost(activityID: activity.id)
+            : .activityMember(activityID: activity.id)
+        memberContactRoute = app.openPeerContact(with: name, context: context)
+    }
+
+    private func peopleSheetBackButton(dismissesSheet: Bool) -> some View {
+        Button {
+            if dismissesSheet {
+                dismiss()
+            } else {
+                path.removeLast()
+            }
+        } label: {
+            Label(ActivityDetailCopy.peopleSheetBack, systemImage: "chevron.left")
+        }
+        .accessibilityHint(
+            dismissesSheet
+                ? "关闭活动成员列表"
+                : "返回活动成员列表"
+        )
     }
 }
 
@@ -513,7 +545,7 @@ struct ActivityDetailHeroGallery: View {
     let activity: Activity
     var onEditGallery: (() -> Void)?
 
-    @State private var showViewer = false
+    @State private var preview: CommunityPhotoDestination?
 
     private var photos: [CommunityPhotoRef] {
         ActivityDetailContentStore.galleryPhotos(for: activity)
@@ -522,18 +554,19 @@ struct ActivityDetailHeroGallery: View {
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             photoLayer
+                .clipShape(PlatformMetrics.cardShape)
+                .contentShape(PlatformMetrics.cardShape)
                 .onTapGesture {
-                    guard !photos.isEmpty else { return }
-                    showViewer = true
+                    openPreview(at: 0)
                 }
 
             // 控件单独一层，避免被头图 onTapGesture 抢走点击
             HStack() {
                 if photos.count > 1 {
                     Button {
-                        showViewer = true
+                        openPreview(at: 0)
                     } label: {
-                        Label("\(photos.count) 张", systemImage: "photo.on.rectangle.angled")
+                        Label(CommunityMediaCopy.countChip(photos), systemImage: "photo.on.rectangle.angled")
                     }
                     .labelStyle(.titleAndIcon)
                     .activityGlassChip()
@@ -549,9 +582,13 @@ struct ActivityDetailHeroGallery: View {
             }
             .platformMediaChromeInset()
         }
-        .fullScreenCover(isPresented: $showViewer) {
-            CommunityPhotoViewer(photos: photos, startIndex: 0)
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .communityPhotoCover($preview)
+    }
+
+    private func openPreview(at index: Int) {
+        guard !photos.isEmpty else { return }
+        preview = CommunityPhotoDestination(photos: photos, startIndex: index)
     }
 
     /// 与发现卡同源单帧封面；多图进全屏查看器翻页
@@ -565,174 +602,241 @@ struct ActivityDetailHeroGallery: View {
     }
 }
 
-// MARK: - 评论 / 推荐
+// MARK: - 评论
 
-struct ActivityDetailCommentsSection: View {
+/// 活动评论 Sheet：与社区同款 List + 底栏输入。
+struct ActivityCommentsSheet: View {
     let activityID: Activity.ID
+    let hostName: String
     let currentUserName: String
-    var onChanged: () -> Void
+    var onChanged: () -> Void = {}
 
-    @State private var draft = ""
-    @State private var comments: [ActivityComment] = []
-    @FocusState private var focused: Bool
+    @State private var refreshID = 0
 
-    private var canSend: Bool {
-        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    @Environment(\.dismiss) private var dismiss
+
+    private var rootCount: Int {
+        PlatformReviewsStore.reviews(for: .activity(activityID)).filter(\.isRoot).count
     }
 
     var body: some View {
-        VStack(alignment: .leading) {
-            if comments.isEmpty {
-                Text(ActivityDetailCopy.commentsEmpty)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                VStack(alignment: .leading) {
-                    ForEach(comments) { comment in
-                        HStack(alignment: .center) {
-                            // 与发起人一致：自定义头像用 HStack 居中，避免 Label 对 UIViewRepresentable 垂直失准
-                            HStack(alignment: .center) {
-                                PlatformListAvatarView(name: comment.author)
-                                VStack(alignment: .leading) {
-                                    HStack(alignment: .firstTextBaseline) {
-                                        Text(comment.author)
-                                            .font(.body)
-                                        Text(Formatters.conversationListTime(from: comment.postedAt))
-                                            .font(.subheadline)
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                    .lineLimit(1)
-                                    Text(comment.text)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(2)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
+        NavigationStack {
+            PlatformReviewsCommentsHost(
+                target: .activity(activityID),
+                currentUserName: currentUserName,
+                layout: .sheetList,
+                contentOwnerName: hostName,
+                ownerBadgeTitle: "发起人",
+                emptyTitle: ActivityDetailCopy.commentsEmpty,
+                emptyHint: ActivityDetailCopy.commentsEmptyHint,
+                placeholder: ActivityDetailCopy.commentsPlaceholder,
+                onChanged: {
+                    refreshID += 1
+                    onChanged()
+                }
+            )
+            .id(refreshID)
+            .navigationTitle(rootCount == 0 ? "评论" : "评论 \(rootCount)")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(MessagesCopy.close) { dismiss() }
+                }
+            }
+        }
+        .platformSheet(.form)
+    }
+}
 
-                            if comment.isOwned(by: currentUserName) {
-                                ActivityDetailControls.GlassIconButton(
-                                    systemImage: "trash",
-                                    accessibilityLabel: "删除评论",
-                                    role: .destructive
-                                ) {
-                                    ActivityCommentsStore.delete(
-                                        commentID: comment.id,
-                                        activityID: activityID,
-                                        author: currentUserName
-                                    )
-                                    reload()
-                                    onChanged()
-                                }
+/// 详情页评论摘要：最多 2 条预览 + 进入完整评论区。
+struct ActivityDetailCommentsPreviewSection: View {
+    let activityID: Activity.ID
+    let hostName: String
+    var onOpenComments: () -> Void
+
+    private var reviews: [PlatformReview] {
+        PlatformReviewsStore.reviews(for: .activity(activityID))
+    }
+
+    private var rootCount: Int {
+        reviews.filter(\.isRoot).count
+    }
+
+    private var previewRoots: [PlatformReview] {
+        Array(PlatformReviewCatalog.sortedRoots(reviews).prefix(2))
+    }
+
+    var body: some View {
+        Section {
+            VStack(alignment: .leading) {
+                if previewRoots.isEmpty {
+                    Text(ActivityDetailCopy.commentsEmptyHint)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Button(action: onOpenComments) {
+                        VStack(alignment: .leading) {
+                            ForEach(previewRoots) { review in
+                                CommunityCommentRow(
+                                    comment: review.asCommunityComment,
+                                    style: .thread,
+                                    showsLike: false,
+                                    showsTranslate: false,
+                                    contentOwnerName: hostName,
+                                    ownerBadgeTitle: "发起人"
+                                )
                             }
                         }
-                        .accessibilityElement(children: .combine)
                     }
+                    .buttonStyle(.plain)
+                }
+
+                Button(action: onOpenComments) {
+                    Label(
+                        rootCount == 0
+                            ? ActivityDetailCopy.commentsWriteFirst
+                            : ActivityDetailCopy.commentsViewAll,
+                        systemImage: "bubble.right"
+                    )
                 }
             }
-
-            HStack() {
-                TextField(ActivityDetailCopy.commentsPlaceholder, text: $draft, axis: .vertical)
-                    .font(.body)
-                    .lineLimit(1...3)
-                    .focused($focused)
-                ActivityDetailControls.GlassIconButton(
-                    systemImage: "paperplane.fill",
-                    accessibilityLabel: "发送",
-                    prominent: true,
-                    action: send
-                )
-                .disabled(!canSend)
-            }
+        } header: {
+            Text(ActivityDetailCopy.commentsCountTitle(rootCount))
         }
-        .onAppear(perform: reload)
-    }
-
-    private func reload() {
-        comments = ActivityCommentsStore.comments(for: activityID)
-    }
-
-    private func send() {
-        if let error = ActivityCommentsStore.add(draft, activityID: activityID, author: currentUserName) {
-            draft = error
-            return
-        }
-        draft = ""
-        reload()
-        onChanged()
     }
 }
 
-/// 相关活动：视图式 NavigationLink，不参与发现页 Zoom。
-struct ActivityDetailRelatedSection: View {
+// MARK: - 相关活动 / 凭证
+
+/// Form 清单行：左 leading + 主副文（相关活动、相关圈子等同构）
+private struct ActivityDetailFormLinkRow<Leading: View>: View {
+    let title: String
+    let subtitle: String
+    @ViewBuilder var leading: () -> Leading
+
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    let relatedActivities: [Activity]
-
     var body: some View {
-        DiscoverHorizontalRail {
-            ForEach(relatedActivities) { related in
-                relatedCard(related)
-                    .platformContinueRailFrame()
+        HStack(alignment: .center, spacing: PlatformConversationListRow.imageToTextPadding) {
+            leading()
+            VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
+                Text(title)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 2)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .listRowInsets(relatedRailInsets)
-        .listRowBackground(Color.clear)
-        .listRowSeparator(.hidden)
-    }
-
-    /// Form 行负水平 inset，页边交给 `DiscoverHorizontalRail`
-    private var relatedRailInsets: EdgeInsets {
-        let horizontal = PlatformMetrics.contentInset
-        return EdgeInsets(
-            top: PlatformMetrics.sectionHeaderSpacing,
-            leading: -horizontal,
-            bottom: PlatformMetrics.sectionHeaderSpacing,
-            trailing: -horizontal
-        )
-    }
-
-    private func relatedCard(_ related: Activity) -> some View {
-        NavigationLink {
-            ActivityDetailView(activityID: related.id)
-        } label: {
-            VStack(alignment: .leading, spacing: PlatformMetrics.stackedMediaSpacing) {
-                CommunityRemotePhoto(ref: related.coverPhoto)
-                    .aspectRatio(PlatformMetrics.continueCardAspectRatio, contentMode: .fill)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-                    .clipShape(PlatformMetrics.posterShape)
-
-                VStack(alignment: .leading, spacing: PlatformMetrics.minContentGap) {
-                    Text(related.title)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                    Text(subtitle(for: related))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(accessibilityLabel(for: related))
-    }
-
-    private func subtitle(for activity: Activity) -> String {
-        let fee = activity.isFree ? ActivityCardStatus.free : activity.fee
-        let distance = activity.distanceLabel(
-            hasUserLocation: LocationService.shared.coordinate != nil
-        )
-        return "\(activity.location) · \(fee) · \(distance)"
-    }
-
-    private func accessibilityLabel(for activity: Activity) -> String {
-        "\(activity.title)，\(Formatters.activityEventTime(from: activity.date))，\(subtitle(for: activity))"
     }
 }
 
-/// 活动详情 → 相关兴趣组织入口（群资料 / 加入进群）
+/// 相关活动横滑轨（仅内容；Section header 由调用方提供，与「活动评论」同构）
+struct DetailRelatedActivitiesRail: View {
+    let activities: [Activity]
+
+    @Environment(ActivitiesModel.self) private var model
+    @Environment(AppModel.self) private var app
+    @State private var openedActivityID: Activity.ID?
+
+    var body: some View {
+        DiscoverHorizontalRail(
+            spacing: 0,
+            appliesHorizontalMargins: false
+        ) {
+            ForEach(activities) { activity in
+                PlatformEventCard(
+                    activityID: activity.id,
+                    photo: activity.coverPhoto,
+                    badge: ActivityCardStatus.hotBadge(for: activity),
+                    title: activity.title,
+                    timeLine: Formatters.activityEventTime(from: activity.date),
+                    metaLine: ActivityCardStatus.hotMetaLine(for: activity),
+                    isJoined: model.isJoined(activity.id),
+                    isFull: activity.isFull,
+                    onCoverTap: { openedActivityID = activity.id },
+                    onJoin: model.isJoined(activity.id) ? nil : {
+                        _ = app.quickJoinActivity(activity) {
+                            openedActivityID = activity.id
+                        }
+                    }
+                )
+                .clipShape(PlatformMetrics.fullBleedShape)
+                .containerRelativeFrame(.horizontal) { length, _ in length }
+            }
+        }
+        .platformFormEdgeToEdgeRow()
+        .navigationDestination(item: $openedActivityID) { id in
+            ActivityDetailView(activityID: id)
+                .toolbarVisibility(.hidden, for: .tabBar)
+        }
+    }
+}
+
+/// 已参加 → 订单区下方活动凭证 Section
+struct ActivityDetailCredentialSection: View {
+    let activity: Activity
+    let isHost: Bool
+    @Binding var ordersRevision: Int
+
+    @Environment(ActivitiesModel.self) private var model
+    @Environment(WalletPassStore.self) private var passStore
+
+    var body: some View {
+        let joined = model.isJoined(activity.id)
+        let showsCredential = joined
+            || (ActivityPaymentStore.displayOrder(for: activity.id) != nil && isHost)
+
+        if showsCredential {
+            Section {
+                credentialContent(joined: joined)
+            } header: {
+                Text(ActivityDetailCopy.credentialSectionTitle)
+            }
+            .id(ordersRevision)
+        }
+    }
+
+    @ViewBuilder
+    private func credentialContent(joined: Bool) -> some View {
+        if let pass = passStore.activityPass(for: activity, activeOnly: true) {
+            NavigationLink {
+                WalletPassDetailView(passID: pass.id)
+            } label: {
+                ProfileActivityCredentialStrip(activity: activity)
+            }
+            .platformWalletPassCredentialRow()
+            .accessibilityLabel(ActivityDetailCopy.credentialViewAction)
+        } else if let voided = passStore.activityPass(for: activity, activeOnly: false), voided.voided {
+            NavigationLink {
+                WalletPassDetailView(passID: voided.id)
+            } label: {
+                ProfileActivityCredentialStrip(activity: activity, voided: true)
+            }
+            .platformWalletPassCredentialRow()
+            .accessibilityLabel(ActivityDetailCopy.credentialVoidedAction)
+        } else if joined || isHost {
+            Button(ActivityDetailCopy.credentialReissueAction, systemImage: "ticket") {
+                reissueCredential()
+            }
+        }
+    }
+
+    private func reissueCredential() {
+        if let order = ActivityPaymentStore.paidOrder(for: activity.id) {
+            _ = passStore.issueActivityTicket(order: order, activity: activity)
+        } else {
+            _ = passStore.issueActivityAttendanceTicket(for: activity)
+        }
+        ordersRevision += 1
+    }
+}
+
+/// 活动详情 → 相关兴趣圈子入口
 struct ActivityDetailRelatedCircleRow: View {
     let circle: InterestCircle
 
@@ -743,8 +847,8 @@ struct ActivityDetailRelatedCircleRow: View {
     }
 
     var body: some View {
-        NavigationLink(value: circle) {
-            HStack(alignment: .center, spacing: PlatformConversationListRow.imageToTextPadding) {
+        NavigationLink(value: CircleBrowseRoute.circle(circle)) {
+            ActivityDetailFormLinkRow(title: circle.name, subtitle: subtitle) {
                 Image(systemName: circle.systemImage)
                     .font(.title2)
                     .platformContentSymbolStyle()
@@ -754,20 +858,9 @@ struct ActivityDetailRelatedCircleRow: View {
                     )
                     .background(Color.accentColor.opacity(0.14), in: Circle())
                     .accessibilityHidden(true)
-
-                VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
-                    Text(circle.name)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .buttonStyle(.plain)
         .accessibilityLabel("\(circle.name)，\(subtitle)")
     }
 }

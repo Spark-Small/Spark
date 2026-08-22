@@ -9,6 +9,7 @@
 //  - filter：筛选/轻设置（.medium + .large）
 //  - browser：列表/资料/可滚动内容（.medium + .large）
 //  - confirm：成功/短确认（.medium）
+//  - navigationPicker：导航 App 等短 List（.medium 单档，同系统半屏规范）
 //  - action：固定高度动作面板
 //
 
@@ -23,7 +24,9 @@ enum PlatformSheetKind: Equatable {
     case browser
     /// 成功、短确认
     case confirm
-    /// 动作选择（如导航 App 列表）
+    /// 导航 App 等短 List（系统 .medium 单档，不可拉高）
+    case navigationPicker
+    /// 动作选择（固定高度动作面板）
     case action(height: CGFloat)
 }
 
@@ -59,7 +62,7 @@ private struct PlatformSheetModifier: ViewModifier {
             [.large]
         case .filter, .browser:
             [.medium, .large]
-        case .confirm:
+        case .confirm, .navigationPicker:
             [.medium]
         case .action(let height):
             [.height(height)]

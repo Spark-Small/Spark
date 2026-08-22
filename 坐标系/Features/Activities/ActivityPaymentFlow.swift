@@ -71,6 +71,14 @@ enum ActivityPaymentStore {
         orders(for: activityID).first { $0.status == .paid }
     }
 
+    /// 详情页订单区：已支付优先，否则展示退款中 / 已退款。
+    static func displayOrder(for activityID: Activity.ID) -> ActivityOrder? {
+        paidOrder(for: activityID)
+            ?? orders(for: activityID).first {
+                $0.status == .refunded || $0.status == .refunding
+            }
+    }
+
     static func hasPaid(for activityID: Activity.ID) -> Bool {
         paidOrder(for: activityID) != nil
     }
@@ -259,11 +267,13 @@ struct ActivityOrdersSheet: View {
     let activityID: Activity.ID?
     var onRefundCompleted: (() -> Void)?
 
+    @Environment(RefundFlowService.self) private var refunds
+    @Environment(ActivitiesModel.self) private var activities
     @Environment(\.dismiss) private var dismiss
     @State private var orders: [ActivityOrder] = []
-    @State private var refundingID: UUID?
     @State private var refundError: String?
     @State private var refundTarget: ActivityOrder?
+    @State private var presentedRefundRequestID: UUID?
 
     var body: some View {
         NavigationStack {
@@ -277,10 +287,12 @@ struct ActivityOrdersSheet: View {
                     .listRowBackground(Color.clear)
                 } else {
                     ForEach(orders) { order in
-                        ActivityOrderRow(order: order) {
+                        ActivityOrderRow(
+                            order: order,
+                            refundRequest: refunds.latestRequest(forOrderID: order.id)
+                        ) {
                             refundTarget = order
                         }
-                        .disabled(refundingID != nil)
                     }
                 }
             }
@@ -289,12 +301,6 @@ struct ActivityOrdersSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("完成") { dismiss() }
-                }
-            }
-            .overlay {
-                if refundingID != nil {
-                    ProgressView(ActivityDetailCopy.refundProcessing)
-                        .platformProcessingOverlayChrome()
                 }
             }
             .alert("无法退款", isPresented: Binding(
@@ -306,8 +312,20 @@ struct ActivityOrdersSheet: View {
                 Text(refundError ?? "")
             }
             .sheet(item: $refundTarget) { order in
-                RefundRequestSheet.activityOrder(order) { _, _ in
-                    beginRefund(order)
+                let activity = activities.activity(id: order.activityID)
+                let notes = activity.map { ActivityDetailBlueprint.make(for: $0).refundNotes } ?? []
+                RefundRequestSheet.activityOrder(order, activity: activity, refundNotes: notes) { reason, detail in
+                    beginRefund(order, reason: reason, detail: detail)
+                }
+                .toolbarVisibility(.hidden, for: .tabBar)
+            }
+            .sheet(isPresented: Binding(
+                get: { presentedRefundRequestID != nil },
+                set: { if !$0 { presentedRefundRequestID = nil } }
+            )) {
+                if let requestID = presentedRefundRequestID {
+                    RefundStatusSheet(requestID: requestID)
+                        .toolbarVisibility(.hidden, for: .tabBar)
                 }
             }
             .onAppear(perform: reload)
@@ -323,24 +341,31 @@ struct ActivityOrdersSheet: View {
         }
     }
 
-    private func beginRefund(_ order: ActivityOrder) {
-        if let error = ActivityPaymentStore.requestRefund(orderID: order.id) {
-            refundError = error
-            return
-        }
-        refundingID = order.id
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(900))
-            ActivityPaymentStore.finalizeRefund(orderID: order.id)
-            refundingID = nil
+    private func beginRefund(_ order: ActivityOrder, reason: String, detail: String) {
+        let activity = activities.activity(id: order.activityID)
+        let notes = activity.map { ActivityDetailBlueprint.make(for: $0).refundNotes } ?? []
+        let result = refunds.submitActivityRefund(
+            order: order,
+            activity: activity,
+            refundNotes: notes,
+            reason: reason,
+            detail: detail,
+            cancelRegistration: false
+        )
+        switch result {
+        case .success(let record):
+            presentedRefundRequestID = record.id
             reload()
             onRefundCompleted?()
+        case .failure(let error):
+            refundError = error.localizedDescription
         }
     }
 }
 
 struct ActivityOrderRow: View {
     let order: ActivityOrder
+    var refundRequest: RefundRequestRecord?
     var onRefund: () -> Void
 
     var body: some View {
@@ -368,15 +393,21 @@ struct ActivityOrderRow: View {
                     .foregroundStyle(.secondary)
             }
 
-            if order.status == .paid {
+            if order.status == .paid, refundRequest == nil {
                 Button(ActivityDetailCopy.refundCTA, role: .destructive) {
                     onRefund()
                 }
                 .font(.subheadline.weight(.semibold))
-            } else if order.status == .refunding {
-                Text(ActivityDetailCopy.refundProcessing)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            } else if order.status == .refunding || refundRequest?.status == .submitted || refundRequest?.status == .processing {
+                if let refundRequest {
+                    Text("\(ActivityDetailCopy.refundProcessing) · \(refundRequest.status.label)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(ActivityDetailCopy.refundProcessing)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             } else if order.status == .refunded {
                 Text(ActivityDetailCopy.refundedHint)
                     .font(.caption)

@@ -2,7 +2,7 @@
 //  BuddyMemberListSheet.swift
 //  坐标系
 //
-//  组织 / 工会「查看全部成员」：系统 List + browser detent。
+//  圈子 / 工会「查看全部成员」：系统 List + browser detent。
 //
 
 import SwiftUI
@@ -10,14 +10,15 @@ import SwiftUI
 struct BuddyMemberListSheet: View {
     let title: String
     let members: [BuddyMemberProfileTarget]
-    var onMessage: (DiscoverBuddyItem) -> Void
     var onBook: ((PaidCompanion) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
-    @State private var selected: BuddyMemberProfileTarget?
+    @State private var navigation = TabNavigationState()
 
     var body: some View {
-        NavigationStack {
+        @Bindable var navigation = navigation
+
+        NavigationStack(path: $navigation.path) {
             List {
                 if members.isEmpty {
                     ContentUnavailableView(
@@ -29,12 +30,13 @@ struct BuddyMemberListSheet: View {
                 } else {
                     Section {
                         ForEach(members) { member in
-                            Button {
-                                selected = member
-                            } label: {
+                            CircleMemberNavigationLink(
+                                item: member.item,
+                                source: member.source,
+                                groupAlias: member.groupAlias
+                            ) {
                                 memberRow(member)
                             }
-                            .buttonStyle(.plain)
                         }
                     } header: {
                         Text(BuddyMemberCopy.memberCount(members.count))
@@ -48,14 +50,10 @@ struct BuddyMemberListSheet: View {
                     Button(BuddyMemberCopy.done) { dismiss() }
                 }
             }
-            .sheet(item: $selected) { target in
-                BuddyMemberProfileSheet(
-                    target: target,
-                    onMessage: onMessage,
-                    onBook: onBook
-                )
-            }
+            .circleMemberSheetNavigationDestination()
         }
+        .tabNavigationState(navigation)
+        .independentNavigationSheetChrome(dismissSheet: { dismiss() })
         .platformSheet(.browser)
     }
 
@@ -64,7 +62,7 @@ struct BuddyMemberListSheet: View {
             PlatformListAvatarView(name: member.item.profile.nickname)
 
             VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
-                Text(member.item.profile.nickname)
+                Text(member.profileDisplayName)
                     .font(PlatformListTypography.primary)
                     .foregroundStyle(.primary)
                 Text(member.role)
@@ -79,11 +77,6 @@ struct BuddyMemberListSheet: View {
                     .font(PlatformListTypography.secondary)
                     .foregroundStyle(PlatformStatus.warning)
             }
-
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)

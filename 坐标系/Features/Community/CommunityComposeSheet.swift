@@ -56,11 +56,11 @@ struct CommunityComposeSheet: View {
                     PhotosPicker(
                         selection: $pickerItems,
                         maxSelectionCount: maxPhotos,
-                        matching: .images,
+                        matching: CommunityPhotoStore.photosAndVideos,
                         photoLibrary: .shared()
                     ) {
                         Label(
-                            previewImages.isEmpty ? "添加图片" : "已选 \(previewImages.count) 张，点击更换",
+                            previewImages.isEmpty ? "添加照片或视频" : "已选 \(previewImages.count) 项，点击更换",
                             systemImage: "photo.on.rectangle.angled"
                         )
                     }
@@ -75,8 +75,17 @@ struct CommunityComposeSheet: View {
                                     Image(uiImage: image)
                                         .resizable()
                                         .scaledToFill()
-                                        .frame(width: 88, height: 88)
-                                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                        .frame(width: PlatformMetrics.galleryEditorThumb, height: PlatformMetrics.galleryEditorThumb)
+                                        .clipShape(RoundedRectangle(cornerRadius: PlatformMetrics.radiusMedia, style: .continuous))
+                                        .overlay {
+                                            if savedPhotoNames.indices.contains(index),
+                                               CommunityPhotoStore.isVideo(name: savedPhotoNames[index]) {
+                                                Image(systemName: "play.circle.fill")
+                                                    .font(.title3)
+                                                    .symbolRenderingMode(.hierarchical)
+                                                    .foregroundStyle(.white)
+                                            }
+                                        }
                                         .overlay(alignment: .topTrailing) {
                                             Button {
                                                 removePhoto(at: index)
@@ -93,12 +102,12 @@ struct CommunityComposeSheet: View {
                     }
 
                     if isPreparingPhotos {
-                        ProgressView("正在处理图片…")
+                        ProgressView("正在处理媒体…")
                     }
                 } header: {
-                    Text("图片")
+                    Text("照片与视频")
                 } footer: {
-                    Text("最多 \(maxPhotos) 张，发布后保存在本机")
+                    Text("最多 \(maxPhotos) 项，发布后保存在本机")
                 }
 
                 Section("标签") {
@@ -221,11 +230,20 @@ struct CommunityComposeSheet: View {
         previewImages = []
 
         for item in items {
-            guard let data = try? await item.loadTransferable(type: Data.self),
-                  let image = UIImage(data: data),
-                  let name = CommunityPhotoStore.saveJPEG(data)
+            guard let name = await CommunityPhotoStore.savePickerItem(item),
+                  let url = CommunityPhotoStore.fileURL(named: name)
             else { continue }
-            previewImages.append(image)
+            let preview: UIImage?
+            if CommunityPhotoStore.isVideo(url: url) {
+                preview = await CommunityPhotoStore.posterImage(for: url)
+            } else {
+                preview = UIImage(contentsOfFile: url.path)
+            }
+            guard let preview else {
+                CommunityPhotoStore.delete(named: name)
+                continue
+            }
+            previewImages.append(preview)
             savedPhotoNames.append(name)
         }
     }

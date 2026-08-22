@@ -132,7 +132,7 @@ struct ProfileActivityCredentialStrip: View {
             onNavigate: face.showsNavigateButton ? { showNavigationPicker = true } : nil,
             fillsCanonicalHeight: titleOnly
         )
-        .activityMapNavigationDialog(
+        .activityMapNavigationSheet(
             activity: Binding(
                 get: { showNavigationPicker ? activity : nil },
                 set: { showNavigationPicker = $0 != nil }
@@ -163,7 +163,7 @@ struct ProfileActivityCredentialCard: View {
             onNavigate: faceContent.showsNavigateButton ? { showNavigationPicker = true } : nil,
             onOpenDetail: faceContent.showsDetailButton ? onOpenDetail : nil
         )
-        .activityMapNavigationDialog(
+        .activityMapNavigationSheet(
             activity: Binding(
                 get: { showNavigationPicker ? activity : nil },
                 set: { showNavigationPicker = $0 != nil }
@@ -197,6 +197,7 @@ struct ProfileBookingCredentialStrip: View {
 
     @Environment(AppModel.self) private var app
     @Environment(WalletPassStore.self) private var passStore
+    @State private var peerContactRoute: PeerContactRoute?
 
     private var isVoided: Bool {
         voided || statusOverride == "已作废"
@@ -233,6 +234,7 @@ struct ProfileBookingCredentialStrip: View {
             onMessage: face.showsMessageButton ? { requestMessage() } : nil,
             fillsCanonicalHeight: true
         )
+        .peerContactDestination(route: $peerContactRoute)
     }
 
     private func requestMessage() {
@@ -240,12 +242,10 @@ struct ProfileBookingCredentialStrip: View {
             onRequestMessage()
             return
         }
-        if let convo = app.startDirectChat(
+        peerContactRoute = app.openPeerContact(
             with: record.companionNickname,
-            greeting: "你好，想确认一下预约安排，最近方便吗？"
-        ) {
-            app.openMessages(conversationID: convo.id)
-        }
+            context: .forBooking(record)
+        )
     }
 }
 
@@ -263,6 +263,7 @@ struct ProfileBookingCredentialCard: View {
 
     @Environment(AppModel.self) private var app
     @Environment(WalletPassStore.self) private var passStore
+    @State private var peerContactRoute: PeerContactRoute?
 
     private var isVoided: Bool {
         voided || statusOverride == "已作废"
@@ -277,6 +278,7 @@ struct ProfileBookingCredentialCard: View {
             onMessage: faceContent.showsMessageButton ? { openChat() } : nil,
             onOpenDetail: faceContent.showsDetailButton ? onOpenDetail : nil
         )
+        .peerContactDestination(route: $peerContactRoute)
     }
 
     private var faceContent: WalletPassFaceContent {
@@ -296,12 +298,10 @@ struct ProfileBookingCredentialCard: View {
     }
 
     private func openChat() {
-        if let convo = app.startDirectChat(
+        peerContactRoute = app.openPeerContact(
             with: record.companionNickname,
-            greeting: "你好，想确认一下预约安排，最近方便吗？"
-        ) {
-            app.openMessages(conversationID: convo.id)
-        }
+            context: .forBooking(record)
+        )
     }
 }
 

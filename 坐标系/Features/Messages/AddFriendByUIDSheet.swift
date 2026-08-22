@@ -2,7 +2,7 @@
 //  AddFriendByUIDSheet.swift
 //  坐标系
 //
-//  通过对外数字 UID 添加好友。
+//  通过对外数字 UID 添加好友（MessagesFormSheet + 系统 Form）。
 //
 
 import SwiftUI
@@ -29,7 +29,10 @@ struct AddFriendByUIDSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        MessagesFormSheet(
+            title: MessagesCopy.addFriendByUIDTitle,
+            dismissAction: .cancel
+        ) {
             Form {
                 Section {
                     TextField(MessagesCopy.addFriendByUIDPlaceholder, text: $uidText)
@@ -40,7 +43,7 @@ struct AddFriendByUIDSheet: View {
                 } header: {
                     Text(MessagesCopy.addFriendByUIDField)
                 } footer: {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing * 2) {
                         Text(MessagesCopy.addFriendByUIDFooter)
                         Text("我的 UID：\(app.user.publicUIDDisplay)")
                     }
@@ -52,20 +55,14 @@ struct AddFriendByUIDSheet: View {
                         LabeledContent("UID", value: UserPublicID.formatDisplay(preview.uid))
                     }
                 }
-
-                Section {
+            }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
                     Button(MessagesCopy.addFriendByUIDAction) {
                         submit()
                     }
                     .fontWeight(.semibold)
                     .disabled(!canSubmit)
-                }
-            }
-            .navigationTitle(MessagesCopy.addFriendByUIDTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(MessagesCopy.cancel) { dismiss() }
                 }
             }
             .alert(
@@ -82,7 +79,6 @@ struct AddFriendByUIDSheet: View {
                 Text(alertMessage ?? "")
             }
         }
-        .platformSheet(.form)
     }
 
     private func submit() {

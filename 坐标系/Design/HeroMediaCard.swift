@@ -168,11 +168,13 @@ struct HeroMediaCard<Cover: View, Meta: View, Status: View, Actions: View>: View
                 .contentShape(layout.shape)
                 .overlay(alignment: .topLeading) {
                     status()
+                        .allowsHitTesting(false)
                         .accessibilityHidden(true)
                 }
                 .modifier(
                     HeroOpenTapModifier(
                         enabled: enablesOpenTap,
+                        appliesAccessibility: enablesOpenTap,
                         accessibilityLabel: accessibilityLabel,
                         action: onOpen
                     )
@@ -217,17 +219,20 @@ struct HeroMediaCard<Cover: View, Meta: View, Status: View, Actions: View>: View
                 .padding(layout.contentPadding)
                 .padding(.trailing, trailingReserve)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .allowsHitTesting(false)
                 .accessibilityHidden(true)
             }
             .modifier(
                 HeroOpenTapModifier(
                     enabled: enablesOpenTap,
+                    appliesAccessibility: enablesOpenTap,
                     accessibilityLabel: accessibilityLabel,
                     action: onOpen
                 )
             )
             .overlay(alignment: .topLeading) {
                 status()
+                    .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
             .overlay(alignment: .bottomTrailing) {
@@ -267,6 +272,7 @@ struct HeroMediaMetaLine: View {
 
 private struct HeroOpenTapModifier: ViewModifier {
     var enabled: Bool
+    var appliesAccessibility: Bool
     var accessibilityLabel: String
     var action: () -> Void
 
@@ -276,11 +282,12 @@ private struct HeroOpenTapModifier: ViewModifier {
                 .buttonStyle(.plain)
                 .accessibilityLabel(accessibilityLabel)
                 .accessibilityHint(ActivityCardStatus.openHint)
-        } else {
-            // 外层 NavigationLink 负责打开与按钮特质；此处只挂完整标签
+        } else if appliesAccessibility {
             content
                 .accessibilityLabel(accessibilityLabel)
                 .accessibilityHint(ActivityCardStatus.openHint)
+        } else {
+            content
         }
     }
 }

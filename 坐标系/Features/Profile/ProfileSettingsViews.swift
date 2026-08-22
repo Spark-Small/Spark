@@ -65,6 +65,20 @@ struct ProfileSettingsView: View {
                         .platformContentSymbolStyle()
                 }
                 NavigationLink {
+                    UserAgreementView()
+                        .toolbarVisibility(.hidden, for: .tabBar)
+                } label: {
+                    Label("用户协议", systemImage: "doc.text")
+                        .platformContentSymbolStyle()
+                }
+                NavigationLink {
+                    PrivacyPolicyView()
+                        .toolbarVisibility(.hidden, for: .tabBar)
+                } label: {
+                    Label("隐私政策", systemImage: "hand.raised")
+                        .platformContentSymbolStyle()
+                }
+                NavigationLink {
                     SettingsAnnouncementsView()
                 } label: {
                     Label("运营公告", systemImage: "megaphone")
@@ -89,7 +103,7 @@ struct ProfileSettingsView: View {
                         .platformContentSymbolStyle()
                 }
             } header: {
-                Text("服务与治理")
+                Text("帮助与反馈")
             }
 
             Section {
@@ -117,7 +131,7 @@ struct ProfileSettingsView: View {
                 Button("恢复演示数据", role: .destructive) {
                     confirmResetDemo = true
                 }
-                Button("清空本地屏蔽与工单") {
+                Button("清空本地屏蔽与工单", role: .destructive) {
                     confirmClearCaches = true
                 }
             } header: {
@@ -129,7 +143,7 @@ struct ProfileSettingsView: View {
         }
         .navigationTitle("设置")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
+        .toolbarVisibility(.hidden, for: .tabBar)
         #if DEBUG
         .confirmationDialog("恢复演示数据？", isPresented: $confirmResetDemo, titleVisibility: .visible) {
             Button("恢复演示数据", role: .destructive) {
@@ -283,23 +297,25 @@ private struct SettingsAccountView: View {
         }
         .navigationTitle("账号与安全")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
+        .toolbarVisibility(.hidden, for: .tabBar)
         .sheet(isPresented: $showCreateAccount) {
             ProfileCreateAccountSheet(
                 session: app.auth,
                 reason: GuestAccessGate.identityReason
             )
+            .toolbarVisibility(.hidden, for: .tabBar)
         }
         .sheet(isPresented: $showEditProfile) {
             EditProfileSheet(user: Binding(
                 get: { app.user },
                 set: { updated in app.updateProfile(updated) }
             ))
+            .toolbarVisibility(.hidden, for: .tabBar)
         }
     }
 }
 
-private struct SettingsNotificationsView: View {
+struct SettingsNotificationsView: View {
     @AppStorage(NotificationService.PreferenceKey.activity) private var activityReminders = true
     @AppStorage(NotificationService.PreferenceKey.buddy) private var buddyOnline = true
     @AppStorage(NotificationService.PreferenceKey.message) private var messagePush = true
@@ -334,7 +350,7 @@ private struct SettingsNotificationsView: View {
         }
         .navigationTitle("通知设置")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
+        .toolbarVisibility(.hidden, for: .tabBar)
         .task { await refreshStatus() }
     }
 
@@ -381,7 +397,7 @@ struct SettingsPrivacyView: View {
         }
         .navigationTitle("隐私")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
+        .toolbarVisibility(.hidden, for: .tabBar)
     }
 }
 
@@ -407,19 +423,17 @@ private struct SettingsAboutView: View {
                     .foregroundStyle(.secondary)
             }
             Section("合规") {
-                NavigationLink("用户协议") { UserAgreementView() }
-                NavigationLink("隐私政策") { PrivacyPolicyView() }
-                NavigationLink("社区公约") { CommunityGuidelinesView() }
-                NavigationLink("青少年模式") { SettingsYouthModeView() }
+                NavigationLink("用户协议") { UserAgreementView().toolbarVisibility(.hidden, for: .tabBar) }
+                NavigationLink("隐私政策") { PrivacyPolicyView().toolbarVisibility(.hidden, for: .tabBar) }
+                NavigationLink("社区公约") { CommunityGuidelinesView().toolbarVisibility(.hidden, for: .tabBar) }
             }
             Section {
                 NavigationLink("开源与致谢") { SettingsAcknowledgmentsView() }
-                NavigationLink("运营公告") { SettingsAnnouncementsView() }
             }
         }
         .navigationTitle("关于坐标系")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
+        .toolbarVisibility(.hidden, for: .tabBar)
         .alert("检查更新", isPresented: Binding(
             get: { updateMessage != nil },
             set: { if !$0 { updateMessage = nil } }
@@ -433,6 +447,7 @@ private struct SettingsAboutView: View {
 
 private struct ModerationTicketsView: View {
     @Environment(AppModel.self) private var app
+    @State private var pendingDeleteID: ModerationTicket.ID?
 
     var body: some View {
         List {
@@ -468,9 +483,9 @@ private struct ModerationTicketsView: View {
                                 .foregroundStyle(.tertiary)
                         }
                     }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button("删除", systemImage: "trash", role: .destructive) {
-                            app.deleteModerationTicket(ticket.id)
+                            pendingDeleteID = ticket.id
                         }
                         #if DEBUG
                         if ticket.status.nextSimulated != nil {
@@ -486,7 +501,23 @@ private struct ModerationTicketsView: View {
         }
         .navigationTitle("举报记录")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
+        .toolbarVisibility(.hidden, for: .tabBar)
+        .alert("删除工单？", isPresented: Binding(
+            get: { pendingDeleteID != nil },
+            set: { if !$0 { pendingDeleteID = nil } }
+        )) {
+            Button("删除", role: .destructive) {
+                if let pendingDeleteID {
+                    app.deleteModerationTicket(pendingDeleteID)
+                }
+                pendingDeleteID = nil
+            }
+            Button("取消", role: .cancel) {
+                pendingDeleteID = nil
+            }
+        } message: {
+            Text("删除后无法恢复，仅清除本机举报记录。")
+        }
     }
 }
 
@@ -494,6 +525,7 @@ private struct ModerationTicketDetailView: View {
     let ticketID: ModerationTicket.ID
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
+    @State private var confirmDelete = false
 
     private var ticket: ModerationTicket? {
         app.moderationTickets.first { $0.id == ticketID }
@@ -549,8 +581,7 @@ private struct ModerationTicketDetailView: View {
 
                     Section {
                         Button("删除工单", role: .destructive) {
-                            app.deleteModerationTicket(ticket.id)
-                            dismiss()
+                            confirmDelete = true
                         }
                     }
                 }
@@ -561,12 +592,22 @@ private struct ModerationTicketDetailView: View {
         }
         .navigationTitle("工单详情")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
+        .toolbarVisibility(.hidden, for: .tabBar)
+        .alert("删除工单？", isPresented: $confirmDelete) {
+            Button("删除", role: .destructive) {
+                app.deleteModerationTicket(ticketID)
+                dismiss()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("删除后无法恢复，仅清除本机举报记录。")
+        }
     }
 }
 
 struct BlockedUsersView: View {
     @Environment(AppModel.self) private var app
+    @State private var pendingUnblockName: String?
 
     var body: some View {
         List {
@@ -574,18 +615,34 @@ struct BlockedUsersView: View {
                 ContentUnavailableView("未拉黑任何人", systemImage: "person.crop.circle.badge.checkmark")
             } else {
                 ForEach(Array(app.blockedUserNames).sorted(), id: \.self) { name in
-                    HStack {
-                        Text(name)
-                        Spacer()
-                        Button("解除") { app.unblockUser(name) }
-                            .font(.subheadline)
-                    }
+                    Text(name)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button("解除", role: .destructive) {
+                                pendingUnblockName = name
+                            }
+                        }
                 }
             }
         }
         .navigationTitle("已拉黑")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
+        .toolbarVisibility(.hidden, for: .tabBar)
+        .alert("解除拉黑？", isPresented: Binding(
+            get: { pendingUnblockName != nil },
+            set: { if !$0 { pendingUnblockName = nil } }
+        )) {
+            Button("解除", role: .destructive) {
+                if let pendingUnblockName {
+                    app.unblockUser(pendingUnblockName)
+                }
+                pendingUnblockName = nil
+            }
+            Button("取消", role: .cancel) {
+                pendingUnblockName = nil
+            }
+        } message: {
+            Text(pendingUnblockName.map { "将解除对 \($0) 的拉黑。" } ?? "")
+        }
     }
 }
 

@@ -28,12 +28,7 @@ struct ActivityCatalogSeeAllSheet: View {
                         .accessibilityAddTraits(.isHeader)
 
                     ForEach(Array(shelf.activities.enumerated()), id: \.element.id) { index, activity in
-                        ActivityZoomNavigationLink(
-                            activity: activity,
-                            namespace: zoomNamespace
-                        ) {
-                            shelfRow(activity: activity, index: index)
-                        }
+                        shelfRow(activity: activity, index: index)
                     }
                 }
                 .padding(.horizontal, PlatformMetrics.contentInset)
@@ -67,6 +62,7 @@ struct ActivityCatalogSeeAllSheet: View {
                 ActivityDiscoverCard(
                     activity: activity,
                     isJoined: model.isJoined(activity.id),
+                    zoomNamespace: zoomNamespace,
                     enablesOpenTap: false,
                     onJoin: { join(activity) }
                 )
@@ -76,6 +72,7 @@ struct ActivityCatalogSeeAllSheet: View {
             ActivityDiscoverCard(
                 activity: activity,
                 isJoined: model.isJoined(activity.id),
+                zoomNamespace: zoomNamespace,
                 enablesOpenTap: false,
                 onJoin: shelf.layout == .following ? nil : { join(activity) }
             )

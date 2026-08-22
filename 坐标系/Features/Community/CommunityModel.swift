@@ -13,16 +13,9 @@ enum CommunityPublishResult: Equatable {
     case invalid
 }
 
-enum CommunityCommentSubmitResult: Equatable {
-    case posted
-    case blocked(String)
-    case invalid
-}
-
 @MainActor
 @Observable
 final class CommunityModel {
-    var selectedChannel: CommunityFeedChannelKind = .all
     var posts: [CommunityPost]
     var isComposing = false
     /// 从活动页跳转发复盘时预填正文
@@ -37,6 +30,8 @@ final class CommunityModel {
     var likedCommentIDs: Set<UUID>
     var currentUserName: String
     var blockedUserNames: Set<String> = []
+    /// 评论库变更时递增，驱动依赖 PlatformReviewsStore 的界面刷新
+    private(set) var commentRevision = 0
     private let repository: CommunityRepository
     @ObservationIgnored private var persistenceGeneration: Int
     @ObservationIgnored private var persistTask: Task<Void, Never>?
@@ -60,14 +55,14 @@ final class CommunityModel {
         bookmarkCollections = collections
         self.currentUserName = currentUserName ?? SampleData.currentUser.name
         persistenceGeneration = resolvedRepository.currentPersistenceGeneration()
+        if CommunityCommentsStore.bootstrap(posts: &posts, likedCommentIDs: likedCommentIDs) {
+            likedCommentIDs = []
+            persist()
+        }
     }
 
     func isOwnPost(_ post: CommunityPost) -> Bool {
         post.isOwned(by: currentUserName)
-    }
-
-    func isOwnComment(_ comment: CommunityComment) -> Bool {
-        comment.isOwned(by: currentUserName)
     }
 
     var items: [CommunityPost] {
@@ -76,7 +71,6 @@ final class CommunityModel {
                 && !blockedUserNames.contains($0.author)
         }
         return visible
-            .filter { selectedChannel.matches($0) }
             .sorted {
             if $0.isPinned != $1.isPinned { return $0.isPinned && !$1.isPinned }
             return $0.postedAt > $1.postedAt
@@ -107,34 +101,11 @@ final class CommunityModel {
             .sorted { $0.postedAt > $1.postedAt }
     }
 
-    var isEmptyChannel: Bool {
-        selectedChannel != .all && items.isEmpty
-    }
-
-    func selectChannel(_ kind: CommunityFeedChannelKind) {
-        selectedChannel = kind
-    }
-
     func isLiked(_ id: CommunityPost.ID) -> Bool { likedIDs.contains(id) }
     func isReposted(_ id: CommunityPost.ID) -> Bool { repostedIDs.contains(id) }
     func isBookmarked(_ id: CommunityPost.ID) -> Bool { bookmarkedIDs.contains(id) }
-    func isCommentLiked(_ id: CommunityComment.ID) -> Bool { likedCommentIDs.contains(id) }
     func bookmarkCollection(for id: CommunityPost.ID) -> String? { bookmarkCollections[id] }
     func post(id: CommunityPost.ID) -> CommunityPost? { posts.first { $0.id == id } }
-
-    func rootComments(for postID: CommunityPost.ID) -> [CommunityComment] {
-        guard let post = post(id: postID) else { return [] }
-        return post.comments
-            .filter { $0.parentID == nil }
-            .sorted { $0.postedAt > $1.postedAt }
-    }
-
-    func replies(to parentID: CommunityComment.ID, in postID: CommunityPost.ID) -> [CommunityComment] {
-        guard let post = post(id: postID) else { return [] }
-        return post.comments
-            .filter { $0.parentID == parentID }
-            .sorted { $0.postedAt < $1.postedAt }
-    }
 
     func likerNames(for id: CommunityPost.ID) -> [String] {
         guard let post = post(id: id) else { return [] }
@@ -296,67 +267,9 @@ final class CommunityModel {
         return .published(postID)
     }
 
-    func addComment(
-        to id: CommunityPost.ID,
-        text: String,
-        replyingTo parent: CommunityComment? = nil
-    ) -> CommunityCommentSubmitResult {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, let index = posts.firstIndex(where: { $0.id == id }) else { return .invalid }
-        if let word = ContentModeration.containsSensitive(trimmed) {
-            return .blocked(word)
-        }
-        let parentID = parent?.parentID ?? parent?.id
-        let replyToAuthor = parent.map(\.author)
-        posts[index].comments.append(
-            CommunityComment(
-                id: UUID(),
-                author: currentUserName,
-                text: trimmed,
-                postedAt: .now,
-                parentID: parentID,
-                replyToAuthor: replyToAuthor,
-                likeCount: 0,
-                region: nil
-            )
-        )
-        posts[index].commentCount = posts[index].comments.count
-        persist()
-        return .posted
-    }
-
-    func toggleCommentLike(postID: CommunityPost.ID, commentID: CommunityComment.ID) {
-        guard let postIndex = posts.firstIndex(where: { $0.id == postID }),
-              let commentIndex = posts[postIndex].comments.firstIndex(where: { $0.id == commentID })
-        else { return }
-        if likedCommentIDs.contains(commentID) {
-            likedCommentIDs.remove(commentID)
-            posts[postIndex].comments[commentIndex].likeCount = max(
-                posts[postIndex].comments[commentIndex].likeCount - 1,
-                0
-            )
-        } else {
-            likedCommentIDs.insert(commentID)
-            posts[postIndex].comments[commentIndex].likeCount += 1
-        }
-        persist()
-    }
-
-    func deleteComment(postID: CommunityPost.ID, commentID: CommunityComment.ID) {
-        guard let index = posts.firstIndex(where: { $0.id == postID }),
-              let comment = posts[index].comments.first(where: { $0.id == commentID }),
-              comment.isOwned(by: currentUserName)
-        else { return }
-        let removable = Set(
-            posts[index].comments
-                .filter { $0.id == commentID || $0.parentID == commentID }
-                .map(\.id)
-        )
-        for id in removable {
-            likedCommentIDs.remove(id)
-        }
-        posts[index].comments.removeAll { removable.contains($0.id) }
-        posts[index].commentCount = posts[index].comments.count
+    func syncComments(for postID: CommunityPost.ID) {
+        CommunityCommentsStore.syncCommentCount(for: postID, in: &posts)
+        bumpComments()
         persist()
     }
 
@@ -366,6 +279,7 @@ final class CommunityModel {
         for name in posts[index].localPhotoNames {
             CommunityPhotoStore.delete(named: name)
         }
+        CommunityCommentsStore.removeAll(for: id)
         likedIDs.remove(id)
         repostedIDs.remove(id)
         bookmarkedIDs.remove(id)
@@ -399,6 +313,11 @@ final class CommunityModel {
                 return (id, value)
             }
         )
+        if CommunityCommentsStore.bootstrap(posts: &posts, likedCommentIDs: likedCommentIDs) {
+            likedCommentIDs = []
+            bumpComments()
+            persist()
+        }
     }
 
     func discardPendingPersistence() async {
@@ -419,7 +338,7 @@ final class CommunityModel {
                 uniqueKeysWithValues: bookmarkCollections.map { ($0.key.uuidString, $0.value) }
             ),
             reportedIDs: Array(reportedIDs),
-            likedCommentIDs: Array(likedCommentIDs)
+            likedCommentIDs: []
         )
         let previousTask = persistTask
         let generation = persistenceGeneration
@@ -428,6 +347,10 @@ final class CommunityModel {
             guard !Task.isCancelled else { return }
             try? await repository.replaceAsync(with: snapshot, generation: generation)
         }
+    }
+
+    private func bumpComments() {
+        commentRevision += 1
     }
 
 }

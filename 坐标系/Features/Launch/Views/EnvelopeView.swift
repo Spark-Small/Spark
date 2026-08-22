@@ -237,11 +237,11 @@ struct EnvelopeView: View {
             .allowsHitTesting(false)
     }
 
-    /// 前袋的白色封口线，上盖翻开后依旧保留，与图标保持一致。
+    /// 前袋封口线，与图标保持一致。
     private var flapSeam: some View {
         EnvelopeFlapCurve(corner: cornerRadius)
             .stroke(
-                Color.white,
+                Color(red: 1.0, green: 0.863, blue: 0.886),
                 style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round)
             )
             .clipShape(envelopeShape)
@@ -250,9 +250,27 @@ struct EnvelopeView: View {
 
     // MARK: - Clover seal
 
+    /// 彩虹四叶草：8 段顺时针渐变，与 App Icon 配色一致。
+    private var cloverRainbowFill: AngularGradient {
+        AngularGradient(
+            colors: [
+                Color(red: 0.93, green: 0.54, blue: 0.20), // 橙
+                Color(red: 0.94, green: 0.76, blue: 0.26), // 黄
+                Color(red: 0.50, green: 0.73, blue: 0.22), // 黄绿
+                Color(red: 0.32, green: 0.64, blue: 0.44), // 绿
+                Color(red: 0.34, green: 0.54, blue: 0.88), // 蓝
+                Color(red: 0.58, green: 0.47, blue: 0.85), // 紫
+                Color(red: 0.88, green: 0.40, blue: 0.75), // 品红
+                Color(red: 0.92, green: 0.38, blue: 0.39), // 红
+                Color(red: 0.93, green: 0.54, blue: 0.20), // 回到橙（闭合）
+            ],
+            center: .center
+        )
+    }
+
     private var cloverSeal: some View {
         CloverShape()
-            .fill(Color.white)
+            .fill(cloverRainbowFill)
             .frame(width: 84, height: 84)
             .rotationEffect(.degrees(sealRotation))
             .scaleEffect(sealVisible ? 1 : 0.82)

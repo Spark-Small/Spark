@@ -10,32 +10,33 @@ struct ActivityDetailView: View {
     let activityID: Activity.ID
 
     @Environment(ActivitiesModel.self) private var model
-    @Environment(BuddiesModel.self) private var buddies
     @Environment(AppModel.self) private var app
     @Environment(WalletPassStore.self) private var passStore
+    @Environment(RefundFlowService.self) private var refunds
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @State private var showHostProfile = false
     @State private var showPeopleSheet = false
     @State private var showJoinConfirm = false
-    @State private var showPaymentSheet = false
     @State private var showContentEditor = false
     @State private var showOrders = false
     @State private var showShareSheet = false
     @State private var showReportSheet = false
-    @State private var profileMemberName: String?
     @State private var contentRevision = 0
     @State private var commentsRevision = 0
     @State private var ordersRevision = 0
-    @State private var pendingJoinNote: String?
     @State private var reportMessage: String?
     @State private var joinIssueMessage: String?
     @State private var cancelRefundActivityID: Activity.ID?
+    @State private var cancelUnpaidActivityID: Activity.ID?
     /// 取消参加并走退款申请表单时暂存的已支付订单
     @State private var cancelAndRefundOrder: ActivityOrder?
+    @State private var presentedRefundRequestID: UUID?
     /// 评论 / 相关轨等次要内容：转场首帧后再挂，减轻 Zoom 合成负载
     @State private var revealsSecondaryContent = false
+    @State private var showCommentsSheet = false
+    @State private var activityContactRoute: PeerContactRoute?
 
     init(activityID: Activity.ID) {
         self.activityID = activityID
@@ -57,33 +58,32 @@ struct ActivityDetailView: View {
                     .onAppear(perform: dismiss.callAsFunction)
             }
         }
-        .sheet(isPresented: joinSuccessPresented) { joinSuccessSheet }
-        .sheet(isPresented: publishSuccessPresented) { publishSuccessSheet }
+        .sheet(isPresented: joinSuccessPresented) {
+            joinSuccessSheet
+                .toolbarVisibility(.hidden, for: .tabBar)
+        }
+        .sheet(isPresented: publishSuccessPresented) {
+            publishSuccessSheet
+                .toolbarVisibility(.hidden, for: .tabBar)
+        }
         .sheet(isPresented: $showShareSheet) {
             if let activity {
                 PlatformShareSheet(items: [shareText(for: activity)])
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
         .sheet(isPresented: $showReportSheet) {
             if let activity {
                 ActivityReportSheet(activity: activity, onSubmit: submitReport)
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
         .sheet(isPresented: $showHostProfile) {
             if let name = activity?.hostName {
                 CommunityAuthorFallbackSheet(name: name)
-            }
-        }
-        .sheet(
-            isPresented: Binding(
-                get: { profileMemberName != nil },
-                set: { if !$0 { profileMemberName = nil } }
-            )
-        ) {
-            if let name = profileMemberName {
-                CommunityAuthorFallbackSheet(name: name)
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
         .alert(
@@ -142,6 +142,8 @@ struct ActivityDetailView: View {
         .contentMargins(.top, 0, for: .scrollContent)
         .scrollDismissesKeyboard(.interactively)
         .scrollEdgeEffectStyle(.soft, for: .top)
+        .navigationTitle(live.title)
+        .navigationBarTitleDisplayMode(.inline)
         .task(id: live.id) {
             guard !revealsSecondaryContent else { return }
             await Task.yield()
@@ -158,53 +160,31 @@ struct ActivityDetailView: View {
         }
         // Form 头图落在系统顶栏下方；边缘过渡交给 scrollEdgeEffect
         .toolbarBackground(.hidden, for: .navigationBar)
-        .platformSecondaryPage()
-        .circleDetailNavigationDestination()
-        .buddyOrgJoinChrome(
-            buddies: buddies,
-            openConversation: { app.openMessages(conversationID: $0) }
-        )
+        .peerContactDestination(route: $activityContactRoute)
         .sheet(isPresented: $showPeopleSheet) {
-            ActivityDetailPeopleSheet(
-                activity: live,
-                onOpenProfile: { profileMemberName = $0 },
-                onMessage: { name in
-                    startChat(
-                        with: name,
-                        greeting: "你好，我在「\(live.title)」活动里看到你，想认识一下。"
-                    )
-                }
-            )
+            ActivityDetailPeopleSheet(activity: live)
+                .toolbarVisibility(.hidden, for: .tabBar)
         }
         .sheet(isPresented: $showJoinConfirm) {
             ActivityJoinConfirmSheet(
                 activity: live,
                 conflicts: model.scheduleConflicts(with: live)
             ) { note in
-                pendingJoinNote = note
-                if !live.requiresInAppPayment || ActivityPaymentStore.hasPaid(for: live.id) {
-                    completeJoin(for: live, note: note)
-                } else if app.auth.isGuest {
-                    joinIssueMessage = GuestAccessGate.commerceReason
-                } else {
-                    showPaymentSheet = true
-                }
+                completeJoin(for: live, note: note)
             }
-        }
-        .sheet(isPresented: $showPaymentSheet) {
-            ActivityPaymentSheet(activity: live) {
-                completeJoin(for: live, note: pendingJoinNote)
-            }
+            .toolbarVisibility(.hidden, for: .tabBar)
         }
         .sheet(isPresented: $showContentEditor) {
             ActivityDetailContentEditorSheet(activity: live) {
                 contentRevision += 1
             }
+            .toolbarVisibility(.hidden, for: .tabBar)
         }
         .sheet(isPresented: $showOrders) {
             ActivityOrdersSheet(activityID: live.id) {
                 ordersRevision += 1
             }
+            .toolbarVisibility(.hidden, for: .tabBar)
         }
         .alert(
             ActivityDetailCopy.cancelWithRefundTitle,
@@ -232,13 +212,57 @@ struct ActivityDetailView: View {
         } message: {
             Text(ActivityDetailCopy.cancelWithRefundMessage)
         }
+        .alert(
+            ActivityDetailCopy.cancelUnpaidTitle,
+            isPresented: Binding(
+                get: { cancelUnpaidActivityID != nil },
+                set: { if !$0 { cancelUnpaidActivityID = nil } }
+            )
+        ) {
+            Button(ActivityDetailCopy.cancelUnpaidKeep, role: .cancel) {
+                cancelUnpaidActivityID = nil
+            }
+            Button(ActivityDetailCopy.cancelUnpaidConfirm, role: .destructive) {
+                if let id = cancelUnpaidActivityID {
+                    app.cancelActivityRegistration(id)
+                }
+                cancelUnpaidActivityID = nil
+            }
+        } message: {
+            Text(ActivityDetailCopy.cancelUnpaidMessage)
+        }
         .sheet(item: $cancelAndRefundOrder) { order in
-            RefundRequestSheet.activityOrder(order) { _, _ in
-                performCancelAndRefund(order: order)
+            let activity = model.activity(id: order.activityID)
+            let notes = activity.map { ActivityDetailBlueprint.make(for: $0).refundNotes } ?? []
+            RefundRequestSheet.activityOrder(order, activity: activity, refundNotes: notes) { reason, detail in
+                submitCancelAndRefund(order: order, reason: reason, detail: detail)
+            }
+            .toolbarVisibility(.hidden, for: .tabBar)
+        }
+        .sheet(isPresented: Binding(
+            get: { presentedRefundRequestID != nil },
+            set: { if !$0 { presentedRefundRequestID = nil } }
+        )) {
+            if let requestID = presentedRefundRequestID {
+                RefundStatusSheet(requestID: requestID)
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .platformDetailBottomBar {
             bottomBar(live)
+        }
+        .sheet(isPresented: $showCommentsSheet) {
+            if let live = activity {
+                ActivityCommentsSheet(
+                    activityID: live.id,
+                    hostName: live.hostName,
+                    currentUserName: model.currentUserName,
+                    onChanged: {
+                        commentsRevision += 1
+                    }
+                )
+                .toolbarVisibility(.hidden, for: .tabBar)
+            }
         }
     }
 
@@ -249,10 +273,7 @@ struct ActivityDetailView: View {
             hostName: live.hostName,
             liveHostedCount: model.activities.filter { $0.hostName == live.hostName }.count
         )
-        let paidOrder = ActivityPaymentStore.paidOrder(for: live.id)
-            ?? ActivityPaymentStore.orders(for: live.id).first {
-                $0.status == .refunded || $0.status == .refunding
-            }
+        let paidOrder = ActivityPaymentStore.displayOrder(for: live.id)
 
         // 标题 + 决策同一 Section：系统行距，避免两张白卡之间再叠一段分区间距
         Section {
@@ -290,8 +311,6 @@ struct ActivityDetailView: View {
                 ActivityDetailRelatedCircleRow(circle: circle)
             } header: {
                 Text(ActivityDetailCopy.relatedCircleTitle)
-            } footer: {
-                Text(ActivityDetailCopy.relatedCircleFooter)
             }
         }
 
@@ -317,32 +336,28 @@ struct ActivityDetailView: View {
         if let paidOrder, joined || isHost {
             Section {
                 ActivityDetailOrderBanner(order: paidOrder) { showOrders = true }
-                activityCredentialLink(for: live, joined: joined)
             }
             .id(ordersRevision)
-        } else if joined {
-            Section {
-                activityCredentialLink(for: live, joined: joined)
-            }
         }
 
+        ActivityDetailCredentialSection(
+            activity: live,
+            isHost: isHost,
+            ordersRevision: $ordersRevision
+        )
+
         if revealsSecondaryContent {
-            Section {
-                ActivityDetailCommentsSection(
-                    activityID: live.id,
-                    currentUserName: model.currentUserName
-                ) {
-                    commentsRevision += 1
-                }
-            } header: {
-                Text(ActivityDetailCopy.commentsTitle)
-            }
+            ActivityDetailCommentsPreviewSection(
+                activityID: live.id,
+                hostName: live.hostName,
+                onOpenComments: { showCommentsSheet = true }
+            )
             .id(commentsRevision)
 
             let related = ActivityRelatedRecommender.related(to: live, from: model.activities)
             if !related.isEmpty {
                 Section {
-                    ActivityDetailRelatedSection(relatedActivities: related)
+                    DetailRelatedActivitiesRail(activities: related)
                 } header: {
                     Text(ActivityDetailCopy.relatedTitle)
                 }
@@ -382,61 +397,20 @@ struct ActivityDetailView: View {
         let dateLine =
             "\(Formatters.monthDay.string(from: activity.date)) \(Formatters.weekday.string(from: activity.date))"
         let weatherLine = "\(weather.temperatureC)° · \(weather.conditionText)"
-        let prefersStacked = DiscoverAccessibility.prefersStackedCardChrome(for: dynamicTypeSize)
+        let chipTitle = "\(dateLine) · \(weatherLine)"
 
-        let gallery = ActivityDetailHeroGallery(
-            activity: activity,
-            onEditGallery: isHost ? { showContentEditor = true } : nil
-        )
-        .frame(maxWidth: .infinity)
-        .aspectRatio(PlatformMetrics.detailHeroAspectRatio, contentMode: .fit)
-        .clipped()
-        .clipShape(PlatformMetrics.cardShape)
-
-        let chip = heroWeatherChip(
-            dateLine: dateLine,
-            weatherLine: weatherLine,
-            systemImage: weather.systemImage,
-            onMedia: !prefersStacked
-        )
-
-        return Group {
-            if prefersStacked {
-                VStack(alignment: .leading, spacing: PlatformMetrics.sectionHeaderSpacing) {
-                    gallery
-                    chip
-                }
-            } else {
-                gallery
-                    .overlay(alignment: .bottomLeading) {
-                        chip.platformMediaChromeInset()
-                    }
-            }
+        return DetailHeroChrome {
+            ActivityDetailHeroGallery(
+                activity: activity,
+                onEditGallery: isHost ? { showContentEditor = true } : nil
+            )
+        } chip: { onMedia in
+            DetailHeroInfoChip(
+                title: chipTitle,
+                systemImage: weather.systemImage,
+                onMedia: onMedia
+            )
         }
-    }
-
-    private func heroWeatherChip(
-        dateLine: String,
-        weatherLine: String,
-        systemImage: String,
-        onMedia: Bool
-    ) -> some View {
-        Button {} label: {
-            HStack {
-                Text(dateLine)
-                Text("·")
-                    .opacity(0.7)
-                Label(weatherLine, systemImage: systemImage)
-                    .labelStyle(.titleAndIcon)
-                    .symbolRenderingMode(.hierarchical)
-            }
-            .font(.subheadline.weight(.medium))
-        }
-        .activityGlassCapsule(controlSize: .regular)
-        .colorScheme(onMedia ? .dark : .light)
-        .allowsHitTesting(false)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(dateLine)，天气 \(weatherLine)")
     }
 
     @ViewBuilder
@@ -712,20 +686,18 @@ struct ActivityDetailView: View {
     }
 
     private func askHost(about activity: Activity) {
-        startChat(
-            with: activity.hostName,
-            greeting: ActivityDetailCopy.askHostGreeting(title: activity.title)
-        )
+        openActivityChat(with: activity.hostName, about: activity)
+    }
+
+    private func openActivityChat(with name: String, about activity: Activity) {
+        let context: ConversationChatContext = name == activity.hostName
+            ? .activityHost(activityID: activity.id)
+            : .activityMember(activityID: activity.id)
+        activityContactRoute = app.openPeerContact(with: name, context: context)
     }
 
     private func openGroupChat(for activity: Activity) {
         app.openActivityGroupChat(for: activity)
-    }
-
-    private func startChat(with name: String, greeting: String) {
-        if let convo = app.startDirectChat(with: name, greeting: greeting) {
-            app.openMessages(conversationID: convo.id)
-        }
     }
 
     private func openRecapCompose(for activity: Activity) {
@@ -736,31 +708,26 @@ struct ActivityDetailView: View {
         if ActivityPaymentStore.hasPaid(for: activity.id) {
             cancelRefundActivityID = activity.id
         } else {
-            app.cancelActivityRegistration(activity.id)
+            cancelUnpaidActivityID = activity.id
         }
     }
 
     private func completeJoin(for activity: Activity, note: String?) {
         // 支付完成后再次校验名额（库存与资金一致性）
-        guard let live = model.activity(id: activity.id) else {
-            pendingJoinNote = nil
-            return
-        }
+        guard let live = model.activity(id: activity.id) else { return }
 
         if live.isFull || live.isLifecycleEnded {
             refundPaidOrderIfNeeded(for: live.id)
-            pendingJoinNote = nil
             joinIssueMessage = ActivityDetailCopy.joinFailedFullAfterPayMessage
             return
         }
 
         if let note, !note.isEmpty {
-            _ = app.startDirectChat(
-                with: live.hostName,
-                greeting: "\(ActivityDetailCopy.joinNotePrefix)\(note)"
+            _ = app.messages.sendFriendRequest(
+                to: live.hostName,
+                message: "\(ActivityDetailCopy.joinNotePrefix)\(note)"
             )
         }
-        pendingJoinNote = nil
 
         let joined = app.toggleJoinActivity(live.id)
         if !joined {
@@ -771,47 +738,38 @@ struct ActivityDetailView: View {
         }
     }
 
-    @ViewBuilder
-    private func activityCredentialLink(for live: Activity, joined: Bool) -> some View {
-        if let pass = passStore.activityPass(for: live, activeOnly: true) {
-            NavigationLink {
-                WalletPassDetailView(passID: pass.id)
-            } label: {
-                Label("查看活动凭证", systemImage: "ticket")
-            }
-        } else if let voided = passStore.activityPass(for: live, activeOnly: false), voided.voided {
-            NavigationLink {
-                WalletPassDetailView(passID: voided.id)
-            } label: {
-                Label("凭证已作废", systemImage: "xmark.seal")
-            }
-        } else if joined || isHost {
-            Button("补发活动凭证", systemImage: "ticket") {
-                if let order = ActivityPaymentStore.paidOrder(for: live.id) {
-                    _ = passStore.issueActivityTicket(order: order, activity: live)
-                } else {
-                    _ = passStore.issueActivityAttendanceTicket(for: live)
-                }
-            }
-        }
-    }
-
     private func refundPaidOrderIfNeeded(for activityID: Activity.ID) {
         guard let order = ActivityPaymentStore.paidOrder(for: activityID) else { return }
-        _ = ActivityPaymentStore.requestRefund(orderID: order.id)
-        ActivityPaymentStore.finalizeRefund(orderID: order.id)
+        _ = refunds.submitExpeditedActivityRefund(
+            order: order,
+            reason: "报名失败",
+            detail: "支付成功但未能完成报名，系统自动退款。"
+        )
         ordersRevision += 1
     }
 
-    /// 用户填写退款申请并确认后：退款 + 取消参加（避免二次退款）
-    private func performCancelAndRefund(order: ActivityOrder) {
-        if let error = ActivityPaymentStore.requestRefund(orderID: order.id) {
-            joinIssueMessage = error
-            return
+    /// 用户填写退款申请并确认后：提交退款流程 + 完成后取消参加
+    private func submitCancelAndRefund(order: ActivityOrder, reason: String, detail: String) {
+        let activity = model.activity(id: order.activityID)
+        let notes = activity.map { ActivityDetailBlueprint.make(for: $0).refundNotes } ?? []
+        let result = refunds.submitActivityRefund(
+            order: order,
+            activity: activity,
+            refundNotes: notes,
+            reason: reason,
+            detail: detail,
+            cancelRegistration: true,
+            onCancelRegistration: { id in
+                app.cancelActivityRegistration(id, refundIfPaid: false)
+            }
+        )
+        switch result {
+        case .success(let record):
+            presentedRefundRequestID = record.id
+            ordersRevision += 1
+        case .failure(let error):
+            joinIssueMessage = error.localizedDescription
         }
-        ActivityPaymentStore.finalizeRefund(orderID: order.id)
-        app.cancelActivityRegistration(order.activityID, refundIfPaid: false)
-        ordersRevision += 1
     }
 }
 

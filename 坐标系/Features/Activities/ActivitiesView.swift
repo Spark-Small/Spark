@@ -8,19 +8,21 @@ import SwiftUI
 /// 活动发现：精选 Hero + 货架；详情 Zoom 打开。
 struct ActivitiesView: View {
     @Environment(ActivitiesModel.self) private var model
+    @Environment(BuddiesModel.self) private var buddies
     @Environment(AppModel.self) private var app
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var didBootstrapLocation = false
-    @State private var path = NavigationPath()
+    @State private var navigation = TabNavigationState()
     @State private var seeAllShelf: ActivityBrowseShelf?
-    @State private var showFavorites = false
+    @State private var showLayoutDemo = false
     @Namespace private var zoomNamespace
 
     var body: some View {
+        @Bindable var navigation = navigation
         @Bindable var model = model
 
-        NavigationStack(path: $path) {
+        NavigationStack(path: $navigation.path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     if model.filtered.isEmpty {
@@ -40,17 +42,27 @@ struct ActivitiesView: View {
                 .padding(.bottom, PlatformMetrics.sectionSpacing)
             }
             .scrollDismissesKeyboard(.interactively)
-            .scrollEdgeEffectStyle(.soft, for: .top)
             .background(PlatformSurface.groupedPage)
             .safeAreaInset(edge: .bottom) {
                 Color.clear
                     .frame(height: PlatformMetrics.sectionSpacing)
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { activitiesToolbar }
-            // 精选时内容伸到顶边，玻璃顶栏由系统浮在内容上（非自算显隐）
-            .ignoresSafeArea(edges: model.showsFeatured ? .top : [])
+            .platformTabRootScrollChrome(title: model.selectedCategory.title)
+            .platformTabRootTitleMenu {
+                ActivityBrowseCategoryTitleMenu(selection: $model.selectedCategory)
+            }
+            .platformTabRootToolbar { tabToolbar }
+            .tint(PlatformAction.cloverPurple)
             .activityZoomNavigationDestination(namespace: zoomNamespace)
+            .circleBrowseStackChrome(
+                buddies: buddies,
+                openCircle: { navigation.openCircle($0) },
+                openConversation: { app.openMessages(conversationID: $0) }
+            )
+            .onAppear { consumePendingActivityOpen() }
+            .onChange(of: app.pendingActivityID) { _, _ in
+                consumePendingActivityOpen()
+            }
             .sheet(isPresented: $model.isComposing, onDismiss: {
                 model.editingActivityID = nil
             }) {
@@ -59,18 +71,22 @@ struct ActivitiesView: View {
                     onPublish: handlePublish,
                     onUpdate: handleUpdate
                 )
-            }
-            .sheet(isPresented: $showFavorites) {
-                ActivityFavoritesView()
+                .toolbarVisibility(.hidden, for: .tabBar)
             }
             .sheet(isPresented: $model.showFilters) {
                 ActivityFilterSheet(
                     quickFilters: $model.quickFilters,
                     dayFilter: $model.dayFilter
                 )
+                .toolbarVisibility(.hidden, for: .tabBar)
             }
             .sheet(item: $seeAllShelf) { shelf in
                 ActivityCatalogSeeAllSheet(shelf: shelf)
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            }
+            .sheet(isPresented: $showLayoutDemo) {
+                ActivityLayoutDemoView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
             .sheet(isPresented: joinSuccessPresented) {
                 if let activity = model.joinSuccessActivity {
@@ -80,6 +96,7 @@ struct ActivitiesView: View {
                         onOpenGroup: { openGroup(for: activity) },
                         onWriteRecap: { openCommunityRecap(for: activity) }
                     )
+                    .toolbarVisibility(.hidden, for: .tabBar)
                 }
             }
             .sheet(isPresented: publishSuccessPresented) {
@@ -89,89 +106,40 @@ struct ActivitiesView: View {
                         context: .published,
                         onOpenGroup: { openGroup(for: activity) }
                     )
+                    .toolbarVisibility(.hidden, for: .tabBar)
                 }
             }
             .platformTransientFeedback($model.toastMessage)
             .task { await bootstrapLocationIfNeeded() }
-            .platformTabBarHiddenWhenPushed(path.isEmpty)
         }
+        .tabNavigationState(navigation)
     }
 
     // MARK: - Toolbar
 
     @ToolbarContentBuilder
-    private var activitiesToolbar: some ToolbarContent {
-        @Bindable var model = model
-
-        ToolbarItem(placement: .topBarLeading) {
-            Menu {
-                Picker("分类", selection: $model.selectedCategory) {
-                    ForEach(ActivityCategory.allCases) { category in
-                        Label(category.title, systemImage: category.systemImage)
-                            .tag(category)
-                    }
-                }
-            } label: {
-                Image(systemName: model.selectedCategory.systemImage)
-                    .platformSymbolStyle(.hierarchical)
+    private var tabToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button("布局演示", systemImage: "square.grid.2x2") {
+                showLayoutDemo = true
             }
-            .platformToolbarCircleStyle()
-            .accessibilityLabel("活动分类，当前\(model.selectedCategory.title)")
-        }
+            .accessibilityHint("打开 Apple TV 式布局演示")
 
-        if hasActiveFilters {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    model.showFilters = true
-                } label: {
-                    Image(systemName: "line.3.horizontal.decrease")
-                        .platformSymbolStyle(.hierarchical)
-                }
-                .platformToolbarCircleStyle()
-                .accessibilityLabel(activeFiltersAccessibilityLabel)
-                .accessibilityHint("打开筛选")
-            }
-        }
+            Button("发起活动", systemImage: "plus", action: beginCompose)
 
-        ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                Button("发起活动", systemImage: "plus", action: beginCompose)
-                Button("收藏的活动", systemImage: "bookmark") {
-                    showFavorites = true
-                }
-                Button(
-                    hasActiveFilters ? "筛选（已启用）" : "筛选",
-                    systemImage: "line.3.horizontal.decrease"
-                ) {
-                    model.showFilters = true
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .platformSymbolStyle(.hierarchical)
+            Button(
+                hasActiveFilters ? "筛选（已启用）" : "筛选",
+                systemImage: "line.3.horizontal.decrease"
+            ) {
+                model.showFilters = true
             }
-            .platformToolbarCircleStyle()
-            .accessibilityLabel("更多")
+            .symbolVariant(hasActiveFilters ? .fill : .none)
+            .accessibilityHint("打开筛选")
         }
     }
 
     private var hasActiveFilters: Bool {
-        !model.quickFilters.isEmpty || model.selectedCategory != .all || model.dayFilter != nil
-    }
-
-    private var activeFiltersAccessibilityLabel: String {
-        var parts: [String] = ["筛选中"]
-        if model.selectedCategory != .all {
-            parts.append(model.selectedCategory.title)
-        }
-        if let day = model.dayFilter {
-            parts.append(
-                day.formatted(.dateTime.year().month().day().locale(.autoupdatingCurrent))
-            )
-        }
-        if !model.quickFilters.isEmpty {
-            parts.append("\(model.quickFilters.count) 项条件")
-        }
-        return parts.joined(separator: "，")
+        !model.quickFilters.isEmpty || model.dayFilter != nil
     }
 
     // MARK: - 长列表推荐分区
@@ -187,163 +155,15 @@ struct ActivitiesView: View {
 
     @ViewBuilder
     private func shelfModule(_ shelf: ActivityBrowseShelf) -> some View {
-        switch shelf.layout {
-        case .editorial:
-            DiscoverBrowseSection(
-                title: shelf.title,
-                subtitle: shelf.subtitle,
-                onSeeAll: { seeAllShelf = shelf }
-            ) {
-                DiscoverHorizontalRail {
-                    ForEach(shelf.activities) { activity in
-                        PlatformEditorialCard(
-                            activityID: activity.id,
-                            zoomNamespace: zoomNamespace,
-                            photo: activity.coverPhoto,
-                            badge: editorialBadge(for: activity),
-                            title: activity.title,
-                            metaLine: editorialMeta(for: activity),
-                            metaSymbol: activity.category.systemImage,
-                            isJoined: model.isJoined(activity.id),
-                            isFull: activity.isFull,
-                            onJoin: { join(activity) }
-                        )
-                        .platformEditorialRailFrame()
-                    }
-                }
-            }
-
-        case .following:
-            DiscoverBrowseSection(
-                title: shelf.title,
-                subtitle: shelf.subtitle,
-                onSeeAll: { seeAllShelf = shelf }
-            ) {
-                DiscoverHorizontalRail {
-                    ForEach(shelf.activities) { activity in
-                        PlatformContinueCard(
-                            activityID: activity.id,
-                            zoomNamespace: zoomNamespace,
-                            photo: activity.coverPhoto,
-                            title: activity.title,
-                            timeLine: Formatters.activityEventTime(from: activity.date),
-                            metaLine: followingMeta(for: activity),
-                            isJoined: model.isJoined(activity.id),
-                            isFull: activity.isFull,
-                            onJoin: model.isJoined(activity.id) ? nil : { join(activity) }
-                        )
-                        .platformContinueRailFrame()
-                    }
-                }
-            }
-
-        case .hot:
-            DiscoverBrowseSection(
-                title: shelf.title,
-                subtitle: shelf.subtitle,
-                onSeeAll: { seeAllShelf = shelf }
-            ) {
-                DiscoverHorizontalRail {
-                    ForEach(shelf.activities) { activity in
-                        PlatformEventCard(
-                            activityID: activity.id,
-                            zoomNamespace: zoomNamespace,
-                            photo: activity.coverPhoto,
-                            badge: hotBadge(for: activity),
-                            title: activity.title,
-                            timeLine: Formatters.activityEventTime(from: activity.date),
-                            metaLine: hotMeta(for: activity),
-                            isJoined: model.isJoined(activity.id),
-                            isFull: activity.isFull,
-                            onJoin: { join(activity) }
-                        )
-                        .platformContinueRailFrame()
-                    }
-                }
-            }
-
-        case .list:
-            // 竖卡分区数量有限：用 VStack，避免嵌套纵向 LazyVStack
-            DiscoverBrowseSection(
-                title: shelf.title,
-                subtitle: shelf.subtitle,
-                onSeeAll: { seeAllShelf = shelf }
-            ) {
-                VStack(alignment: .leading, spacing: PlatformMetrics.discoverCardSpacing) {
-                    ForEach(shelf.activities) { activity in
-                        ActivityZoomNavigationLink(
-                            activity: activity,
-                            namespace: zoomNamespace
-                        ) {
-                            ActivityDiscoverCard(
-                                activity: activity,
-                                isJoined: model.isJoined(activity.id),
-                                enablesOpenTap: false,
-                                onJoin: { join(activity) }
-                            )
-                        }
-                    }
-                }
-                .padding(.horizontal, PlatformMetrics.contentInset)
-            }
-
-        case .ranked:
-            DiscoverBrowseSection(
-                title: shelf.title,
-                subtitle: shelf.subtitle,
-                onSeeAll: { seeAllShelf = shelf }
-            ) {
-                DiscoverHorizontalRail {
-                    ForEach(Array(shelf.activities.enumerated()), id: \.element.id) { index, activity in
-                        PlatformPosterRankCard(
-                            activityID: activity.id,
-                            zoomNamespace: zoomNamespace,
-                            photo: activity.coverPhoto,
-                            rank: index + 1,
-                            title: activity.title,
-                            genre: activity.category.title
-                        )
-                        .platformPosterRailFrame()
-                    }
-                }
-            }
-        }
-    }
-
-    /// 跟进轨：地点即可，不堆费用
-    private func followingMeta(for activity: Activity) -> String {
-        activity.districtLabel
-    }
-
-    /// 焦点大卡：品类 · 标签/费用 · 时间
-    private func editorialMeta(for activity: Activity) -> String {
-        let tag = activity.tags.first ?? (activity.isFree ? "免费" : activity.fee)
-        let time = Formatters.activityEventTime(from: activity.date)
-        return "\(activity.category.title) · \(tag) · \(time)"
-    }
-
-    private func editorialBadge(for activity: Activity) -> String? {
-        ActivityCardStatus.captionBadge(for: activity, fallback: "新")
-    }
-
-    /// 热场轨：地点 · 费用或剩余席位
-    private func hotMeta(for activity: Activity) -> String {
-        if activity.isAlmostFull || activity.isFull {
-            return "\(activity.districtLabel) · \(ActivityCardStatus.spotsText(for: activity, spaced: true))"
-        }
-        let fee = activity.isFree ? ActivityCardStatus.free : activity.fee
-        return "\(activity.districtLabel) · \(fee)"
-    }
-
-    private func hotBadge(for activity: Activity) -> String? {
-        ActivityCardStatus.captionBadge(
-            for: activity,
-            fallback: activity.category.shortTitle
+        ActivityBrowseShelfSection(
+            shelf: shelf,
+            zoomNamespace: zoomNamespace,
+            onSeeAll: { seeAllShelf = shelf },
+            onJoin: join
         )
     }
 
     private var featuredCarousel: some View {
-        // 单卡 Hero，不做分页轮播
         Group {
             if let featured = model.featured.first {
                 ActivityFeaturedCard(
@@ -351,13 +171,12 @@ struct ActivitiesView: View {
                     zoomNamespace: zoomNamespace,
                     onJoin: { join(featured) }
                 )
-                // 身份只跟活动 id，避免报名后拆掉 Zoom 源
                 .id(featured.id)
             }
         }
-        .modifier(FeaturedHeroAspectModifier(dynamicTypeSize: dynamicTypeSize))
+        .modifier(ActivityFeaturedHeroAspectModifier(dynamicTypeSize: dynamicTypeSize))
+        .discoverBrowseContentInset()
         .frame(maxWidth: .infinity)
-        .clipped()
         .activityZoomSlot("featured")
     }
 
@@ -393,14 +212,14 @@ struct ActivitiesView: View {
 
     private var joinSuccessPresented: Binding<Bool> {
         Binding(
-            get: { model.joinSuccessActivityID != nil && path.isEmpty },
+            get: { model.joinSuccessActivityID != nil && navigation.isEmpty },
             set: { if !$0 { model.dismissJoinSuccess() } }
         )
     }
 
     private var publishSuccessPresented: Binding<Bool> {
         Binding(
-            get: { model.publishSuccessActivityID != nil && path.isEmpty },
+            get: { model.publishSuccessActivityID != nil && navigation.isEmpty },
             set: { if !$0 { model.dismissPublishSuccess() } }
         )
     }
@@ -411,7 +230,14 @@ struct ActivitiesView: View {
     }
 
     private func open(_ activity: Activity) {
-        path.append(ActivityZoomSource(activityID: activity.id, slot: "programmatic"))
+        navigation.path.append(ActivityZoomSource(activityID: activity.id, slot: "programmatic"))
+    }
+
+    private func consumePendingActivityOpen() {
+        guard let id = app.pendingActivityID else { return }
+        app.pendingActivityID = nil
+        navigation.reset()
+        navigation.path.append(ActivityZoomSource(activityID: id, slot: "notification"))
     }
 
     private func join(_ activity: Activity) {
@@ -504,19 +330,6 @@ struct ActivitiesView: View {
             try? await Task.sleep(for: .milliseconds(250))
         }
         model.refreshDistancesFromLocation()
-    }
-}
-
-/// 精选 Hero：常规字阶锁 3:4；无障碍大字号放开，让图下文不被裁切
-private struct FeaturedHeroAspectModifier: ViewModifier {
-    var dynamicTypeSize: DynamicTypeSize
-
-    func body(content: Content) -> some View {
-        if DiscoverAccessibility.prefersStackedCardChrome(for: dynamicTypeSize) {
-            content
-        } else {
-            content.aspectRatio(PlatformMetrics.featuredCardAspectRatio, contentMode: .fit)
-        }
     }
 }
 

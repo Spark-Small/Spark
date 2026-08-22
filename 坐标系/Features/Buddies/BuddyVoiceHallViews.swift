@@ -18,6 +18,7 @@ struct BuddyVoiceHallRoomView: View {
     @State private var toast: String?
     @State private var selectedSeat: BuddyMemberProfileTarget?
     @State private var confirmTakeMic = false
+    @State private var peerContactRoute: PeerContactRoute?
 
     private var seats: [String] {
         var names = hall.onMicNicknames
@@ -51,8 +52,8 @@ struct BuddyVoiceHallRoomView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     LazyVGrid(
-                        columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
-                        spacing: 16
+                        columns: Array(repeating: GridItem(.flexible(), spacing: PlatformMetrics.cardFooterSpacing), count: 3),
+                        spacing: PlatformMetrics.discoverCardSpacing
                     ) {
                         ForEach(seats, id: \.self) { name in
                             seatCell(name)
@@ -61,7 +62,7 @@ struct BuddyVoiceHallRoomView: View {
                             emptySeat
                         }
                     }
-                    .padding(.top, 8)
+                    .padding(.top, PlatformMetrics.minContentGap)
                 }
                 .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
             }
@@ -81,9 +82,8 @@ struct BuddyVoiceHallRoomView: View {
         .listStyle(.insetGrouped)
         .navigationTitle("语音厅")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
         .safeAreaInset(edge: .bottom) {
-            HStack(spacing: 12) {
+            HStack(spacing: PlatformMetrics.cardFooterSpacing) {
                 Button(isOnMic ? BuddyMemberCopy.leaveMic : BuddyMemberCopy.takeMic) {
                     if isOnMic {
                         isOnMic = false
@@ -101,7 +101,7 @@ struct BuddyVoiceHallRoomView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, PlatformMetrics.contentInset)
-            .padding(.vertical, 10)
+            .padding(.vertical, PlatformMetrics.formRowVerticalPadding * 2)
             .background(PlatformSurface.bar)
         }
         .alert(BuddyMemberCopy.takeMic, isPresented: $confirmTakeMic) {
@@ -113,15 +113,10 @@ struct BuddyVoiceHallRoomView: View {
         } message: {
             Text(BuddyMemberCopy.emptySeatHint)
         }
+        .peerContactDestination(route: $peerContactRoute)
         .sheet(item: $selectedSeat) { target in
             BuddyMemberProfileSheet(
                 target: target,
-                onMessage: { item in
-                    let greeting = "你好，我在「\(hall.title)」听到你了～"
-                    if let convo = app.startDirectChat(with: item.profile.nickname, greeting: greeting) {
-                        app.openMessages(conversationID: convo.id)
-                    }
-                },
                 onBook: { companion in
                     buddies.book(companion)
                 },
@@ -133,27 +128,7 @@ struct BuddyVoiceHallRoomView: View {
                     }
                     : nil
             )
-        }
-        .sheet(item: Binding(
-            get: { buddies.bookingTarget },
-            set: { buddies.bookingTarget = $0 }
-        )) { companion in
-            BuddyBookingSheet(
-                companion: companion,
-                initialDay: buddies.bookingInitialDay
-            ) { scheduledAt, hours, slotLabel in
-                _ = buddies.recordBooking(
-                    companion: companion,
-                    scheduledAt: scheduledAt,
-                    hours: hours,
-                    slotLabel: slotLabel
-                )
-            }
-            .onDisappear {
-                if buddies.bookingTarget == nil {
-                    buddies.bookingInitialDay = nil
-                }
-            }
+            .toolbarVisibility(.hidden, for: .tabBar)
         }
         .platformTransientFeedback($toast)
     }
@@ -180,21 +155,20 @@ struct BuddyVoiceHallRoomView: View {
             return
         }
 
-        // 麦上昵称无完整资料时：先打招呼，不虚构条目
-        toast = "演示：向 \(name) 打招呼"
-        let greeting = "你好，我在「\(hall.title)」听到你了～"
-        if let convo = app.startDirectChat(with: name, greeting: greeting) {
-            app.openMessages(conversationID: convo.id)
-        }
+        // 麦上昵称无完整资料时：进入私聊，不自动发消息
+        peerContactRoute = app.openPeerContact(
+            with: name,
+            context: .voiceHall(hallTitle: hall.title)
+        )
     }
 
     private func seatContent(name: String, isHost: Bool, isSelf: Bool) -> some View {
-        VStack(spacing: 8) {
+        VStack(spacing: PlatformMetrics.minContentGap) {
             ZStack(alignment: .bottomTrailing) {
                 PlatformListAvatarView(name: name, side: 64)
                 Image(systemName: "mic.fill")
                     .font(.caption2.weight(.bold))
-                    .padding(4)
+                    .padding(PlatformMetrics.avatarBadgeOffset)
                     .background(.ultraThinMaterial, in: Circle())
             }
             Text(isSelf ? BuddyMemberCopy.roleSelf : name)
@@ -205,14 +179,14 @@ struct BuddyVoiceHallRoomView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
+        .padding(.vertical, PlatformMetrics.minContentGap)
     }
 
     private var emptySeat: some View {
         Button {
             confirmTakeMic = true
         } label: {
-            VStack(spacing: 8) {
+            VStack(spacing: PlatformMetrics.minContentGap) {
                 Circle()
                     .strokeBorder(.quaternary, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
                     .frame(width: 64, height: 64)
@@ -225,7 +199,7 @@ struct BuddyVoiceHallRoomView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .padding(.vertical, PlatformMetrics.minContentGap)
         }
         .buttonStyle(.plain)
         .disabled(isOnMic)

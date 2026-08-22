@@ -99,7 +99,12 @@ struct ActivityConversationSyncService {
 
     func handleCancel(activityID: Activity.ID, app: AppModel) {
         guard let activity = app.activities.activity(id: activityID) else { return }
-        ActivityPaymentStore.refundAllPaidOrders(for: activityID)
+        let notes = ActivityDetailBlueprint.make(for: activity).refundNotes
+        RefundFlowService.shared.submitSystemActivityRefunds(
+            for: activityID,
+            activityTitle: activity.title,
+            refundNotes: notes
+        )
         app.messages.announceActivityCancelled(activity: activity)
         app.activities.cancelActivity(activityID)
     }

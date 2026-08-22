@@ -57,12 +57,14 @@ struct WalletPassDetailView: View {
     let passID: UUID
 
     @Environment(WalletPassStore.self) private var passStore
+    #if DEBUG
     @Environment(PassUpdateWebService.self) private var updateService
     @State private var exportedFile: ExportedPassFile?
     @State private var showExportError = false
     @State private var exportError: String?
     @State private var pullResult: String?
     @State private var showPullResult = false
+    #endif
 
     private var pass: PassRecord? {
         passStore.pass(id: passID)
@@ -80,7 +82,7 @@ struct WalletPassDetailView: View {
 
                 Section {
                     WalletPassRecordFace(pass: pass)
-                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                    .listRowInsets(PlatformWalletPassListRow.insets)
                     .listRowBackground(Color.clear)
                 } header: {
                     Text("票面")
@@ -89,15 +91,12 @@ struct WalletPassDetailView: View {
                 Section {
                     WalletPassAddToWalletControl(pass: pass)
                 } header: {
-                    Text("分发 · 加入 Apple Wallet")
+                    Text("加入 Apple Wallet")
                 } footer: {
                     Text(WalletPassKitCopy.addFooter)
                 }
 
                 identitySection(pass)
-                distributionSection(pass)
-                webServiceSection(pass)
-                updateLogSection
 
                 if !pass.primaryFields.isEmpty {
                     Section("主要信息") {
@@ -131,14 +130,20 @@ struct WalletPassDetailView: View {
                     }
                 }
 
+                #if DEBUG
+                distributionSection(pass)
+                webServiceSection(pass)
+                updateLogSection
                 developerSection(pass)
+                #endif
             } else {
                 ContentUnavailableView("通行证不存在", systemImage: "ticket")
             }
         }
+        .listSectionSpacing(.compact)
         .navigationTitle(pass?.style.displayName ?? "通行证")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
+        #if DEBUG
         .alert("无法导出", isPresented: $showExportError) {
             Button("好的", role: .cancel) {}
         } message: {
@@ -151,17 +156,16 @@ struct WalletPassDetailView: View {
         }
         .sheet(item: $exportedFile) { file in
             SharePassFileSheet(url: file.url)
+                .toolbarVisibility(.hidden, for: .tabBar)
         }
+        #endif
     }
 
     @ViewBuilder
     private func identitySection(_ pass: PassRecord) -> some View {
-        Section("定义 · 通行证身份") {
+        Section("通行证") {
             LabeledContent("类型", value: pass.style.displayName)
             LabeledContent("说明", value: pass.description)
-            LabeledContent("序列号", value: pass.serialNumber)
-            LabeledContent("Pass Type ID", value: pass.passTypeIdentifier)
-            LabeledContent("分发状态", value: pass.distributionState.displayName)
             LabeledContent(
                 "系统 Wallet",
                 value: pass.addedToSystemWallet || PassKitLoader.isInSystemWallet(pass)
@@ -169,16 +173,22 @@ struct WalletPassDetailView: View {
                     : "未添加"
             )
             LabeledContent("作废", value: pass.voided ? "是" : "否")
-            LabeledContent("最近更新", value: pass.lastUpdatedTag)
             if let relevant = pass.relevantDate {
                 LabeledContent("相关时间", value: Formatters.activityEventTime(from: relevant))
             }
             if let expires = pass.expirationDate {
                 LabeledContent("过期", value: Formatters.activityEventTime(from: expires))
             }
+            #if DEBUG
+            LabeledContent("序列号", value: pass.serialNumber)
+            LabeledContent("Pass Type ID", value: pass.passTypeIdentifier)
+            LabeledContent("分发状态", value: pass.distributionState.displayName)
+            LabeledContent("最近更新", value: pass.lastUpdatedTag)
+            #endif
         }
     }
 
+    #if DEBUG
     @ViewBuilder
     private func distributionSection(_ pass: PassRecord) -> some View {
         Section {
@@ -324,7 +334,8 @@ struct WalletPassDetailView: View {
             exportError = error.localizedDescription
             showExportError = true
         }
-    }
+    }    #endif
+
 }
 
 /// WWDC22 官方 SwiftUI：`AddPassToWalletButton`；无已签名包时走系统说明回退。

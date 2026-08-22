@@ -2,7 +2,7 @@
 //  RefundRequestSheet.swift
 //  坐标系
 //
-//  申请退款：先填原因与说明，再经 Alert 确认后执行。
+//  申请退款：策略说明 → 填原因与说明 → Alert 确认 → 提交至 RefundFlowService。
 //
 
 import SwiftUI
@@ -18,9 +18,10 @@ enum RefundRequestCopy {
     static let detailPlaceholder = "请说明具体情况，便于处理（必填）"
     static let acknowledgeLabel = "我已阅读退改说明，并确认申请退款"
     static let orderSection = "订单信息"
+    static let policySection = "退改规则"
     static let amountLabel = "退款金额"
     static let subjectLabel = "对象"
-    static let footer = "提交后需再次确认。演示环境将按原支付方式退回；正式产品以实际到账规则为准。"
+    static let footer = "提交后将进入退款处理流程；演示环境按原支付方式退回，正式产品以实际到账规则为准。"
 
     static let activityReasons = [
         "行程冲突，无法参加",
@@ -39,15 +40,16 @@ enum RefundRequestCopy {
     ]
 
     static func confirmMessage(amountText: String) -> String {
-        "将退回 \(amountText)。确认后订单结束，演示环境按原支付方式处理。"
+        "将退回 \(amountText)。确认后进入退款处理，演示环境按原支付方式到账。"
     }
 }
 
-/// 退款申请表单：填写 → Alert 确认 → 回调执行退款
+/// 退款申请表单：策略 → 填写 → Alert 确认 → 回调执行
 struct RefundRequestSheet: View {
     let subjectTitle: String
     let amountText: String
     let reasons: [String]
+    let policy: RefundPolicy.Evaluation
     var onConfirmed: (_ reason: String, _ detail: String) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -61,7 +63,8 @@ struct RefundRequestSheet: View {
     }
 
     private var canSubmit: Bool {
-        !reason.isEmpty
+        policy.allowed
+            && !reason.isEmpty
             && !trimmedDetail.isEmpty
             && trimmedDetail.count >= 4
             && acknowledged
@@ -81,12 +84,23 @@ struct RefundRequestSheet: View {
                 }
 
                 Section {
+                    Label(policy.headline, systemImage: policy.allowed ? "checkmark.seal" : "exclamationmark.triangle")
+                        .foregroundStyle(policy.allowed ? PlatformStatus.success : PlatformStatus.warning)
+                    Text(policy.detail)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Text(RefundRequestCopy.policySection)
+                }
+
+                Section {
                     Picker(RefundRequestCopy.reasonHeader, selection: $reason) {
                         Text("请选择").tag("")
                         ForEach(reasons, id: \.self) { item in
                             Text(item).tag(item)
                         }
                     }
+                    .disabled(!policy.allowed)
                 } header: {
                     Text(RefundRequestCopy.reasonHeader)
                 }
@@ -98,6 +112,7 @@ struct RefundRequestSheet: View {
                         axis: .vertical
                     )
                     .lineLimit(3...6)
+                    .disabled(!policy.allowed)
                 } header: {
                     Text(RefundRequestCopy.detailHeader)
                 } footer: {
@@ -109,6 +124,7 @@ struct RefundRequestSheet: View {
                         Text(RefundRequestCopy.acknowledgeLabel)
                             .font(.subheadline)
                     }
+                    .disabled(!policy.allowed)
                 } footer: {
                     Text(RefundRequestCopy.footer)
                 }
@@ -149,12 +165,25 @@ struct RefundRequestSheet: View {
 extension RefundRequestSheet {
     static func activityOrder(
         _ order: ActivityOrder,
+        activity: Activity?,
+        refundNotes: [String] = [],
         onConfirmed: @escaping (_ reason: String, _ detail: String) -> Void
     ) -> RefundRequestSheet {
-        RefundRequestSheet(
+        let policy: RefundPolicy.Evaluation = {
+            guard let activity else {
+                return RefundPolicy.Evaluation(
+                    allowed: order.status == .paid,
+                    headline: order.status == .paid ? "可申请退款" : "当前不可退",
+                    detail: "提交后将进入退款处理流程。"
+                )
+            }
+            return RefundPolicy.evaluateActivity(activity: activity, refundNotes: refundNotes)
+        }()
+        return RefundRequestSheet(
             subjectTitle: order.activityTitle,
             amountText: ActivityFeeParser.formattedPrice(cents: order.amountCents),
             reasons: RefundRequestCopy.activityReasons,
+            policy: policy,
             onConfirmed: onConfirmed
         )
     }
@@ -167,6 +196,7 @@ extension RefundRequestSheet {
             subjectTitle: record.companionNickname,
             amountText: record.priceText,
             reasons: RefundRequestCopy.bookingReasons,
+            policy: RefundPolicy.evaluateBooking(record: record),
             onConfirmed: onConfirmed
         )
     }

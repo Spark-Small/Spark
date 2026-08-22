@@ -30,8 +30,8 @@ struct CommunityLikesSheet: View {
 
     private var likers: [String] {
         var names = model.likerNames(for: postID)
-        if let post {
-            for author in post.comments.map(\.author) where !names.contains(author) {
+        if post != nil {
+            for author in CommunityCommentsStore.comments(for: postID).map(\.author) where !names.contains(author) {
                 names.append(author)
             }
         }
@@ -92,6 +92,7 @@ struct CommunityLikesSheet: View {
                 NavigationStack {
                     BuddyDetailRouteView(item: item)
                 }
+                .toolbarVisibility(.hidden, for: .tabBar)
                 .platformSheet(.browser)
             }
         }
@@ -105,206 +106,52 @@ struct CommunityCommentsSheet: View {
 
     @Environment(CommunityModel.self) private var model
     @Environment(\.dismiss) private var dismiss
-    @State private var draft = ""
-    @State private var replyTarget: CommunityComment?
-    @State private var expandedThreadIDs: Set<CommunityComment.ID> = []
     @State private var showShare = false
     @State private var translateComment: CommunityComment?
-    @State private var blockedWord: String?
-    @FocusState private var focused: Bool
 
     private var post: CommunityPost? { model.post(id: postID) }
-
-    private var roots: [CommunityComment] {
-        model.rootComments(for: postID)
-    }
 
     var body: some View {
         NavigationStack {
             Group {
                 if post != nil {
-                    List {
-                        if roots.isEmpty {
-                            ContentUnavailableView(
-                                "抢先评论",
-                                systemImage: "bubble.right",
-                                description: Text("我来说两句…")
-                            )
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                        } else {
-                            ForEach(roots) { root in
-                                threadBlock(root)
-                            }
-                        }
-                    }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                    .background(PlatformSurface.canvas)
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        CommunityCommentComposer(
-                            draft: $draft,
-                            placeholder: replyTarget == nil
-                                ? "我来说两句..."
-                                : "回复 \(replyTarget?.author ?? "")…",
-                            authorName: model.currentUserName,
-                            isFocused: $focused,
-                            replyPreview: replyTarget.map { ($0.author, $0.text) },
-                            onCancelReply: { replyTarget = nil },
-                            onSend: send
-                        )
-                    }
+                    PlatformReviewsCommentsHost(
+                        target: .community(postID),
+                        currentUserName: model.currentUserName,
+                        layout: .sheetList,
+                        contentOwnerName: post?.author,
+                        emptyTitle: "抢先评论",
+                        emptyHint: "我来说两句…",
+                        placeholder: "我来说两句...",
+                        showsTranslate: true,
+                        onTranslate: { translateComment = $0.asCommunityComment },
+                        onChanged: { model.syncComments(for: postID) }
+                    )
+                    .id(model.commentRevision)
                 } else {
                     ContentUnavailableView("动态不存在", systemImage: "bubble.right")
                 }
             }
-            .navigationTitle("评论")
+            .navigationTitle(post.map { "评论 \($0.commentCount)" } ?? "评论")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("分享", systemImage: "paperplane") {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button("分享", systemImage: "square.and.arrow.up") {
                         showShare = true
                     }
+                    Button(MessagesCopy.close) { dismiss() }
                 }
             }
             .sheet(isPresented: $showShare) {
                 CommunityShareSheet(postID: postID)
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
             .sheet(item: $translateComment) { comment in
                 CommunityCommentTranslateSheet(comment: comment)
-            }
-            .alert("评论需要修改", isPresented: Binding(
-                get: { blockedWord != nil },
-                set: { if !$0 { blockedWord = nil } }
-            )) {
-                Button("知道了", role: .cancel) {}
-            } message: {
-                Text("检测到敏感词「\(blockedWord ?? "")」，请修改后再发送。")
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
-        .platformSheet(.browser)
-    }
-
-    @ViewBuilder
-    private func threadBlock(_ root: CommunityComment) -> some View {
-        let replies = model.replies(to: root.id, in: postID)
-        let isExpanded = expandedThreadIDs.contains(root.id)
-
-        Section {
-            commentRow(root, isReply: false)
-
-            if !replies.isEmpty {
-                if isExpanded {
-                    ForEach(replies) { reply in
-                        commentRow(reply, isReply: true)
-                    }
-
-                    Button {
-                        expandedThreadIDs.remove(root.id)
-                    } label: {
-                        Text("收起回复")
-                            .font(.subheadline)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .buttonStyle(.plain)
-                    .listRowInsets(replyListInsets)
-                    .listRowSeparator(.hidden)
-                } else {
-                    Button {
-                        expandedThreadIDs.insert(root.id)
-                    } label: {
-                        HStack(spacing: 8) {
-                            Rectangle()
-                                .fill(Color(.tertiaryLabel))
-                                .frame(width: 24, height: 1)
-                            Text("查看另外 \(replies.count) 条回复")
-                                .font(.subheadline)
-                                .foregroundStyle(.tertiary)
-                            Spacer(minLength: 0)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .listRowInsets(replyListInsets)
-                    .listRowSeparator(.hidden)
-                }
-            }
-        }
-    }
-
-    private func commentRow(_ comment: CommunityComment, isReply: Bool) -> some View {
-        CommunityCommentRow(
-            comment: comment,
-            showsLike: true,
-            isLiked: model.isCommentLiked(comment.id),
-            onLike: {
-                model.toggleCommentLike(postID: postID, commentID: comment.id)
-            },
-            onReply: {
-                replyTarget = comment
-                focused = true
-            },
-            onTranslate: {
-                translateComment = comment
-            }
-        )
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            if model.isOwnComment(comment) {
-                Button("删除", role: .destructive) {
-                    if replyTarget?.id == comment.id { replyTarget = nil }
-                    model.deleteComment(postID: postID, commentID: comment.id)
-                }
-            }
-        }
-        .listRowInsets(isReply ? replyListInsets : rootListInsets)
-        .listRowSeparator(.hidden)
-        .contextMenu {
-            Button("回复", systemImage: "arrowshape.turn.up.left") {
-                replyTarget = comment
-                focused = true
-            }
-            if model.isOwnComment(comment) {
-                Button("删除", systemImage: "trash", role: .destructive) {
-                    model.deleteComment(postID: postID, commentID: comment.id)
-                }
-            }
-        }
-    }
-
-    private var rootListInsets: EdgeInsets {
-        EdgeInsets(
-            top: PlatformConversationListRow.verticalInset,
-            leading: PlatformConversationListRow.horizontalInset,
-            bottom: PlatformConversationListRow.verticalInset,
-            trailing: PlatformConversationListRow.horizontalInset
-        )
-    }
-
-    private var replyListInsets: EdgeInsets {
-        EdgeInsets(
-            top: PlatformConversationListRow.textToSecondarySpacing,
-            leading: PlatformConversationListRow.horizontalInset
-                + PlatformConversationListRow.imageSide
-                + PlatformConversationListRow.imageToTextPadding,
-            bottom: PlatformConversationListRow.textToSecondarySpacing,
-            trailing: PlatformConversationListRow.horizontalInset
-        )
-    }
-
-    private func send() {
-        guard !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        let target = replyTarget
-        switch model.addComment(to: postID, text: draft, replyingTo: target) {
-        case .posted:
-            if let parentID = target?.parentID ?? target?.id {
-                expandedThreadIDs.insert(parentID)
-            }
-            draft = ""
-            replyTarget = nil
-        case .blocked(let word):
-            blockedWord = word
-        case .invalid:
-            break
-        }
+        .platformSheet(.form)
     }
 }
 
@@ -409,12 +256,15 @@ struct CommunityShareSheet: View {
                     dismiss()
                     app.openMessages(conversationID: conversationID)
                 }
+                .toolbarVisibility(.hidden, for: .tabBar)
             }
             .sheet(isPresented: $showQuoteComposer) {
                 quoteComposer
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
             .sheet(isPresented: $showRepostDetail) {
                 CommunityRepostDetailSheet(originalID: postID)
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
         .platformSheet(.browser)
@@ -422,7 +272,7 @@ struct CommunityShareSheet: View {
 
     private var shareSearchHeader: some View {
         HStack(spacing: PlatformMetrics.railCardSpacing) {
-            HStack(spacing: 8) {
+            HStack(spacing: PlatformMetrics.minContentGap) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
                 TextField("搜索", text: $query)
@@ -438,7 +288,7 @@ struct CommunityShareSheet: View {
             } label: {
                 Image(systemName: "person.badge.plus")
                     .font(.body.weight(.semibold))
-                    .frame(width: 40, height: 40)
+                    .frame(width: PlatformMetrics.navigationBarButtonSide, height: PlatformMetrics.navigationBarButtonSide)
                     .background(Color(.tertiarySystemFill), in: Circle())
             }
             .buttonStyle(.plain)
@@ -521,11 +371,11 @@ struct CommunityShareSheet: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            VStack(spacing: 8) {
+            VStack(spacing: PlatformMetrics.minContentGap) {
                 Image(systemName: systemImage)
                     .font(.title3)
                     .foregroundStyle(fill == nil ? (tint ?? .primary) : .white)
-                    .frame(width: 56, height: 56)
+                    .frame(width: PlatformMetrics.navigationBarButtonSide * 1.5, height: PlatformMetrics.navigationBarButtonSide * 1.5)
                     .background(
                         (fill ?? Color(.tertiarySystemFill)),
                         in: Circle()
@@ -672,6 +522,7 @@ struct CommunityBookmarkSheet: View {
         .onAppear(perform: bootstrapBookmarkIfNeeded)
         .sheet(isPresented: $showCreateCollection) {
             createCollectionSheet
+                .toolbarVisibility(.hidden, for: .tabBar)
         }
         .platformSheet(.confirm)
     }
@@ -679,8 +530,8 @@ struct CommunityBookmarkSheet: View {
     private var confirmationRow: some View {
         HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
             thumbnail
-                .frame(width: 44, height: 44)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .frame(width: PlatformConversationListRow.imageSide, height: PlatformConversationListRow.imageSide)
+                .clipShape(RoundedRectangle(cornerRadius: PlatformMetrics.radiusMedia, style: .continuous))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(isBookmarked ? "已收藏" : "收藏")
@@ -703,7 +554,7 @@ struct CommunityBookmarkSheet: View {
                         }
                     }
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: PlatformMetrics.hairlineSpacing * 2) {
                         Text(collectionName)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -751,7 +602,7 @@ struct CommunityBookmarkSheet: View {
                     Image(systemName: "xmark")
                         .font(.body.weight(.semibold))
                         .foregroundStyle(.secondary)
-                        .frame(width: 32, height: 32)
+                        .frame(width: PlatformMetrics.navigationBarButtonSide * 0.85, height: PlatformMetrics.navigationBarButtonSide * 0.85)
                         .background(Color(.tertiarySystemFill), in: Circle())
                 }
                 .buttonStyle(.plain)
@@ -784,7 +635,7 @@ struct CommunityBookmarkSheet: View {
     private var bookmarkHeroIcon: some View {
         ZStack {
             Image(systemName: "bookmark")
-                .font(.system(size: 56, weight: .light))
+                .font(.system(.largeTitle, design: .default).weight(.light))
                 .foregroundStyle(.secondary)
                 .symbolRenderingMode(.hierarchical)
 
@@ -810,7 +661,7 @@ struct CommunityBookmarkSheet: View {
                 .rotationEffect(.degrees(-60))
                 .offset(x: -30, y: 18)
         }
-        .frame(height: 72)
+        .frame(height: PlatformMetrics.detailRelatedThumb)
         .accessibilityHidden(true)
     }
 
@@ -826,6 +677,7 @@ struct CommunityBookmarkSheet: View {
             }
             .navigationTitle("创建收藏夹")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarVisibility(.hidden, for: .tabBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") {
@@ -884,6 +736,7 @@ struct CommunityCommentTranslateSheet: View {
             }
             .navigationTitle("查看翻译")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarVisibility(.hidden, for: .tabBar)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("完成") { dismiss() }

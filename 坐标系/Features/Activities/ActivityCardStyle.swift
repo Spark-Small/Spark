@@ -76,6 +76,21 @@ enum ActivityCardStatus {
         return fallback
     }
 
+    /// 热场 / 相关活动横卡：地点 · 费用或剩余席位
+    static func hotMetaLine(for activity: Activity) -> String {
+        if activity.isAlmostFull || activity.isFull {
+            return "\(activity.districtLabel) · \(spotsText(for: activity, spaced: true))"
+        }
+        let fee = activity.isFree ? free : activity.fee
+        return "\(activity.districtLabel) · \(fee)"
+    }
+
+    /// 热场 / 相关活动横卡角标
+    @MainActor
+    static func hotBadge(for activity: Activity) -> String? {
+        captionBadge(for: activity, fallback: activity.category.shortTitle)
+    }
+
     /// 列表大卡角标：仅紧迫态（已参加走 chip）
     static func urgencyBadge(isJoined: Bool, activity: Activity) -> (text: String, tint: Color)? {
         guard !isJoined, activity.isAlmostFull else { return nil }
@@ -160,6 +175,7 @@ struct ActivityHeroCard<Meta: View>: View {
     let activity: Activity
     var isJoined: Bool
     var layout: HeroMediaCardLayout
+    var zoomNamespace: Namespace.ID? = nil
     var enablesOpenTap = true
     var onOpen: () -> Void
     var onJoin: (() -> Void)?
@@ -174,16 +190,11 @@ struct ActivityHeroCard<Meta: View>: View {
         HeroMediaCard(
             layout: layout,
             title: activity.title,
-            enablesOpenTap: enablesOpenTap,
-            accessibilityLabel: ActivityCardStatus.openAccessibilityLabel(
-                status: statusCaption,
-                title: activity.title,
-                parts: Formatters.activityEventTime(from: activity.date),
-                activity.location
-            ),
+            enablesOpenTap: enablesOpenTap && zoomNamespace == nil,
+            accessibilityLabel: openAccessibilityLabel,
             onOpen: onOpen,
             cover: {
-                CommunityRemotePhoto(ref: activity.coverPhoto)
+                coverMedia
             },
             meta: meta,
             status: {
@@ -198,5 +209,30 @@ struct ActivityHeroCard<Meta: View>: View {
                 )
             }
         )
+    }
+
+    private var openAccessibilityLabel: String {
+        ActivityCardStatus.openAccessibilityLabel(
+            status: statusCaption,
+            title: activity.title,
+            parts: Formatters.activityEventTime(from: activity.date),
+            activity.location
+        )
+    }
+
+    @ViewBuilder
+    private var coverMedia: some View {
+        if let zoomNamespace {
+            ActivityZoomNavigationLink(
+                activityID: activity.id,
+                namespace: zoomNamespace
+            ) {
+                CommunityRemotePhoto(ref: activity.coverPhoto)
+            }
+            .accessibilityLabel(openAccessibilityLabel)
+            .accessibilityHint(ActivityCardStatus.openHint)
+        } else {
+            CommunityRemotePhoto(ref: activity.coverPhoto)
+        }
     }
 }

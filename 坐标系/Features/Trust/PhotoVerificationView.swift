@@ -157,7 +157,6 @@ struct PhotoVerificationView: View {
         }
         .navigationTitle("形象认证")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
         .onChange(of: pickerItem) { _, item in
             Task { await loadPicker(item) }
         }
@@ -177,6 +176,7 @@ struct PhotoVerificationView: View {
                 get: { app.user },
                 set: { updated in app.updateProfile(updated) }
             ))
+            .toolbarVisibility(.hidden, for: .tabBar)
         }
     }
 

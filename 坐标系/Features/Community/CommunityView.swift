@@ -5,22 +5,10 @@
 
 import SwiftUI
 
-/// 社区：活动图文分享流（种草 / 复盘），找人与陪玩在「搭子」页完成
+/// 广场：活动图文分享流（种草 / 复盘），找人与陪玩在「搭子」页完成
 struct CommunityView: View {
-    @Environment(AppModel.self) private var app
     @Environment(CommunityModel.self) private var model
-    @Environment(MessagesModel.self) private var messages
-    @Environment(BuddiesModel.self) private var buddies
     @State private var path = NavigationPath()
-
-    private var feedChannels: [CommunityFeedChannel] {
-        CommunityFeedChannelCatalog.channels(
-            interests: app.user.interests,
-            messages: messages,
-            buddies: buddies,
-            blockedNames: app.blockedUserNames
-        )
-    }
 
     var body: some View {
         @Bindable var model = model
@@ -28,15 +16,8 @@ struct CommunityView: View {
         NavigationStack(path: $path) {
             List {
                 Section {
-                    CommunityFeedChannelRail(
-                        channels: feedChannels,
-                        selectedKind: model.selectedChannel,
-                        onSelect: model.selectChannel
-                    )
-                    .communityFeedChannelRowChrome()
-
                     if model.items.isEmpty {
-                        feedEmptyState
+                        emptyState
                             .communityFeedRowChrome()
                     } else {
                         ForEach(model.items) { post in
@@ -47,36 +28,34 @@ struct CommunityView: View {
                 }
             }
             .communityFeedChrome()
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { feedToolbar }
+            .platformTabRootListChrome(title: CommunityCopy.rootTitle)
+            .platformTabRootToolbar { tabToolbar }
             .navigationDestination(for: CommunityPost.self) { post in
                 CommunityPostDetailView(postID: post.id)
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
             .navigationDestination(for: Activity.self) { activity in
                 ActivityDetailView(activity: activity)
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
             .navigationDestination(for: CommunityLibraryDestination.self) { destination in
                 CommunityLibraryRouter(destination: destination)
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
             .sheet(isPresented: $model.isComposing) {
                 CommunityComposeSheet()
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
-            .platformTabBarHiddenWhenPushed(path.isEmpty)
-        }
-    }
-
-    @ViewBuilder
-    private var feedEmptyState: some View {
-        if model.isEmptyChannel {
-            channelEmptyState
-        } else {
-            emptyState
         }
     }
 
     @ToolbarContentBuilder
-    private var feedToolbar: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
+    private var tabToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button("发分享", systemImage: "plus") {
+                model.isComposing = true
+            }
+
             Menu {
                 Button("收藏的分享", systemImage: "bookmark") {
                     path.append(CommunityLibraryDestination.bookmarks)
@@ -95,38 +74,9 @@ struct CommunityView: View {
                     path.append(CommunityLibraryDestination.guidelines)
                 }
             } label: {
-                Label("更多", systemImage: "line.3.horizontal")
+                Image(systemName: "ellipsis")
             }
             .accessibilityLabel("更多")
-        }
-
-        ToolbarItem(placement: .topBarTrailing) {
-            Button("发分享", systemImage: "plus") {
-                model.isComposing = true
-            }
-        }
-    }
-
-    private var channelEmptyState: some View {
-        let title = channelEmptyTitle
-        return ContentUnavailableView {
-            Label(title, systemImage: "person.2")
-        } description: {
-            Text("这个频道还没有相关分享，试试其他频道或发一条吧")
-        } actions: {
-            Button("查看全部") {
-                model.selectChannel(.all)
-            }
-            .buttonStyle(.bordered)
-        }
-    }
-
-    private var channelEmptyTitle: String {
-        switch model.selectedChannel {
-        case .all: "暂无分享"
-        case .friend(let name): "\(messages.displayName(for: name)) 暂无分享"
-        case .interest(let tag): "「\(tag)」暂无分享"
-        case .group(_, let title, _, _): "「\(title)」暂无分享"
         }
     }
 
@@ -142,11 +92,8 @@ struct CommunityView: View {
     }
 }
 
-#Preview("社区") {
+#Preview("广场") {
     CommunityView()
-        .environment(AppModel())
         .environment(CommunityModel())
-        .environment(MessagesModel())
         .environment(ActivitiesModel())
-        .environment(BuddiesModel())
 }

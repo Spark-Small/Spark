@@ -62,6 +62,7 @@ struct MessagesSnapshot: Codable {
     /// UUID.uuidString → messages
     var threads: [String: [ChatMessage]]
     var friendRequests: [FriendRequest]
+    var outgoingFriendRequests: [OutgoingFriendRequest]
     /// 昵称（小写）→ 备注
     var friendRemarks: [String: String]
     /// 昵称（小写）→ 好友分组
@@ -90,6 +91,7 @@ struct MessagesSnapshot: Codable {
         conversations: [ChatConversation],
         threads: [String: [ChatMessage]],
         friendRequests: [FriendRequest] = [],
+        outgoingFriendRequests: [OutgoingFriendRequest] = [],
         friendRemarks: [String: String] = [:],
         friendGroups: [String: String] = [:],
         groupMembers: [String: [GroupMemberRecord]] = [:],
@@ -99,6 +101,7 @@ struct MessagesSnapshot: Codable {
         self.conversations = conversations
         self.threads = threads
         self.friendRequests = friendRequests
+        self.outgoingFriendRequests = outgoingFriendRequests
         self.friendRemarks = friendRemarks
         self.friendGroups = friendGroups
         self.groupMembers = groupMembers
@@ -111,6 +114,10 @@ struct MessagesSnapshot: Codable {
         conversations = try container.decode([ChatConversation].self, forKey: .conversations)
         threads = try container.decode([String: [ChatMessage]].self, forKey: .threads)
         friendRequests = try container.decodeIfPresent([FriendRequest].self, forKey: .friendRequests) ?? []
+        outgoingFriendRequests = try container.decodeIfPresent(
+            [OutgoingFriendRequest].self,
+            forKey: .outgoingFriendRequests
+        ) ?? []
         friendRemarks = try container.decodeIfPresent([String: String].self, forKey: .friendRemarks) ?? [:]
         friendGroups = try container.decodeIfPresent([String: String].self, forKey: .friendGroups) ?? [:]
         groupMembers = try container.decodeIfPresent([String: [GroupMemberRecord]].self, forKey: .groupMembers) ?? [:]
@@ -123,6 +130,7 @@ struct ProfileSnapshot: Codable {
     var user: AppUser
     var hasCompletedOnboarding: Bool
     var blockedUserNames: [String]
+    var followedUserNames: [String]
     var moderationTickets: [ModerationTicket]
 
     static var seed: ProfileSnapshot {
@@ -130,6 +138,7 @@ struct ProfileSnapshot: Codable {
             user: SampleData.currentUser,
             hasCompletedOnboarding: false,
             blockedUserNames: [],
+            followedUserNames: [],
             moderationTickets: []
         )
     }
@@ -138,11 +147,13 @@ struct ProfileSnapshot: Codable {
         user: AppUser,
         hasCompletedOnboarding: Bool,
         blockedUserNames: [String] = [],
+        followedUserNames: [String] = [],
         moderationTickets: [ModerationTicket] = []
     ) {
         self.user = user
         self.hasCompletedOnboarding = hasCompletedOnboarding
         self.blockedUserNames = blockedUserNames
+        self.followedUserNames = followedUserNames
         self.moderationTickets = moderationTickets
     }
 
@@ -151,6 +162,7 @@ struct ProfileSnapshot: Codable {
         user = try container.decode(AppUser.self, forKey: .user)
         hasCompletedOnboarding = try container.decode(Bool.self, forKey: .hasCompletedOnboarding)
         blockedUserNames = try container.decodeIfPresent([String].self, forKey: .blockedUserNames) ?? []
+        followedUserNames = try container.decodeIfPresent([String].self, forKey: .followedUserNames) ?? []
         moderationTickets = try container.decodeIfPresent([ModerationTicket].self, forKey: .moderationTickets) ?? []
     }
 }
@@ -175,6 +187,8 @@ enum ModerationTargetKind: String, Codable, Hashable, CaseIterable {
     case activity = "活动"
     case conversation = "会话"
     case person = "用户"
+    case circle = "兴趣圈子"
+    case guild = "陪玩工会"
 
     var systemImage: String {
         switch self {
@@ -182,6 +196,8 @@ enum ModerationTargetKind: String, Codable, Hashable, CaseIterable {
         case .activity: "calendar"
         case .conversation: "bubble.left"
         case .person: "person.crop.circle"
+        case .circle: "person.3"
+        case .guild: "building.2"
         }
     }
 }
@@ -379,7 +395,7 @@ struct BuddiesSnapshot: Codable {
     var bookingRecords: [BuddyBookingRecord]
     var joinedCircleNames: [String]
     var joinedGuildNames: [String]
-    /// 组织 / 工会成员偏好（免打扰、置顶、备注等），key 如 `circle:黄浦夜骑群`
+    /// 圈子 / 工会成员偏好（免打扰、置顶、备注等），key 如 `circle:黄浦夜骑群`
     var membershipPrefs: [String: OrgMembershipPrefs]
 
     static var seed: BuddiesSnapshot {
@@ -419,20 +435,33 @@ struct BuddiesSnapshot: Codable {
     }
 }
 
-/// 加入组织 / 关注工会后的本地成员设置
+/// 加入圈子 / 关注工会后的本地成员设置
 struct OrgMembershipPrefs: Codable, Hashable {
     var muteNotifications: Bool
     var isPinned: Bool
     var showMemberNicknames: Bool
-    var remark: String
+    /// 我在本群的昵称；为空表示与账号昵称一致
+    var myGroupNickname: String
     var joinedAt: Date
+    /// 允许二维码进群
+    var allowJoinViaQR: Bool
+    /// 进群需群主 / 管理员确认
+    var joinRequiresApproval: Bool
+    /// 仅群主 / 管理员可改群名
+    var onlyAdminCanRename: Bool
+    /// 免打扰时仍通知 @我
+    var notifyWhenMutedAtMe: Bool
+    /// 免打扰时仍通知 @所有人
+    var notifyWhenMutedAtAll: Bool
+    /// 免打扰时仍通知群公告
+    var notifyWhenMutedAnnouncement: Bool
 
     static func fresh(at date: Date = .now) -> OrgMembershipPrefs {
         OrgMembershipPrefs(
             muteNotifications: false,
             isPinned: false,
             showMemberNicknames: true,
-            remark: "",
+            myGroupNickname: "",
             joinedAt: date
         )
     }
@@ -441,14 +470,26 @@ struct OrgMembershipPrefs: Codable, Hashable {
         muteNotifications: Bool = false,
         isPinned: Bool = false,
         showMemberNicknames: Bool = true,
-        remark: String = "",
-        joinedAt: Date = .now
+        myGroupNickname: String = "",
+        joinedAt: Date = .now,
+        allowJoinViaQR: Bool = true,
+        joinRequiresApproval: Bool = false,
+        onlyAdminCanRename: Bool = true,
+        notifyWhenMutedAtMe: Bool = true,
+        notifyWhenMutedAtAll: Bool = true,
+        notifyWhenMutedAnnouncement: Bool = true
     ) {
         self.muteNotifications = muteNotifications
         self.isPinned = isPinned
         self.showMemberNicknames = showMemberNicknames
-        self.remark = remark
+        self.myGroupNickname = myGroupNickname
         self.joinedAt = joinedAt
+        self.allowJoinViaQR = allowJoinViaQR
+        self.joinRequiresApproval = joinRequiresApproval
+        self.onlyAdminCanRename = onlyAdminCanRename
+        self.notifyWhenMutedAtMe = notifyWhenMutedAtMe
+        self.notifyWhenMutedAtAll = notifyWhenMutedAtAll
+        self.notifyWhenMutedAnnouncement = notifyWhenMutedAnnouncement
     }
 
     init(from decoder: Decoder) throws {
@@ -456,8 +497,36 @@ struct OrgMembershipPrefs: Codable, Hashable {
         muteNotifications = try container.decodeIfPresent(Bool.self, forKey: .muteNotifications) ?? false
         isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
         showMemberNicknames = try container.decodeIfPresent(Bool.self, forKey: .showMemberNicknames) ?? true
-        remark = try container.decodeIfPresent(String.self, forKey: .remark) ?? ""
+        myGroupNickname = try container.decodeIfPresent(String.self, forKey: .myGroupNickname) ?? ""
         joinedAt = try container.decodeIfPresent(Date.self, forKey: .joinedAt) ?? .now
+        allowJoinViaQR = try container.decodeIfPresent(Bool.self, forKey: .allowJoinViaQR) ?? true
+        joinRequiresApproval = try container.decodeIfPresent(Bool.self, forKey: .joinRequiresApproval) ?? false
+        onlyAdminCanRename = try container.decodeIfPresent(Bool.self, forKey: .onlyAdminCanRename) ?? true
+        notifyWhenMutedAtMe = try container.decodeIfPresent(Bool.self, forKey: .notifyWhenMutedAtMe) ?? true
+        notifyWhenMutedAtAll = try container.decodeIfPresent(Bool.self, forKey: .notifyWhenMutedAtAll) ?? true
+        notifyWhenMutedAnnouncement = try container.decodeIfPresent(Bool.self, forKey: .notifyWhenMutedAnnouncement) ?? true
+        _ = try container.decodeIfPresent(String.self, forKey: .remark)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(muteNotifications, forKey: .muteNotifications)
+        try container.encode(isPinned, forKey: .isPinned)
+        try container.encode(showMemberNicknames, forKey: .showMemberNicknames)
+        try container.encode(myGroupNickname, forKey: .myGroupNickname)
+        try container.encode(joinedAt, forKey: .joinedAt)
+        try container.encode(allowJoinViaQR, forKey: .allowJoinViaQR)
+        try container.encode(joinRequiresApproval, forKey: .joinRequiresApproval)
+        try container.encode(onlyAdminCanRename, forKey: .onlyAdminCanRename)
+        try container.encode(notifyWhenMutedAtMe, forKey: .notifyWhenMutedAtMe)
+        try container.encode(notifyWhenMutedAtAll, forKey: .notifyWhenMutedAtAll)
+        try container.encode(notifyWhenMutedAnnouncement, forKey: .notifyWhenMutedAnnouncement)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case muteNotifications, isPinned, showMemberNicknames, myGroupNickname, joinedAt, remark
+        case allowJoinViaQR, joinRequiresApproval, onlyAdminCanRename
+        case notifyWhenMutedAtMe, notifyWhenMutedAtAll, notifyWhenMutedAnnouncement
     }
 }
 
@@ -492,6 +561,25 @@ struct ActivityEngagementSnapshot: Codable {
         tagWeights = try container.decodeIfPresent([String: Double].self, forKey: .tagWeights) ?? [:]
         categoryWeights = try container.decodeIfPresent([String: Double].self, forKey: .categoryWeights) ?? [:]
         lastDecayAt = try container.decodeIfPresent(Date.self, forKey: .lastDecayAt) ?? .now
+    }
+}
+
+struct ProfileRecentBrowseRecord: Codable, Identifiable, Hashable {
+    let activityID: UUID
+    var title: String
+    var viewedAt: Date
+
+    var id: UUID { activityID }
+}
+
+struct ProfileRecentBrowseSnapshot: Codable {
+    var items: [ProfileRecentBrowseRecord]
+
+    static let seed = ProfileRecentBrowseSnapshot(items: [])
+    static let maxItems = 20
+
+    init(items: [ProfileRecentBrowseRecord] = []) {
+        self.items = items
     }
 }
 
@@ -554,6 +642,14 @@ enum AppPersistence {
         save(snapshot, to: "activity_engagement_snapshot.json")
     }
 
+    static func loadRecentBrowse() -> ProfileRecentBrowseSnapshot {
+        load("profile_recent_browse.json", fallback: .seed)
+    }
+
+    static func saveRecentBrowse(_ snapshot: ProfileRecentBrowseSnapshot) {
+        save(snapshot, to: "profile_recent_browse.json")
+    }
+
     @MainActor
     static func resetLocalDemoData() {
         saveActivities(.seed)
@@ -561,9 +657,11 @@ enum AppPersistence {
         saveBuddies(.seed)
         saveProfile(.seed)
         saveEngagement(.seed)
+        saveRecentBrowse(.seed)
         CommunityPersistence.resetToSeed()
         CommunityPhotoStore.resetAll()
         ActivityPaymentStore.resetAll()
+        RefundFlowService.shared.resetAll()
         ActivityCommentsStore.resetAll()
         ActivityDetailContentStore.resetAll()
         WalletStore.shared.resetAll()
@@ -748,10 +846,16 @@ enum AppPersistence {
         let repairedTransfers = previous.transferRecords.filter { validConversationIDs.contains($0.conversationID) }
         let repairedCalls = previous.callRecords.filter { validConversationIDs.contains($0.conversationID) }
 
+        var seenOutgoingIDs = Set<UUID>()
+        let repairedOutgoing = previous.outgoingFriendRequests
+            .sorted { $0.createdAt > $1.createdAt }
+            .filter { seenOutgoingIDs.insert($0.id).inserted }
+
         return MessagesSnapshot(
             conversations: conversations,
             threads: threads,
             friendRequests: repairedRequests,
+            outgoingFriendRequests: repairedOutgoing,
             friendRemarks: repairedRemarks,
             friendGroups: repairedGroups,
             groupMembers: groupMembers,

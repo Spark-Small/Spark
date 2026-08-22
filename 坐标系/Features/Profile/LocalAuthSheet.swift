@@ -40,7 +40,6 @@ struct PrivacyPolicyView: View {
         }
         .navigationTitle("隐私政策")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
     }
 }
 
@@ -77,7 +76,6 @@ struct UserAgreementView: View {
         }
         .navigationTitle("用户协议")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
     }
 }
 

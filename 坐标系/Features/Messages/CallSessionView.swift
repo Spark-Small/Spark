@@ -29,7 +29,7 @@ struct CallSessionView: View {
             VStack(spacing: PlatformMetrics.sectionHeaderSpacing) {
                 Spacer(minLength: 0)
                 Image(systemName: call?.kind.systemImage ?? "phone.fill")
-                    .font(.system(size: 44))
+                    .font(.largeTitle)
                     .foregroundStyle(Color.accentColor)
                 Text(conversation?.title ?? MessagesCopy.voiceCall)
                     .font(.title2.weight(.semibold))

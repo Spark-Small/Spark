@@ -14,8 +14,24 @@ struct ActivityJoinConfirmSheet: View {
     var conflicts: [Activity] = []
     var onConfirm: (_ note: String?) -> Void
 
+    @Environment(WalletStore.self) private var wallet
+    @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var note = ""
+    @State private var selectedMethod: PaymentMethod = .wallet
+    @State private var pendingOrder: ActivityOrder?
+    @State private var isProcessing = false
+    @State private var paymentTask: Task<Void, Never>?
+    @State private var didCommitJoin = false
+    @State private var errorMessage: String?
+
+    private var payable: (display: String, cents: Int)? {
+        ActivityFeeParser.payableAmount(for: activity)
+    }
+
+    private var needsPayment: Bool {
+        activity.requiresInAppPayment && !ActivityPaymentStore.hasPaid(for: activity.id)
+    }
 
     var body: some View {
         NavigationStack {
@@ -39,8 +55,14 @@ struct ActivityJoinConfirmSheet: View {
                     LabeledContent("名额") {
                         Text("\(activity.joined)/\(activity.capacity)")
                     }
+                    if needsPayment, let payable {
+                        LabeledContent("应付金额") {
+                            Text(WalletMoney.formatted(cents: payable.cents))
+                                .fontWeight(.bold)
+                        }
+                    }
                 } footer: {
-                    Text(activity.requiresInAppPayment
+                    Text(needsPayment
                         ? ActivityDetailCopy.joinConfirmPaidHint
                         : ActivityDetailCopy.joinConfirmMessage)
                 }
@@ -73,35 +95,152 @@ struct ActivityJoinConfirmSheet: View {
                     }
                 }
 
+                if needsPayment {
+                    Section {
+                        Picker("支付方式", selection: $selectedMethod) {
+                            ForEach(PaymentMethod.allCases) { method in
+                                Text(method == .wallet
+                                     ? "\(method.displayName)（\(wallet.balanceText)）"
+                                     : method.displayName)
+                                .tag(method)
+                            }
+                        }
+                        .pickerStyle(.inline)
+                        .labelsHidden()
+                        .disabled(isProcessing)
+                    } header: {
+                        Text("支付方式")
+                    }
+                }
+
                 Section("留言") {
                     TextField(ActivityDetailCopy.joinConfirmNotePlaceholder, text: $note, axis: .vertical)
                         .lineLimit(3...5)
+                        .disabled(isProcessing)
                 }
             }
             .navigationTitle(ActivityDetailCopy.joinConfirmTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button("取消") { cancelFlow() }
+                        .disabled(isProcessing)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(nextCTA) {
-                        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
-                        onConfirm(trimmed.isEmpty ? nil : trimmed)
-                        dismiss()
+                        confirm()
                     }
                     .fontWeight(.semibold)
+                    .disabled(isProcessing)
+                }
+            }
+            .overlay {
+                if isProcessing {
+                    ProgressView(ActivityDetailCopy.paymentProcessing)
+                        .platformProcessingOverlayChrome()
+                }
+            }
+            .alert("无法完成", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("好的", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "")
+            }
+            .onAppear(perform: preparePendingOrderIfNeeded)
+            .onDisappear {
+                paymentTask?.cancel()
+                paymentTask = nil
+                if !didCommitJoin, let pendingOrder {
+                    ActivityPaymentStore.cancelPending(orderID: pendingOrder.id)
                 }
             }
         }
-        .platformSheet(.confirm)
+        .platformSheet(needsPayment ? .browser : .confirm, interactiveDismissDisabled: isProcessing)
     }
 
     private var nextCTA: String {
-        if !activity.requiresInAppPayment || ActivityPaymentStore.hasPaid(for: activity.id) {
-            return ActivityDetailCopy.joinConfirmTitle
+        if needsPayment {
+            if let cents = payable?.cents {
+                return "\(ActivityDetailCopy.joinConfirmPayCTA) \(WalletMoney.formatted(cents: cents))"
+            }
+            return ActivityDetailCopy.joinConfirmPayCTA
         }
-        return ActivityDetailCopy.joinConfirmPayCTA
+        return ActivityDetailCopy.joinConfirmTitle
+    }
+
+    private var trimmedNote: String? {
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func preparePendingOrderIfNeeded() {
+        guard needsPayment, pendingOrder == nil else { return }
+        pendingOrder = ActivityPaymentStore.createPendingOrder(for: activity)
+    }
+
+    private func cancelFlow() {
+        paymentTask?.cancel()
+        paymentTask = nil
+        isProcessing = false
+        if let pendingOrder {
+            ActivityPaymentStore.cancelPending(orderID: pendingOrder.id)
+        }
+        dismiss()
+    }
+
+    private func confirm() {
+        if needsPayment {
+            processPaymentThenJoin()
+        } else {
+            onConfirm(trimmedNote)
+            didCommitJoin = true
+            dismiss()
+        }
+    }
+
+    private func processPaymentThenJoin() {
+        guard !isProcessing else { return }
+        if app.auth.isGuest {
+            errorMessage = GuestAccessGate.commerceReason
+            return
+        }
+        let amountCents = payable?.cents ?? pendingOrder?.amountCents ?? 0
+        if selectedMethod == .wallet, !wallet.canAfford(amountCents) {
+            errorMessage = "余额不足，请充值或改用其他支付方式。"
+            return
+        }
+        isProcessing = true
+        paymentTask?.cancel()
+        paymentTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(900))
+            guard !Task.isCancelled else { return }
+            let ensured = pendingOrder ?? ActivityPaymentStore.createPendingOrder(for: activity)
+            guard let ensured else {
+                isProcessing = false
+                paymentTask = nil
+                errorMessage = "无法创建订单"
+                return
+            }
+            pendingOrder = ensured
+            let outcome = ActivityPaymentStore.markPaid(orderID: ensured.id, method: selectedMethod)
+            isProcessing = false
+            paymentTask = nil
+            switch outcome {
+            case .success:
+                didCommitJoin = true
+                if let paid = ActivityPaymentStore.order(id: ensured.id) {
+                    WalletPassStore.shared.issueActivityTicket(order: paid, activity: activity)
+                }
+                onConfirm(trimmedNote)
+                dismiss()
+            case .insufficientBalance:
+                errorMessage = "余额不足，请充值或改用其他支付方式。"
+            case .failed(let message):
+                errorMessage = message
+            }
+        }
     }
 }
 
@@ -338,12 +477,9 @@ struct ActivityDetailContentEditorSheet: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack() {
                     ForEach(Array(galleryNames.enumerated()), id: \.offset) { index, name in
-                        if let url = CommunityPhotoStore.fileURL(named: name),
-                           let uiImage = UIImage(contentsOfFile: url.path) {
+                        if let ref = CommunityPhotoStore.mediaRef(named: name) {
                             ZStack(alignment: .topTrailing) {
-                                Image(uiImage: uiImage)
-                                    .resizable()
-                                    .scaledToFill()
+                                CommunityRemotePhoto(ref: ref)
                                     .frame(width: PlatformMetrics.galleryEditorThumb, height: PlatformMetrics.galleryEditorThumb)
                                     .clipShape(PlatformMetrics.mediaShape)
                                 Button {
@@ -360,7 +496,11 @@ struct ActivityDetailContentEditorSheet: View {
                     }
 
                     if galleryNames.count < 5 {
-                        PhotosPicker(selection: $galleryPickerItems, maxSelectionCount: 5 - galleryNames.count, matching: .images) {
+                        PhotosPicker(
+                            selection: $galleryPickerItems,
+                            maxSelectionCount: 5 - galleryNames.count,
+                            matching: CommunityPhotoStore.photosAndVideos
+                        ) {
                             VStack() {
                                 Image(systemName: "photo.on.rectangle.angled")
                                     .font(.title3.weight(.bold))
@@ -451,8 +591,7 @@ struct ActivityDetailContentEditorSheet: View {
     private func loadGalleryPhotos(_ items: [PhotosPickerItem]) async {
         for item in items {
             guard galleryNames.count < 5,
-                  let data = try? await item.loadTransferable(type: Data.self),
-                  let name = CommunityPhotoStore.saveJPEG(data)
+                  let name = await CommunityPhotoStore.savePickerItem(item)
             else { continue }
             galleryNames.append(name)
         }

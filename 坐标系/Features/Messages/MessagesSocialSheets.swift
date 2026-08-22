@@ -21,10 +21,20 @@ struct GroupManageSheet: View {
     @State private var announcementDraft = ""
     @State private var renameDraft = ""
     @State private var showMemberPicker = false
+    @State private var showAllMembers = false
     @State private var pendingKickMember: String?
+
+    private let memberColumns = Array(
+        repeating: GridItem(.flexible(), spacing: PlatformMetrics.cardInfoSpacing),
+        count: 5
+    )
 
     private var conversation: ChatConversation? {
         model.conversations.first { $0.id == conversationID }
+    }
+
+    private var members: [GroupMemberRecord] {
+        model.groupMembers(for: conversationID)
     }
 
     private var isOwner: Bool {
@@ -39,24 +49,66 @@ struct GroupManageSheet: View {
         isOwner || myRole.canManageMembers
     }
 
+    private var sheetTitle: String {
+        "\(MessagesCopy.groupManage) (\(members.count))"
+    }
+
+    private var trimmedRenameDraft: String {
+        renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var canSaveRename: Bool {
+        guard isOwner, !trimmedRenameDraft.isEmpty else { return false }
+        return trimmedRenameDraft.caseInsensitiveCompare(conversation?.title ?? "") != .orderedSame
+    }
+
+    private var visibleMembers: [GroupMemberRecord] {
+        showAllMembers ? members : Array(members.prefix(9))
+    }
+
+    private var canExpandMembers: Bool {
+        members.count > 9
+    }
+
     var body: some View {
-        MessagesBrowserSheet(title: MessagesCopy.groupManage) {
+        NavigationStack {
             List {
                 if let conversation {
+                    membersSection
                     groupInfoSection(conversation)
                     announcementSection
-                    membersSection(conversation)
-                    if isOwner { ownerSection }
                     activitySection(conversation)
                 }
             }
-            .onAppear {
-                renameDraft = conversation?.title ?? ""
-                announcementDraft = conversation?.announcement ?? ""
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.visible)
+            .navigationTitle(sheetTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(MessagesCopy.close) { dismiss() }
+                }
+                if canSaveRename {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(MessagesCopy.groupSaveName) {
+                            saveRename()
+                        }
+                        .fontWeight(.semibold)
+                    }
+                }
+            }
+            .onAppear(perform: syncDrafts)
+            .onChange(of: conversation?.title) { _, _ in
+                syncRenameDraft()
+            }
+            .onChange(of: conversation?.announcement) { _, _ in
+                syncAnnouncementDraft()
             }
         }
+        .platformSheet(.form)
         .sheet(isPresented: $showMemberPicker) {
             GroupMemberPickerSheet(conversationID: conversationID)
+                .toolbarVisibility(.hidden, for: .tabBar)
         }
         .confirmationDialog(
             "移出群聊？",
@@ -82,22 +134,184 @@ struct GroupManageSheet: View {
         }
     }
 
+    private func syncDrafts() {
+        syncRenameDraft()
+        syncAnnouncementDraft()
+    }
+
+    private func syncRenameDraft() {
+        renameDraft = conversation?.title ?? ""
+    }
+
+    private func syncAnnouncementDraft() {
+        announcementDraft = conversation?.announcement ?? ""
+    }
+
+    private func saveRename() {
+        guard canSaveRename else { return }
+        model.renameGroup(trimmedRenameDraft, for: conversationID)
+        syncRenameDraft()
+    }
+
+    private func publishAnnouncement() {
+        let trimmed = announcementDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        model.updateAnnouncement(trimmed, for: conversationID)
+        syncAnnouncementDraft()
+    }
+
+    // MARK: - Members
+
+    @ViewBuilder
+    private var membersSection: some View {
+        Section {
+            LazyVGrid(columns: memberColumns, spacing: PlatformMetrics.cardInfoSpacing) {
+                ForEach(visibleMembers) { member in
+                    memberCell(member)
+                }
+                if isOwner {
+                    inviteMemberCell
+                }
+            }
+            .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
+
+            if canExpandMembers, !showAllMembers {
+                Button {
+                    withAnimation(.snappy) { showAllMembers = true }
+                } label: {
+                    HStack {
+                        Spacer()
+                        Text(BuddyMemberCopy.moreMembers)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "chevron.down")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                        Spacer()
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+
+            if showAllMembers, canExpandMembers {
+                Button {
+                    withAnimation(.snappy) { showAllMembers = false }
+                } label: {
+                    HStack {
+                        Spacer()
+                        Text(BuddyMemberCopy.collapseMembers)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "chevron.up")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                        Spacer()
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        } header: {
+            Text(MessagesCopy.groupMembersSection)
+        }
+    }
+
+    @ViewBuilder
+    private func memberCell(_ member: GroupMemberRecord) -> some View {
+        let label = truncated(member.nickname)
+        let roleCaption = member.role == .member ? nil : member.role.rawValue
+        let canManageMember = canManageMembers
+            && member.nickname.caseInsensitiveCompare(app.user.name) != .orderedSame
+            && member.role != .owner
+
+        let cell = VStack(spacing: PlatformMetrics.detailMicroSpacing) {
+            PlatformListAvatarView(name: member.nickname, side: 52)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .frame(maxWidth: 56)
+            if let roleCaption {
+                Text(roleCaption)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityLabel(
+            roleCaption.map { "\(member.nickname)，\($0)" } ?? member.nickname
+        )
+
+        if canManageMember {
+            cell.contextMenu {
+                memberManagementActions(for: member)
+            }
+        } else {
+            cell
+        }
+    }
+
+    @ViewBuilder
+    private func memberManagementActions(for member: GroupMemberRecord) -> some View {
+        if canManageMembers,
+           member.nickname.caseInsensitiveCompare(app.user.name) != .orderedSame,
+           member.role != .owner {
+            if isOwner {
+                if member.role == .admin {
+                    Button(MessagesCopy.groupRemoveAdmin) {
+                        model.removeGroupAdmin(member.nickname, in: conversationID)
+                    }
+                } else if member.role == .member {
+                    Button(MessagesCopy.groupSetAdmin) {
+                        model.addGroupAdmin(member.nickname, in: conversationID)
+                    }
+                    .disabled(members.filter { $0.role == .admin }.count >= 3)
+                }
+            }
+            Button(MessagesCopy.groupKick, role: .destructive) {
+                pendingKickMember = member.nickname
+            }
+        }
+    }
+
+    private var inviteMemberCell: some View {
+        Button {
+            showMemberPicker = true
+        } label: {
+            VStack(spacing: PlatformMetrics.detailMicroSpacing) {
+                RoundedRectangle(cornerRadius: PlatformMetrics.radiusMedia, style: .continuous)
+                    .strokeBorder(.quaternary, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                    .frame(width: 52, height: 52)
+                    .overlay {
+                        Image(systemName: "plus")
+                            .font(.title3.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                Text(MessagesCopy.add)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(MessagesCopy.groupInviteMembers)
+    }
+
+    // MARK: - Info / announcement / owner
+
     @ViewBuilder
     private func groupInfoSection(_ conversation: ChatConversation) -> some View {
         Section {
-            LabeledContent(MessagesCopy.groupNameLabel, value: conversation.title)
-                .messagesListRow()
+            if isOwner {
+                TextField(MessagesCopy.groupNameLabel, text: $renameDraft)
+            } else {
+                LabeledContent(MessagesCopy.groupNameLabel, value: conversation.title)
+            }
             if let owner = conversation.ownerName {
                 LabeledContent(MessagesCopy.groupOwnerBadge, value: owner)
-                    .messagesListRow()
             }
-            LabeledContent(
-                MessagesCopy.groupMembersLabel,
-                value: MessagesCopy.groupMemberCount(conversation.memberNames.count)
-            )
-            .messagesListRow()
         } header: {
-            PlatformMessagesSectionHeader(title: MessagesCopy.groupInfoSection)
+            Text(MessagesCopy.groupInfoSection)
         }
     }
 
@@ -108,89 +322,27 @@ struct GroupManageSheet: View {
                 Text(announcement)
                     .font(.body)
                     .foregroundStyle(.secondary)
-                    .messagesListRow()
-            } else {
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if !isOwner {
                 Text(MessagesCopy.groupAnnouncementEmpty)
                     .foregroundStyle(.tertiary)
-                    .messagesListRow()
             }
+
             if isOwner {
                 TextField(MessagesCopy.groupAnnouncementPlaceholder, text: $announcementDraft, axis: .vertical)
                     .lineLimit(2...4)
-                    .messagesListRow()
+
                 Button(MessagesCopy.groupPublishAnnouncement) {
-                    model.updateAnnouncement(announcementDraft, for: conversationID)
-                    announcementDraft = ""
+                    publishAnnouncement()
                 }
                 .disabled(announcementDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .messagesListRow()
             }
         } header: {
-            PlatformMessagesSectionHeader(title: MessagesCopy.groupAnnouncementSection)
-        }
-    }
-
-    @ViewBuilder
-    private func membersSection(_ conversation: ChatConversation) -> some View {
-        Section {
-            ForEach(model.groupMembers(for: conversationID)) { member in
-                LabeledContent {
-                    if canManageMembers,
-                       member.nickname.caseInsensitiveCompare(app.user.name) != .orderedSame,
-                       member.role != .owner {
-                        Menu {
-                            if isOwner {
-                                Button(
-                                    member.role == .admin ? MessagesCopy.groupRemoveAdmin : MessagesCopy.groupSetAdmin
-                                ) {
-                                    model.updateMemberRole(
-                                        member.nickname,
-                                        role: member.role == .admin ? .member : .admin,
-                                        in: conversationID
-                                    )
-                                }
-                            }
-                            Button(MessagesCopy.groupKick, role: .destructive) {
-                                pendingKickMember = member.nickname
-                            }
-                        } label: {
-                            Text(member.role == .admin ? MessagesCopy.groupRemoveAdmin : MessagesCopy.groupRoleSection)
-                                .font(.subheadline)
-                        }
-                    }
-                } label: {
-                    Label {
-                        Text(member.nickname)
-                    } icon: {
-                        PlatformSystemAvatar()
-                    }
-                }
-                .badge(member.role.rawValue)
-                .messagesListRow()
+            Text(MessagesCopy.groupAnnouncementSection)
+        } footer: {
+            if isOwner {
+                Text("发布后，成员会在群聊内看到最新公告。")
             }
-        } header: {
-            PlatformMessagesSectionHeader(title: MessagesCopy.groupMembersSection)
-        }
-    }
-
-    @ViewBuilder
-    private var ownerSection: some View {
-        Section {
-            TextField(MessagesCopy.groupRenamePlaceholder, text: $renameDraft)
-                .messagesListRow()
-            Button(MessagesCopy.groupSaveName) {
-                model.renameGroup(renameDraft, for: conversationID)
-                renameDraft = ""
-            }
-            .disabled(renameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            .messagesListRow()
-
-            Button(MessagesCopy.groupInviteMembers) {
-                showMemberPicker = true
-            }
-            .messagesListRow()
-        } header: {
-            PlatformMessagesSectionHeader(title: MessagesCopy.groupOwnerSection)
         }
     }
 
@@ -205,9 +357,13 @@ struct GroupManageSheet: View {
                 } label: {
                     Label(MessagesCopy.groupOpenActivity, systemImage: "calendar")
                 }
-                .messagesListRow()
             }
         }
+    }
+
+    private func truncated(_ name: String) -> String {
+        if name.count <= 4 { return name }
+        return String(name.prefix(3)) + "…"
     }
 }
 
@@ -286,6 +442,7 @@ struct MessageRequestsSheet: View {
             NavigationStack {
                 ConversationDetailView(conversationID: conversation.id)
             }
+            .toolbarVisibility(.hidden, for: .tabBar)
             .platformSheet(.browser)
         }
     }
@@ -418,28 +575,34 @@ private struct GroupMemberPickerSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach(Array(candidates.enumerated()), id: \.element) { _, name in
-                    Button {
-                        if selectedNames.contains(name) {
-                            selectedNames.remove(name)
-                        } else {
-                            selectedNames.insert(name)
-                        }
-                    } label: {
-                        HStack {
-                            Text(name)
-                            Spacer(minLength: 0)
-                            if selectedNames.contains(name) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(Color.accentColor)
+                Section {
+                    ForEach(candidates, id: \.self) { name in
+                        Button {
+                            toggleSelection(name)
+                        } label: {
+                            HStack {
+                                PlatformListAvatarView(name: name, side: 36)
+                                Text(name)
+                                    .foregroundStyle(.primary)
+                                Spacer(minLength: 0)
+                                if selectedNames.contains(name) {
+                                    Image(systemName: "checkmark")
+                                        .font(.body.weight(.semibold))
+                                        .foregroundStyle(Color.accentColor)
+                                }
                             }
                         }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+                } footer: {
+                    Text("邀请后，对方会收到进群通知。")
                 }
             }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.visible)
             .navigationTitle(MessagesCopy.groupMemberPickerTitle)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarVisibility(.hidden, for: .tabBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(MessagesCopy.cancel) { dismiss() }
@@ -449,10 +612,19 @@ private struct GroupMemberPickerSheet: View {
                         model.inviteMembers(Array(selectedNames), to: conversationID)
                         dismiss()
                     }
+                    .fontWeight(.semibold)
                     .disabled(selectedNames.isEmpty)
                 }
             }
         }
-        .platformSheet(.browser)
+        .platformSheet(.form)
+    }
+
+    private func toggleSelection(_ name: String) {
+        if selectedNames.contains(name) {
+            selectedNames.remove(name)
+        } else {
+            selectedNames.insert(name)
+        }
     }
 }

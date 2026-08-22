@@ -93,7 +93,7 @@ enum PassSourceFactory {
             backFields: [
                 PassField(key: "status", label: "状态", value: record.statusLabel),
                 PassField(key: "method", label: "支付", value: record.paymentMethod),
-                PassField(key: "hint", label: "说明", value: "本地演示预约凭证，可在「我的陪玩」查看。")
+                PassField(key: "hint", label: "说明", value: "本地演示预约凭证，可在「我的 → 陪玩预约」查看。")
             ],
             barcodeMessage: "coordinate:booking:\(record.id.uuidString)",
             relevantDate: record.scheduledAt,

@@ -13,16 +13,20 @@ nonisolated enum MessagesCopy {
     // MARK: - Inbox / filters
 
     static let searchPrompt = "搜索好友、群聊和聊天记录"
+    static let rootTitle = "消息"
     static let searchSectionConversations = "好友与群聊"
     static let searchSectionHistory = "聊天记录"
     static let filterFriends = "好友聊天"
     static let filterGroups = "群聊"
-    static let circleGroupSubtitle = "组织"
+    static let circleGroupSubtitle = "圈子"
     static let friendsListTitle = "通讯录"
     static let friendsListEmptyTitle = "通讯录为空"
-    static let friendsListEmptyDescription = "发起好友聊天或接受好友申请后，联系人会出现在这里"
+    static let friendsListEmptyDescription = "邀请好友一起玩，或通过 UID 添加联系人"
     static let friendsListSearch = "搜索通讯录"
     static let friendsListChat = "发消息"
+    static let inviteFriends = "邀请好友"
+    static let inviteFriendsSubtitle = "双方各得 20 积分"
+    static let inviteFriendsShareText = "来坐标系一起玩活动、找搭子！双方各得 20 积分"
 
     // MARK: - Friend profile
 
@@ -72,7 +76,7 @@ nonisolated enum MessagesCopy {
     static let messageRequestsPreview = "预览"
 
     static let emptyInboxTitle = "还没有会话"
-    static let emptyInboxDescription = "在搭子页打招呼，或参加活动后，好友与群聊会出现在这里"
+    static let emptyInboxDescription = "接受好友申请后，或参加活动进入群聊，会话会出现在这里"
     static let startChat = "发起聊天"
     static let startChatTitle = "发起聊天"
     static let startChatFooter = "选一位好友开始聊天；选多位好友将创建群聊。"
@@ -97,6 +101,22 @@ nonisolated enum MessagesCopy {
     }
     static func addFriendByUIDGreeting(uid: String) -> String {
         "你好，我通过 UID \(UserPublicID.formatDisplay(uid)) 加你为好友"
+    }
+    static let addFriendAction = "加好友"
+    static let addFriendPeerTitle = "添加好友"
+    static let addFriendVerifyField = "验证信息"
+    static let addFriendVerifyPlaceholder = "向对方介绍一下自己"
+    static let addFriendVerifyFooter = "对方通过后才能开始聊天。请礼貌说明来意。"
+    static let addFriendSend = "发送申请"
+    static let friendRequestPending = "等待验证"
+    static let friendRequestSentTitle = "申请已发送"
+    static func friendRequestSentMessage(_ name: String) -> String {
+        "已向「\(name)」发送好友申请，对方通过后即可聊天"
+    }
+    static let friendRequestPendingDescription = "你已发送好友申请，请等待对方通过"
+    static let defaultFriendRequestMessage = "你好，想加你为好友"
+    static func addFriendAlreadyFriend(_ name: String) -> String {
+        "「\(name)」已是好友"
     }
     static let copyUID = "复制 UID"
     static let uidCopied = "已复制 UID"
@@ -129,7 +149,6 @@ nonisolated enum MessagesCopy {
 
     // MARK: - Conversation chrome
 
-    static let conversationMissing = "会话不存在"
     static let add = "添加"
     static let more = "更多"
     static let pinConversation = "置顶会话"
@@ -196,6 +215,8 @@ nonisolated enum MessagesCopy {
     static func emptyThreadDescription(peerName: String) -> String {
         "发一条消息，和 \(peerName) 打个招呼"
     }
+    static let outboundBlockedNotice = "你已发送 3 条消息，请等待对方回复后再联系"
+    static let quickReplySectionTitle = "快捷发送"
     static let cancel = "取消"
     static let close = "关闭"
     static let read = "已读"

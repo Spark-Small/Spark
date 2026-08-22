@@ -70,7 +70,6 @@ struct CommunityPostLibraryList: View {
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
         // 分享详情目的地由外层 NavigationStack 注册
     }
 
@@ -177,6 +176,5 @@ struct CommunityGuidelinesView: View {
         }
         .navigationTitle("社区公约")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
     }
 }

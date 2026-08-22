@@ -23,6 +23,7 @@ struct TagFlow: View {
 struct BuddyDetailActionBar: View {
     var inviteEnabled = true
     var inviteTitle = BuddyDetailCopy.invite
+    var greetTitle = BuddyDetailCopy.greet
     /// 工会 / 语音厅入口：预约按钮带系统图标，强调转化
     var emphasizeInvite = false
     var onGreet: () -> Void
@@ -30,12 +31,12 @@ struct BuddyDetailActionBar: View {
 
     var body: some View {
         HStack {
-            Button(BuddyDetailCopy.greet, action: onGreet)
+            Button(greetTitle, action: onGreet)
                 .activityDetailBottomSecondaryCTA()
 
             if emphasizeInvite {
                 Button(action: onInvite) {
-                    Label(inviteTitle, systemImage: "calendar.badge.clock")
+                    Label(inviteTitle, systemImage: "bolt.fill")
                 }
                 .activityDetailBottomPrimaryCTA()
                 .disabled(!inviteEnabled)

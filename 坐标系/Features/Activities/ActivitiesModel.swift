@@ -9,7 +9,7 @@ import Observation
 @MainActor
 @Observable
 final class ActivitiesModel {
-    var selectedCategory: ActivityCategory = .all
+    var selectedCategory: ActivityCategory = .forYou
     var quickFilters: Set<ActivityQuickFilter> = []
     /// 按自然日筛选；`nil` 表示不限日期（替代筛选里的今天 / 明天分段）
     var dayFilter: Date? = nil
@@ -47,9 +47,9 @@ final class ActivitiesModel {
         refreshDistancesFromLocation()
     }
 
-    /// 默认浏览态：精选 Hero + 目录模块（筛选时隐藏精选）
+    /// 默认浏览态：精选 Hero + 目录模块（快捷筛选 / 日期筛选时隐藏精选）
     var showsBrowseModules: Bool {
-        selectedCategory == .all && quickFilters.isEmpty && dayFilter == nil
+        quickFilters.isEmpty && dayFilter == nil
     }
 
     private var catalogIndexByID: [UUID: Int] {
@@ -59,7 +59,7 @@ final class ActivitiesModel {
     /// 当前可见目录（分类 / 快捷筛选）
     var filtered: [Activity] {
         activities.filter { activity in
-            let matchesCategory = selectedCategory == .all || activity.category == selectedCategory
+            let matchesCategory = selectedCategory.isBrowseAggregate || activity.category == selectedCategory
             return matchesCategory && matchesQuickFilters(activity)
         }
     }
@@ -103,6 +103,7 @@ final class ActivitiesModel {
     func recordDetailView(_ id: Activity.ID) {
         guard let activity = activity(id: id) else { return }
         ActivityEngagementStore.shared.record(.viewed, for: activity)
+        ProfileRecentBrowseStore.shared.record(activity)
     }
 
     var joinedActivities: [Activity] {
@@ -199,6 +200,10 @@ final class ActivitiesModel {
 
     func activity(matchingTitle title: String) -> Activity? {
         activities.first { $0.title == title }
+    }
+
+    func activities(matchingTitles titles: [String]) -> [Activity] {
+        titles.compactMap { activity(matchingTitle: $0) }
     }
 
     func activity(relatedTo post: CommunityPost) -> Activity? {
@@ -360,7 +365,7 @@ final class ActivitiesModel {
         let trimmedLocation = location.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedSummary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty, !trimmedLocation.isEmpty, !trimmedSummary.isEmpty else { return nil }
-        guard category != .all else { return nil }
+        guard !category.isBrowseAggregate else { return nil }
 
         var resolvedDistance = distanceKM
         if let latitude, let longitude,
@@ -424,7 +429,7 @@ final class ActivitiesModel {
         let trimmedLocation = location.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedSummary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty, !trimmedLocation.isEmpty, !trimmedSummary.isEmpty else { return }
-        guard category != .all else { return }
+        guard !category.isBrowseAggregate else { return }
 
         let joinedCount = activities[index].joined
         activities[index].title = trimmedTitle

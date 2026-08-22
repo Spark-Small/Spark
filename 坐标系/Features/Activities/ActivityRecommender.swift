@@ -316,9 +316,16 @@ enum ActivityRecommender {
 }
 
 enum ActivityRelatedRecommender {
+    /// 详情页相关活动横滑轨条数（纵向上不占屏，左右滑查看更多）
+    static let displayLimit = 6
+
     /// 相关推荐 = 用户推荐分 + 与当前活动的相似加分
     @MainActor
-    static func related(to activity: Activity, from catalog: [Activity], limit: Int = 4) -> [Activity] {
+    static func related(
+        to activity: Activity,
+        from catalog: [Activity],
+        limit: Int = displayLimit
+    ) -> [Activity] {
         catalog
             .filter { candidate in
                 candidate.id != activity.id && !candidate.isPast

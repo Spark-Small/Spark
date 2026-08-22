@@ -34,7 +34,6 @@ struct SeededSceneFill: View {
         let secondary = SeededPalette.secondary(for: seed)
         let tilt = Double(abs(seed % 40)) / 100
         let layout = abs(seed) % 3
-        let symbolSize: CGFloat = layout == 0 ? 54 : (layout == 1 ? 44 : 62)
         let symbolAnchor = layout == 1
             ? Alignment.bottomTrailing
             : (layout == 2 ? Alignment.topLeading : Alignment.center)
@@ -54,7 +53,7 @@ struct SeededSceneFill: View {
 
             if showsSymbol {
                 Image(systemName: symbol)
-                    .font(.system(size: symbolSize, weight: .semibold))
+                    .font(.system(.largeTitle, design: .default))
                     .platformSymbolStyle(.hierarchical)
                     .foregroundStyle(.primary.opacity(0.85))
                     .colorScheme(.dark)
@@ -114,7 +113,7 @@ struct SeededPersonFill: View {
                         )
                     )
                 Text(initial)
-                    .font(.system(size: 64, weight: .bold, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded))
                     .minimumScaleFactor(0.5)
                     .foregroundStyle(.primary)
                     .colorScheme(.dark)

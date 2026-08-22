@@ -31,12 +31,18 @@ struct ProfileCreateAccountSheet: View {
                 }
 
                 Section("手机号") {
-                    TextField("手机号码", text: $phone)
-                        .keyboardType(.phonePad)
-                        .textContentType(.telephoneNumber)
-                    SecureField("验证码", text: $code)
-                        .keyboardType(.numberPad)
-                        .textContentType(.oneTimeCode)
+                    LabeledContent("手机号") {
+                        TextField("手机号码", text: $phone)
+                            .keyboardType(.phonePad)
+                            .textContentType(.telephoneNumber)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    LabeledContent("验证码") {
+                        SecureField("输入验证码", text: $code)
+                            .keyboardType(.numberPad)
+                            .textContentType(.oneTimeCode)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
 
                 if let errorMessage {
@@ -47,19 +53,13 @@ struct ProfileCreateAccountSheet: View {
                 }
 
                 Section {
-                    Button("创建账号") {
-                        requireLegalConsent(createAccount)
-                    }
-                    .fontWeight(.semibold)
+                    LegalConsentCheckbox(
+                        isChecked: $hasAgreedToLegal,
+                        showAlert: $showLegalAlert,
+                        centersContent: false
+                    )
                 } footer: {
-                    VStack(alignment: .center, spacing: 10) {
-                        Text("本地演示验证码：\(LocalAuthSession.demoCode)")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        LegalConsentCheckbox(
-                            isChecked: $hasAgreedToLegal,
-                            showAlert: $showLegalAlert
-                        )
-                    }
+                    Text("创建账号前需同意用户协议与隐私政策。")
                 }
 
                 Section {
@@ -82,14 +82,21 @@ struct ProfileCreateAccountSheet: View {
                 } header: {
                     Text("其他方式")
                 } footer: {
-                    Text("演示环境下一键绑定身份；正式版将接入系统 Sign in with Apple 与微信开放平台。")
+                    Text("演示环境下一键绑定身份；正式版将接入系统 Sign in with Apple 与微信开放平台。本地演示验证码：\(LocalAuthSession.demoCode)。")
                 }
             }
             .navigationTitle("创建账号")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarVisibility(.hidden, for: .tabBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("创建账号") {
+                        requireLegalConsent(createAccount)
+                    }
+                    .fontWeight(.semibold)
                 }
             }
         }
@@ -152,7 +159,7 @@ struct ProfileMembershipView: View {
                 }
             }
 
-            Section("会员状态") {
+            Section {
                 TrustCredentialBadgeStrip(
                     photoVerified: {
                         _ = PhotoVerificationStore.shared.isVerified
@@ -165,9 +172,15 @@ struct ProfileMembershipView: View {
                 if !isActive {
                     LabeledContent("开通费用", value: WalletMoney.formatted(cents: membershipCents))
                 }
+            } header: {
+                Text("会员状态")
+            } footer: {
+                if !isActive {
+                    Text(membershipFooterText)
+                }
             }
 
-            Section("会员权益") {
+            Section {
                 Label("活动优先提醒", systemImage: "bell.badge")
                     .platformContentSymbolStyle()
                 Label("专属身份标识", systemImage: "checkmark.seal.fill")
@@ -176,6 +189,10 @@ struct ProfileMembershipView: View {
                     .platformContentSymbolStyle()
                 Label("会员卡可加入 Apple Wallet", systemImage: "wallet.bifold")
                     .platformContentSymbolStyle()
+            } header: {
+                Text("会员权益")
+            } footer: {
+                Text("开通后可在活动、社区与消息中展示会员标识。")
             }
 
             if isActive {
@@ -184,7 +201,7 @@ struct ProfileMembershipView: View {
                         content: WalletPassFaceFactory.membership(holderName: app.user.name),
                         symbol: "person.text.rectangle"
                     )
-                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                    .listRowInsets(PlatformWalletPassListRow.insets)
                     .listRowBackground(Color.clear)
                 } header: {
                     Text("会员票面")
@@ -198,28 +215,30 @@ struct ProfileMembershipView: View {
                     }
                 }
             }
-
-            Section {
-                Button(isActive ? "会员已开通" : "确认开通会员") {
+        }
+        .listSectionSpacing(.compact)
+        .navigationTitle("会员中心")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button(isActive ? "已开通" : "开通") {
                     activateMembership()
                 }
-                .disabled(isActive || isProcessing || app.auth.isGuest)
-            } footer: {
-                Text(
-                    app.auth.isGuest
-                        ? GuestAccessGate.commerceReason
-                        : "本地演示：从钱包余额扣款；开通后签发会员通行证。"
+                .fontWeight(.semibold)
+                .disabled(
+                    isActive
+                        || isProcessing
+                        || app.auth.isGuest
+                        || YouthModePreference.isEnabled
                 )
             }
         }
-        .navigationTitle("会员中心")
-        .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
         .sheet(isPresented: $showCreateAccount) {
             ProfileCreateAccountSheet(
                 session: app.auth,
                 reason: GuestAccessGate.commerceReason
             )
+            .toolbarVisibility(.hidden, for: .tabBar)
         }
         .alert("无法开通", isPresented: Binding(
             get: { errorMessage != nil },
@@ -236,11 +255,18 @@ struct ProfileMembershipView: View {
         }
     }
 
-    private func activateMembership() {
+    private var membershipFooterText: String {
         if YouthModePreference.isEnabled {
-            errorMessage = GuestAccessGate.youthCommerceReason
-            return
+            return GuestAccessGate.youthCommerceReason
         }
+        if app.auth.isGuest {
+            return "创建账号后即可开通会员。"
+        }
+        return "本地演示：从钱包余额扣款；开通后签发会员通行证。"
+    }
+
+    private func activateMembership() {
+        guard !YouthModePreference.isEnabled else { return }
         guard GuestAccessGate.allow(app.auth, presentCreateAccount: $showCreateAccount) else { return }
         guard !isActive, !isProcessing else { return }
         isProcessing = true
@@ -268,8 +294,11 @@ struct ProfileWalletView: View {
     @Environment(WalletStore.self) private var wallet
     @Environment(AppModel.self) private var app
     @AppStorage("profile.membership.active") private var membershipActive = false
+    @AppStorage("profile.wallet.couponCount") private var couponCount = 6
+    @AppStorage("profile.wallet.points") private var points = 20
     @State private var showTopUp = false
     @State private var showCreateAccount = false
+    @State private var demoAlertMessage: String?
 
     private var tier: WalletBankCardTier { wallet.cardTier }
 
@@ -294,11 +323,14 @@ struct ProfileWalletView: View {
                     userID: app.user.id,
                     nickname: app.user.name,
                     isMember: membershipActive,
-                    onTopUp: app.auth.isGuest
-                        ? { showCreateAccount = true }
-                        : { showTopUp = true }
+                    onTopUp: {
+                        if app.auth.isGuest {
+                            showCreateAccount = true
+                        } else if !YouthModePreference.isEnabled {
+                            showTopUp = true
+                        }
+                    }
                 )
-                // 与下方 insetGrouped 分区同宽：水平交给系统分组页边
                 .listRowInsets(PlatformWalletPassListRow.insets)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
@@ -307,6 +339,45 @@ struct ProfileWalletView: View {
                     Text("当前\(tier.displayName) · 累计充值 \(WalletMoney.formatted(cents: wallet.lifetimeTopUpCents)) · \(hint)")
                 } else {
                     Text("当前\(tier.displayName) · 累计充值 \(WalletMoney.formatted(cents: wallet.lifetimeTopUpCents)) · 已达最高卡面")
+                }
+            }
+
+            Section {
+                LabeledContent(ProfileDashboardCopy.walletCoupons, value: "\(couponCount)")
+                LabeledContent(ProfileDashboardCopy.walletPoints, value: "\(points)")
+            } header: {
+                Text("资产")
+            }
+
+            Section {
+                Button {
+                    openWalletAction { showTopUp = true }
+                } label: {
+                    Label(ProfileDashboardCopy.walletTopUp, systemImage: "plus.circle.fill")
+                        .platformContentSymbolStyle()
+                }
+                .disabled(YouthModePreference.isEnabled)
+
+                Button {
+                    demoAlertMessage = ProfileDashboardCopy.demoWithdraw
+                } label: {
+                    Label(ProfileDashboardCopy.walletWithdraw, systemImage: "arrow.down.circle.fill")
+                        .platformContentSymbolStyle()
+                }
+
+                Button {
+                    demoAlertMessage = ProfileDashboardCopy.demoInvoice
+                } label: {
+                    Label(ProfileDashboardCopy.walletInvoice, systemImage: "doc.text.fill")
+                        .platformContentSymbolStyle()
+                }
+            } header: {
+                Text("快捷操作")
+            } footer: {
+                if YouthModePreference.isEnabled {
+                    Text(GuestAccessGate.youthCommerceReason)
+                } else {
+                    Text("充值即时入账；提现与发票为本地演示占位，正式版将接入实名与开票。")
                 }
             }
 
@@ -336,46 +407,34 @@ struct ProfileWalletView: View {
                     Label("我的订单", systemImage: "list.bullet.rectangle")
                         .platformContentSymbolStyle()
                 }
+            } header: {
+                Text("支付设置")
             } footer: {
-                if YouthModePreference.isEnabled {
-                    Text(GuestAccessGate.youthCommerceReason)
-                } else {
-                    Text("活动票与陪玩预约凭证在「我的」内容库查看；点卡片可充值。")
-                }
+                Text("活动票与陪玩预约凭证在「我的」活动区查看；点银行卡面可充值。")
             }
 
             Section {
                 if wallet.entries.isEmpty {
-                    ContentUnavailableView(
-                        "暂无交易",
-                        systemImage: "list.bullet.rectangle",
-                        description: Text("活动、陪玩、转账与充值会出现在这里。")
-                    )
-                    .platformContentSymbolStyle()
+                    Text("暂无交易")
+                        .foregroundStyle(.secondary)
                 } else {
                     ForEach(wallet.entries) { entry in
                         WalletLedgerRow(entry: entry)
                     }
                 }
             } header: {
-                Text("最近交易")
+                Text(ProfileDashboardCopy.walletLedger)
             } footer: {
                 Text("活动、陪玩与转账共用同一套本地支付账本。")
             }
         }
-        .navigationTitle("钱包")
+        .listSectionSpacing(.compact)
+        .navigationTitle("我的钱包")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("充值", systemImage: "plus") {
-                    if YouthModePreference.isEnabled {
-                        // 钱包页用 footer 提示即可：直接拦截
-                        return
-                    }
-                    if GuestAccessGate.allow(app.auth, presentCreateAccount: $showCreateAccount) {
-                        showTopUp = true
-                    }
+                    openWalletAction { showTopUp = true }
                 }
                 .disabled(YouthModePreference.isEnabled)
             }
@@ -384,12 +443,29 @@ struct ProfileWalletView: View {
         .animation(.snappy, value: tier)
         .sheet(isPresented: $showTopUp) {
             WalletTopUpSheet()
+                .toolbarVisibility(.hidden, for: .tabBar)
         }
         .sheet(isPresented: $showCreateAccount) {
             ProfileCreateAccountSheet(
                 session: app.auth,
                 reason: GuestAccessGate.commerceReason
             )
+            .toolbarVisibility(.hidden, for: .tabBar)
+        }
+        .alert("提示", isPresented: Binding(
+            get: { demoAlertMessage != nil },
+            set: { if !$0 { demoAlertMessage = nil } }
+        )) {
+            Button("好的", role: .cancel) { demoAlertMessage = nil }
+        } message: {
+            Text(demoAlertMessage ?? "")
+        }
+    }
+
+    private func openWalletAction(_ action: () -> Void) {
+        if YouthModePreference.isEnabled { return }
+        if GuestAccessGate.allow(app.auth, presentCreateAccount: $showCreateAccount) {
+            action()
         }
     }
 }
@@ -399,14 +475,14 @@ private struct WalletLedgerRow: View {
     let entry: WalletLedgerEntry
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: PlatformConversationListRow.imageToTextPadding) {
             Image(systemName: entry.kind.systemImage)
                 .font(.body.weight(.semibold))
                 .foregroundStyle(iconColor)
-                .frame(width: 28, alignment: .center)
+                .frame(width: PlatformMetrics.navigationBarButtonSide * 0.7, alignment: .center)
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
                 Text(entry.title)
                     .font(.body)
                 Text(secondaryLine)
@@ -415,7 +491,7 @@ private struct WalletLedgerRow: View {
                     .lineLimit(1)
             }
 
-            Spacer(minLength: 8)
+            Spacer(minLength: PlatformMetrics.minContentGap)
 
             Text(amountText)
                 .font(.body.weight(.semibold))
@@ -460,6 +536,7 @@ struct WalletTopUpSheet: View {
     @State private var isProcessing = false
 
     private let presets = [5_000, 10_000, 20_000, 50_000]
+    private var youthBlocked: Bool { YouthModePreference.isEnabled }
 
     var body: some View {
         NavigationStack {
@@ -472,9 +549,10 @@ struct WalletTopUpSheet: View {
                     }
                     .pickerStyle(.inline)
                     .labelsHidden()
+                    .disabled(youthBlocked)
                 }
 
-                Section("到账方式") {
+                Section {
                     Picker("方式", selection: $selectedMethod) {
                         Text(PaymentMethod.applePay.displayName).tag(PaymentMethod.applePay)
                         Text(PaymentMethod.wechat.displayName).tag(PaymentMethod.wechat)
@@ -482,14 +560,15 @@ struct WalletTopUpSheet: View {
                     }
                     .pickerStyle(.inline)
                     .labelsHidden()
-                }
-
-                Section {
-                    Button("确认充值") { confirmTopUp() }
-                        .fontWeight(.semibold)
-                        .disabled(isProcessing)
+                    .disabled(youthBlocked)
+                } header: {
+                    Text("到账方式")
                 } footer: {
-                    Text("本地演示充值，立即记入钱包余额。")
+                    Text(
+                        youthBlocked
+                            ? GuestAccessGate.youthCommerceReason
+                            : "本地演示充值，立即记入钱包余额。"
+                    )
                 }
             }
             .navigationTitle("充值")
@@ -499,6 +578,11 @@ struct WalletTopUpSheet: View {
                     Button("取消") { dismiss() }
                         .disabled(isProcessing)
                 }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("确认充值") { confirmTopUp() }
+                        .fontWeight(.semibold)
+                        .disabled(isProcessing || youthBlocked)
+                }
             }
             .overlay {
                 if isProcessing {
@@ -506,12 +590,17 @@ struct WalletTopUpSheet: View {
                         .platformProcessingOverlayChrome()
                 }
             }
+            .onAppear {
+                if youthBlocked {
+                    dismiss()
+                }
+            }
         }
         .platformSheet(.confirm, interactiveDismissDisabled: isProcessing)
     }
 
     private func confirmTopUp() {
-        guard !isProcessing else { return }
+        guard !youthBlocked, !isProcessing else { return }
         isProcessing = true
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(700))
@@ -519,5 +608,20 @@ struct WalletTopUpSheet: View {
             isProcessing = false
             dismiss()
         }
+    }
+}
+
+// MARK: - Become companion
+
+/// 「成为陪玩」入驻占位：前期只保留入口与说明，正式版再接审核流。
+struct ProfileBecomeCompanionView: View {
+    var body: some View {
+        ContentUnavailableView(
+            ProfileDashboardCopy.becomeCompanion,
+            systemImage: "person.badge.plus",
+            description: Text("完善资料并通过审核后，即可在陪玩页接单。入驻流程将在正式版开放。")
+        )
+        .navigationTitle(ProfileDashboardCopy.becomeCompanion)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

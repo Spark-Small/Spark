@@ -711,7 +711,7 @@ enum WalletPassFaceFactory {
             return Color(red: 0.22, green: 0.36, blue: 0.50)
         case .entertainment:
             return Color(red: 0.44, green: 0.20, blue: 0.34)
-        case .all:
+        case .all, .forYou:
             return Color(red: 0.18, green: 0.32, blue: 0.48)
         }
     }
@@ -917,9 +917,10 @@ struct WalletPassRecordFace: View {
         .navigationDestination(isPresented: $showActivityDetail) {
             if let activity = relatedActivity {
                 ActivityDetailView(activityID: activity.id)
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
-        .activityMapNavigationDialog(
+        .activityMapNavigationSheet(
             activity: Binding(
                 get: { showNavigationPicker ? relatedActivity : nil },
                 set: { showNavigationPicker = $0 != nil }

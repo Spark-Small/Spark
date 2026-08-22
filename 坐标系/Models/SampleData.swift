@@ -18,7 +18,8 @@ enum SampleData {
         joinedCount: 18,
         hostedCount: 6,
         buddyCount: 42,
-        interests: currentUserInterests
+        interests: currentUserInterests,
+        lookingFor: "周末羽毛球局、夜骑、咖啡探店"
     )
 
     // MARK: - Helpers
@@ -52,7 +53,7 @@ enum SampleData {
 
     // MARK: - Activities（种子 + 扩充目录，供长列表分区推荐）
 
-    /// 基础 22 场 + 扩充目录；稳定 ID，目录升级时按 ID 合并；写入关联兴趣组织
+    /// 基础 22 场 + 扩充目录；稳定 ID，目录升级时按 ID 合并；写入关联兴趣圈子
     static let activities: [Activity] = (seedActivities + SampleActivityCatalog.extra).map(attachingRelatedCircle)
 
     /// 活动详情 / 推荐用：显式关联优先，否则按地区 + 主题推断
@@ -66,6 +67,10 @@ enum SampleData {
 
     static func circle(id: UUID) -> InterestCircle? {
         interestCircles.first { $0.id == id }
+    }
+
+    static func circle(named name: String) -> InterestCircle? {
+        interestCircles.first { $0.name == name }
     }
 
     private static func attachingRelatedCircle(_ activity: Activity) -> Activity {
@@ -446,7 +451,7 @@ enum SampleData {
             isJoined: false, systemImage: "fork.knife"
         ),
         CompanionGuild(
-            id: uid(203), name: "剧本杀主持人联盟", specialty: "活动陪玩",
+            id: uid(203), name: "剧本杀主持人联盟", specialty: "桌游主持",
             city: "上海 · 静安", companionCount: 19, weeklyOrders: 37,
             priceFrom: 158, tags: ["剧本杀", "主持", "开黑"],
             summary: "资深主持人驻场，可约整场或补位。",
@@ -499,35 +504,51 @@ enum SampleData {
 
     // MARK: - Buddies
 
-    private static let buddyDemoPhotoAssets = [
-        "BuddyDemoPhoto1",
-        "BuddyDemoPhoto2",
-        "BuddyDemoPhoto3"
+    /// 用户投放的样板封面（BuddyPhotos → Assets `BuddyPhoto01`…`25`）
+    private static let buddyCoverPool: [String] = (1...25).map { String(format: "BuddyPhoto%02d", $0) }
+
+    /// 按免费池顺序固定封面；预约同昵称共用同一张
+    private static let buddyNickCoverOrder: [String] = [
+        "Mia", "阿凯", "阿禾", "小周", "Yuna", "林夏", "Leo", "Noon", "Coco", "阿哲",
+        "阿川", "小满", "叙叙", "南栀", "老白", "青禾", "木子", "江晚", "北辰", "半夏",
+        "青杉", "柚子", "老陈", "安安", "阿梨", "言午", "小满满", "禾川", "苏苏", "阿白",
+        "豆豆", "阿泽", "禾禾", "清清", "石头", "橙子"
     ]
+
+    private static func coverAssets(for nick: String) -> [String] {
+        if let index = buddyNickCoverOrder.firstIndex(of: nick) {
+            return [buddyCoverPool[index % buddyCoverPool.count]]
+        }
+        let slot = abs(nick.utf8.reduce(0) { ($0 &+ Int($1)) &+ 17 }) % buddyCoverPool.count
+        return [buddyCoverPool[slot]]
+    }
 
     private static func buddy(
         nick: String, gender: BuddyGender, age: Int, h: Int, w: Int, km: Double,
         seeds: [Int], city: String, bio: String, tags: [String],
         avail: String, active: String, looking: String,
-        photoAssets: [String] = []
+        photoAssets: [String]? = nil,
+        voiceSeconds: Double? = nil,
+        voiceCaption: String? = nil
     ) -> BuddyProfile {
         BuddyProfile(
             id: UUID(), nickname: nick, gender: gender, age: age,
             heightCM: h, weightKG: w, distanceKM: km, photoSeeds: seeds,
-            photoAssetNames: photoAssets,
+            photoAssetNames: photoAssets ?? coverAssets(for: nick),
             city: city, bio: bio, tags: tags, availability: avail,
-            lastActiveText: active, lookingFor: looking
+            lastActiveText: active, lookingFor: looking,
+            voiceIntroDuration: voiceSeconds,
+            voiceIntroCaption: voiceCaption
         )
     }
 
     static let circleBuddies: [CircleBuddy] = [
-        // 置顶：三张本地实拍，方便舞台看 Hero / 多图翻页效果
         CircleBuddy(
             profile: buddy(nick: "Mia", gender: .female, age: 25, h: 165, w: 48, km: 1.6,
                            seeds: [], city: "上海 · 徐汇",
                            bio: "常出没于小展和独立书店，也喜欢安静的咖啡聊天。",
                            tags: ["骑行", "展览", "市集"], avail: "本周六下午", active: "2 小时前活跃", looking: "想找咖啡漫谈",
-                           photoAssets: buddyDemoPhotoAssets),
+                           voiceSeconds: 12, voiceCaption: "周末常去思南，欢迎一起喝咖啡"),
             circleName: "徐汇桌游群", topic: "社交", isOnline: false,
             scheduleSlots: ["周六 14:00", "周日 15:00"],
             relatedActivityTitles: ["思南公馆咖啡漫谈", "安福路独立书店半日"]
@@ -537,7 +558,7 @@ enum SampleData {
                            seeds: [1011, 1012, 1015], city: "上海 · 黄浦",
                            bio: "夜骑爱好者，喜欢轻松局和城市探索，欢迎同好一起出发。",
                            tags: ["骑行", "摄影", "咖啡"], avail: "今晚可约", active: "刚刚活跃", looking: "想找夜骑局",
-                           photoAssets: buddyDemoPhotoAssets),
+                           voiceSeconds: 18, voiceCaption: "今晚外滩夜骑，新手友好"),
             circleName: "黄浦夜骑群", topic: "骑行", isOnline: true,
             scheduleSlots: ["今晚 20:00", "周五 21:00", "周六上午"],
             relatedActivityTitles: ["外滩夜骑轻态局"]
@@ -564,7 +585,8 @@ enum SampleData {
             profile: buddy(nick: "Yuna", gender: .female, age: 24, h: 168, w: 52, km: 5.1,
                            seeds: [1084, 129, 177], city: "上海 · 浦东",
                            bio: "寻找长期固定运动搭子，时间灵活可约工作日晚饭后。",
-                           tags: ["羽毛球", "网球", "拉伸"], avail: "工作日 19:00 后", active: "昨天活跃", looking: "想找羽毛球搭档"),
+                           tags: ["羽毛球", "网球", "拉伸"], avail: "工作日 19:00 后", active: "昨天活跃", looking: "想找羽毛球搭档",
+                           voiceSeconds: 9, voiceCaption: "想找长期羽球搭档"),
             circleName: "静安羽球群", topic: "运动", isOnline: false,
             scheduleSlots: ["周一 19:30", "周三 19:30", "周五 20:00"],
             relatedActivityTitles: ["羽毛球混双打野", "陆家嘴晨间拉伸局"]
@@ -840,8 +862,9 @@ enum SampleData {
             profile: buddy(nick: "阿凯", gender: .male, age: 27, h: 178, w: 70, km: 0.8,
                            seeds: [301, 302, 306], city: "上海 · 黄浦",
                            bio: "可按你的节奏定制滨江/外滩骑行陪玩，含路线讲解与安全提醒。",
-                           tags: ["骑行", "路线规划", "新手友好"], avail: "今日可约", active: "在线", looking: "可接夜骑陪玩"),
-            serviceType: .activity, specialty: "夜骑领队 / 城市骑行陪玩",
+                           tags: ["骑行", "路线规划", "新手友好"], avail: "今日可约", active: "在线", looking: "可接夜骑陪玩",
+                           voiceSeconds: 18, voiceCaption: "今晚外滩夜骑，新手友好"),
+            serviceType: .sport, specialty: "夜骑领队 / 城市骑行陪玩",
             hourlyPrice: 128, orderCount: 126, isAvailable: true,
             responseTime: "通常 10 分钟内",
             scheduleSlots: ["今日 20:00", "明日 19:00", "周六 21:00"],
@@ -851,8 +874,9 @@ enum SampleData {
             profile: buddy(nick: "Yuna", gender: .female, age: 24, h: 168, w: 52, km: 5.1,
                            seeds: [338, 349, 365], city: "上海 · 浦东",
                            bio: "提供约场陪练与轻度技术指导，可单次也可包周。场地费另计。",
-                           tags: ["羽毛球", "陪练", "纠正动作"], avail: "明日 18:00 后", active: "今天活跃", looking: "可接羽毛球陪练"),
-            serviceType: .activity, specialty: "羽毛球陪练",
+                           tags: ["羽毛球", "陪练", "纠正动作"], avail: "明日 18:00 后", active: "今天活跃", looking: "可接羽毛球陪练",
+                           voiceSeconds: 9, voiceCaption: "想找长期羽球搭档"),
+            serviceType: .sport, specialty: "羽毛球陪练",
             hourlyPrice: 168, orderCount: 89, isAvailable: true,
             responseTime: "通常 30 分钟内",
             scheduleSlots: ["明日 18:30", "周四 19:00"],
@@ -885,7 +909,7 @@ enum SampleData {
                            seeds: [513, 528, 550], city: "上海 · 静安",
                            bio: "按预算定制街区美食路线，陪逛陪拍，消费各自买单，服务费按小时计。",
                            tags: ["探店", "预算控局", "夜市"], avail: "今晚可约", active: "刚刚活跃", looking: "可接探店陪吃"),
-            serviceType: .offline, specialty: "美食探店陪吃",
+            serviceType: .photo, specialty: "美食探店陪吃",
             hourlyPrice: 138, orderCount: 103, isAvailable: true,
             responseTime: "通常 15 分钟内",
             scheduleSlots: ["今晚 18:30", "周六 12:00"],
@@ -896,7 +920,7 @@ enum SampleData {
                            seeds: [560, 561, 562], city: "上海 · 普陀",
                            bio: "夜跑陪跑与拉伸指导，可按配速分组。",
                            tags: ["跑步", "拉伸", "陪跑"], avail: "今晚可约", active: "在线", looking: "可接夜跑陪跑"),
-            serviceType: .activity, specialty: "夜跑陪跑",
+            serviceType: .sport, specialty: "夜跑陪跑",
             hourlyPrice: 118, orderCount: 61, isAvailable: true,
             responseTime: "通常 20 分钟内",
             scheduleSlots: ["今晚 19:30", "周五 19:30"],
@@ -907,7 +931,7 @@ enum SampleData {
                            seeds: [570, 571, 572], city: "上海 · 徐汇",
                            bio: "市集 / 野餐拍照陪拍，出图快，可按风格沟通。",
                            tags: ["摄影", "市集", "陪拍"], avail: "周末可约", active: "今天活跃", looking: "可接陪拍"),
-            serviceType: .offline, specialty: "市集陪拍",
+            serviceType: .photo, specialty: "市集陪拍",
             hourlyPrice: 158, orderCount: 47, isAvailable: true,
             responseTime: "通常 1 小时内",
             scheduleSlots: ["周六下午", "周日上午"],
@@ -919,7 +943,7 @@ enum SampleData {
                            seeds: [701, 702, 708], city: "成都 · 锦江",
                            bio: "东湖 / 锦江夜骑陪玩，含路线讲解与安全提醒，可按配速定制。",
                            tags: ["骑行", "路线规划", "新手友好"], avail: "今日可约", active: "在线", looking: "可接夜骑陪玩"),
-            serviceType: .activity, specialty: "夜骑领队 / 城市骑行陪玩",
+            serviceType: .sport, specialty: "夜骑领队 / 城市骑行陪玩",
             hourlyPrice: 118, orderCount: 96, isAvailable: true,
             responseTime: "通常 10 分钟内",
             scheduleSlots: ["今日 20:00", "明日 19:00", "周六 21:00"],
@@ -930,7 +954,7 @@ enum SampleData {
                            seeds: [710, 711, 720], city: "成都 · 高新区",
                            bio: "羽毛球约场陪练与轻度技术纠正，可单次也可包周。场地费另计。",
                            tags: ["羽毛球", "陪练", "纠正动作"], avail: "明日 18:00 后", active: "今天活跃", looking: "可接羽毛球陪练"),
-            serviceType: .activity, specialty: "羽毛球陪练",
+            serviceType: .sport, specialty: "羽毛球陪练",
             hourlyPrice: 158, orderCount: 72, isAvailable: true,
             responseTime: "通常 30 分钟内",
             scheduleSlots: ["明日 18:30", "周四 19:00"],
@@ -974,7 +998,7 @@ enum SampleData {
                            seeds: [790, 791, 800], city: "成都 · 成华",
                            bio: "夜跑陪跑与拉伸指导，可按配速分组。",
                            tags: ["跑步", "拉伸", "陪跑"], avail: "今晚可约", active: "在线", looking: "可接夜跑陪跑"),
-            serviceType: .activity, specialty: "夜跑陪跑",
+            serviceType: .sport, specialty: "夜跑陪跑",
             hourlyPrice: 108, orderCount: 54, isAvailable: true,
             responseTime: "通常 20 分钟内",
             scheduleSlots: ["今晚 19:30", "周五 19:30"],
@@ -985,7 +1009,7 @@ enum SampleData {
                            seeds: [810, 811, 820], city: "成都 · 武侯",
                            bio: "市集 / 玉林拍照陪拍，出图快，可按风格沟通。",
                            tags: ["摄影", "市集", "陪拍"], avail: "周末可约", active: "今天活跃", looking: "可接陪拍"),
-            serviceType: .offline, specialty: "市集陪拍",
+            serviceType: .photo, specialty: "市集陪拍",
             hourlyPrice: 148, orderCount: 41, isAvailable: true,
             responseTime: "通常 1 小时内",
             scheduleSlots: ["周六下午", "周日上午"],
@@ -997,7 +1021,7 @@ enum SampleData {
                            seeds: [1401, 1402, 1403], city: "上海 · 黄浦",
                            bio: "滨江骑行陪玩，含安全提醒与补给建议。",
                            tags: ["骑行", "新手友好", "路线规划"], avail: "今日可约", active: "在线", looking: "可接夜骑陪玩"),
-            serviceType: .activity, specialty: "城市骑行陪玩",
+            serviceType: .sport, specialty: "城市骑行陪玩",
             hourlyPrice: 118, orderCount: 58, isAvailable: true,
             responseTime: "通常 15 分钟内",
             scheduleSlots: ["今日 20:00", "周六 09:00"], relatedActivityTitles: []
@@ -1007,7 +1031,7 @@ enum SampleData {
                            seeds: [1411, 1412, 1413], city: "上海 · 静安",
                            bio: "羽毛球陪练，可轻度纠正动作，场地费另计。",
                            tags: ["羽毛球", "陪练", "纠正动作"], avail: "今晚可约", active: "在线", looking: "可接羽毛球陪练"),
-            serviceType: .activity, specialty: "羽毛球陪练",
+            serviceType: .sport, specialty: "羽毛球陪练",
             hourlyPrice: 158, orderCount: 72, isAvailable: true,
             responseTime: "通常 20 分钟内",
             scheduleSlots: ["今晚 20:00", "周三 19:30"], relatedActivityTitles: []
@@ -1027,7 +1051,7 @@ enum SampleData {
                            seeds: [1431, 1432, 1433], city: "上海 · 浦东",
                            bio: "夜跑陪跑与跑后拉伸，可按配速分组。",
                            tags: ["跑步", "拉伸", "陪跑"], avail: "今晚可约", active: "在线", looking: "可接夜跑陪跑"),
-            serviceType: .activity, specialty: "夜跑陪跑",
+            serviceType: .sport, specialty: "夜跑陪跑",
             hourlyPrice: 108, orderCount: 44, isAvailable: true,
             responseTime: "通常 20 分钟内",
             scheduleSlots: ["今晚 19:30"], relatedActivityTitles: []
@@ -1047,7 +1071,7 @@ enum SampleData {
                            seeds: [1451, 1452, 1453], city: "上海 · 浦东",
                            bio: "网球 / 羽毛球陪练，入门友好。",
                            tags: ["网球", "羽毛球", "陪练"], avail: "明日可约", active: "今天活跃", looking: "可接球类陪练"),
-            serviceType: .activity, specialty: "网球羽毛球陪练",
+            serviceType: .sport, specialty: "网球羽毛球陪练",
             hourlyPrice: 168, orderCount: 53, isAvailable: true,
             responseTime: "通常 30 分钟内",
             scheduleSlots: ["明日 19:00", "周四 19:00"], relatedActivityTitles: []
@@ -1057,7 +1081,7 @@ enum SampleData {
                            seeds: [1461, 1462, 1463], city: "上海 · 长宁",
                            bio: "市集陪拍，出图快，可沟通风格。",
                            tags: ["摄影", "市集", "陪拍"], avail: "周末可约", active: "今天活跃", looking: "可接陪拍"),
-            serviceType: .offline, specialty: "市集陪拍",
+            serviceType: .photo, specialty: "市集陪拍",
             hourlyPrice: 148, orderCount: 29, isAvailable: true,
             responseTime: "通常 1 小时内",
             scheduleSlots: ["周六下午", "周日上午"], relatedActivityTitles: []
@@ -1087,7 +1111,7 @@ enum SampleData {
                            seeds: [1491, 1492, 1493], city: "上海 · 黄浦",
                            bio: "夜骑续摊陪玩，可按配速定制。",
                            tags: ["骑行", "夜骑", "新手友好"], avail: "周五可约", active: "在线", looking: "可接夜骑陪玩"),
-            serviceType: .activity, specialty: "夜骑陪玩",
+            serviceType: .sport, specialty: "夜骑陪玩",
             hourlyPrice: 122, orderCount: 47, isAvailable: true,
             responseTime: "通常 10 分钟内",
             scheduleSlots: ["周五 21:00", "周六 20:00"], relatedActivityTitles: []
@@ -1108,7 +1132,7 @@ enum SampleData {
                            seeds: [1511, 1512, 1513], city: "成都 · 锦江",
                            bio: "东湖夜骑陪玩，含路线讲解。",
                            tags: ["骑行", "路线规划", "新手友好"], avail: "今日可约", active: "在线", looking: "可接夜骑陪玩"),
-            serviceType: .activity, specialty: "夜骑陪玩",
+            serviceType: .sport, specialty: "夜骑陪玩",
             hourlyPrice: 112, orderCount: 62, isAvailable: true,
             responseTime: "通常 10 分钟内",
             scheduleSlots: ["今日 20:00"], relatedActivityTitles: []
@@ -1118,7 +1142,7 @@ enum SampleData {
                            seeds: [1521, 1522, 1523], city: "成都 · 高新区",
                            bio: "羽毛球陪练，工作日晚饭后灵活。",
                            tags: ["羽毛球", "陪练", "拉伸"], avail: "工作日可约", active: "今天活跃", looking: "可接羽毛球陪练"),
-            serviceType: .activity, specialty: "羽毛球陪练",
+            serviceType: .sport, specialty: "羽毛球陪练",
             hourlyPrice: 148, orderCount: 49, isAvailable: true,
             responseTime: "通常 30 分钟内",
             scheduleSlots: ["周二 19:30", "周四 19:30"], relatedActivityTitles: []
@@ -1148,7 +1172,7 @@ enum SampleData {
                            seeds: [1551, 1552, 1553], city: "成都 · 金牛",
                            bio: "市集陪拍与轻松出片，可沟通风格。",
                            tags: ["摄影", "市集", "陪拍"], avail: "周末可约", active: "今天活跃", looking: "可接陪拍"),
-            serviceType: .offline, specialty: "市集陪拍",
+            serviceType: .photo, specialty: "市集陪拍",
             hourlyPrice: 128, orderCount: 22, isAvailable: true,
             responseTime: "通常 1 小时内",
             scheduleSlots: ["周六下午"], relatedActivityTitles: []

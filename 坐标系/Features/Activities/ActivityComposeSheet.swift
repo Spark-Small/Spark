@@ -61,7 +61,7 @@ struct ActivityComposeSheet: View {
     private var isEditing: Bool { editingActivity != nil }
 
     private var publishCategories: [ActivityCategory] {
-        ActivityCategory.allCases.filter { $0 != .all }
+        ActivityCategory.allCases.filter { !$0.isBrowseAggregate }
     }
 
     private var canPublish: Bool {
@@ -160,6 +160,7 @@ struct ActivityComposeSheet: View {
                     latitude: $latitude,
                     longitude: $longitude
                 )
+                .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
         .platformSheet(.form)
@@ -176,7 +177,7 @@ struct ActivityComposeSheet: View {
         guard !didPrefill, let activity = editingActivity else { return }
         didPrefill = true
         title = activity.title
-        category = activity.category == .all ? .outdoorSports : activity.category
+        category = activity.category.isBrowseAggregate ? .outdoorSports : activity.category
         location = activity.location
         date = max(activity.date, Date())
         capacity = max(activity.capacity, 2)

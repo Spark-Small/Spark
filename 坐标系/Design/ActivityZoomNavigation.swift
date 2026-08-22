@@ -11,19 +11,12 @@ import SwiftUI
 
 enum ActivityZoomClip {
     case card
-    /// 16:9 跟进 / 热场横卡
-    case rail
-    /// 2:3 榜单竖海报
-    case poster
-    case editorial
     /// 「我的」长条凭证
     case passStrip
 
     var shape: RoundedRectangle {
         switch self {
         case .card: PlatformMetrics.cardShape
-        case .rail, .poster: PlatformMetrics.posterShape
-        case .editorial: PlatformMetrics.editorialShape
         case .passStrip: PlatformMetrics.walletPassStripBarShape
         }
     }
@@ -123,6 +116,7 @@ struct ActivityZoomDetailDestination: View {
     var body: some View {
         ActivityDetailView(activityID: source.activityID)
             .activityZoomNavigationTransition(source, in: namespace)
+            .toolbarVisibility(.hidden, for: .tabBar)
             .task(id: source.activityID) {
                 await ActivityZoomEngagement.recordAfterTransition(
                     activityID: source.activityID,
@@ -140,6 +134,7 @@ struct ActivityCredentialExpandedDestination: View {
     var body: some View {
         ActivityCredentialExpandedView(activityID: source.activityID)
             .activityZoomNavigationTransition(source, in: namespace)
+            .toolbarVisibility(.hidden, for: .tabBar)
     }
 }
 
@@ -194,11 +189,13 @@ struct ActivityZoomNavigationLink<Label: View>: View {
         intent: ActivityZoomIntent = .browseDetail,
         @ViewBuilder label: @escaping () -> Label
     ) {
-        activityID = activity.id
-        self.namespace = namespace
-        self.clip = clip
-        self.intent = intent
-        self.label = label
+        self.init(
+            activityID: activity.id,
+            namespace: namespace,
+            clip: clip,
+            intent: intent,
+            label: label
+        )
     }
 
     init(

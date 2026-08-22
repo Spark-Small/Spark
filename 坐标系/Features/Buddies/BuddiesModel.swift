@@ -11,9 +11,10 @@ import Observation
 final class BuddiesModel {
     var filter = BuddyFilter()
     var inviteTarget: BuddyInviteTarget?
-    var bookingTarget: PaidCompanion?
-    /// 打开预约 Sheet 时预选的自然日（详情日历点选）
-    var bookingInitialDay: Date?
+    var bookingPresentation: BuddyBookingPresentation?
+    var pendingBookingAcknowledgementID: BuddyBookingRecord.ID?
+    var pendingBookingSuccessID: BuddyBookingRecord.ID?
+    var pendingInviteSuccessID: BuddyInviteRecord.ID?
     var pendingPaymentBookingID: BuddyBookingRecord.ID?
     var pendingSafetyCheckInBookingID: BuddyBookingRecord.ID?
     var toastMessage: String?
@@ -44,9 +45,9 @@ final class BuddiesModel {
     var pendingOrgJoin: BuddyOrgJoinTarget?
     /// 加入成功页
     var pendingOrgJoinSuccess: BuddyOrgJoinSuccess?
-    /// 加入组织后待打开的组织群会话
+    /// 加入圈子后待打开的圈子群会话
     var pendingOpenConversationID: UUID?
-    /// 邀请成员进组织
+    /// 邀请成员进圈子
     var pendingOrgInvite: BuddyOrgInviteTarget?
 
     @ObservationIgnored private var freeItemsCacheKey = ""
@@ -142,7 +143,7 @@ final class BuddiesModel {
         SampleData.companionGuilds.filter { joinedGuildNames.contains($0.name) }
     }
 
-    /// 同好页货架 / 发现列表：只推未加入的组织
+    /// 同好页货架 / 发现列表：只推未加入的圈子
     var allCircles: [InterestCircle] {
         SampleData.interestCircles.filter {
             matchesBrowseLocation($0.city) && !joinedCircleNames.contains($0.name)
@@ -164,9 +165,11 @@ final class BuddiesModel {
         if key == freeItemsCacheKey { return freeItemsCache }
         let sorted = SampleData.circleBuddies
             .filter {
-                !blockedUserNames.contains($0.profile.nickname)
+                var base = filter
+                base.availableOnly = false
+                return !blockedUserNames.contains($0.profile.nickname)
                     && !isHidden(nickname: $0.profile.nickname)
-                    && $0.profile.matches(filter)
+                    && $0.profile.matches(base)
                     && matchesBrowseLocation($0.profile.city)
             }
             .map(DiscoverBuddyItem.free)
@@ -176,20 +179,41 @@ final class BuddiesModel {
         return sorted
     }
 
-    /// 陪玩舞台列表（不受 kind 限制；可约开关生效）
+    /// 预约列表（服务类型 / 可约开关生效）
     var paidItems: [DiscoverBuddyItem] {
         let key = paidDiscoveryKey
         if key == paidItemsCacheKey { return paidItemsCache }
         let sorted = SampleData.paidCompanions
-            .filter {
-                !blockedUserNames.contains($0.profile.nickname)
-                    && !isHidden(nickname: $0.profile.nickname)
-                    && $0.profile.matches(filter)
-                    && (!filter.availableOnly || $0.isAvailable)
-                    && matchesBrowseLocation($0.profile.city)
+            .filter { companion in
+                guard !blockedUserNames.contains(companion.profile.nickname),
+                      !isHidden(nickname: companion.profile.nickname),
+                      matchesBrowseLocation(companion.profile.city),
+                      filter.serviceType == nil || companion.serviceType == filter.serviceType,
+                      !filter.availableOnly || companion.isAvailable
+                else { return false }
+
+                var base = filter
+                let query = base.query
+                base.query = ""
+                guard companion.profile.matches(base) else { return false }
+
+                let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+                if q.isEmpty { return true }
+                return companion.profile.matchesQuery(q)
+                    || companion.specialty.localizedCaseInsensitiveContains(q)
             }
             .map(DiscoverBuddyItem.paid)
-            .sorted { $0.matchScore > $1.matchScore }
+            .sorted { lhs, rhs in
+                switch (lhs, rhs) {
+                case (.paid(let a), .paid(let b)):
+                    if a.isVerified != b.isVerified { return a.isVerified && !b.isVerified }
+                    if a.isAvailable != b.isAvailable { return a.isAvailable && !b.isAvailable }
+                    if lhs.matchScore != rhs.matchScore { return lhs.matchScore > rhs.matchScore }
+                    return a.hourlyPrice < b.hourlyPrice
+                default:
+                    return lhs.matchScore > rhs.matchScore
+                }
+            }
         paidItemsCacheKey = key
         paidItemsCache = sorted
         return sorted
@@ -202,12 +226,95 @@ final class BuddiesModel {
 
     var isPaidPage: Bool { filter.kind == .paid }
 
+    /// 人列表排序（推荐：有搜索词时优先意图重合）
+    func sortedPeople(_ items: [DiscoverBuddyItem], by sort: BuddyPeopleSort) -> [DiscoverBuddyItem] {
+        switch sort {
+        case .recommended:
+            let looking = filter.query.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !looking.isEmpty else { return items }
+            return items.sorted { lhs, rhs in
+                let lm = lhs.profile.matchesQuery(looking)
+                let rm = rhs.profile.matchesQuery(looking)
+                if lm != rm { return lm && !rm }
+                return lhs.matchScore > rhs.matchScore
+            }
+        case .nearby:
+            return items.sorted { $0.profile.distanceKM < $1.profile.distanceKM }
+        case .active:
+            return items.sorted { activeRank($0) > activeRank($1) }
+        }
+    }
+
+    /// 预约列表排序（推荐沿用默认；价格 / 最早可约服务比价）
+    func sortedBookings(_ items: [DiscoverBuddyItem], by sort: BuddyBookingSort) -> [DiscoverBuddyItem] {
+        switch sort {
+        case .recommended:
+            return items
+        case .price:
+            return items.sorted { lhs, rhs in
+                guard case .paid(let a) = lhs, case .paid(let b) = rhs else {
+                    return lhs.matchScore > rhs.matchScore
+                }
+                if a.isAvailable != b.isAvailable { return a.isAvailable && !b.isAvailable }
+                if a.hourlyPrice != b.hourlyPrice { return a.hourlyPrice < b.hourlyPrice }
+                return lhs.matchScore > rhs.matchScore
+            }
+        case .earliest:
+            return items.sorted { lhs, rhs in
+                guard case .paid(let a) = lhs, case .paid(let b) = rhs else {
+                    return lhs.matchScore > rhs.matchScore
+                }
+                if a.isAvailable != b.isAvailable { return a.isAvailable && !b.isAvailable }
+                let ra = earliestSlotRank(a)
+                let rb = earliestSlotRank(b)
+                if ra != rb { return ra < rb }
+                return a.hourlyPrice < b.hourlyPrice
+            }
+        }
+    }
+
+    private func activeRank(_ item: DiscoverBuddyItem) -> Int {
+        if case .free(let buddy) = item, buddy.isOnline { return 300 }
+        let text = item.profile.lastActiveText
+        if text.contains("刚刚") || text.contains("在线") { return 200 }
+        if text.contains("分钟") { return 150 }
+        if text.contains("小时") || text.contains("今天") { return 100 }
+        if text.contains("昨天") { return 50 }
+        return 0
+    }
+
+    private func earliestSlotRank(_ companion: PaidCompanion) -> Int {
+        if !companion.isAvailable { return 10_000 }
+        let text = (
+            companion.scheduleSlots.first
+                ?? companion.profile.availability
+        ).lowercased()
+        if text.isEmpty { return 800 }
+        if text.contains("今晚") || text.contains("今天") { return 0 }
+        if text.contains("小时") || text.contains("分钟") { return 20 }
+        if text.contains("明天") { return 40 }
+        if text.contains("周末") { return 120 }
+        return 200
+    }
+
+    /// 需跟进的预约单（待确认 / 待支付 / 已支付 / 履约中）
+    var actionableBookingCount: Int {
+        bookingRecords.filter {
+            switch $0.status {
+            case .pendingConfirm, .awaitingPayment, .paid, .inProgress:
+                return true
+            default:
+                return false
+            }
+        }.count
+    }
+
     private var freeDiscoveryKey: String {
-        "free|\(usesSystemLocation)|\(locatedPlaceName ?? "")|\(selectedCityID)|\(filter.gender?.rawValue ?? "")|\(filter.maxDistanceKM)|\(filter.hobby ?? "")|\(blockedUserNames.sorted().joined(separator: ","))|\(hiddenBuddyNames.sorted().joined(separator: ","))"
+        "free|\(usesSystemLocation)|\(locatedPlaceName ?? "")|\(selectedCityID)|\(filter.gender?.rawValue ?? "")|\(filter.maxDistanceKM)|\(filter.hobby ?? "")|\(filter.query)|\(blockedUserNames.sorted().joined(separator: ","))|\(hiddenBuddyNames.sorted().joined(separator: ","))"
     }
 
     private var paidDiscoveryKey: String {
-        "paid|\(usesSystemLocation)|\(locatedPlaceName ?? "")|\(selectedCityID)|\(filter.gender?.rawValue ?? "")|\(filter.maxDistanceKM)|\(filter.hobby ?? "")|\(filter.availableOnly)|\(blockedUserNames.sorted().joined(separator: ","))|\(hiddenBuddyNames.sorted().joined(separator: ","))"
+        "paid|\(usesSystemLocation)|\(locatedPlaceName ?? "")|\(selectedCityID)|\(filter.gender?.rawValue ?? "")|\(filter.maxDistanceKM)|\(filter.hobby ?? "")|\(filter.query)|\(filter.serviceType?.rawValue ?? "")|\(filter.availableOnly)|\(blockedUserNames.sorted().joined(separator: ","))|\(hiddenBuddyNames.sorted().joined(separator: ","))"
     }
 
     func showSocialPage() {
@@ -232,6 +339,43 @@ final class BuddiesModel {
             ?? SampleData.paidCompanions
                 .first { $0.profile.nickname.caseInsensitiveCompare(nickname) == .orderedSame }
                 .map(DiscoverBuddyItem.paid)
+    }
+
+    /// 圈子成员昵称 → 发现项；无完整资料时用 SampleData.author + 圈子上下文合成占位。
+    func discoverItem(
+        for nickname: String,
+        fallbackCircleName: String,
+        fallbackTopic: String = ""
+    ) -> DiscoverBuddyItem {
+        if let item = item(for: nickname) {
+            return item
+        }
+        let author = SampleData.author(named: nickname)
+        return .free(
+            CircleBuddy(
+                profile: BuddyProfile(
+                    id: UUID(),
+                    nickname: author.name,
+                    gender: .male,
+                    age: 26,
+                    heightCM: 170,
+                    weightKG: 62,
+                    distanceKM: 1.2,
+                    photoSeeds: [abs(author.name.hashValue) % 9000 + 100],
+                    city: author.city,
+                    bio: author.bio,
+                    tags: author.tags,
+                    availability: "可约",
+                    lastActiveText: "今天活跃",
+                    lookingFor: "同城约局"
+                ),
+                circleName: fallbackCircleName,
+                topic: fallbackTopic,
+                isOnline: false,
+                scheduleSlots: [],
+                relatedActivityTitles: []
+            )
+        )
     }
 
     func isJoined(_ circle: InterestCircle) -> Bool {
@@ -347,8 +491,6 @@ final class BuddiesModel {
         }
     }
 
-    func resetFilter() { filter.reset() }
-
     /// 重置选人条件并回到系统定位
     func resetBrowseFilters() {
         filter.reset()
@@ -358,41 +500,52 @@ final class BuddiesModel {
     func invite(_ nickname: String) {
         inviteTarget = BuddyInviteTarget(nickname: nickname)
     }
-    func book(_ companion: PaidCompanion, initialDay: Date? = nil) {
+    func book(
+        _ companion: PaidCompanion,
+        initialDay: Date? = nil,
+        serviceSKU: BuddyCompanionServiceSKU? = nil
+    ) {
         if YouthModePreference.isEnabled {
             flash(GuestAccessGate.youthCommerceReason)
             return
         }
-        bookingInitialDay = initialDay
-        bookingTarget = companion
+        bookingPresentation = BuddyBookingPresentation(
+            companion: companion,
+            initialDay: initialDay,
+            serviceSKU: serviceSKU,
+            token: UUID()
+        )
+    }
+
+    func dismissBookingPresentation() {
+        bookingPresentation = nil
     }
 
     @discardableResult
-    func recordInvite(nickname: String, activity: Activity) -> BuddyInviteRecord {
+    func recordInvite(
+        nickname: String,
+        activity: Activity,
+        note: String? = nil
+    ) -> BuddyInviteRecord {
         let record = inviteService.createInvite(nickname: nickname, activity: activity)
         inviteRecords.insert(record, at: 0)
         inviteTarget = nil
+        pendingInviteSuccessID = record.id
         TrustService.shared.record(
             .inviteSent,
             domain: .buddy,
             actorKey: trustActorKey(),
-            subjectKey: nickname
+            subjectKey: nickname,
+            note: note
         )
         persist()
         onRecordsChanged?()
-        flash("已发给对方，等待回执")
         scheduleInviteReplySimulation(for: record.id)
         return record
     }
 
-    /// 打开邀请记录时推进「刚发出」的演示回执
-    func simulateInviteRepliesIfNeeded() {
-        for record in inviteRecords where record.status == .pending {
-            let age = Date.now.timeIntervalSince(record.sentAt)
-            if age > 5, age < 180 {
-                acceptInvite(record.id)
-            }
-        }
+    func dismissInviteSuccess() {
+        pendingInviteSuccessID = nil
     }
 
     func acceptInvite(_ id: BuddyInviteRecord.ID) {
@@ -440,17 +593,29 @@ final class BuddiesModel {
             slotLabel: slotLabel
         )
         if hasScheduleConflict(candidate) {
-            flash("该时间与已有预约冲突，请改期")
+            flash(BuddyBookingFlowCopy.conflictHint)
             return nil
         }
         bookingRecords.insert(candidate, at: 0)
-        bookingTarget = nil
-        bookingInitialDay = nil
+        bookingPresentation = nil
+        pendingBookingAcknowledgementID = candidate.id
         persist()
         onRecordsChanged?()
-        flash("已提交预约，等待陪玩确认")
         scheduleCompanionAcceptSimulation(for: candidate.id)
         return candidate
+    }
+
+    var pendingBookingAcknowledgement: BuddyBookingRecord? {
+        guard let id = pendingBookingAcknowledgementID else { return nil }
+        return bookingRecords.first { $0.id == id }
+    }
+
+    func dismissBookingAcknowledgement() {
+        pendingBookingAcknowledgementID = nil
+    }
+
+    func dismissBookingSuccess() {
+        pendingBookingSuccessID = nil
     }
 
     /// 打开预约记录时推进「刚下单」的演示接单
@@ -467,15 +632,21 @@ final class BuddiesModel {
         guard let index = bookingRecords.firstIndex(where: { $0.id == id }) else { return }
         guard bookingRecords[index].status == .pendingConfirm else { return }
         bookingRecords[index] = bookingService.advanceBooking(bookingRecords[index], to: .awaitingPayment)
+        if pendingBookingAcknowledgementID == id {
+            pendingBookingAcknowledgementID = nil
+        }
         persist()
         onRecordsChanged?()
-        flash("\(bookingRecords[index].companionNickname) 已接单，可去支付")
+        beginPayment(id)
     }
 
     func declineBooking(_ id: BuddyBookingRecord.ID) {
         guard let index = bookingRecords.firstIndex(where: { $0.id == id }) else { return }
         guard bookingRecords[index].status == .pendingConfirm else { return }
         bookingRecords[index] = bookingService.advanceBooking(bookingRecords[index], to: .cancelled)
+        if pendingBookingAcknowledgementID == id {
+            pendingBookingAcknowledgementID = nil
+        }
         persist()
         onRecordsChanged?()
         flash("对方已拒单")
@@ -519,6 +690,7 @@ final class BuddiesModel {
         paid.paymentMethod = method.displayName
         bookingRecords[index] = paid
         pendingPaymentBookingID = nil
+        pendingBookingSuccessID = id
         TrustService.shared.record(
             .bookingPaid,
             domain: .booking,
@@ -530,7 +702,6 @@ final class BuddiesModel {
             companion: paid.companionNickname,
             at: paid.scheduledAt
         )
-        flash("支付成功")
         persist()
         onRecordsChanged?()
         WalletPassStore.shared.issueBookingTicket(for: paid)
@@ -549,6 +720,9 @@ final class BuddiesModel {
         bookingRecords[index] = bookingService.advanceBooking(bookingRecords[index], to: .cancelled)
         if pendingPaymentBookingID == id {
             pendingPaymentBookingID = nil
+        }
+        if pendingBookingAcknowledgementID == id {
+            pendingBookingAcknowledgementID = nil
         }
         persist()
         onRecordsChanged?()
@@ -689,33 +863,37 @@ final class BuddiesModel {
         onRecordsChanged?()
     }
 
-    func refundBooking(_ id: BuddyBookingRecord.ID) {
-        guard let index = bookingRecords.firstIndex(where: { $0.id == id }) else { return }
-        guard bookingRecords[index].canRefund else { return }
+    @discardableResult
+    func refundBooking(_ id: BuddyBookingRecord.ID, reason: String, detail: String) -> UUID? {
+        guard let index = bookingRecords.firstIndex(where: { $0.id == id }) else { return nil }
+        guard bookingRecords[index].canRefund else { return nil }
         let record = bookingRecords[index]
-        let amountCents = WalletMoney.cents(fromDisplay: record.priceText)
-            ?? max(record.hours, 1) * 6_800
-        let method = PaymentMethod.resolve(record.paymentMethod)
-        WalletStore.shared.credit(
-            amountCents: amountCents,
-            method: method,
-            kind: .bookingRefund,
-            title: "陪玩退款 · \(record.companionNickname)",
-            subtitle: record.priceText,
-            relatedID: record.id
+        let result = RefundFlowService.shared.submitBookingRefund(
+            record: record,
+            reason: reason,
+            detail: detail,
+            onFinalize: { [weak self] bookingID in
+                self?.completeBookingRefund(bookingID)
+            }
         )
-        bookingRecords[index] = bookingService.advanceBooking(record, to: .refunded)
-        NotificationService.cancelBookingReminder(bookingID: id)
-        WalletPassStore.shared.void(relatedID: record.id)
-        TrustService.shared.record(
-            .bookingRefunded,
-            domain: .booking,
-            actorKey: trustActorKey(),
-            subjectKey: record.companionNickname
-        )
+        switch result {
+        case .success(let refundRecord):
+            persist()
+            onRecordsChanged?()
+            flash("退款申请已提交")
+            return refundRecord.id
+        case .failure(let error):
+            flash(error.localizedDescription)
+            return nil
+        }
+    }
+
+    private func completeBookingRefund(_ id: BuddyBookingRecord.ID) {
+        guard let index = bookingRecords.firstIndex(where: { $0.id == id }) else { return }
+        bookingRecords[index] = bookingService.advanceBooking(bookingRecords[index], to: .refunded)
         persist()
         onRecordsChanged?()
-        flash(method.affectsWalletBalance ? "已退回钱包余额" : "已申请退款，预计原路退回")
+        flash("退款已完成")
     }
 
     func cancelBooking(_ id: BuddyBookingRecord.ID) {
@@ -863,6 +1041,14 @@ final class BuddiesModel {
 struct BuddyInviteTarget: Identifiable, Hashable {
     let nickname: String
     var id: String { nickname }
+}
+
+struct BuddyBookingPresentation: Identifiable, Hashable {
+    let companion: PaidCompanion
+    var initialDay: Date?
+    var serviceSKU: BuddyCompanionServiceSKU?
+    let token: UUID
+    var id: UUID { token }
 }
 
 enum BuddyOrgJoinTarget: Identifiable, Hashable {

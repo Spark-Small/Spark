@@ -62,6 +62,7 @@ struct CommunityPostActionBar: View {
         .sensoryFeedback(.selection, trigger: isBookmarked)
         .sheet(item: $activeSheet) { sheet in
             sheet.sheet(postID: post.id)
+                .toolbarVisibility(.hidden, for: .tabBar)
         }
     }
 

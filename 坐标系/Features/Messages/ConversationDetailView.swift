@@ -13,6 +13,8 @@ struct ConversationDetailView: View {
     let conversationID: ChatConversation.ID
     var focusMessageID: ChatMessage.ID? = nil
     var pendingCallID: CallSessionRecord.ID? = nil
+    var chatContext: ConversationChatContext? = nil
+    var onOpenCircleInfo: ((InterestCircle) -> Void)? = nil
 
     @Environment(MessagesModel.self) private var model
     @Environment(BuddiesModel.self) private var buddies
@@ -58,7 +60,32 @@ struct ConversationDetailView: View {
     }
 
     private var canSend: Bool {
-        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isOutboundBlocked
+    }
+
+    private var isOutboundBlocked: Bool {
+        guard chatContext != nil else { return false }
+        guard !model.hasPeerReply(in: conversationID) else { return false }
+        return model.trailingOutboundCount(for: conversationID)
+            >= ConversationChatContext.coldOutreachLimit
+    }
+
+    private var composerEnabled: Bool {
+        guard let conversation else { return false }
+        return conversation.kind != .notice && !isOutboundBlocked
+    }
+
+    private var quickReplyTemplates: [(label: String, text: String)] {
+        guard let chatContext else { return [] }
+        return chatContext.quickReplies(
+            peerName: conversation?.title ?? "",
+            activities: activities,
+            currentUser: app.user
+        )
+    }
+
+    private var quickReplySectionTitle: String {
+        chatContext?.quickReplySectionTitle ?? MessagesCopy.quickReplySectionTitle
     }
 
     var body: some View {
@@ -66,13 +93,13 @@ struct ConversationDetailView: View {
             if let conversation {
                 chatBody(conversation)
             } else {
-                ContentUnavailableView(
-                    MessagesCopy.conversationMissing,
-                    systemImage: "bubble.left.and.exclamationmark.bubble.right"
-                )
+                Color.clear
+                    .onAppear { dismiss() }
             }
         }
-        .platformSecondaryPage()
+        .onChange(of: model.conversations.map(\.id)) { _, ids in
+            if !ids.contains(conversationID) { dismiss() }
+        }
     }
 
     @ViewBuilder
@@ -200,12 +227,24 @@ struct ConversationDetailView: View {
                         .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
                     }
                 }
+                if isOutboundBlocked {
+                    Text(MessagesCopy.outboundBlockedNotice)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .platformMessagePagePadding()
+                        .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
+                        .background(PlatformSurface.canvas)
+                } else if !quickReplyTemplates.isEmpty {
+                    quickReplyBar(for: conversation)
+                }
                 PlatformMessageComposerBar(
                     draft: $draft,
                     placeholder: conversation.kind == .notice
                         ? MessagesCopy.noticePlaceholder
                         : MessagesCopy.sendPlaceholder,
-                    isEnabled: conversation.kind != .notice,
+                    isEnabled: composerEnabled,
                     canSend: canSend,
                     isFocused: $isComposerFocused,
                     replyPreview: replyTo.map {
@@ -265,6 +304,7 @@ struct ConversationDetailView: View {
             GroupManageSheet(conversationID: conversationID) { activity in
                 selectedActivity = activity
             }
+            .toolbarVisibility(.hidden, for: .tabBar)
         }
         .sheet(isPresented: $showTransfer) {
             ChatTransferSheet { amount in
@@ -276,6 +316,7 @@ struct ConversationDetailView: View {
                 sendPulse += 1
                 return true
             }
+            .toolbarVisibility(.hidden, for: .tabBar)
         }
         .sheet(isPresented: $showCallHistory) {
             CallHistorySheet(conversationID: conversationID) { kind in
@@ -286,6 +327,7 @@ struct ConversationDetailView: View {
                     activeCallID = model.startVideoCall(in: conversationID)?.id
                 }
             }
+            .toolbarVisibility(.hidden, for: .tabBar)
         }
         .fullScreenCover(isPresented: Binding(
             get: { activeCallID != nil },
@@ -301,6 +343,7 @@ struct ConversationDetailView: View {
                 latitude: $locationLatitude,
                 longitude: $locationLongitude
             )
+            .toolbarVisibility(.hidden, for: .tabBar)
             .onDisappear {
                 guard let lat = locationLatitude, let lon = locationLongitude else { return }
                 let name = locationDraft.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -347,7 +390,7 @@ struct ConversationDetailView: View {
             Text(MessagesCopy.friendBlockConfirmMessage)
         }
         .alert(
-            "退出组织？",
+            "退出圈子？",
             isPresented: $confirmLeaveCircle
         ) {
             Button(MessagesCopy.leaveGroup, role: .destructive) {
@@ -355,7 +398,7 @@ struct ConversationDetailView: View {
             }
             Button(MessagesCopy.cancel, role: .cancel) {}
         } message: {
-            Text("退出后将离开组织群聊，成员设置会清除，可随时重新加入。")
+            Text("退出后将离开圈子群聊，成员设置会清除，可随时重新加入。")
         }
         .sensoryFeedback(.success, trigger: sendPulse)
         .sensoryFeedback(.impact(flexibility: .soft), trigger: likePulse)
@@ -366,9 +409,6 @@ struct ConversationDetailView: View {
                 try? await Task.sleep(for: .milliseconds(600))
                 if copyFeedback == value { copyFeedback = nil }
             }
-        }
-        .onChange(of: model.conversations.map(\.id)) { _, ids in
-            if !ids.contains(conversationID) { dismiss() }
         }
         .alert(
             MessagesCopy.deleteDialogTitle,
@@ -384,10 +424,12 @@ struct ConversationDetailView: View {
         }
         .sheet(item: $selectedBuddy) { item in
             NavigationStack { BuddyDetailRouteView(item: item) }
+                .toolbarVisibility(.hidden, for: .tabBar)
                 .platformSheet(.browser)
         }
         .sheet(item: $selectedActivity) { activity in
             NavigationStack { ActivityDetailView(activity: activity) }
+                .toolbarVisibility(.hidden, for: .tabBar)
                 .platformSheet(.browser)
         }
         .sheet(isPresented: Binding(
@@ -396,6 +438,7 @@ struct ConversationDetailView: View {
         )) {
             if let selectedPostID {
                 NavigationStack { CommunityPostDetailView(postID: selectedPostID) }
+                    .toolbarVisibility(.hidden, for: .tabBar)
                     .platformSheet(.browser)
             }
         }
@@ -502,7 +545,15 @@ struct ConversationDetailView: View {
             switch conversation.kind {
             case .direct:
                 return { selectedBuddy = buddies.item(for: conversation.title) }
-            case .activity, .circle, .group, .notice:
+            case .circle:
+                return {
+                    if let circle = circleForConversation(conversation) {
+                        onOpenCircleInfo?(circle)
+                    } else {
+                        showGroupManage = true
+                    }
+                }
+            case .activity, .group, .notice:
                 return conversation.isGroup ? { showGroupManage = true } : nil
             }
         }()
@@ -544,7 +595,13 @@ struct ConversationDetailView: View {
                 }
             }
             if conversation.isGroup {
-                Button(MessagesCopy.groupManage, systemImage: "person.3") {
+                if conversation.isCircleGroup,
+                   let circle = circleForConversation(conversation) {
+                    Button("圈子信息", systemImage: "info.circle") {
+                        onOpenCircleInfo?(circle)
+                    }
+                }
+                Button(MessagesCopy.groupManage, systemImage: "gearshape") {
                     showGroupManage = true
                 }
             }
@@ -579,6 +636,7 @@ struct ConversationDetailView: View {
                     Button(MessagesCopy.leaveGroup, systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
                         if let activityID = conversation.relatedActivityID {
                             app.cancelActivityRegistration(activityID)
+                            dismiss()
                         } else {
                             model.requestDelete(conversation)
                         }
@@ -610,20 +668,61 @@ struct ConversationDetailView: View {
     }
 
     private func send(to id: ChatConversation.ID) {
+        guard !isOutboundBlocked else { return }
         guard model.send(text: draft, to: id, replyingTo: replyTo) != nil else { return }
         draft = ""
         replyTo = nil
         sendPulse += 1
     }
 
+    private func sendQuickReply(_ text: String, to id: ChatConversation.ID) {
+        guard !isOutboundBlocked else { return }
+        guard model.send(text: text, to: id) != nil else { return }
+        sendPulse += 1
+    }
+
+    @ViewBuilder
+    private func quickReplyBar(for conversation: ChatConversation) -> some View {
+        VStack(alignment: .leading, spacing: PlatformMetrics.formRowVerticalPadding) {
+            Text(quickReplySectionTitle)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .platformMessagePagePadding()
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
+                    ForEach(quickReplyTemplates, id: \.label) { template in
+                        Button(template.label) {
+                            sendQuickReply(template.text, to: conversation.id)
+                        }
+                        .font(.caption)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .accessibilityLabel("\(MessagesCopy.quickReplySectionTitle)：\(template.text)")
+                    }
+                }
+                .platformMessagePagePadding()
+            }
+        }
+        .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
+        .background(PlatformSurface.canvas)
+    }
+
+    private func circleForConversation(_ conversation: ChatConversation) -> InterestCircle? {
+        guard let circleID = conversation.relatedCircleID else { return nil }
+        return SampleData.circle(id: circleID)
+    }
+
     private func leaveCircleGroupIfPossible() {
         guard let conversation else {
+            dismiss()
             return
         }
         if let circleID = conversation.relatedCircleID,
            let circle = SampleData.interestCircles.first(where: { $0.id == circleID }) {
             model.leaveCircleChat(circleID: circleID, leaverName: app.user.name)
             buddies.leaveCircle(circle)
+            dismiss()
         } else {
             model.requestDelete(conversation)
         }

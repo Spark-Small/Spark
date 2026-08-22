@@ -104,6 +104,7 @@ private extension View {
         sheet(item: document) { doc in
             NavigationStack {
                 doc.destination
+                    .toolbarVisibility(.hidden, for: .tabBar)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button("完成") { document.wrappedValue = nil }
@@ -140,16 +141,20 @@ extension View {
 struct LegalConsentCheckbox: View {
     @Binding var isChecked: Bool
     @Binding var showAlert: Bool
+    var centersContent = true
 
     @State private var document: LegalConsentDocument?
 
     var body: some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(alignment: .center, spacing: PlatformMetrics.minContentGap) {
             Button(action: toggleOrPrompt) {
                 Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
                     .font(.body)
                     .foregroundStyle(isChecked ? Color.accentColor : Color(.tertiaryLabel))
-                    .frame(width: 22, height: 22)
+                    .frame(
+                        width: PlatformMetrics.navigationBarButtonSide * 0.6,
+                        height: PlatformMetrics.navigationBarButtonSide * 0.6
+                    )
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -158,7 +163,7 @@ struct LegalConsentCheckbox: View {
             .accessibilityHint(isChecked ? "再次点击可取消勾选" : "打开用户协议与隐私保护说明")
 
             Text(LegalConsentCopy.checkboxLabel)
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.leading)
                 .environment(\.openURL, OpenURLAction { url in
@@ -168,7 +173,7 @@ struct LegalConsentCheckbox: View {
                 .contentShape(Rectangle())
                 .onTapGesture(perform: toggleOrPrompt)
         }
-        .frame(maxWidth: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, alignment: centersContent ? .center : .leading)
         .legalDocumentSheet($document)
     }
 
@@ -240,7 +245,7 @@ struct ProductLifecycleBanner: View {
         .padding(PlatformMetrics.contentInset)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: PlatformMetrics.radiusCard, style: .continuous)
                 .fill(PlatformSurface.elevated)
         )
         .padding(.horizontal, PlatformMetrics.contentInset)
@@ -292,6 +297,34 @@ struct SettingsHelpFeedbackView: View {
                 TextField("联系方式（选填）", text: $contact)
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
+            } header: {
+                Text("提交反馈")
+            } footer: {
+                Text("反馈保存在本机，便于演示运营闭环；正式版将同步客服工单。")
+            }
+
+            if !OpsContentStore.shared.feedback.isEmpty {
+                Section("我提交过的") {
+                    ForEach(OpsContentStore.shared.feedback.prefix(8)) { item in
+                        VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
+                            LabeledContent(item.category, value: item.status)
+                            Text(item.content)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Text(Formatters.conversationListTime(from: item.createdAt))
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+            }
+        }
+        .navigationTitle("帮助与反馈")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarVisibility(.hidden, for: .tabBar)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
                 Button("提交") {
                     if OpsContentStore.shared.submitFeedback(
                         category: category,
@@ -306,38 +339,8 @@ struct SettingsHelpFeedbackView: View {
                     }
                 }
                 .fontWeight(.semibold)
-            } header: {
-                Text("提交反馈")
-            } footer: {
-                Text("反馈保存在本机，便于演示运营闭环；正式版将同步客服工单。")
-            }
-
-            if !OpsContentStore.shared.feedback.isEmpty {
-                Section("我提交过的") {
-                    ForEach(OpsContentStore.shared.feedback.prefix(8)) { item in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text(item.category)
-                                    .font(.subheadline.weight(.semibold))
-                                Spacer()
-                                Text(item.status)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Text(item.content)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            Text(Formatters.conversationListTime(from: item.createdAt))
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-                }
             }
         }
-        .navigationTitle("帮助与反馈")
-        .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
         .alert("已收到反馈", isPresented: $didSubmit) {
             Button("好的", role: .cancel) {}
         } message: {
@@ -403,7 +406,7 @@ struct SettingsPermissionsView: View {
         }
         .navigationTitle("系统权限")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
+        .toolbarVisibility(.hidden, for: .tabBar)
         .task { await refresh() }
     }
 
@@ -413,19 +416,21 @@ struct SettingsPermissionsView: View {
         status: String,
         detail: String
     ) -> some View {
-        HStack(alignment: .top, spacing: PlatformConversationListRow.imageToTextPadding) {
-            Label(title, systemImage: systemImage)
-                .platformContentSymbolStyle()
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(status)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Text(detail)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .multilineTextAlignment(.trailing)
+        LabeledContent {
+            Text(status)
+                .foregroundStyle(.secondary)
+        } label: {
+            Label {
+                VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
+                    Text(title)
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            } icon: {
+                Image(systemName: systemImage)
             }
+            .platformContentSymbolStyle()
         }
         .accessibilityElement(children: .combine)
     }
@@ -450,7 +455,7 @@ struct SettingsStorageView: View {
     @State private var confirmClear = false
     @State private var exportURL: URL?
     @State private var showExporter = false
-    @State private var toast: String?
+    @State private var statusMessage: String?
 
     var body: some View {
         Form {
@@ -472,33 +477,34 @@ struct SettingsStorageView: View {
             } footer: {
                 Text("清理会移除待发送本地通知、拉黑与举报工单中的演示噪音，并清空图片临时缓存；不会退出登录。导出为 JSON，可分享到文件 App。")
             }
-
-            if let toast {
-                Section {
-                    Text(toast)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
         }
         .navigationTitle("存储与导出")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
+        .toolbarVisibility(.hidden, for: .tabBar)
         .alert("清理本地缓存？", isPresented: $confirmClear) {
             Button("清理", role: .destructive) {
                 app.clearLocalCaches()
                 UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-                toast = "已清理通知队列、拉黑与举报工单。"
+                statusMessage = "已清理通知队列、拉黑与举报工单。"
             }
             Button("取消", role: .cancel) {}
         } message: {
             Text("不会删除账号、钱包余额与活动报名记录。")
+        }
+        .alert("提示", isPresented: Binding(
+            get: { statusMessage != nil },
+            set: { if !$0 { statusMessage = nil } }
+        )) {
+            Button("好的", role: .cancel) { statusMessage = nil }
+        } message: {
+            Text(statusMessage ?? "")
         }
         .sheet(isPresented: $showExporter) {
             if let exportURL {
                 PlatformShareSheet(items: [exportURL])
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
     }
@@ -539,7 +545,7 @@ struct SettingsStorageView: View {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
         guard let data = try? encoder.encode(payload) else {
-            toast = "导出失败"
+            statusMessage = "导出失败"
             return
         }
         let url = FileManager.default.temporaryDirectory
@@ -548,9 +554,9 @@ struct SettingsStorageView: View {
             try data.write(to: url, options: [.atomic])
             exportURL = url
             showExporter = true
-            toast = "已生成导出文件"
+            statusMessage = "已生成导出文件"
         } catch {
-            toast = "写入导出文件失败"
+            statusMessage = "写入导出文件失败"
         }
     }
 }
@@ -570,7 +576,7 @@ struct SettingsAnnouncementsView: View {
                         if $0.pin != $1.pin { return $0.pin && !$1.pin }
                         return $0.publishedAt > $1.publishedAt
                     }) { item in
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: PlatformMetrics.detailMicroSpacing) {
                             HStack {
                                 Text(item.title)
                                     .font(.body.weight(.semibold))
@@ -601,7 +607,7 @@ struct SettingsAnnouncementsView: View {
         .listStyle(.insetGrouped)
         .navigationTitle("运营公告")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
+        .toolbarVisibility(.hidden, for: .tabBar)
     }
 }
 
@@ -623,7 +629,7 @@ struct SettingsAcknowledgmentsView: View {
         }
         .navigationTitle("开源与致谢")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
+        .toolbarVisibility(.hidden, for: .tabBar)
     }
 }
 
@@ -650,7 +656,7 @@ struct SettingsYouthModeView: View {
         }
         .navigationTitle("青少年模式")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
+        .toolbarVisibility(.hidden, for: .tabBar)
     }
 }
 

@@ -110,7 +110,7 @@ struct TrustPrivateDashboardView: View {
                         .platformContentSymbolStyle()
                 }
             } footer: {
-                Text("他人只会看到等级、徽章与履约事实。")
+                Text("他人只会看到等级、形象认证、履约徽章与近 90 天事实；会员标识不在信任档案中。")
             }
 
             Section {
@@ -124,9 +124,8 @@ struct TrustPrivateDashboardView: View {
                 Text("隐私与拉黑可在设置中管理。")
             }
         }
-        .navigationTitle("我的信誉")
+        .navigationTitle("我的认证")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
     }
 
     private func earnedExtraBadges(from badges: [TrustBadge]) -> [TrustBadge] {

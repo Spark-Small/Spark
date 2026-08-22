@@ -28,7 +28,7 @@ struct Activity: Identifiable, Hashable, Codable {
     var participantNames: [String]
     var latitude: Double?
     var longitude: Double?
-    /// 关联兴趣组织（详情可进组织群）
+    /// 关联兴趣圈子（详情可进圈子群）
     var relatedCircleID: UUID?
 
     init(
@@ -212,12 +212,12 @@ enum BuddyKind: String, CaseIterable, Identifiable {
 
     static var quickBarCases: [BuddyKind] { [.free, .paid] }
 
-    /// 选人舞台顶栏主行
+    /// 顶栏分段与页面标题
     var stageTitle: String {
         switch self {
         case .all: "全部"
-        case .free: "同好"
-        case .paid: "陪玩"
+        case .free: "免费"
+        case .paid: "预约"
         }
     }
 
@@ -231,18 +231,24 @@ enum BuddyKind: String, CaseIterable, Identifiable {
 }
 
 struct BuddyFilter: Equatable {
-    /// 搭子页默认同好；`.paid` 为陪玩
+    /// 搭子页默认免费找人；`.paid` 为花钱预约
     var kind: BuddyKind = .free
     var gender: BuddyGender?
     var maxDistanceKM: Double = 20
     var hobby: String?
+    /// 开放域搜索：昵称 / 我想… / 兴趣 / 擅长（不是产品场景枚举）
+    var query: String = ""
+    /// 预约服务类型；`nil` = 全部
+    var serviceType: CompanionServiceType?
     var availableOnly = false
 
-    /// 发现条件是否为默认（不含同好/陪玩页切换）
+    /// 发现条件是否为默认（不含免费/预约切换）
     var isDefault: Bool {
         gender == nil
             && maxDistanceKM >= 20
             && hobby == nil
+            && query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && serviceType == nil
             && !availableOnly
     }
 
@@ -250,6 +256,24 @@ struct BuddyFilter: Equatable {
         let currentKind = (kind == .paid) ? BuddyKind.paid : .free
         self = BuddyFilter(kind: currentKind)
     }
+}
+
+/// 人列表排序：排序策略可扩展，不是内容类目树
+enum BuddyPeopleSort: String, CaseIterable, Identifiable {
+    case recommended = "推荐"
+    case nearby = "附近"
+    case active = "刚活跃"
+
+    var id: String { rawValue }
+}
+
+/// 预约列表排序：比价 / 抢档比搜词更常用
+enum BuddyBookingSort: String, CaseIterable, Identifiable {
+    case recommended = "推荐"
+    case price = "价格"
+    case earliest = "最早可约"
+
+    var id: String { rawValue }
 }
 
 enum BuddyGender: String, CaseIterable, Hashable {
@@ -288,6 +312,10 @@ struct BuddyProfile: Identifiable, Hashable {
     var availability: String
     var lastActiveText: String
     var lookingFor: String
+    /// 对外语音介绍时长（秒）；nil 表示未录制。展示在搭子 / 陪玩资料页。
+    var voiceIntroDuration: Double? = nil
+    /// 语音条说明（可选）
+    var voiceIntroCaption: String? = nil
 
     var heightText: String { "\(heightCM)cm" }
     var weightText: String { "\(weightKG)kg" }
@@ -381,17 +409,61 @@ struct CircleBuddy: Identifiable, Hashable {
     var id: UUID { profile.id }
 }
 
+enum CompanionPricingUnit: String, CaseIterable, Identifiable, Hashable, Sendable {
+    case halfHour = "30分钟"
+    case hour = "小时"
+    case session = "次"
+    case day = "天"
+
+    var id: String { rawValue }
+
+    var priceSuffix: String {
+        switch self {
+        case .halfHour: "/30分钟"
+        case .hour: "/小时"
+        case .session: "/次"
+        case .day: "/天"
+        }
+    }
+}
+
 enum CompanionServiceType: String, CaseIterable, Identifiable, Hashable {
-    case activity = "活动陪玩"
-    case offline = "线下陪玩"
+    case voice = "语音陪聊"
+    case sport = "运动陪练"
+    case offline = "线下见面"
+    case photo = "拍照跟拍"
 
     var id: String { rawValue }
 
     var systemImage: String {
         switch self {
-        case .activity: "ticket"
+        case .voice: "waveform"
+        case .sport: "figure.run"
         case .offline: "mappin.and.ellipse"
+        case .photo: "camera"
         }
+    }
+
+    /// 列表价默认计价单位（主流：语音按 30 分钟，运动/线下按小时，跟拍可次或小时）
+    var defaultPricingUnit: CompanionPricingUnit {
+        switch self {
+        case .voice: .halfHour
+        case .sport, .offline: .hour
+        case .photo: .hour
+        }
+    }
+}
+
+enum CompanionPricing {
+    /// 按天等项目：双方私信商议，平台不锁价
+    static let negotiable = "双方商议"
+
+    static func format(amount: Int, unit: CompanionPricingUnit) -> String {
+        "¥\(amount)\(unit.priceSuffix)"
+    }
+
+    static func pack(amount: Int, label: String) -> String {
+        "¥\(amount)\(label)"
     }
 }
 
@@ -399,7 +471,9 @@ struct PaidCompanion: Identifiable, Hashable {
     var profile: BuddyProfile
     var serviceType: CompanionServiceType
     var specialty: String
+    /// 基准价：配合 `pricingUnit` 展示（如 39 + halfHour = ¥39/30分钟）
     var hourlyPrice: Int
+    var pricingUnit: CompanionPricingUnit
     var orderCount: Int
     var isAvailable: Bool
     var responseTime: String
@@ -409,13 +483,14 @@ struct PaidCompanion: Identifiable, Hashable {
     var isVerified: Bool
 
     var id: UUID { profile.id }
-    var priceText: String { "¥\(hourlyPrice)/小时" }
+    var priceText: String { CompanionPricing.format(amount: hourlyPrice, unit: pricingUnit) }
 
     init(
         profile: BuddyProfile,
         serviceType: CompanionServiceType,
         specialty: String,
         hourlyPrice: Int,
+        pricingUnit: CompanionPricingUnit? = nil,
         orderCount: Int,
         isAvailable: Bool,
         responseTime: String,
@@ -427,6 +502,7 @@ struct PaidCompanion: Identifiable, Hashable {
         self.serviceType = serviceType
         self.specialty = specialty
         self.hourlyPrice = hourlyPrice
+        self.pricingUnit = pricingUnit ?? serviceType.defaultPricingUnit
         self.orderCount = orderCount
         self.isAvailable = isAvailable
         self.responseTime = responseTime
@@ -436,7 +512,7 @@ struct PaidCompanion: Identifiable, Hashable {
     }
 }
 
-/// 陪玩工会：商业侧的「组织」，与免费兴趣圈对位
+/// 陪玩工会：商业侧的「圈子」，与免费兴趣圈对位
 struct CompanionGuild: Identifiable, Hashable {
     let id: UUID
     var name: String
@@ -610,6 +686,30 @@ enum CommunityPhotoRef: Hashable {
     case file(URL)
     case asset(String)
     case seeded(seed: Int, symbol: String)
+
+    var isVideo: Bool {
+        switch self {
+        case .file(let url):
+            return CommunityPhotoStore.isVideo(url: url)
+        default:
+            return false
+        }
+    }
+
+    var videoURL: URL? {
+        guard isVideo, case .file(let url) = self else { return nil }
+        return url
+    }
+}
+
+enum CommunityMediaCopy {
+    static func countChip(_ refs: [CommunityPhotoRef]) -> String {
+        let videos = refs.filter(\.isVideo).count
+        let photos = refs.count - videos
+        if videos == 0 { return "\(photos) 张" }
+        if photos == 0 { return "\(videos) 个视频" }
+        return "\(refs.count) 项"
+    }
 }
 
 struct CommunityComment: Identifiable, Hashable, Codable {
@@ -624,6 +724,11 @@ struct CommunityComment: Identifiable, Hashable, Codable {
     var likeCount: Int
     /// 演示用地名，可空
     var region: String?
+    /// 当前用户是否已赞（运行时；社区评论从 PlatformReviewsStore 读出时填充）
+    var isLiked: Bool
+    var dislikeCount: Int
+    /// 当前用户是否已踩（运行时）
+    var isDisliked: Bool
 
     init(
         id: UUID,
@@ -633,7 +738,10 @@ struct CommunityComment: Identifiable, Hashable, Codable {
         parentID: UUID? = nil,
         replyToAuthor: String? = nil,
         likeCount: Int = 0,
-        region: String? = nil
+        region: String? = nil,
+        isLiked: Bool = false,
+        dislikeCount: Int = 0,
+        isDisliked: Bool = false
     ) {
         self.id = id
         self.author = author
@@ -643,6 +751,9 @@ struct CommunityComment: Identifiable, Hashable, Codable {
         self.replyToAuthor = replyToAuthor
         self.likeCount = likeCount
         self.region = region
+        self.isLiked = isLiked
+        self.dislikeCount = dislikeCount
+        self.isDisliked = isDisliked
     }
 
     init(from decoder: Decoder) throws {
@@ -655,6 +766,9 @@ struct CommunityComment: Identifiable, Hashable, Codable {
         replyToAuthor = try container.decodeIfPresent(String.self, forKey: .replyToAuthor)
         likeCount = try container.decodeIfPresent(Int.self, forKey: .likeCount) ?? 0
         region = try container.decodeIfPresent(String.self, forKey: .region)
+        isLiked = try container.decodeIfPresent(Bool.self, forKey: .isLiked) ?? false
+        dislikeCount = try container.decodeIfPresent(Int.self, forKey: .dislikeCount) ?? 0
+        isDisliked = try container.decodeIfPresent(Bool.self, forKey: .isDisliked) ?? false
     }
 
     var isReply: Bool { parentID != nil }
@@ -678,7 +792,7 @@ struct ChatConversation: Identifiable, Hashable, Codable {
     var eventAt: Date?
     /// 关联活动；旧会话可能为 nil，去重时 fallback 标题
     var relatedActivityID: UUID?
-    /// 关联兴趣组织（组织群）
+    /// 关联兴趣圈子（圈子群）
     var relatedCircleID: UUID?
     /// 收件箱预览是否来自自己（微信「我：」）
     var lastMessageIsMe: Bool
@@ -696,6 +810,8 @@ struct ChatConversation: Identifiable, Hashable, Codable {
     var requestPreviewText: String?
     /// Ins Active now（本地演示）
     var peerIsActive: Bool
+    /// 双向好友关系（接受申请 / UID 添加后为 true；临时会话为 false）
+    var isFriend: Bool
 
     init(
         id: UUID,
@@ -717,7 +833,8 @@ struct ChatConversation: Identifiable, Hashable, Codable {
         isMessageRequest: Bool = false,
         requestSource: MessageRequestSource? = nil,
         requestPreviewText: String? = nil,
-        peerIsActive: Bool = false
+        peerIsActive: Bool = false,
+        isFriend: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -739,6 +856,7 @@ struct ChatConversation: Identifiable, Hashable, Codable {
         self.requestSource = requestSource
         self.requestPreviewText = requestPreviewText
         self.peerIsActive = peerIsActive
+        self.isFriend = isFriend
     }
 
     init(from decoder: Decoder) throws {
@@ -763,6 +881,11 @@ struct ChatConversation: Identifiable, Hashable, Codable {
         requestSource = try container.decodeIfPresent(MessageRequestSource.self, forKey: .requestSource)
         requestPreviewText = try container.decodeIfPresent(String.self, forKey: .requestPreviewText)
         peerIsActive = try container.decodeIfPresent(Bool.self, forKey: .peerIsActive) ?? false
+        if let decodedFriend = try container.decodeIfPresent(Bool.self, forKey: .isFriend) {
+            isFriend = decodedFriend
+        } else {
+            isFriend = kind == .direct && !isMessageRequest && subtitle == "好友"
+        }
     }
 
     var isGroup: Bool { kind == .activity || kind == .circle || kind == .group }
@@ -770,7 +893,7 @@ struct ChatConversation: Identifiable, Hashable, Codable {
     var kindLabel: String {
         switch kind {
         case .activity, .group: "群聊"
-        case .circle: "组织"
+        case .circle: "圈子"
         case .direct: "好友"
         case .notice: "通知"
         }
@@ -791,7 +914,7 @@ struct ChatConversation: Identifiable, Hashable, Codable {
     var isCircleGroup: Bool { kind == .circle }
     /// 选好友发起的多人会话
     var isPeerGroup: Bool { kind == .group }
-    /// 消息列表中的群：活动群 + 组织群 + 好友群
+    /// 消息列表中的群：活动群 + 圈子群 + 好友群
     var isSocialGroup: Bool { isActivityGroup || isCircleGroup || isPeerGroup }
 
     func isOwned(by userName: String) -> Bool {
@@ -827,8 +950,8 @@ struct ChatConversation: Identifiable, Hashable, Codable {
 enum ChatKind: String, CaseIterable, Identifiable, Hashable, Codable {
     /// 活动群聊（一场局一个群）
     case activity = "活动群"
-    /// 兴趣组织群（加入组织进入）
-    case circle = "组织群"
+    /// 兴趣圈子群（加入圈子进入）
+    case circle = "圈子群"
     /// 选多人发起的好友群
     case group = "群聊"
     /// 好友私聊（搭子 / 陪玩 / 主办等均落此类型，不做临时会话）
@@ -837,6 +960,21 @@ enum ChatKind: String, CaseIterable, Identifiable, Hashable, Codable {
     case notice = "官方"
 
     var id: String { rawValue }
+
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        switch raw {
+        case Self.activity.rawValue: self = .activity
+        case Self.circle.rawValue, "组织群": self = .circle
+        case Self.group.rawValue: self = .group
+        case Self.direct.rawValue: self = .direct
+        case Self.notice.rawValue: self = .notice
+        default:
+            throw DecodingError.dataCorrupted(
+                .init(codingPath: decoder.codingPath, debugDescription: "Unknown ChatKind \(raw)")
+            )
+        }
+    }
 }
 
 struct ChatMessage: Identifiable, Hashable, Codable {
@@ -1030,15 +1168,27 @@ struct GroupMemberRecord: Identifiable, Hashable, Codable {
     var nickname: String
     var role: GroupMemberRole
     var joinedAt: Date
+    /// 本群昵称（与真实昵称不同时展示为 真实名（群昵称））
+    var groupAlias: String?
 
     init(
         nickname: String,
         role: GroupMemberRole = .member,
-        joinedAt: Date = .now
+        joinedAt: Date = .now,
+        groupAlias: String? = nil
     ) {
         self.nickname = nickname
         self.role = role
         self.joinedAt = joinedAt
+        self.groupAlias = groupAlias
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        nickname = try container.decode(String.self, forKey: .nickname)
+        role = try container.decode(GroupMemberRole.self, forKey: .role)
+        joinedAt = try container.decodeIfPresent(Date.self, forKey: .joinedAt) ?? .now
+        groupAlias = try container.decodeIfPresent(String.self, forKey: .groupAlias)
     }
 }
 
@@ -1199,6 +1349,29 @@ enum FriendRequestStatus: String, Hashable, Codable {
     case declined
 }
 
+/// 我方向他人发出的好友申请（等待对方通过）。
+struct OutgoingFriendRequest: Identifiable, Hashable, Codable {
+    let id: UUID
+    var toName: String
+    var message: String
+    var createdAt: Date
+    var status: FriendRequestStatus
+
+    init(
+        id: UUID = UUID(),
+        toName: String,
+        message: String,
+        createdAt: Date = .now,
+        status: FriendRequestStatus = .pending
+    ) {
+        self.id = id
+        self.toName = toName
+        self.message = message
+        self.createdAt = createdAt
+        self.status = status
+    }
+}
+
 /// 聊天记录搜索命中
 struct ChatHistoryHit: Identifiable, Hashable {
     let id: UUID
@@ -1220,8 +1393,14 @@ struct AppUser: Codable, Hashable, Identifiable {
     var hostedCount: Int
     var buddyCount: Int
     var interests: [String]
+    /// 搭子页「也想找」快速状态
+    var lookingFor: String
     /// Documents 下本地头像文件名
     var avatarLocalName: String? = nil
+    /// 语音介绍时长（秒）；nil 表示未录制
+    var voiceIntroDuration: Double? = nil
+    /// 语音条副文案（可选）
+    var voiceIntroCaption: String? = nil
 
     init(
         id: UUID = LocalUserIdentity.current,
@@ -1233,7 +1412,10 @@ struct AppUser: Codable, Hashable, Identifiable {
         hostedCount: Int,
         buddyCount: Int,
         interests: [String] = [],
-        avatarLocalName: String? = nil
+        lookingFor: String = "",
+        avatarLocalName: String? = nil,
+        voiceIntroDuration: Double? = nil,
+        voiceIntroCaption: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -1244,7 +1426,10 @@ struct AppUser: Codable, Hashable, Identifiable {
         self.hostedCount = hostedCount
         self.buddyCount = buddyCount
         self.interests = interests
+        self.lookingFor = lookingFor
         self.avatarLocalName = avatarLocalName
+        self.voiceIntroDuration = voiceIntroDuration
+        self.voiceIntroCaption = voiceIntroCaption
     }
 
     init(from decoder: Decoder) throws {
@@ -1259,6 +1444,9 @@ struct AppUser: Codable, Hashable, Identifiable {
         buddyCount = try container.decode(Int.self, forKey: .buddyCount)
         interests = try container.decodeIfPresent([String].self, forKey: .interests)
             ?? SampleData.currentUserInterests
+        lookingFor = try container.decodeIfPresent(String.self, forKey: .lookingFor) ?? ""
         avatarLocalName = try container.decodeIfPresent(String.self, forKey: .avatarLocalName)
+        voiceIntroDuration = try container.decodeIfPresent(Double.self, forKey: .voiceIntroDuration)
+        voiceIntroCaption = try container.decodeIfPresent(String.self, forKey: .voiceIntroCaption)
     }
 }

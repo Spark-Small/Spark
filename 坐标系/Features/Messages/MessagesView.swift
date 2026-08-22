@@ -2,7 +2,7 @@
 //  MessagesView.swift
 //  坐标系
 //
-//  消息收件箱：好友与群聊同一列表；左侧进通讯录；右上加号菜单。
+//  消息收件箱：好友与群聊同一列表；右上通讯录；加号菜单在通讯录内。
 //
 
 import SwiftUI
@@ -14,11 +14,10 @@ private enum MessagesInboxRoute: Hashable {
 
 struct MessagesView: View {
     @Environment(MessagesModel.self) private var model
+    @Environment(BuddiesModel.self) private var buddies
     @Environment(AppModel.self) private var app
-    @State private var path = NavigationPath()
-    @State private var showStartChat = false
+    @State private var navigation = TabNavigationState()
     @State private var showRequests = false
-    @State private var showAddFriendByUID = false
     @State private var focusMessageID: ChatMessage.ID?
 
     private var blockedNames: [String] { Array(app.blockedUserNames) }
@@ -49,9 +48,10 @@ struct MessagesView: View {
     }
 
     var body: some View {
+        @Bindable var navigation = navigation
         @Bindable var model = model
 
-        NavigationStack(path: $path) {
+        NavigationStack(path: $navigation.path) {
             List {
                 if model.isSearching {
                     searchResultsList
@@ -60,16 +60,16 @@ struct MessagesView: View {
                 }
             }
             .platformConversationListChrome()
+            .platformTabRootListChrome(title: MessagesCopy.rootTitle)
             .opacity(showsEmptyOverlay ? 0 : 1)
             .allowsHitTesting(!showsEmptyOverlay)
             .overlay { emptyOverlay }
-            .navigationBarTitleDisplayMode(.inline)
             .searchable(
                 text: $model.searchText,
                 placement: .navigationBarDrawer(displayMode: .automatic),
                 prompt: MessagesCopy.searchPrompt
             )
-            .toolbar { inboxToolbar }
+            .platformTabRootToolbar { tabToolbar }
             .navigationDestination(for: MessagesInboxRoute.self) { route in
                 switch route {
                 case .friends:
@@ -83,37 +83,36 @@ struct MessagesView: View {
                             openConversation(model.conversations.first { $0.id == conversation.id })
                         }
                     )
+                    .toolbarVisibility(.hidden, for: .tabBar)
                 case .conversation(let conversation):
                     ConversationDetailView(
                         conversationID: conversation.id,
                         focusMessageID: focusMessageID,
-                        pendingCallID: app.pendingCallID
+                        pendingCallID: app.pendingCallID,
+                        onOpenCircleInfo: { circle in
+                            navigation.openCircle(circle)
+                        }
                     )
+                    .toolbarVisibility(.hidden, for: .tabBar)
                     .onAppear { model.markRead(conversation.id) }
                     .onDisappear { focusMessageID = nil }
                 }
             }
-            .sheet(isPresented: $showStartChat) {
-                StartChatSheet { conversationID in
-                    openConversation(model.conversations.first { $0.id == conversationID })
-                }
-            }
-            .sheet(isPresented: $showAddFriendByUID) {
-                AddFriendByUIDSheet { nickname in
-                    openConversation(
-                        app.startDirectChat(with: nickname, deliverGreeting: false)
-                    )
-                }
-            }
+            .circleBrowseStackChrome(
+                buddies: buddies,
+                openCircle: { navigation.openCircle($0) },
+                openConversation: { app.openMessages(conversationID: $0) }
+            )
             .sheet(isPresented: $showRequests) {
                 MessageRequestsSheet { conversation in
                     openConversation(model.conversations.first { $0.id == conversation.id })
                 }
+                .toolbarVisibility(.hidden, for: .tabBar)
             }
             .alert(
                 MessagesCopy.deleteDialogTitle,
                 isPresented: Binding(
-                    get: { model.conversationPendingDelete != nil && path.isEmpty },
+                    get: { model.conversationPendingDelete != nil && navigation.isEmpty },
                     set: { if !$0 { model.cancelDelete() } }
                 )
             ) {
@@ -124,17 +123,12 @@ struct MessagesView: View {
                     Text(MessagesCopy.deleteDialogMessage(title: title))
                 }
             }
-            .onChange(of: app.pendingConversationID) { _, newValue in
-                guard let newValue else { return }
-                openConversation(
-                    model.conversations.first { $0.id == newValue },
-                    focusMessageID: app.pendingFocusMessageID
-                )
-                app.pendingConversationID = nil
-                app.pendingFocusMessageID = nil
+            .onAppear { consumePendingConversationOpen() }
+            .onChange(of: app.pendingConversationID) { _, _ in
+                consumePendingConversationOpen()
             }
-            .platformTabBarHiddenWhenPushed(path.isEmpty)
         }
+        .tabNavigationState(navigation)
     }
 
     @ViewBuilder
@@ -225,7 +219,7 @@ struct MessagesView: View {
                 Text(MessagesCopy.emptyInboxDescription)
             } actions: {
                 Button(MessagesCopy.friendsListTitle) {
-                    path.append(MessagesInboxRoute.friends)
+                    navigation.path.append(MessagesInboxRoute.friends)
                 }
                 .buttonStyle(.borderedProminent)
             }
@@ -235,28 +229,12 @@ struct MessagesView: View {
     // MARK: - Toolbar
 
     @ToolbarContentBuilder
-    private var inboxToolbar: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            Button(MessagesCopy.friendsListTitle, systemImage: "person.crop.circle") {
-                path.append(MessagesInboxRoute.friends)
-            }
-        }
-
+    private var tabToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                Button(MessagesCopy.startChat, systemImage: "bubble.left.and.bubble.right") {
-                    showStartChat = true
-                }
-                Button(MessagesCopy.addFriendByUID, systemImage: "person.badge.plus") {
-                    showAddFriendByUID = true
-                }
-                Button(MessagesCopy.markAllRead, systemImage: "envelope.open") {
-                    model.markAllRead()
-                }
-                .disabled(model.unreadTotal == 0)
-            } label: {
-                Label(MessagesCopy.add, systemImage: "plus")
+            Button(MessagesCopy.friendsListTitle, systemImage: "person.crop.circle") {
+                navigation.path.append(MessagesInboxRoute.friends)
             }
+            .badge(model.requestBadgeCount)
         }
     }
 
@@ -267,8 +245,19 @@ struct MessagesView: View {
         guard let conversation else { return }
         self.focusMessageID = focusMessageID
         model.markRead(conversation.id)
-        path = NavigationPath()
-        path.append(MessagesInboxRoute.conversation(conversation))
+        navigation.reset()
+        navigation.path.append(MessagesInboxRoute.conversation(conversation))
+    }
+
+    private func consumePendingConversationOpen() {
+        guard let id = app.pendingConversationID else { return }
+        let focus = app.pendingFocusMessageID
+        app.pendingConversationID = nil
+        app.pendingFocusMessageID = nil
+        openConversation(
+            model.conversations.first { $0.id == id },
+            focusMessageID: focus
+        )
     }
 }
 

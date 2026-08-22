@@ -3,7 +3,7 @@
 .AppleDouble
 .LSOverride
 
-# Xcode
+# Xcode  
 build/
 DerivedData/
 .derivedData/
@@ -36,3 +36,6 @@ playground.xcworkspace
 *.swp
 *~
 .idea/
+
+# 样板原图投放区（已导入 Assets.xcassets/BuddyPhotoXX）
+BuddyPhotos/

@@ -28,6 +28,7 @@ final class AppModel {
     var hasCompletedOnboarding: Bool
     var auth: LocalAuthSession
     var blockedUserNames: Set<String>
+    var followedUserNames: Set<String>
     var moderationTickets: [ModerationTicket]
     /// 跨 Tab 打开指定会话
     var pendingConversationID: ChatConversation.ID?
@@ -35,6 +36,11 @@ final class AppModel {
     var pendingFocusMessageID: ChatMessage.ID?
     /// 跨 Tab 拉起通话页
     var pendingCallID: CallSessionRecord.ID?
+    /// 通知 / 深链打开活动详情
+    var pendingActivityID: Activity.ID?
+    /// 通知 / 深链打开陪玩预约（「我的 → 陪玩预约」）
+    var pendingBookingID: BuddyBookingRecord.ID?
+    var pendingProfileRoute: ProfileRoute?
     private let profileRepository: ProfileRepository
     @ObservationIgnored private var profilePersistenceGeneration: Int
     @ObservationIgnored private var profilePersistTask: Task<Void, Never>?
@@ -57,6 +63,7 @@ final class AppModel {
         user = profileSnapshot.user
         hasCompletedOnboarding = profileSnapshot.hasCompletedOnboarding
         blockedUserNames = Set(profileSnapshot.blockedUserNames)
+        followedUserNames = Set(profileSnapshot.followedUserNames)
         moderationTickets = profileSnapshot.moderationTickets.sorted { $0.createdAt > $1.createdAt }
         BuddyMatchScorer.myInterests = profileSnapshot.user.interests.isEmpty
             ? SampleData.currentUserInterests
@@ -100,6 +107,30 @@ final class AppModel {
         selectedTab = .messages
     }
 
+    /// 通知 / 深链：切到活动 Tab 并打开详情
+    func openActivity(_ id: Activity.ID) {
+        pendingActivityID = id
+        selectedTab = .activities
+    }
+
+    /// 通知：打开「我的 → 陪玩预约」（可定位到具体单）
+    func openMyBookings(bookingID: BuddyBookingRecord.ID? = nil) {
+        pendingBookingID = bookingID
+        pendingProfileRoute = bookingID.map { .bookingDetail($0) } ?? .bookingCredentials
+        selectedTab = .profile
+    }
+
+    func handleNotificationDeepLink(_ link: NotificationDeepLink) {
+        switch link {
+        case .activity(let id):
+            openActivity(id)
+        case .conversation(let id):
+            openMessages(conversationID: id)
+        case .booking(let id):
+            openMyBookings(bookingID: id)
+        }
+    }
+
     func handle(_ event: AppDomainEvent) {
         syncOrchestrator.handle(event)
     }
@@ -109,6 +140,12 @@ final class AppModel {
         var next = updated
         next.id = LocalUserIdentity.current
         syncOrchestrator.handle(.profileUpdated(previousName: previousName, user: next))
+    }
+
+    func updateLookingFor(_ text: String) {
+        var updated = user
+        updated.lookingFor = text
+        updateProfile(updated)
     }
 
     func syncProfileStats() {
@@ -141,12 +178,15 @@ final class AppModel {
         activities.isComposing = true
     }
 
-    /// 取消报名；付费活动可选演示退款；非主办则退出活动群
+    /// 取消报名；非主办则退出活动群（退款请走 RefundFlowService）
     func cancelActivityRegistration(_ id: Activity.ID, refundIfPaid: Bool = false) {
         let isHost = activities.isHost(id: id)
         if refundIfPaid, let order = ActivityPaymentStore.paidOrder(for: id) {
-            _ = ActivityPaymentStore.requestRefund(orderID: order.id)
-            ActivityPaymentStore.finalizeRefund(orderID: order.id)
+            _ = RefundFlowService.shared.submitExpeditedActivityRefund(
+                order: order,
+                reason: "取消报名",
+                detail: "用户取消参加活动，系统自动退款。"
+            )
         }
         if activities.isJoined(id) {
             activities.toggleJoin(id)
@@ -181,8 +221,8 @@ final class AppModel {
     @discardableResult
     func startDirectChat(
         with nickname: String,
-        greeting: String = MessagesCopy.defaultGreeting,
-        deliverGreeting: Bool = true
+        greeting: String = "",
+        deliverGreeting: Bool = false
     ) -> ChatConversation? {
         let name = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return nil }
@@ -301,6 +341,19 @@ final class AppModel {
             : interests
     }
 
+    func isFollowing(_ name: String) -> Bool {
+        followedUserNames.contains(name)
+    }
+
+    func toggleFollow(_ name: String) {
+        if followedUserNames.contains(name) {
+            followedUserNames.remove(name)
+        } else {
+            followedUserNames.insert(name)
+        }
+        persistProfile()
+    }
+
     func blockUser(_ name: String) {
         syncOrchestrator.handle(.userBlocked(name))
     }
@@ -373,6 +426,7 @@ final class AppModel {
         await quiesceAllPersistence()
         AppPersistence.resetLocalDemoData()
         ActivityEngagementStore.shared.reloadFromDisk()
+        ProfileRecentBrowseStore.shared.reloadFromDisk()
         reloadFromLocalState(keepSignedIn: true)
     }
 
@@ -380,6 +434,7 @@ final class AppModel {
         await quiesceAllPersistence()
         AppPersistence.resetLocalDemoData()
         ActivityEngagementStore.shared.reloadFromDisk()
+        ProfileRecentBrowseStore.shared.reloadFromDisk()
         auth.resetStoredSession()
         reloadFromLocalState(keepSignedIn: false)
     }
@@ -389,6 +444,7 @@ final class AppModel {
             user: user,
             hasCompletedOnboarding: hasCompletedOnboarding,
             blockedUserNames: Array(blockedUserNames),
+            followedUserNames: Array(followedUserNames),
             moderationTickets: moderationTickets
         )
         let previousTask = profilePersistTask
@@ -420,6 +476,9 @@ final class AppModel {
         pendingConversationID = nil
         pendingFocusMessageID = nil
         pendingCallID = nil
+        pendingActivityID = nil
+        pendingBookingID = nil
+        pendingProfileRoute = nil
         refreshInterestContext(reloadedProfile.user.interests)
         syncOrchestrator.handle(.recommendationRefreshRequested)
         syncOrchestrator.handle(.statsRefreshRequested)
@@ -458,6 +517,7 @@ struct ContentView: View {
     @State private var didRunDeferredStartup = false
     /// 已登录用户遇协议版本升级时需重新确认；未登录走登录页勾选。
     @State private var hasAcceptedLegalConsent = !LegalConsentPreference.needsConsent
+    @State private var commercePeerContactRoute: PeerContactRoute?
 
     var body: some View {
         Group {
@@ -471,16 +531,22 @@ struct ContentView: View {
                 signedInRoot(model)
             } else {
                 // 已登录冷启动：延续启动屏底色，等模型就绪后再进主界面。
-                LaunchSurface.stage
-                    .ignoresSafeArea()
-                    .overlay {
-                        Image("LaunchMarkIcon")
-                            .resizable()
-                            .scaledToFit()
-                            // 与主屏幕 App 图标同为 60pt，衔接系统启动屏。
-                            .frame(width: 60, height: 60)
-                            .accessibilityHidden(true)
-                    }
+                GeometryReader { proxy in
+                    LaunchSurface.stage
+                        .ignoresSafeArea()
+                        .overlay {
+                            Image("BrandLogo")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 60, height: 60)
+                                .accessibilityHidden(true)
+                                .position(
+                                    x: proxy.size.width / 2,
+                                    y: proxy.size.height / 2
+                                )
+                        }
+                }
+                .ignoresSafeArea()
             }
         }
         .task(id: "\(auth.isSignedIn)-\(hasAcceptedLegalConsent)") {
@@ -511,57 +577,44 @@ struct ContentView: View {
     private func mainTabs(_ model: AppModel) -> some View {
         @Bindable var model = model
 
-        // 官方 Tab + 下滑折叠收纳（iPhone：tabBarMinimizeBehavior）
+        // iOS 26 Tab：`Tab(_:systemImage:value:)` + 下滑收纳
         return TabView(selection: $model.selectedTab) {
-            Tab("活动", systemImage: "calendar", value: .activities) {
+            Tab("活动", systemImage: "calendar", value: AppTab.activities) {
                 ActivitiesView()
-                    .environment(model)
-                    .environment(model.activities)
-                    .environment(model.messages)
-                    .environment(model.buddies)
-                    .environment(model.community)
             }
 
-            Tab("搭子", systemImage: "person.2", value: .buddies) {
+            Tab("搭子", systemImage: "person.2", value: AppTab.buddies) {
                 BuddiesView()
-                    .environment(model)
-                    .environment(model.activities)
-                    .environment(model.messages)
-                    .environment(model.buddies)
             }
 
-            Tab("社区", systemImage: "bubble.left.and.bubble.right", value: .community) {
+            Tab("广场", systemImage: "bubble.left.and.bubble.right", value: AppTab.community) {
                 CommunityView()
-                    .environment(model)
-                    .environment(model.community)
-                    .environment(model.messages)
-                    .environment(model.activities)
-                    .environment(model.buddies)
             }
 
-            Tab("消息", systemImage: "message", value: .messages) {
+            Tab("消息", systemImage: "message", value: AppTab.messages) {
                 MessagesView()
-                    .environment(model)
-                    .environment(model.messages)
-                    .environment(model.activities)
-                    .environment(model.buddies)
-                    .environment(model.community)
             }
             .badge(model.messages.unreadTotal)
 
-            Tab("我的", systemImage: "person.crop.circle", value: .profile) {
+            Tab("我的", systemImage: "person.crop.circle", value: AppTab.profile) {
                 ProfileView()
-                    .environment(model)
-                    .environment(model.activities)
-                    .environment(model.messages)
-                    .environment(model.buddies)
-                    .environment(model.community)
             }
         }
+        .environment(model)
+        .environment(model.activities)
+        .environment(model.messages)
+        .environment(model.buddies)
+        .environment(model.community)
         .environment(WalletStore.shared)
         .environment(WalletPassStore.shared)
+        .environment(RefundFlowService.shared)
         .environment(PassUpdateWebService.shared)
         .tabBarMinimizeBehavior(.onScrollDown)
+        .buddyInviteChrome(
+            buddies: model.buddies,
+            activities: model.activities
+        )
+        .peerContactDestination(route: $commercePeerContactRoute)
         .task {
             // 登录并完成引导后进入主界面时请求定位（仅系统未决定时会弹窗）
             LocationService.shared.promptWhenInUseIfNeeded()
@@ -590,7 +643,10 @@ struct ContentView: View {
         if model == nil {
             model = AppModel(auth: auth)
         }
-        await model?.bootstrapAsync()
+        if let model {
+            AppNotificationRouter.shared.bind(model)
+            await model.bootstrapAsync()
+        }
     }
 }
 

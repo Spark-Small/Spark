@@ -14,12 +14,15 @@ struct ActivityCredentialExpandedView: View {
     @Environment(AppModel.self) private var app
     @Environment(ActivitiesModel.self) private var activities
     @Environment(WalletPassStore.self) private var passStore
+    @Environment(RefundFlowService.self) private var refunds
     @Environment(\.dismiss) private var dismiss
 
     @State private var showAddToWallet = false
     @State private var showActivityDetail = false
     @State private var cancelRefundActivityID: Activity.ID?
+    @State private var cancelUnpaidActivityID: Activity.ID?
     @State private var cancelAndRefundOrder: ActivityOrder?
+    @State private var presentedRefundRequestID: UUID?
     @State private var showCancelHostAlert = false
     @State private var actionIssueMessage: String?
 
@@ -54,7 +57,6 @@ struct ActivityCredentialExpandedView: View {
         }
         .navigationTitle("活动凭证")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 if canOfferWallet {
@@ -72,6 +74,7 @@ struct ActivityCredentialExpandedView: View {
         }
         .navigationDestination(isPresented: $showActivityDetail) {
             ActivityDetailView(activityID: activityID)
+                .toolbarVisibility(.hidden, for: .tabBar)
         }
         .alert(
             ActivityDetailCopy.cancelWithRefundTitle,
@@ -99,9 +102,38 @@ struct ActivityCredentialExpandedView: View {
         } message: {
             Text(ActivityDetailCopy.cancelWithRefundMessage)
         }
+        .alert(
+            ActivityDetailCopy.cancelUnpaidTitle,
+            isPresented: Binding(
+                get: { cancelUnpaidActivityID != nil },
+                set: { if !$0 { cancelUnpaidActivityID = nil } }
+            )
+        ) {
+            Button(ActivityDetailCopy.cancelUnpaidKeep, role: .cancel) {
+                cancelUnpaidActivityID = nil
+            }
+            Button(ActivityDetailCopy.cancelUnpaidConfirm, role: .destructive) {
+                if let id = cancelUnpaidActivityID {
+                    app.cancelActivityRegistration(id)
+                }
+                cancelUnpaidActivityID = nil
+            }
+        } message: {
+            Text(ActivityDetailCopy.cancelUnpaidMessage)
+        }
         .sheet(item: $cancelAndRefundOrder) { order in
-            RefundRequestSheet.activityOrder(order) { _, _ in
-                performCancelAndRefund(order: order)
+            let activity = activities.activity(id: order.activityID)
+            let notes = activity.map { ActivityDetailBlueprint.make(for: $0).refundNotes } ?? []
+            RefundRequestSheet.activityOrder(order, activity: activity, refundNotes: notes) { reason, detail in
+                submitCancelAndRefund(order: order, reason: reason, detail: detail)
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { presentedRefundRequestID != nil },
+            set: { if !$0 { presentedRefundRequestID = nil } }
+        )) {
+            if let requestID = presentedRefundRequestID {
+                RefundStatusSheet(requestID: requestID)
             }
         }
         .alert(
@@ -153,6 +185,7 @@ struct ActivityCredentialExpandedView: View {
             }
             .navigationTitle("加入 Apple Wallet")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarVisibility(.hidden, for: .tabBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("完成") { showAddToWallet = false }
@@ -239,8 +272,6 @@ struct ActivityCredentialExpandedView: View {
                     Button(ActivityDetailCopy.hostManageCancelActivity, role: .destructive) {
                         showCancelHostAlert = true
                     }
-                    .fontWeight(.semibold)
-                    .foregroundStyle(PlatformStatus.danger)
                 } footer: {
                     Text(ActivityDetailCopy.hostManageCancelHint)
                 }
@@ -324,18 +355,31 @@ struct ActivityCredentialExpandedView: View {
         if ActivityPaymentStore.hasPaid(for: activity.id) {
             cancelRefundActivityID = activity.id
         } else {
-            app.cancelActivityRegistration(activity.id)
+            cancelUnpaidActivityID = activity.id
         }
     }
 
-    /// 与活动详情一致：填退款申请并确认后，退款 + 取消参加（避免二次退款）
-    private func performCancelAndRefund(order: ActivityOrder) {
-        if let error = ActivityPaymentStore.requestRefund(orderID: order.id) {
-            actionIssueMessage = error
-            return
+    /// 与活动详情一致：填退款申请并确认后，进入退款流程 + 完成后取消参加
+    private func submitCancelAndRefund(order: ActivityOrder, reason: String, detail: String) {
+        let activity = activities.activity(id: order.activityID)
+        let notes = activity.map { ActivityDetailBlueprint.make(for: $0).refundNotes } ?? []
+        let result = refunds.submitActivityRefund(
+            order: order,
+            activity: activity,
+            refundNotes: notes,
+            reason: reason,
+            detail: detail,
+            cancelRegistration: true,
+            onCancelRegistration: { id in
+                app.cancelActivityRegistration(id, refundIfPaid: false)
+            }
+        )
+        switch result {
+        case .success(let record):
+            presentedRefundRequestID = record.id
+        case .failure(let error):
+            actionIssueMessage = error.localizedDescription
         }
-        ActivityPaymentStore.finalizeRefund(orderID: order.id)
-        app.cancelActivityRegistration(order.activityID, refundIfPaid: false)
     }
 
     private func reissue(_ activity: Activity) {

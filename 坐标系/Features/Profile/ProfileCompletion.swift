@@ -9,7 +9,7 @@ import Foundation
 import UIKit
 
 enum ProfileCompletion {
-    static let fieldCount = 6
+    static let fieldCount = 7
 
     static func ratio(
         hasAvatar: Bool,
@@ -17,6 +17,7 @@ enum ProfileCompletion {
         handle: String,
         city: String,
         bio: String,
+        lookingFor: String = "",
         interestsCount: Int
     ) -> Double {
         let filled = [
@@ -25,6 +26,7 @@ enum ProfileCompletion {
             !handle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
             !city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
             !bio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            !lookingFor.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
             interestsCount > 0
         ].filter(\.self).count
         return Double(filled) / Double(fieldCount)
@@ -37,6 +39,7 @@ enum ProfileCompletion {
             handle: user.handle,
             city: user.city,
             bio: user.bio,
+            lookingFor: user.lookingFor,
             interestsCount: user.interests.count
         )
     }
@@ -57,5 +60,13 @@ extension AppUser {
             return image
         }
         return UIImage(named: Self.defaultAvatarAssetName)
+    }
+
+    var hasVoiceIntro: Bool {
+        VoiceIntroPresentation.hasIntro(voiceIntroDuration)
+    }
+
+    var voiceIntroDurationText: String {
+        VoiceIntroPresentation.durationText(voiceIntroDuration)
     }
 }

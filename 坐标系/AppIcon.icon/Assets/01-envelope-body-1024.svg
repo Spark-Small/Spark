@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="envelopeFill" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF474F"/>
+      <stop offset="50%" stop-color="#FA1A29"/>
+      <stop offset="100%" stop-color="#F51221"/>
+    </linearGradient></defs>
+  <g transform="translate(80.000 206.202) scale(2.426966)">
+    <path d="M 48 0 H 308 Q 356 0 356 48 V 204 Q 356 252 308 252 H 48 Q 0 252 0 204 V 48 Q 0 0 48 0 Z" fill="url(#envelopeFill)"/>
+  </g>
+</svg>

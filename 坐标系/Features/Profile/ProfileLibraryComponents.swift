@@ -116,23 +116,6 @@ enum ProfileLibraryCopy {
     }
 }
 
-/// 「我的」货架空态：全宽 + 内容边距。
-struct ProfileShelfEmptyState: View {
-    let title: String
-    let systemImage: String
-    let description: String
-
-    var body: some View {
-        ContentUnavailableView(
-            title,
-            systemImage: systemImage,
-            description: Text(description)
-        )
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, PlatformMetrics.contentInset)
-    }
-}
-
 // MARK: - Hosted star
 
 /// 「我发起的」星标：叠在活动长条右上角，区分参加与发起。
@@ -160,5 +143,83 @@ struct ProfileHostedStarFilterButton: View {
         .accessibilityLabel(showHostedOnly ? "显示全部活动" : "只看我发起的")
         .accessibilityHint("筛选你发起的活动")
         .accessibilityAddTraits(showHostedOnly ? .isSelected : [])
+    }
+}
+
+/// 访客门禁入口：Label + 系统 chevron，替代不可用的 NavigationLink。
+struct ProfileFormGatedRow: View {
+    let title: String
+    let systemImage: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Label(title, systemImage: systemImage)
+                    .platformContentSymbolStyle()
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
+    }
+}
+
+/// 帖子 / 关注 / 粉丝：Form 行内默认 `HStack` 等宽三列。
+struct ProfileSocialStatsRow: View {
+    let postCount: Int
+    let followingCount: Int
+    let fansCount: Int
+
+    var body: some View {
+        HStack {
+            cell(value: "\(postCount)", label: "帖子")
+            cell(value: "\(followingCount)", label: "关注")
+            cell(value: "\(fansCount)", label: "粉丝")
+        }
+    }
+
+    private func cell(value: String, label: String) -> some View {
+        VStack(spacing: PlatformMetrics.hairlineSpacing) {
+            Text(value)
+                .font(.headline.monospacedDigit())
+                .foregroundStyle(.primary)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+@MainActor
+enum ProfileSocialStats {
+    static func postCount(for name: String, community: CommunityModel) -> Int {
+        community.posts.filter {
+            $0.author.caseInsensitiveCompare(name) == .orderedSame
+                && $0.repostedFromID == nil
+        }.count
+    }
+
+    static func followingCount(for name: String, app: AppModel) -> Int {
+        if name.caseInsensitiveCompare(app.user.name) == .orderedSame {
+            return app.followedUserNames.count
+        }
+        return SampleData.author(named: name).hostedCount
+    }
+
+    static func fansCount(for name: String, app: AppModel) -> Int {
+        var fans = SampleData.author(named: name).joinedCount
+        if name.caseInsensitiveCompare(app.user.name) != .orderedSame, app.isFollowing(name) {
+            fans += 1
+        }
+        return fans
     }
 }

@@ -12,14 +12,17 @@ struct BookingCredentialExpandedView: View {
 
     @Environment(BuddiesModel.self) private var buddies
     @Environment(AppModel.self) private var app
+    @Environment(RefundFlowService.self) private var refunds
     @Environment(WalletPassStore.self) private var passStore
     @Environment(\.dismiss) private var dismiss
 
     @State private var showAddToWallet = false
     @State private var showReschedule = false
     @State private var refundTarget: BuddyBookingRecord?
+    @State private var presentedRefundRequestID: UUID?
     @State private var confirmCancel = false
     @State private var confirmDelete = false
+    @State private var peerContactRoute: PeerContactRoute?
 
     private var record: BuddyBookingRecord? {
         buddies.bookingRecords.first { $0.id == recordID }
@@ -54,7 +57,7 @@ struct BookingCredentialExpandedView: View {
         }
         .navigationTitle("陪玩凭证")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
+        .peerContactDestination(route: $peerContactRoute)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 if canOfferWallet {
@@ -76,44 +79,24 @@ struct BookingCredentialExpandedView: View {
                     buddies.rescheduleBooking(record.id, scheduledAt: scheduledAt, hours: hours)
                     showReschedule = false
                 }
-            }
-        }
-        .sheet(item: Binding(
-            get: { buddies.pendingPaymentBooking },
-            set: { if $0 == nil { buddies.cancelPendingPayment() } }
-        )) { paymentRecord in
-            BookingPaymentSheet(
-                record: paymentRecord,
-                onConfirm: { method in
-                    let outcome = buddies.confirmPayment(paymentRecord.id, method: method)
-                    guard outcome == .success else { return outcome }
-                    let greeting =
-                        "你好！我想预约 \(Formatters.monthDay.string(from: paymentRecord.scheduledAt)) "
-                        + "\(Formatters.shortTime.string(from: paymentRecord.scheduledAt)) 开始的 \(paymentRecord.hours) 小时陪玩，方便确认一下吗？"
-                    if let convo = app.startDirectChat(
-                        with: paymentRecord.companionNickname,
-                        greeting: greeting
-                    ) {
-                        app.openMessages(conversationID: convo.id)
-                    }
-                    return .success
-                },
-                onCancel: {
-                    buddies.cancelPendingPayment()
-                }
-            )
-        }
-        .sheet(item: Binding(
-            get: { buddies.pendingSafetyCheckInBooking },
-            set: { if $0 == nil { buddies.cancelPendingSafetyCheckIn() } }
-        )) { checkInRecord in
-            TrustSafetyCheckInSheet(record: checkInRecord) {
-                buddies.cancelPendingSafetyCheckIn()
+                .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
         .sheet(item: $refundTarget) { target in
-            RefundRequestSheet.booking(target) { _, _ in
-                buddies.refundBooking(target.id)
+            RefundRequestSheet.booking(target) { reason, detail in
+                if let requestID = buddies.refundBooking(target.id, reason: reason, detail: detail) {
+                    presentedRefundRequestID = requestID
+                }
+            }
+            .toolbarVisibility(.hidden, for: .tabBar)
+        }
+        .sheet(isPresented: Binding(
+            get: { presentedRefundRequestID != nil },
+            set: { if !$0 { presentedRefundRequestID = nil } }
+        )) {
+            if let requestID = presentedRefundRequestID {
+                RefundStatusSheet(requestID: requestID)
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
         .alert("取消预约？", isPresented: $confirmCancel) {
@@ -165,6 +148,7 @@ struct BookingCredentialExpandedView: View {
             }
             .navigationTitle("加入 Apple Wallet")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarVisibility(.hidden, for: .tabBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("完成") { showAddToWallet = false }
@@ -340,7 +324,7 @@ struct BookingCredentialExpandedView: View {
                 showReschedule = true
             }
         }
-        if record.canRefund {
+        if record.canRefund, !refunds.isRefunding(orderID: record.id) {
             Button("申请退款", systemImage: "arrow.uturn.backward", role: .destructive) {
                 refundTarget = record
             }
@@ -353,11 +337,10 @@ struct BookingCredentialExpandedView: View {
     }
 
     private func contact(_ nickname: String) {
-        if let convo = app.startDirectChat(
+        guard let record else { return }
+        peerContactRoute = app.openPeerContact(
             with: nickname,
-            greeting: "你好，想确认一下预约安排，最近方便吗？"
-        ) {
-            app.openMessages(conversationID: convo.id)
-        }
+            context: .forBooking(record)
+        )
     }
 }

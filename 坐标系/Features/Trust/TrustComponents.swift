@@ -44,12 +44,16 @@ struct TrustFactLabeledRows: View {
     var responseHint: String? = nil
 
     var body: some View {
-        LabeledContent(
-            "参加履约",
-            value: facts.joinedTotal > 0
-                ? "\(facts.joinedKept)/\(facts.joinedTotal)"
-                : "暂无"
-        )
+        LabeledContent {
+            Text(
+                facts.joinedTotal > 0
+                    ? "\(facts.joinedKept)/\(facts.joinedTotal)"
+                    : "暂无"
+            )
+        } label: {
+            Label("参加履约", systemImage: "calendar.badge.checkmark")
+                .platformContentSymbolStyle()
+        }
         if let hostRate = hostRateText {
             LabeledContent("发起履约", value: hostRate)
         }
@@ -97,7 +101,7 @@ struct TrustCredentialBadgeStrip: View {
                         title: TrustBadgeKind.photoVerified.title,
                         systemImage: photoVerified
                             ? TrustBadgeKind.photoVerified.systemImage
-                            : "person.crop.circle.badge.questionmark",
+                            : "checkmark.seal",
                         unlocked: photoVerified
                     )
                 }
@@ -106,7 +110,7 @@ struct TrustCredentialBadgeStrip: View {
                         title: TrustBadgeKind.activeMember.title,
                         systemImage: isMember
                             ? TrustBadgeKind.activeMember.systemImage
-                            : "checkmark.seal",
+                            : "crown",
                         unlocked: isMember
                     )
                 }
@@ -119,7 +123,7 @@ struct TrustCredentialBadgeStrip: View {
     private var accessibilityLabel: String {
         var parts: [String] = []
         if showsPhoto {
-            parts.append("形象认证\(photoVerified ? "已通过" : "未认证")")
+            parts.append("认证\(photoVerified ? "已通过" : "未认证")")
         }
         if showsMember {
             parts.append("会员\(isMember ? "已开通" : "未开通")")
@@ -128,17 +132,23 @@ struct TrustCredentialBadgeStrip: View {
     }
 
     private func credentialChip(title: String, systemImage: String, unlocked: Bool) -> some View {
-        Label(title, systemImage: systemImage)
-            .font(.caption.weight(.semibold))
-            .labelStyle(.titleAndIcon)
-            .foregroundStyle(unlocked ? .primary : .tertiary)
-            .symbolRenderingMode(unlocked ? .multicolor : .hierarchical)
-            .padding(.horizontal, PlatformMetrics.captionBadgePaddingHorizontal)
-            .padding(.vertical, PlatformMetrics.captionBadgePaddingVertical)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(unlocked ? Color(.tertiarySystemFill) : Color(.quaternarySystemFill))
-            )
+        // 与 `PlatformFilterChipButton` 一致：系统紧凑图文间距，避免 List 行内 Label 撑开 icon↔title。
+        HStack(spacing: PlatformMetrics.detailMicroSpacing) {
+            Image(systemName: systemImage)
+                .symbolRenderingMode(unlocked ? .multicolor : .hierarchical)
+            Text(title)
+        }
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(unlocked ? .primary : .tertiary)
+        .padding(.horizontal, PlatformMetrics.captionBadgePaddingHorizontal)
+        .padding(.vertical, PlatformMetrics.captionBadgePaddingVertical)
+        .background(
+            Capsule(style: .continuous)
+                .fill(unlocked ? Color(.tertiarySystemFill) : Color(.quaternarySystemFill))
+        )
+        .fixedSize()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(title)
     }
 }
 

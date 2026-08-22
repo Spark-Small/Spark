@@ -2,7 +2,7 @@
 //  BuddyPosterShelfCard.swift
 //  坐标系
 //
-//  组织海报轨卡：封面叠字，点整卡进资料（加入在资料内完成，不在卡下挂按钮）。
+//  圈子海报轨卡：封面叠字，点整卡进资料（加入在资料内完成，不在卡下挂按钮）。
 //
 
 import SwiftUI
@@ -56,7 +56,7 @@ struct BuddyPosterShelfCard: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilitySummary)
-        .accessibilityHint("打开组织资料")
+        .accessibilityHint("打开圈子资料")
     }
 }
 
@@ -79,7 +79,6 @@ struct BuddyGuildDetailView: View {
     let guild: CompanionGuild
     @Environment(BuddiesModel.self) private var buddies
     @Environment(AppModel.self) private var app
-    @State private var toast: String?
 
     private var isJoined: Bool { buddies.isJoined(guild) }
     private var roster: [PaidCompanion] { buddies.companions(in: guild) }
@@ -93,7 +92,7 @@ struct BuddyGuildDetailView: View {
             infoTitle: "工会信息",
             nameLabel: "工会名称",
             displayName: guild.name,
-            memberCountLabel: max(guild.companionCount, roster.count + (isJoined ? 1 : 0)),
+            memberCountLabel: roster.count + (isJoined ? 1 : 0),
             announcement: guild.summary,
             cityLine: guild.city,
             metaRows: [
@@ -118,47 +117,17 @@ struct BuddyGuildDetailView: View {
             pinTitle: "置顶该工会",
             nicknameFieldTitle: "我在本工会的昵称",
             kind: .guild,
+            reportTargetID: guild.id,
             onRequestJoin: { buddies.beginJoin(.guild(guild)) },
             onLeave: { buddies.leaveGuild(guild) },
             onInviteTap: { buddies.beginInvite(to: .guild(guild)) },
-            onSearchTap: { toast = "演示：查找工会相关内容" },
-            onReport: { toast = "已提交对「\(guild.name)」的投诉" },
             prefs: buddies.prefs(kind: .guild, name: guild.name),
             onPrefsChange: { next in
                 buddies.updatePrefs(kind: .guild, name: guild.name) { $0 = next }
-            },
-            onMessageMember: { item in
-                let greeting = "你好，我在工会「\(guild.name)」看到你，想了解一下服务。"
-                if let convo = app.startDirectChat(with: item.profile.nickname, greeting: greeting) {
-                    app.openMessages(conversationID: convo.id)
-                }
             },
             onBookMember: { companion in
                 buddies.book(companion)
             }
         )
-        .platformSecondaryPage()
-        .sheet(item: Binding(
-            get: { buddies.bookingTarget },
-            set: { buddies.bookingTarget = $0 }
-        )) { companion in
-            BuddyBookingSheet(
-                companion: companion,
-                initialDay: buddies.bookingInitialDay
-            ) { scheduledAt, hours, slotLabel in
-                _ = buddies.recordBooking(
-                    companion: companion,
-                    scheduledAt: scheduledAt,
-                    hours: hours,
-                    slotLabel: slotLabel
-                )
-            }
-            .onDisappear {
-                if buddies.bookingTarget == nil {
-                    buddies.bookingInitialDay = nil
-                }
-            }
-        }
-        .platformTransientFeedback($toast)
     }
 }

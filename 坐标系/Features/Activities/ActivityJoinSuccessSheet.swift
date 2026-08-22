@@ -49,6 +49,7 @@ struct ActivityJoinSuccessSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var calendarMessage: String?
+    @State private var showCalendarAccessAlert = false
     @State private var didAppear = false
 
     var body: some View {
@@ -63,7 +64,7 @@ struct ActivityJoinSuccessSheet: View {
                 actions
             }
             .padding(.horizontal, PlatformMetrics.contentInset)
-            .padding(.bottom, 8)
+            .padding(.bottom, PlatformMetrics.minContentGap)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -75,12 +76,13 @@ struct ActivityJoinSuccessSheet: View {
             .sensoryFeedback(.success, trigger: didAppear) { _, appeared in appeared }
         }
         .platformSheet(.confirm)
+        .activityCalendarAccessAlert(isPresented: $showCalendarAccessAlert)
     }
 
     private var hero: some View {
         VStack(spacing: PlatformMetrics.sectionSpacing) {
             Image(systemName: context.symbolName)
-                .font(.system(size: 44))
+                .font(.largeTitle)
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(PlatformStatus.success)
 
@@ -105,7 +107,7 @@ struct ActivityJoinSuccessSheet: View {
     }
 
     private var publishedMeta: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: PlatformMetrics.hairlineSpacing) {
             Text(activity.title)
                 .font(.headline)
                 .multilineTextAlignment(.center)
@@ -121,10 +123,17 @@ struct ActivityJoinSuccessSheet: View {
     }
 
     private var actions: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: PlatformMetrics.cardFooterSpacing) {
             Button {
                 Task {
-                    calendarMessage = await ActivityCalendar.add(activity, withReminders: true)
+                    switch await ActivityCalendar.add(activity, withReminders: true) {
+                    case .added(let withReminders):
+                        calendarMessage = ActivityCalendar.successMessage(withReminders: withReminders)
+                    case .accessDenied:
+                        showCalendarAccessAlert = true
+                    case .failed:
+                        calendarMessage = ActivityDetailCopy.calendarFailedMessage
+                    }
                 }
             } label: {
                 Label(context.primaryCalendarLabel, systemImage: "calendar.badge.plus")

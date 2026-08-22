@@ -2,31 +2,43 @@
 //  BuddyBookingSheet.swift
 //  坐标系
 //
+//  陪玩下单：单 Sheet 选档期 → 确认（系统 DatePicker / Picker，避免 Form 内嵌自定义 Grid 卡死）。
+//
 
 import SwiftUI
 
+private enum BuddyBookingStep: Hashable {
+    case select
+    case confirm
+}
+
 struct BuddyBookingSheet: View {
-    let companion: PaidCompanion
-    /// 打开时预选的自然日（详情页点日历日期可传入）
-    var initialDay: Date? = nil
+    let presentation: BuddyBookingPresentation
     var onBooked: (_ scheduledAt: Date, _ hours: Int, _ slotLabel: String?) -> Void
+    var onDismiss: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.calendar) private var calendar
+    @Environment(AppModel.self) private var app
 
-    @State private var selectedDay: Date?
+    @State private var step: BuddyBookingStep = .select
+    @State private var selectedDay = Date()
     @State private var selectedSlot: String?
     @State private var useCustomTime = false
     @State private var scheduledAt = Date.now.addingTimeInterval(60 * 60 * 24)
     @State private var hours = 2
+    @State private var showCreateAccount = false
+    @State private var didBootstrap = false
+
+    private var companion: PaidCompanion { presentation.companion }
+    private let chineseLocale = Locale(identifier: "zh_CN")
 
     private var resolvedSlots: [BuddyScheduleSlot.Resolved] {
         BuddyScheduleSlot.resolveAll(companion.scheduleSlots)
     }
 
     private var slotsOnSelectedDay: [BuddyScheduleSlot.Resolved] {
-        guard let selectedDay else { return [] }
-        return BuddyScheduleSlot.slots(on: selectedDay, from: companion.scheduleSlots)
+        BuddyScheduleSlot.slots(on: selectedDay, from: companion.scheduleSlots)
     }
 
     private var bookableSlotsOnDay: [BuddyScheduleSlot.Resolved] {
@@ -35,6 +47,13 @@ struct BuddyBookingSheet: View {
 
     private var totalPrice: Int {
         companion.hourlyPrice * hours
+    }
+
+    private var priceSummaryText: String {
+        if let sku = presentation.serviceSKU {
+            return sku.priceText
+        }
+        return companion.priceText
     }
 
     private var resolvedStart: Date {
@@ -47,87 +66,104 @@ struct BuddyBookingSheet: View {
         return scheduledAt
     }
 
-    private var canSubmit: Bool {
+    private var canProceed: Bool {
         guard companion.isAvailable else { return false }
         if useCustomTime { return true }
+        if companion.scheduleSlots.isEmpty { return true }
         return selectedSlot != nil
     }
 
     var body: some View {
         NavigationStack {
+            Group {
+                switch step {
+                case .select:
+                    selectContent
+                case .confirm:
+                    confirmContent
+                }
+            }
+            .navigationTitle(
+                step == .select
+                    ? BuddyBookingFlowCopy.selectStepTitle
+                    : BuddyBookingFlowCopy.confirmStepTitle
+            )
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { bookingToolbar }
+            .onAppear(perform: bootstrapIfNeeded)
+            .onChange(of: selectedDay) { _, _ in
+                syncSlotForSelectedDay()
+            }
+            .onChange(of: useCustomTime) { _, custom in
+                if custom {
+                    selectedSlot = nil
+                } else {
+                    syncSlotForSelectedDay()
+                }
+            }
+        }
+        .environment(\.locale, chineseLocale)
+        .platformSheet(.form)
+        .sheet(isPresented: $showCreateAccount) {
+            ProfileCreateAccountSheet(
+                session: app.auth,
+                reason: GuestAccessGate.commerceReason
+            )
+            .toolbarVisibility(.hidden, for: .tabBar)
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var bookingToolbar: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            if step == .confirm {
+                Button(BuddyBookingFlowCopy.back) {
+                    step = .select
+                }
+            } else {
+                Button(BuddyBookingFlowCopy.cancel) {
+                    onDismiss()
+                    dismiss()
+                }
+            }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+            if step == .select {
+                Button(BuddyBookingFlowCopy.nextStep) {
+                    guard canProceed else { return }
+                    step = .confirm
+                }
+                .fontWeight(.semibold)
+                .disabled(!canProceed)
+            } else {
+                Button(BuddyBookingFlowCopy.submitBooking) {
+                    submitBooking()
+                }
+                .fontWeight(.semibold)
+                .disabled(!canProceed)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var selectContent: some View {
+        if !companion.isAvailable {
+            unavailableState
+        } else {
             Form {
-                Section {
-                    VStack(alignment: .leading, spacing: PlatformMetrics.detailMicroSpacing) {
-                        HStack {
-                            Text(companion.profile.nickname)
-                                .font(.headline)
-                            if companion.isVerified {
-                                Text("认证")
-                                    .font(.caption2.weight(.semibold))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(PlatformStatus.success.opacity(0.15), in: Capsule())
-                                    .foregroundStyle(PlatformStatus.success)
-                            }
-                        }
-                        Text(companion.specialty)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Text("\(companion.priceText) · \(companion.responseTime) 回复")
+                headerSection
+
+                if let sku = presentation.serviceSKU {
+                    Section("已选服务") {
+                        LabeledContent(sku.title, value: sku.priceText)
+                        Text(sku.detail)
                             .font(.caption)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(.secondary)
                     }
-                    .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
                 }
 
                 if !companion.scheduleSlots.isEmpty, !useCustomTime {
-                    Section {
-                        BuddyScheduleCalendarView(
-                            slots: companion.scheduleSlots,
-                            selectedDay: $selectedDay
-                        )
-                        .listRowInsets(
-                            EdgeInsets(
-                                top: PlatformMetrics.formRowVerticalPadding,
-                                leading: PlatformMetrics.contentInset,
-                                bottom: PlatformMetrics.formRowVerticalPadding,
-                                trailing: PlatformMetrics.contentInset
-                            )
-                        )
-                    } header: {
-                        Text("可选档期")
-                    } footer: {
-                        Text("日期下方「可约」表示有空档；点选日期后选择具体时段，无需先私信。")
-                    }
-
-                    if selectedDay != nil {
-                        Section {
-                            if bookableSlotsOnDay.isEmpty {
-                                Text(emptyDayMessage)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                ForEach(bookableSlotsOnDay) { slot in
-                                    Button {
-                                        selectedSlot = slot.label
-                                    } label: {
-                                        HStack {
-                                            Label(slot.label, systemImage: "clock")
-                                                .foregroundStyle(.primary)
-                                            Spacer()
-                                            if selectedSlot == slot.label {
-                                                Image(systemName: "checkmark")
-                                                    .foregroundStyle(.tint)
-                                            }
-                                        }
-                                    }
-                                    .accessibilityAddTraits(selectedSlot == slot.label ? .isSelected : [])
-                                }
-                            }
-                        } header: {
-                            Text(daySectionTitle)
-                        }
-                    }
+                    scheduleSections
                 }
 
                 Section {
@@ -150,69 +186,121 @@ struct BuddyBookingSheet: View {
                         Text("对方暂未公开档期，可自选开始时间提交，等待确认。")
                     }
                 }
-
-                Section("确认信息") {
-                    LabeledContent("服务类型", value: companion.serviceType.rawValue)
-                    LabeledContent("费用合计", value: "¥\(totalPrice)")
-                    LabeledContent("档期状态", value: companion.isAvailable ? "可预约" : "暂不可约")
-                    if let selectedSlot, !useCustomTime {
-                        LabeledContent("已选档期", value: selectedSlot)
-                    }
-                }
-            }
-            .navigationTitle("预约陪玩")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("提交预约") {
-                        onBooked(
-                            resolvedStart,
-                            hours,
-                            useCustomTime ? nil : selectedSlot
-                        )
-                        dismiss()
-                    }
-                    .fontWeight(.semibold)
-                    .disabled(!canSubmit)
-                }
-            }
-            .onAppear {
-                bootstrapSelection()
-            }
-            .onChange(of: selectedDay) { _, day in
-                guard !useCustomTime, let day else {
-                    selectedSlot = nil
-                    return
-                }
-                let bookable = BuddyScheduleSlot.slots(on: day, from: companion.scheduleSlots)
-                    .filter(\.bookable)
-                if let selectedSlot,
-                   bookable.contains(where: { $0.label == selectedSlot }) {
-                    return
-                }
-                selectedSlot = bookable.first?.label
-            }
-            .onChange(of: useCustomTime) { _, custom in
-                if custom {
-                    selectedSlot = nil
-                } else if selectedDay == nil {
-                    bootstrapSelection()
-                } else if let selectedDay {
-                    selectedSlot = BuddyScheduleSlot.slots(on: selectedDay, from: companion.scheduleSlots)
-                        .first(where: \.bookable)?
-                        .label
-                }
             }
         }
-        .platformSheet(.browser)
+    }
+
+    @ViewBuilder
+    private var confirmContent: some View {
+        Form {
+            Section {
+                LabeledContent("陪玩", value: companion.profile.nickname)
+                if let sku = presentation.serviceSKU {
+                    LabeledContent("服务项目", value: sku.title)
+                } else {
+                    LabeledContent("服务项目", value: companion.serviceType.rawValue)
+                }
+                LabeledContent("开始时间") {
+                    Text(
+                        "\(Formatters.monthDay.string(from: resolvedStart)) "
+                        + Formatters.shortTime.string(from: resolvedStart)
+                    )
+                }
+                LabeledContent("时长", value: "\(hours) 小时")
+                LabeledContent("计价", value: priceSummaryText)
+                LabeledContent("费用合计", value: "¥\(totalPrice)")
+                if let selectedSlot, !useCustomTime {
+                    LabeledContent("档期", value: selectedSlot)
+                }
+            } header: {
+                Text("预约信息")
+            } footer: {
+                Text("提交后等待陪玩确认；接单后完成支付即可锁定档期。")
+            }
+        }
+    }
+
+    private var unavailableState: some View {
+        ContentUnavailableView {
+            Label(BuddyBookingFlowCopy.unavailableTitle, systemImage: "calendar.badge.exclamationmark")
+        } description: {
+            Text(BuddyBookingFlowCopy.unavailableBody)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var headerSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: PlatformMetrics.detailMicroSpacing) {
+                HStack {
+                    Text(companion.profile.nickname)
+                        .font(.headline)
+                    if companion.isVerified {
+                        PlatformCaptionBadge(title: "认证", chrome: .tint(PlatformStatus.success))
+                    }
+                }
+                Text(companion.specialty)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text("\(companion.priceText) · \(companion.responseTime) 回复")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
+        }
+    }
+
+    @ViewBuilder
+    private var scheduleSections: some View {
+        Section {
+            DatePicker(
+                "预约日期",
+                selection: $selectedDay,
+                in: bookingDateRange,
+                displayedComponents: [.date]
+            )
+        } header: {
+            Text("可选档期")
+        } footer: {
+            Text("先选日期，再选当日可约时段。")
+        }
+
+        Section {
+            if bookableSlotsOnDay.isEmpty {
+                Text(emptyDayMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else if bookableSlotsOnDay.count == 1, let only = bookableSlotsOnDay.first {
+                LabeledContent("时段", value: only.label)
+                    .accessibilityAddTraits(.isSelected)
+            } else {
+                Picker("时段", selection: slotSelection) {
+                    ForEach(bookableSlotsOnDay) { slot in
+                        Text(slot.label).tag(slot.label)
+                    }
+                }
+                .pickerStyle(.inline)
+            }
+        } header: {
+            Text(daySectionTitle)
+        }
+    }
+
+    private var slotSelection: Binding<String> {
+        Binding(
+            get: { selectedSlot ?? bookableSlotsOnDay.first?.label ?? "" },
+            set: { selectedSlot = $0.isEmpty ? nil : $0 }
+        )
+    }
+
+    private var bookingDateRange: ClosedRange<Date> {
+        let start = calendar.startOfDay(for: Date())
+        let end = calendar.date(byAdding: .month, value: 2, to: start) ?? start
+        return start...end
     }
 
     private var daySectionTitle: String {
-        guard let selectedDay else { return "当日时段" }
-        return selectedDay.formatted(
+        selectedDay.formatted(
             Date.FormatStyle()
                 .month()
                 .day()
@@ -230,8 +318,11 @@ struct BuddyBookingSheet: View {
         }
     }
 
-    private func bootstrapSelection() {
-        if let initialDay {
+    private func bootstrapIfNeeded() {
+        guard !didBootstrap else { return }
+        didBootstrap = true
+
+        if let initialDay = presentation.initialDay {
             let day = calendar.startOfDay(for: initialDay)
             let bookable = BuddyScheduleSlot.slots(on: day, from: companion.scheduleSlots)
                 .filter(\.bookable)
@@ -246,8 +337,34 @@ struct BuddyBookingSheet: View {
             selectedDay = first.dayStart(calendar: calendar)
             selectedSlot = first.label
         } else {
-            selectedDay = nil
+            selectedDay = calendar.startOfDay(for: Date())
             selectedSlot = nil
         }
+    }
+
+    private func syncSlotForSelectedDay() {
+        guard !useCustomTime, !companion.scheduleSlots.isEmpty else { return }
+        selectedDay = calendar.startOfDay(for: selectedDay)
+        let bookable = bookableSlotsOnDay
+        guard !bookable.isEmpty else {
+            selectedSlot = nil
+            return
+        }
+        if let selectedSlot,
+           bookable.contains(where: { $0.label == selectedSlot }) {
+            return
+        }
+        selectedSlot = bookable.first?.label
+    }
+
+    private func submitBooking() {
+        guard GuestAccessGate.allow(app.auth, presentCreateAccount: $showCreateAccount) else { return }
+        onBooked(
+            resolvedStart,
+            hours,
+            useCustomTime ? nil : selectedSlot
+        )
+        onDismiss()
+        dismiss()
     }
 }

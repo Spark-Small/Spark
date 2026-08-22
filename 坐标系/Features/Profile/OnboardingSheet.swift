@@ -22,8 +22,8 @@ struct OnboardingSheet: View {
                 .ignoresSafeArea()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
-                    VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: PlatformMetrics.sectionSpacing) {
+                    VStack(alignment: .leading, spacing: PlatformMetrics.detailTightSpacing) {
                         Text("你对什么感兴趣？")
                             .font(.title.bold())
                         Text("选 \(InterestSelectionLimits.minimum)–\(InterestSelectionLimits.maximum) 项即可。没有的点分类后的「自定义」，或加在最后的自定义分类。")
@@ -39,7 +39,7 @@ struct OnboardingSheet: View {
                         usesGroupedSections: true
                     )
 
-                    VStack(spacing: 10) {
+                    VStack(spacing: PlatformMetrics.detailTightSpacing) {
                         Text(InterestSelectionLimits.progressText(count: selectedInterests.count))
                             .font(.caption)
                             .foregroundStyle(canContinue ? Color.secondary : Color.red)
@@ -54,9 +54,9 @@ struct OnboardingSheet: View {
                         }
                     }
                     .padding(.top, 8)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, PlatformMetrics.contentInset)
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, PlatformMetrics.contentInset)
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared ? 0 : 12)
             }

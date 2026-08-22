@@ -2,15 +2,24 @@
 //  CommunityAuthorProfileSheet.swift
 //  坐标系
 //
+//  作者 / 活动成员资料：可作 Sheet，也可作为 NavigationLink 目的地。
+//
 
 import SwiftUI
 
-struct CommunityAuthorFallbackSheet: View {
+/// 用户资料页（活动成员、社区作者等无完整搭子卡时的详情）。
+struct CommunityAuthorProfileView: View {
     let name: String
+    var chatContextOverride: ConversationChatContext? = nil
+    var showsBuddyHomeShortcut = true
+
     @Environment(AppModel.self) private var app
+    @Environment(BuddiesModel.self) private var buddies
+    @Environment(CommunityModel.self) private var community
     @Environment(\.dismiss) private var dismiss
     @State private var showReport = false
     @State private var confirmBlock = false
+    @State private var peerContactRoute: PeerContactRoute?
 
     private var profile: AuthorDirectoryProfile { SampleData.author(named: name) }
 
@@ -23,13 +32,9 @@ struct CommunityAuthorFallbackSheet: View {
     }
 
     private var buddyMatch: DiscoverBuddyItem? {
-        if let paid = SampleData.paidCompanions.first(where: { $0.profile.nickname == name }) {
-            return .paid(paid)
-        }
-        if let free = SampleData.circleBuddies.first(where: { $0.profile.nickname == name }) {
-            return .free(free)
-        }
-        return nil
+        buddies.item(for: name)
+            ?? SampleData.paidCompanions.first { $0.profile.nickname == name }.map(DiscoverBuddyItem.paid)
+            ?? SampleData.circleBuddies.first { $0.profile.nickname == name }.map(DiscoverBuddyItem.free)
     }
 
     var body: some View {
@@ -39,101 +44,109 @@ struct CommunityAuthorFallbackSheet: View {
             buddyItem: buddyMatch,
             membershipActive: false
         )
-        MessagesFormSheet(title: "作者资料") {
-            List {
-                Section {
-                    Label {
-                        VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
-                            Text(profile.name)
-                                .font(.title3.bold())
-                            Text(profile.roleLabel)
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(.secondary)
-                            Text(profile.city)
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                            TrustCredentialBadgeStrip(
-                                photoVerified: flags.photoVerified,
-                                isMember: flags.isMember,
-                                revealLocked: false
-                            )
-                        }
-                    } icon: {
-                        PlatformSystemAvatar(side: PlatformConversationListRow.imageSide)
-                    }
-
-                    Text(profile.bio)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    if !profile.tags.isEmpty {
-                        CommunityTagsLine(tags: profile.tags)
-                    }
-
-                    HStack {
-                        labeledStat(title: "发起", value: "\(profile.hostedCount)")
-                        Spacer()
-                        labeledStat(title: "参加", value: "\(profile.joinedCount)")
-                        Spacer()
-                        labeledStat(title: "分享", value: "\(recentPosts.count)")
-                    }
-                }
-
-                TrustPublicProfileSections(
-                    nickname: name,
-                    currentUserName: app.user.name,
-                    buddyItem: buddyMatch,
-                    compact: true
-                )
-
-                if !hostedActivities.isEmpty {
-                    Section("TA 发起的活动") {
-                        ForEach(hostedActivities) { activity in
+        List {
+            Section {
+                VStack {
+                    HStack(alignment: .center, spacing: PlatformConversationListRow.imageToTextPadding) {
+                        Label {
                             VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
-                                Text(activity.title)
-                                    .font(.subheadline.weight(.semibold))
-                                Text("\(activity.location) · \(activity.fee)")
-                                    .font(.caption)
+                                Text(profile.name)
+                                    .font(.title3.bold())
+                                Text(profile.roleLabel)
+                                    .font(.caption.weight(.medium))
                                     .foregroundStyle(.secondary)
+                                Text(profile.city)
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                TrustCredentialBadgeStrip(
+                                    photoVerified: flags.photoVerified,
+                                    isMember: false,
+                                    revealLocked: false
+                                )
                             }
+                        } icon: {
+                            PlatformListAvatarView(name: name)
                         }
+
+                        Spacer(minLength: 0)
+                        followButton
                     }
+
+                    ProfileSocialStatsRow(
+                        postCount: ProfileSocialStats.postCount(for: name, community: community),
+                        followingCount: ProfileSocialStats.followingCount(for: name, app: app),
+                        fansCount: ProfileSocialStats.fansCount(for: name, app: app)
+                    )
                 }
 
-                if !recentPosts.isEmpty {
-                    Section("最近分享") {
-                        ForEach(recentPosts) { post in
-                            VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
-                                Text(post.messageText)
-                                    .font(.subheadline.weight(.semibold))
-                                    .lineLimit(3)
-                            }
-                        }
-                    }
-                }
+                Text(profile.bio)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
 
-                Section {
-                    Button("发私聊") {
-                        if let convo = app.startDirectChat(with: name) {
-                            dismiss()
-                            app.openMessages(conversationID: convo.id)
+                if !profile.tags.isEmpty {
+                    CommunityTagsLine(tags: profile.tags)
+                }
+            }
+
+            TrustPublicProfileSections(
+                nickname: name,
+                currentUserName: app.user.name,
+                buddyItem: buddyMatch,
+                compact: true
+            )
+
+            if !hostedActivities.isEmpty {
+                Section("TA 发起的活动") {
+                    ForEach(hostedActivities) { activity in
+                        VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
+                            Text(activity.title)
+                                .font(.subheadline.weight(.semibold))
+                            Text("\(activity.location) · \(activity.fee)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                    }
-                    if buddyMatch != nil {
-                        Button("查看搭子主页") {
-                            dismiss()
-                            app.selectedTab = .buddies
-                        }
-                    }
-                    Button("举报", role: .destructive) {
-                        showReport = true
-                    }
-                    Button("拉黑", role: .destructive) {
-                        confirmBlock = true
                     }
                 }
             }
+
+            if !recentPosts.isEmpty {
+                Section("最近分享") {
+                    ForEach(recentPosts) { post in
+                        VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
+                            Text(post.messageText)
+                                .font(.subheadline.weight(.semibold))
+                                .lineLimit(3)
+                        }
+                    }
+                }
+            }
+
+            Section {
+                Button(app.peerContactActionTitle(for: name, context: chatContext)) {
+                    peerContactRoute = app.openPeerContact(
+                        with: name,
+                        context: chatContext
+                    )
+                }
+                if showsBuddyHomeShortcut, let item = buddyMatch {
+                    NavigationLink {
+                        BuddyDetailRouteView(item: item)
+                    } label: {
+                        Text("查看搭子主页")
+                    }
+                }
+                Button("举报", role: .destructive) {
+                    showReport = true
+                }
+                Button("拉黑", role: .destructive) {
+                    confirmBlock = true
+                }
+            }
         }
+        .listStyle(.insetGrouped)
+        .navigationTitle(name)
+        .navigationBarTitleDisplayMode(.inline)
+        .peerContactDestination(route: $peerContactRoute)
         .alert(
             "举报 \(name)",
             isPresented: $showReport
@@ -167,13 +180,39 @@ struct CommunityAuthorFallbackSheet: View {
         }
     }
 
-    private func labeledStat(title: String, value: String) -> some View {
-        VStack(spacing: PlatformMetrics.hairlineSpacing) {
-            Text(value)
-                .font(.headline)
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+    private var chatContext: ConversationChatContext {
+        if let chatContextOverride {
+            return chatContextOverride
+        }
+        if let buddyMatch {
+            return .forBuddyItem(buddyMatch)
+        }
+        return .communityAuthor
+    }
+
+    private var followButton: some View {
+        let following = app.isFollowing(name)
+        return Button {
+            app.toggleFollow(name)
+        } label: {
+            Text(following ? "已关注" : "关注")
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(following ? Color(.tertiarySystemFill) : .accentColor)
+        .foregroundStyle(following ? Color.secondary : Color.white)
+        .sensoryFeedback(.selection, trigger: following)
+    }
+}
+
+struct CommunityAuthorFallbackSheet: View {
+    let name: String
+
+    var body: some View {
+        MessagesFormSheet(title: name) {
+            CommunityAuthorProfileView(name: name)
         }
     }
 }

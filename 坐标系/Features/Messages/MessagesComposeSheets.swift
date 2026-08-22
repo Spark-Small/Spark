@@ -167,7 +167,7 @@ enum MessagesContactRoster {
             result.append(trimmed)
         }
 
-        for conversation in conversations where conversation.isFriendChat && !conversation.isMessageRequest {
+        for conversation in conversations where conversation.isFriendChat && conversation.isFriend && !conversation.isMessageRequest {
             append(conversation.title)
         }
         for name in inviteNicknames { append(name) }

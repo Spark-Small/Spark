@@ -525,7 +525,7 @@ struct PlatformMessageComposerBar<AttachMenu: View>: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack {
             if let replyPreview {
                 replyBar(replyPreview)
             }
@@ -581,14 +581,9 @@ struct PlatformMessageComposerBar<AttachMenu: View>: View {
                 toolHeight = height
             }
             .platformMessagePagePadding()
-            .padding(
-                .top,
-                replyPreview == nil
-                    ? PlatformMessagesChrome.composerBarVerticalPadding
-                    : PlatformMessagesChrome.composerInlineSpacing
-            )
-            .padding(.bottom, PlatformMessagesChrome.composerBarVerticalPadding)
         }
+        .padding(.top, replyPreview == nil ? PlatformMessagesChrome.composerBarVerticalPadding : 0)
+        .padding(.bottom, PlatformMessagesChrome.composerBarVerticalPadding)
         .opacity(isEnabled ? 1 : 0.9)
     }
 
@@ -633,17 +628,7 @@ struct PlatformMessageComposerBar<AttachMenu: View>: View {
     }
 
     private func replyBar(_ preview: (sender: String, text: String)) -> some View {
-        HStack(alignment: .center, spacing: PlatformMessagesChrome.composerInlineSpacing) {
-            VStack(alignment: .leading, spacing: PlatformMessagesChrome.composerInlineSpacing) {
-                Text(MessagesCopy.replyingTo(preview.sender))
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text(preview.text)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 0)
+        LabeledContent {
             Button(MessagesCopy.cancelReply, systemImage: "xmark.circle.fill") {
                 onCancelReply?()
             }
@@ -651,10 +636,12 @@ struct PlatformMessageComposerBar<AttachMenu: View>: View {
             .buttonStyle(.borderless)
             .symbolRenderingMode(.hierarchical)
             .foregroundStyle(.secondary)
+        } label: {
+            Text(MessagesCopy.replyingTo(preview.sender))
+            Text(preview.text)
+                .lineLimit(1)
         }
         .platformMessagePagePadding()
-        .padding(.top, PlatformMessagesChrome.composerBarVerticalPadding)
-        .padding(.bottom, PlatformMessagesChrome.composerInlineSpacing)
     }
 }
 

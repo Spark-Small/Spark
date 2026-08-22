@@ -94,33 +94,71 @@ enum ActivityNavigation {
     }
 }
 
+/// 底部 Sheet：选择 Apple / 高德 / 百度地图导航到活动地点。
+/// 呈现遵循 `PlatformSheetKind.navigationPicker`（系统 `.medium` 单档 + inset 列表）。
+struct ActivityNavigationPickerSheet: View {
+    let activity: Activity
+
+    @Environment(\.dismiss) private var dismiss
+
+    private struct MapApp: Identifiable {
+        let id: String
+        let title: String
+        let systemImage: String
+        let open: (Activity) -> Void
+    }
+
+    private var apps: [MapApp] {
+        [
+            MapApp(id: "apple", title: "Apple 地图", systemImage: "map", open: ActivityNavigation.openInAppleMaps),
+            MapApp(id: "amap", title: "高德地图", systemImage: "map.fill", open: ActivityNavigation.openInAmap),
+            MapApp(id: "baidu", title: "百度地图", systemImage: "map.fill", open: ActivityNavigation.openInBaiduMaps),
+        ]
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    LabeledContent(ActivityDetailCopy.navigationAddressField) {
+                        Text(activity.location)
+                            .multilineTextAlignment(.trailing)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Section {
+                    ForEach(apps) { app in
+                        Button {
+                            dismiss()
+                            app.open(activity)
+                        } label: {
+                            Label(app.title, systemImage: app.systemImage)
+                                .labelStyle(.titleAndIcon)
+                        }
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .listSectionSpacing(.compact)
+            .scrollBounceBehavior(.basedOnSize)
+            .navigationTitle(ActivityDetailCopy.navigationSheetTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { dismiss() }
+                }
+            }
+        }
+        .platformSheet(.navigationPicker)
+    }
+}
+
 extension View {
-    /// 系统底部动作表：选择地图 App（iPhone 自屏幕底部升起）。
-    func activityMapNavigationDialog(activity: Binding<Activity?>) -> some View {
-        confirmationDialog(
-            ActivityDetailCopy.navigationSheetTitle,
-            isPresented: Binding(
-                get: { activity.wrappedValue != nil },
-                set: { if !$0 { activity.wrappedValue = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            if let target = activity.wrappedValue {
-                Button("Apple 地图") {
-                    ActivityNavigation.openInAppleMaps(target)
-                }
-                Button("高德地图") {
-                    ActivityNavigation.openInAmap(target)
-                }
-                Button("百度地图") {
-                    ActivityNavigation.openInBaiduMaps(target)
-                }
-            }
-            Button("取消", role: .cancel) {}
-        } message: {
-            if let target = activity.wrappedValue {
-                Text(target.location)
-            }
+    /// 底部 Sheet：选择地图 App 导航到活动地点。
+    func activityMapNavigationSheet(activity: Binding<Activity?>) -> some View {
+        sheet(item: activity) { target in
+            ActivityNavigationPickerSheet(activity: target)
         }
     }
 }

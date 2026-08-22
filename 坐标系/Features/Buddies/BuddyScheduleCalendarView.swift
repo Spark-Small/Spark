@@ -58,6 +58,15 @@ struct BuddyScheduleCalendarView: View {
         return cells
     }
 
+    /// 按周拆成 GridRow，避免 Form 内单行塞满 42 个子视图。
+    private var dayRows: [[Date?]] {
+        let cells = daysInMonth
+        guard !cells.isEmpty else { return [] }
+        return stride(from: 0, to: cells.count, by: 7).map { start in
+            Array(cells[start..<min(start + 7, cells.count)])
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: PlatformMetrics.detailMicroSpacing) {
             if showsMonthPager {
@@ -68,23 +77,28 @@ struct BuddyScheduleCalendarView: View {
                     .foregroundStyle(.secondary)
             }
 
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7),
-                spacing: PlatformMetrics.minContentGap
-            ) {
-                ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
-                    Text(symbol)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity)
+            // 不用 LazyVGrid：嵌在 Form/List 里时懒网格与列表测高会互相卡住，整页卡死。
+            // 月历最多约 42 格，Grid 足够。
+            Grid(horizontalSpacing: PlatformMetrics.hairlineSpacing, verticalSpacing: PlatformMetrics.minContentGap) {
+                GridRow {
+                    ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
+                        Text(symbol)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                            .frame(maxWidth: .infinity)
+                    }
                 }
 
-                ForEach(Array(daysInMonth.enumerated()), id: \.offset) { _, day in
-                    if let day {
-                        dayCell(day)
-                    } else {
-                        Color.clear
-                            .frame(minHeight: cellMinHeight)
+                ForEach(Array(dayRows.enumerated()), id: \.offset) { _, week in
+                    GridRow {
+                        ForEach(Array(week.enumerated()), id: \.offset) { _, day in
+                            if let day {
+                                dayCell(day)
+                            } else {
+                                Color.clear
+                                    .frame(minHeight: cellMinHeight)
+                            }
+                        }
                     }
                 }
             }
@@ -139,20 +153,20 @@ struct BuddyScheduleCalendarView: View {
             guard selectable else { return }
             selectedDay = day
         } label: {
-            VStack(spacing: 2) {
+            VStack(spacing: PlatformMetrics.hairlineSpacing) {
                 Text("\(calendar.component(.day, from: day))")
                     .font(.body.weight(isSelected || isToday ? .semibold : .regular))
                     .foregroundStyle(dayNumberColor(selected: isSelected, past: past, status: status))
 
                 Text(status.caption ?? " ")
-                    .font(.system(size: captionFontSize, weight: .medium))
+                    .font(.caption2.weight(.medium))
                     .foregroundStyle(captionColor(status, selected: isSelected))
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
             }
             .frame(maxWidth: .infinity, minHeight: cellMinHeight)
-            .padding(.vertical, 4)
-            .background(cellBackground(selected: isSelected, status: status), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .padding(.vertical, PlatformMetrics.captionBadgePaddingVertical)
+            .background(cellBackground(selected: isSelected, status: status), in: PlatformMetrics.mediaShape)
         }
         .buttonStyle(.plain)
         .disabled(!selectable)
@@ -162,10 +176,6 @@ struct BuddyScheduleCalendarView: View {
 
     private var cellMinHeight: CGFloat {
         dynamicTypeSize.isAccessibilitySize ? 56 : 44
-    }
-
-    private var captionFontSize: CGFloat {
-        dynamicTypeSize.isAccessibilitySize ? 11 : 9
     }
 
     private func dayNumberColor(

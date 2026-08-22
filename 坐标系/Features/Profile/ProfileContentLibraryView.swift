@@ -2,125 +2,14 @@
 //  ProfileContentLibraryView.swift
 //  坐标系
 //
-//  「我的内容库」：发布 / 收藏 / 互动统一收口（原「我的发布」扩展）。
+//  「我的」发布凭证夹与活动收藏列表。
 //
 
 import SwiftUI
 
-/// 内容库枢纽：把分散在活动页 / 社区菜单的收藏与互动收进「我的」。
-struct ProfileContentLibraryView: View {
-    @Environment(ActivitiesModel.self) private var activities
-    @Environment(CommunityModel.self) private var community
-
-    private var snapshot: CreatorInsightsSnapshot {
-        CreatorInsightsService.snapshot(activities: activities, community: community)
-    }
-
-    var body: some View {
-        List {
-            Section {
-                NavigationLink {
-                    ProfilePublishedLibraryView(initialSegment: .posts)
-                } label: {
-                    libraryRow(
-                        title: "我发布的",
-                        systemImage: "square.and.pencil",
-                        detail: publishedSummary
-                    )
-                }
-            } header: {
-                Text("发布")
-            } footer: {
-                Text("分享与发起活动的创作凭证；仅在 App 内展示，不会加入 Apple Wallet。")
-            }
-
-            Section {
-                NavigationLink {
-                    ProfileFavoriteActivitiesLibraryView()
-                } label: {
-                    libraryRow(
-                        title: "收藏的活动",
-                        systemImage: "bookmark",
-                        detail: countLabel(activities.favoriteActivities.count, unit: "场")
-                    )
-                }
-                NavigationLink {
-                    CommunityBookmarksView()
-                } label: {
-                    libraryRow(
-                        title: "收藏的分享",
-                        systemImage: "bookmark.fill",
-                        detail: countLabel(community.bookmarkedPosts.count, unit: "条")
-                    )
-                }
-            } header: {
-                Text("收藏")
-            }
-
-            Section {
-                NavigationLink {
-                    CommunityLikedPostsView()
-                } label: {
-                    libraryRow(
-                        title: "赞过的分享",
-                        systemImage: "heart",
-                        detail: countLabel(community.likedPosts.count, unit: "条")
-                    )
-                }
-                NavigationLink {
-                    CommunityMyRepostsView()
-                } label: {
-                    libraryRow(
-                        title: "我的转发",
-                        systemImage: "arrow.2.squarepath",
-                        detail: countLabel(community.myReposts.count, unit: "条")
-                    )
-                }
-            } header: {
-                Text("互动")
-            } footer: {
-                Text("活动票与陪玩预约仍在上方「我的活动 / 我的陪玩」凭证架；本页收口社区与活动内容资产。")
-            }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle("我的内容库")
-        .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
-    }
-
-    private var publishedSummary: String {
-        let posts = snapshot.posts.count
-        let hosted = snapshot.activities.count
-        if posts == 0, hosted == 0 { return "暂无" }
-        var parts: [String] = []
-        if posts > 0 { parts.append("\(posts) 条分享") }
-        if hosted > 0 { parts.append("\(hosted) 场活动") }
-        return parts.joined(separator: " · ")
-    }
-
-    private func countLabel(_ count: Int, unit: String) -> String {
-        count == 0 ? "暂无" : "\(count) \(unit)"
-    }
-
-    private func libraryRow(title: String, systemImage: String, detail: String) -> some View {
-        Label {
-            HStack {
-                Text(title)
-                Spacer(minLength: 8)
-                Text(detail)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-        } icon: {
-            Image(systemName: systemImage)
-        }
-        .platformContentSymbolStyle()
-    }
-}
-
 // MARK: - Published (分享 / 发起)
 
-/// 原「我的发布」双分段列表，现作为内容库子页。
+/// 「我发起的」：分享 / 活动双分段凭证夹。
 struct ProfilePublishedLibraryView: View {
     enum Segment: String, CaseIterable, Identifiable, Hashable {
         case posts = "分享"
@@ -172,7 +61,6 @@ struct ProfilePublishedLibraryView: View {
         .listSectionSpacing(.compact)
         .navigationTitle("我发布的")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
         .activityZoomNavigationDestinationIfNeeded(fallback: zoomNamespace)
         .onAppear {
             if snapshot.posts.isEmpty, !snapshot.activities.isEmpty {
@@ -277,7 +165,6 @@ struct ProfileFavoriteActivitiesLibraryView: View {
         .listSectionSpacing(.compact)
         .navigationTitle("收藏的活动")
         .navigationBarTitleDisplayMode(.inline)
-        .platformSecondaryPage()
         .activityZoomNavigationDestinationIfNeeded(fallback: zoomNamespace)
     }
 
