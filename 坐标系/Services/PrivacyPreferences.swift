@@ -50,7 +50,7 @@ enum PrivacyPreferences {
             parts.append(statusLine)
         } else if !showOnline,
                   !statusLine.isEmpty,
-                  statusLine != "在线" {
+                  statusLine != BuddyDetailCopy.online {
             // 关闭「在线」时仍可显示「今日活跃」等非实时文案
             parts.append(statusLine)
         }
@@ -59,7 +59,7 @@ enum PrivacyPreferences {
 
     static func statusLine(isOnline: Bool, lastActiveText: String) -> String? {
         if isOnline {
-            return showOnline ? "在线" : nil
+            return showOnline ? BuddyDetailCopy.online : nil
         }
         return lastActiveText.isEmpty ? nil : lastActiveText
     }

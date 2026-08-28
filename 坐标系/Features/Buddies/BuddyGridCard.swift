@@ -130,16 +130,14 @@ struct BuddyGridCard: View {
     @ViewBuilder
     private func actionButton(onMedia: Bool) -> some View {
         if isPaid {
-            Button(item.inviteEnabled ? "选档期" : "暂不可约", action: onAction)
-                .font(.caption.weight(.semibold))
-                .activityPrimaryCTA(controlSize: .small)
+            Button(item.inviteEnabled ? BuddyBrowseCopy.bookAction : BuddyBrowseCopy.bookUnavailable, action: onAction)
+                .activityPrimaryCTA(controlSize: .regular)
                 .disabled(!item.inviteEnabled)
                 .colorScheme(onMedia ? .dark : .light)
                 .layoutPriority(1)
         } else {
             Button(contactActionTitle, action: onAction)
-                .font(.caption.weight(.semibold))
-                .activityPrimaryCTA(controlSize: .small)
+                .activityPrimaryCTA(controlSize: .regular)
                 .colorScheme(onMedia ? .dark : .light)
                 .layoutPriority(1)
         }
@@ -181,9 +179,9 @@ struct BuddyGridCard: View {
     @ViewBuilder
     private var trailingBadge: some View {
         if case .paid(let companion) = item, companion.isAvailable {
-            PlatformMediaCaptionBadge(title: "可约", tint: PlatformStatus.success)
+            PlatformMediaCaptionBadge(title: BuddyDetailCopy.available, tint: PlatformStatus.success)
         } else if item.isOnline, PrivacyPreferences.showOnline {
-            PlatformMediaCaptionBadge(title: "在线", tint: PlatformStatus.success)
+            PlatformMediaCaptionBadge(title: BuddyDetailCopy.online, tint: PlatformStatus.success)
         }
     }
 
@@ -289,6 +287,7 @@ struct BuddyPickCard: View {
                     coverLink
                     footerChrome(onMedia: true)
                         .padding(PlatformMetrics.captionBadgeInset)
+                        .frame(maxWidth: .infinity)
                 }
             }
         }
@@ -310,9 +309,9 @@ struct BuddyPickCard: View {
                 }
                 .overlay(alignment: .topTrailing) {
                     if case .paid(let companion) = item, companion.isAvailable {
-                        PlatformMediaCaptionBadge(title: "可约", tint: PlatformStatus.success)
+                        PlatformMediaCaptionBadge(title: BuddyDetailCopy.available, tint: PlatformStatus.success)
                     } else if item.isOnline, PrivacyPreferences.showOnline {
-                        PlatformMediaCaptionBadge(title: "在线", tint: PlatformStatus.success)
+                        PlatformMediaCaptionBadge(title: BuddyDetailCopy.online, tint: PlatformStatus.success)
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -365,34 +364,14 @@ struct BuddyPickCard: View {
     @ViewBuilder
     private func pickAction(onMedia: Bool) -> some View {
         if isPaid {
-            Button(item.inviteEnabled ? "选档期" : "暂不可约", action: onAction)
-                .font(.subheadline.weight(.semibold))
-                .activityPrimaryCTA(controlSize: .small)
+            Button(item.inviteEnabled ? BuddyBrowseCopy.bookAction : BuddyBrowseCopy.bookUnavailable, action: onAction)
+                .activityPrimaryCTA(controlSize: .large)
                 .disabled(!item.inviteEnabled)
                 .colorScheme(onMedia ? .dark : .light)
                 .layoutPriority(1)
         } else {
             Button(contactActionTitle, action: onAction)
-                .font(.subheadline.weight(.semibold))
-                .activityPrimaryCTA(controlSize: .small)
-                .colorScheme(onMedia ? .dark : .light)
-                .layoutPriority(1)
-        }
-    }
-
-    @ViewBuilder
-    private func actionButton(onMedia: Bool) -> some View {
-        if isPaid {
-            Button(item.inviteEnabled ? "选档期" : "暂不可约", action: onAction)
-                .font(.subheadline.weight(.semibold))
-                .activityPrimaryCTA(controlSize: .small)
-                .disabled(!item.inviteEnabled)
-                .colorScheme(onMedia ? .dark : .light)
-                .layoutPriority(1)
-        } else {
-            Button(contactActionTitle, action: onAction)
-                .font(.subheadline.weight(.semibold))
-                .activityPrimaryCTA(controlSize: .small)
+                .activityPrimaryCTA(controlSize: .large)
                 .colorScheme(onMedia ? .dark : .light)
                 .layoutPriority(1)
         }
@@ -401,8 +380,8 @@ struct BuddyPickCard: View {
 
 struct BuddyPickRail: View {
     let items: [DiscoverBuddyItem]
-    var title: String
-    var subtitle: String
+    /// `nil` 时不渲染分区标题（首页首轨与活动 Hero 一致）。
+    var title: String? = nil
     var intentQuery: String = ""
     var zoomNamespace: Namespace.ID
     var onChat: (DiscoverBuddyItem) -> Void
@@ -411,26 +390,34 @@ struct BuddyPickRail: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        DiscoverBrowseSection(title: title, subtitle: subtitle) {
-            DiscoverHorizontalRail {
-                ForEach(items) { item in
-                    BuddyPickCard(
-                        item: item,
-                        intentQuery: intentQuery,
-                        contactActionTitle: app.peerContactActionTitle(
-                            for: item.profile.nickname,
-                            context: .forBuddyItem(item)
-                        ),
-                        zoomNamespace: zoomNamespace,
-                        onAction: {
-                            switch item {
-                            case .free: onChat(item)
-                            case .paid: onBook?(item)
-                            }
+        if let title, !title.isEmpty {
+            DiscoverBrowseSection(title: title) {
+                rail
+            }
+        } else {
+            rail
+        }
+    }
+
+    private var rail: some View {
+        DiscoverHorizontalRail {
+            ForEach(items) { item in
+                BuddyPickCard(
+                    item: item,
+                    intentQuery: intentQuery,
+                    contactActionTitle: app.peerContactActionTitle(
+                        for: item.profile.nickname,
+                        context: .forBuddyItem(item)
+                    ),
+                    zoomNamespace: zoomNamespace,
+                    onAction: {
+                        switch item {
+                        case .free: onChat(item)
+                        case .paid: onBook?(item)
                         }
-                    )
-                    .platformEditorialRailFrame()
-                }
+                    }
+                )
+                .platformEditorialRailFrame()
             }
         }
     }

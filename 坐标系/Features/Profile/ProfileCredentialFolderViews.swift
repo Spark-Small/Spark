@@ -9,12 +9,12 @@ import SwiftUI
 
 // MARK: - Activity library
 
-/// 我的活动：按时间分组的场次清单；发起带星标；顶栏「只看发起」。
+/// 「我报名的」：仅参加场次凭证（发起活动见「我发起的」）。
 struct ProfileActivityCredentialsView: View {
     @Environment(ActivitiesModel.self) private var activities
     @Environment(WalletPassStore.self) private var passStore
+    @Environment(AppModel.self) private var app
     @Environment(\.activityZoomNamespace) private var inheritedZoomNamespace
-    @State private var showHostedOnly = false
     @Namespace private var localZoomNamespace
 
     private var zoomNamespace: Namespace.ID {
@@ -22,21 +22,21 @@ struct ProfileActivityCredentialsView: View {
     }
 
     private var upcomingItems: [Activity] {
-        filterHosted(allActiveTickets.filter { !$0.isPast })
+        joinedTickets.filter { !$0.isPast }
             .sorted { $0.date < $1.date }
     }
 
     private var endedItems: [Activity] {
-        filterHosted(allActiveTickets.filter(\.isPast))
+        joinedTickets.filter(\.isPast)
             .sorted { $0.date > $1.date }
     }
 
     private var voidedItems: [Activity] {
-        filterHosted(voidedCatalog)
+        voidedCatalog
     }
 
-    private var allActiveTickets: [Activity] {
-        let joined = activities.joinedActivities
+    private var joinedTickets: [Activity] {
+        activities.joinedActivities
             .filter { !activities.isHost($0) }
             .filter {
                 passStore.shouldShowActivityOnPreviewRail(
@@ -45,31 +45,25 @@ struct ProfileActivityCredentialsView: View {
                     isHost: false
                 )
             }
-        let hosted = activities.hostedActivities
-            .filter {
-                passStore.shouldShowActivityOnPreviewRail(
-                    $0,
-                    isJoined: activities.isJoined($0.id),
-                    isHost: true
-                )
-            }
-        let byID = Dictionary(uniqueKeysWithValues: (joined + hosted).map { ($0.id, $0) })
-        return Array(byID.values)
     }
 
     private var voidedCatalog: [Activity] {
         var byID: [Activity.ID: Activity] = [:]
-        for activity in activities.joinedActivities + activities.hostedActivities {
+        for activity in activities.joinedActivities where !activities.isHost(activity) {
             if isVoidedTicket(activity) {
                 byID[activity.id] = activity
             }
         }
         for pass in passStore.passes where pass.voided && pass.style == .eventTicket {
             guard let related = pass.relatedID else { continue }
-            if let activity = activities.activity(id: related) {
+            if let activity = activities.activity(id: related),
+               activities.isJoined(activity.id),
+               !activities.isHost(activity) {
                 byID[activity.id] = activity
             } else if let order = ActivityPaymentStore.order(id: related),
-                      let activity = activities.activity(id: order.activityID) {
+                      let activity = activities.activity(id: order.activityID),
+                      activities.isJoined(activity.id),
+                      !activities.isHost(activity) {
                 byID[activity.id] = activity
             }
         }
@@ -87,10 +81,17 @@ struct ProfileActivityCredentialsView: View {
             if !hasAnyContent {
                 Section {
                     ContentUnavailableView(
-                        emptyTitle,
-                        systemImage: showHostedOnly ? "star" : "ticket",
-                        description: Text(emptyDescription)
+                        "还没有报名的活动",
+                        systemImage: "ticket",
+                        description: Text("去活动页找一场局参加，凭证会出现在这里。")
                     )
+                    .listRowBackground(Color.clear)
+
+                    Button("去发现活动") {
+                        app.selectedTab = .activities
+                    }
+                    .activityPrimaryCTA(controlSize: .large)
+                    .buttonSizing(.flexible)
                     .listRowBackground(Color.clear)
                 }
             } else {
@@ -125,38 +126,16 @@ struct ProfileActivityCredentialsView: View {
                 }
             }
         }
-        .listStyle(.insetGrouped)
-        .listSectionSpacing(.compact)
-        .navigationTitle("我的活动")
+        .profileSecondaryListChrome()
+        .navigationTitle(ProfileDashboardCopy.activityJoined)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                ProfileHostedStarFilterButton(showHostedOnly: $showHostedOnly)
-            }
-        }
         .activityZoomSlot("profile-activity-library")
         .activityZoomNavigationDestinationIfNeeded(fallback: localZoomNamespace)
         .onAppear(perform: backfillActivePasses)
     }
 
-    private var emptyTitle: String {
-        showHostedOnly ? "还没有发起的活动" : "还没有活动"
-    }
-
-    private var emptyDescription: String {
-        showHostedOnly
-            ? "发起一场活动后会出现在这里。点右上角「全部」可查看参加的场次。"
-            : "去活动页找一场局参加，或发起你的第一场。"
-    }
-
-    private func filterHosted(_ items: [Activity]) -> [Activity] {
-        guard showHostedOnly else { return items }
-        return items.filter { activities.isHost($0) }
-    }
-
     @ViewBuilder
     private func credentialRow(_ activity: Activity, voided: Bool) -> some View {
-        let hosted = activities.isHost(activity)
         ActivityZoomNavigationLink(
             activity: activity,
             namespace: zoomNamespace,
@@ -167,25 +146,17 @@ struct ProfileActivityCredentialsView: View {
                 activity: activity,
                 voided: voided
             )
-            .overlay(alignment: .topTrailing) {
-                if hosted {
-                    ProfileHostedStarMark()
-                        .padding(.top, WalletPassChromePadding.vertical)
-                        .padding(.trailing, WalletPassChromePadding.horizontal)
-                }
-            }
         }
         .contextMenu {
             if !voided,
                passStore.activityPass(for: activity, activeOnly: true) == nil,
-               activities.isJoined(activity.id) || hosted {
+               activities.isJoined(activity.id) {
                 Button("补发", systemImage: "ticket") {
                     reissue(activity)
                 }
             }
         }
         .platformWalletPassCredentialRow()
-        .accessibilityHint(hosted ? "我发起的" : "")
     }
 
     private func isVoidedTicket(_ activity: Activity) -> Bool {
@@ -202,17 +173,16 @@ struct ProfileActivityCredentialsView: View {
     }
 
     private func backfillActivePasses() {
-        for activity in allActiveTickets
-        where activities.isJoined(activity.id) || activities.isHost(activity) {
+        for activity in joinedTickets where activities.isJoined(activity.id) {
             guard passStore.activityPass(for: activity, activeOnly: true) == nil else { continue }
             reissue(activity)
         }
     }
 }
 
+// MARK: - Booking credentials
 
-
-// 陪玩预约凭证夹（有效 / 已作废）— 「我的 → 陪玩预约」。
+// 陪玩预约凭证夹（有效 / 已作废）— 「我的 → 陪玩预约」；待支付走「我的订单」。
 struct ProfileBookingCredentialsSection: View {
     @Environment(BuddiesModel.self) private var buddies
     @Environment(WalletPassStore.self) private var passStore
@@ -232,8 +202,8 @@ struct ProfileBookingCredentialsSection: View {
         }
     }
 
-    private var awaitingPaymentRecords: [BuddyBookingRecord] {
-        buddies.bookingRecords.filter {
+    private var hasPendingOrders: Bool {
+        buddies.bookingRecords.contains {
             $0.status == .pendingConfirm || $0.status == .awaitingPayment
         }
     }
@@ -252,26 +222,10 @@ struct ProfileBookingCredentialsSection: View {
                     bookingPassStackRow(activeRecords, voided: false)
                 }
             } footer: {
-                Text("支付成功后自动签发；退款或取消后作废，仅在下方「已作废」中保留。点开长条票面可展开凭证，长按可补发或删除。")
-            }
-
-            if !awaitingPaymentRecords.isEmpty {
-                Section {
-                    ForEach(awaitingPaymentRecords) { record in
-                        NavigationLink {
-                            BookingCredentialExpandedView(recordID: record.id)
-                        } label: {
-                            VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing * 2) {
-                                Text(record.companionNickname)
-                                    .font(.body.weight(.semibold))
-                                Text("\(record.statusLabel) · 支付后生成预约凭证")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                } header: {
-                    Text("待支付 / 待确认")
+                if hasPendingOrders {
+                    Text("\(ProfileDashboardCopy.ordersPendingBookingFooter) 支付成功后自动签发；退款或取消后作废，仅在下方「已作废」中保留。点开长条票面可展开凭证，长按可补发或删除。")
+                } else {
+                    Text("支付成功后自动签发；退款或取消后作废，仅在下方「已作废」中保留。点开长条票面可展开凭证，长按可补发或删除。")
                 }
             }
 

@@ -186,10 +186,8 @@ struct ActivityCredentialExpandedView: View {
             .navigationTitle("加入 Apple Wallet")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarVisibility(.hidden, for: .tabBar)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("完成") { showAddToWallet = false }
-                }
+            .platformSheetConfirmationToolbar("完成") {
+                showAddToWallet = false
             }
         }
         .platformSheet(.confirm)

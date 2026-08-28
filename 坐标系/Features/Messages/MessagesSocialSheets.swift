@@ -224,7 +224,7 @@ struct GroupManageSheet: View {
             && member.role != .owner
 
         let cell = VStack(spacing: PlatformMetrics.detailMicroSpacing) {
-            PlatformListAvatarView(name: member.nickname, side: 52)
+            PlatformListAvatarView(name: member.nickname, side: PlatformConversationListRow.imageSide)
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -441,6 +441,7 @@ struct MessageRequestsSheet: View {
         .sheet(item: $previewConversation) { conversation in
             NavigationStack {
                 ConversationDetailView(conversationID: conversation.id)
+                    .platformSheetConfirmationToolbar()
             }
             .toolbarVisibility(.hidden, for: .tabBar)
             .platformSheet(.browser)
@@ -581,7 +582,7 @@ private struct GroupMemberPickerSheet: View {
                             toggleSelection(name)
                         } label: {
                             HStack {
-                                PlatformListAvatarView(name: name, side: 36)
+                                PlatformListAvatarView(name: name, side: PlatformConversationListRow.imageSide)
                                 Text(name)
                                     .foregroundStyle(.primary)
                                 Spacer(minLength: 0)

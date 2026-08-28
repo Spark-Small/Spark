@@ -11,7 +11,6 @@ import UIKit
 
 struct ProfileAvatarView: View {
     let user: AppUser
-    var completion: Double? = nil
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -20,7 +19,7 @@ struct ProfileAvatarView: View {
             name: user.name,
             photo: user.localAvatarImage,
             side: dynamicTypeSize.detailRelatedThumbSide,
-            completion: completion
+            completion: ProfileCompletion.ratio(for: user)
         )
     }
 }

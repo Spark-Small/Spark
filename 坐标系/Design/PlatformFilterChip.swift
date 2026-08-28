@@ -58,7 +58,7 @@ struct PlatformFilterChipBar<Content: View>: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack {
+            HStack(spacing: PlatformMetrics.minContentGap) {
                 content
             }
             .padding(.horizontal, PlatformMetrics.contentInset)

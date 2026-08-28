@@ -238,8 +238,6 @@ final class BuddiesModel {
                 if lm != rm { return lm && !rm }
                 return lhs.matchScore > rhs.matchScore
             }
-        case .nearby:
-            return items.sorted { $0.profile.distanceKM < $1.profile.distanceKM }
         case .active:
             return items.sorted { activeRank($0) > activeRank($1) }
         }
@@ -276,7 +274,7 @@ final class BuddiesModel {
     private func activeRank(_ item: DiscoverBuddyItem) -> Int {
         if case .free(let buddy) = item, buddy.isOnline { return 300 }
         let text = item.profile.lastActiveText
-        if text.contains("刚刚") || text.contains("在线") { return 200 }
+        if text.contains("刚刚") || text.contains(BuddyDetailCopy.online) { return 200 }
         if text.contains("分钟") { return 150 }
         if text.contains("小时") || text.contains("今天") { return 100 }
         if text.contains("昨天") { return 50 }
@@ -302,6 +300,18 @@ final class BuddiesModel {
         bookingRecords.filter {
             switch $0.status {
             case .pendingConfirm, .awaitingPayment, .paid, .inProgress:
+                return true
+            default:
+                return false
+            }
+        }.count
+    }
+
+    /// 已签发或履约中的预约凭证（不含待支付 / 待确认；后者走「我的订单」）
+    var bookingCredentialCount: Int {
+        bookingRecords.filter {
+            switch $0.status {
+            case .paid, .inProgress:
                 return true
             default:
                 return false
@@ -365,7 +375,7 @@ final class BuddiesModel {
                     city: author.city,
                     bio: author.bio,
                     tags: author.tags,
-                    availability: "可约",
+                    availability: BuddyDetailCopy.available,
                     lastActiveText: "今天活跃",
                     lookingFor: "同城约局"
                 ),
@@ -978,10 +988,6 @@ final class BuddiesModel {
 
     func flash(_ message: String) {
         toastMessage = message
-        Task {
-            try? await Task.sleep(for: .seconds(2))
-            if toastMessage == message { toastMessage = nil }
-        }
     }
 
     func reloadFromRepository() async {

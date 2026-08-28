@@ -47,11 +47,8 @@ struct ActivityFeaturedCard: View {
                     cover
                         .aspectRatio(PlatformMetrics.featuredCardAspectRatio, contentMode: .fit)
                         .clipped()
-                    VStack(spacing: PlatformMetrics.cardFooterSpacing) {
-                        copy(onMedia: false)
-                        joinCTA(onMedia: false)
-                    }
-                    .padding(.horizontal, PlatformMetrics.contentInset)
+                    heroFooter(onMedia: false)
+                        .padding(.horizontal, PlatformMetrics.contentInset)
                 }
             } else {
                 ZStack(alignment: .bottom) {
@@ -59,13 +56,10 @@ struct ActivityFeaturedCard: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipped()
 
-                    VStack(spacing: PlatformMetrics.cardFooterSpacing) {
-                        copy(onMedia: true)
-                        joinCTA(onMedia: true)
-                    }
-                    .padding(.horizontal, PlatformMetrics.contentInset)
-                    .padding(.bottom, PlatformMetrics.contentInset)
-                    .frame(maxWidth: .infinity)
+                    heroFooter(onMedia: true)
+                        .padding(.horizontal, PlatformMetrics.contentInset)
+                        .padding(.bottom, PlatformMetrics.contentInset)
+                        .frame(maxWidth: .infinity)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
@@ -100,12 +94,19 @@ struct ActivityFeaturedCard: View {
         }
     }
 
+    private func heroFooter(onMedia: Bool) -> some View {
+        HStack(alignment: .bottom, spacing: PlatformMetrics.cardFooterSpacing) {
+            copy(onMedia: onMedia)
+            joinCTA(onMedia: onMedia)
+        }
+    }
+
     private func copy(onMedia: Bool) -> some View {
-        VStack(spacing: PlatformMetrics.cardInfoSpacing) {
+        VStack(alignment: .leading, spacing: PlatformMetrics.cardInfoSpacing) {
             Text(live.title)
                 .font(.title2.weight(.bold))
                 .foregroundStyle(.primary)
-                .multilineTextAlignment(.center)
+                .multilineTextAlignment(.leading)
                 .lineLimit(DiscoverAccessibility.titleLineLimit(for: dynamicTypeSize))
             Text(Formatters.activityEventTime(from: live.date))
                 .font(.body)
@@ -113,10 +114,10 @@ struct ActivityFeaturedCard: View {
             Text(metaLine)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+                .multilineTextAlignment(.leading)
                 .lineLimit(DiscoverAccessibility.metaLineLimit(for: dynamicTypeSize))
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .colorScheme(onMedia ? .dark : .light)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -128,10 +129,10 @@ struct ActivityFeaturedCard: View {
             isJoined: isJoined,
             isFull: live.isFull,
             controlSize: .large,
-            expandsHorizontally: true,
             onMedia: onMedia,
             onJoin: onJoin
         )
+        .layoutPriority(1)
     }
 
     private var metaLine: String {

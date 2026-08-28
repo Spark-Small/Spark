@@ -62,13 +62,12 @@ struct CallSessionView: View {
                     model.endCall(callID)
                     dismiss()
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .activityPrimaryCTA(controlSize: .large)
 
                 Button(MessagesCopy.callBackToChat) {
                     dismiss()
                 }
-                .buttonStyle(.bordered)
+                .activitySecondaryCTA(controlSize: .large)
             }
             .padding(PlatformMetrics.contentInset)
             .navigationBarTitleDisplayMode(.inline)

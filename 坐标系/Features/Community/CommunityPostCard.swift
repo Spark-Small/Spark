@@ -2,6 +2,8 @@
 //  CommunityPostCard.swift
 //  坐标系
 //
+//  信息流卡：点正文进详情；配图看大图；底栏唯一赞 / 评 / 分享 / 收藏。
+//
 
 import SwiftUI
 
@@ -21,8 +23,11 @@ struct CommunityPostCard: View {
             }
 
             if !post.messageText.isEmpty {
-                CommunityPostFeedText(post: post)
-                    .communityRowToContentSpacing()
+                NavigationLink(value: post) {
+                    CommunityPostFeedText(post: post)
+                }
+                .buttonStyle(.plain)
+                .communityRowToContentSpacing()
             }
 
             if !post.displayPhotos.isEmpty {
@@ -37,6 +42,15 @@ struct CommunityPostCard: View {
                     }
                     .buttonStyle(.plain)
                 }
+                .communityRowToContentSpacing()
+            } else if post.messageText.isEmpty {
+                // 无正文无图时仍可进详情
+                NavigationLink(value: post) {
+                    Text("查看分享")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
                 .communityRowToContentSpacing()
             }
 

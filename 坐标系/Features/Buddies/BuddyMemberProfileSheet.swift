@@ -51,31 +51,8 @@ struct BuddyMemberProfileSheet: View {
                     }
                 }
 
-                Section {
-                    Button {
-                        openPeerChat()
-                    } label: {
-                        Label(contactActionTitle, systemImage: contactActionSymbol)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .fontWeight(.semibold)
-
-                    if let companion = paidCompanion {
-                        Button {
-                            onBook?(companion)
-                            dismiss()
-                        } label: {
-                            Label(
-                                companion.isAvailable ? BuddyMemberCopy.book : BuddyMemberCopy.bookUnavailable,
-                                systemImage: "calendar.badge.clock"
-                            )
-                            .frame(maxWidth: .infinity)
-                        }
-                        .fontWeight(target.source.emphasizesBooking ? .semibold : .regular)
-                        .disabled(!companion.isAvailable)
-                    }
-
-                    if case .voiceHall = target.source, let onLeaveMic {
+                if case .voiceHall = target.source, let onLeaveMic {
+                    Section {
                         Button(BuddyMemberCopy.leaveMic, role: .destructive, action: onLeaveMic)
                     }
                 }
@@ -96,6 +73,9 @@ struct BuddyMemberProfileSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(BuddyMemberCopy.done) { dismiss() }
                 }
+            }
+            .platformDetailBottomBar {
+                memberActionBar
             }
             .peerContactDestination(route: $peerContactRoute)
             .circleMemberSheetNavigationDestination()
@@ -153,5 +133,40 @@ struct BuddyMemberProfileSheet: View {
             with: profile.nickname,
             context: .forMemberTarget(target)
         )
+    }
+
+    @ViewBuilder
+    private var memberActionBar: some View {
+        if let companion = paidCompanion {
+            DetailBottomActionBar {
+                Button {
+                    openPeerChat()
+                } label: {
+                    Label(contactActionTitle, systemImage: contactActionSymbol)
+                }
+                .activityDetailBottomSecondaryCTA()
+
+                Button {
+                    onBook?(companion)
+                    dismiss()
+                } label: {
+                    Label(
+                        companion.isAvailable ? BuddyBrowseCopy.bookAction : BuddyBrowseCopy.bookUnavailable,
+                        systemImage: "bolt.fill"
+                    )
+                }
+                .activityDetailBottomPrimaryCTA()
+                .disabled(!companion.isAvailable)
+            }
+        } else {
+            DetailBottomActionBar {
+                Button {
+                    openPeerChat()
+                } label: {
+                    Label(contactActionTitle, systemImage: contactActionSymbol)
+                }
+                .activityDetailBottomPrimaryCTA()
+            }
+        }
     }
 }

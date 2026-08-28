@@ -9,6 +9,7 @@ import SwiftUI
 struct CommunityView: View {
     @Environment(CommunityModel.self) private var model
     @State private var path = NavigationPath()
+    @Namespace private var zoomNamespace
 
     var body: some View {
         @Bindable var model = model
@@ -30,14 +31,12 @@ struct CommunityView: View {
             .communityFeedChrome()
             .platformTabRootListChrome(title: CommunityCopy.rootTitle)
             .platformTabRootToolbar { tabToolbar }
+            .tint(PlatformAction.cloverPurple)
             .navigationDestination(for: CommunityPost.self) { post in
                 CommunityPostDetailView(postID: post.id)
                     .toolbarVisibility(.hidden, for: .tabBar)
             }
-            .navigationDestination(for: Activity.self) { activity in
-                ActivityDetailView(activity: activity)
-                    .toolbarVisibility(.hidden, for: .tabBar)
-            }
+            .activityZoomNavigationDestination(namespace: zoomNamespace)
             .navigationDestination(for: CommunityLibraryDestination.self) { destination in
                 CommunityLibraryRouter(destination: destination)
                     .toolbarVisibility(.hidden, for: .tabBar)
@@ -57,16 +56,16 @@ struct CommunityView: View {
             }
 
             Menu {
-                Button("收藏的分享", systemImage: "bookmark") {
+                Button("收藏", systemImage: "bookmark") {
                     path.append(CommunityLibraryDestination.bookmarks)
                 }
-                Button("赞过的", systemImage: "heart") {
+                Button("赞过", systemImage: "heart") {
                     path.append(CommunityLibraryDestination.liked)
                 }
                 Button("我的分享", systemImage: "square.and.pencil") {
                     path.append(CommunityLibraryDestination.myPosts)
                 }
-                Button("我的转发", systemImage: "arrow.2.squarepath") {
+                Button("转发", systemImage: "arrow.2.squarepath") {
                     path.append(CommunityLibraryDestination.reposts)
                 }
                 Divider()
@@ -87,8 +86,10 @@ struct CommunityView: View {
             Text("把好玩的局、路线和探店记下来，让更多人看见")
         } actions: {
             Button("发分享") { model.isComposing = true }
-                .buttonStyle(.borderedProminent)
+                .activityPrimaryCTA(controlSize: .large)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
     }
 }
 

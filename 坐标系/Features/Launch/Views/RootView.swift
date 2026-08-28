@@ -16,8 +16,7 @@ struct RootView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
-                LaunchSurface.stage
-                    .ignoresSafeArea()
+                LaunchStageBackground()
 
                 launchContent
             }
@@ -39,14 +38,22 @@ struct RootView: View {
             }
         }
         .onChange(of: viewModel.state) { _, state in
-            guard state == .login, path.isEmpty else { return }
-            path.append(LaunchState.login)
+            presentLoginIfNeeded(for: state)
         }
+        .task(id: viewModel.state) {
+            presentLoginIfNeeded(for: viewModel.state)
+        }
+    }
+
+    private func presentLoginIfNeeded(for state: LaunchState) {
+        guard state == .login, path.isEmpty else { return }
+        path.append(LaunchState.login)
     }
 
     @ViewBuilder
     private var launchContent: some View {
         let state = viewModel.state
+        let showsEnvelope = path.isEmpty
 
         EnvelopeView(
             isFlapOpen: state == .opening || state == .invitationOpened || state == .login,
@@ -58,6 +65,9 @@ struct RootView: View {
                 viewModel.envelopeOpenFinished(reduceMotion: reduceMotion)
             }
         )
+        .opacity(showsEnvelope ? 1 : 0)
+        .allowsHitTesting(showsEnvelope && state == .invitationReady)
+        .accessibilityHidden(!showsEnvelope)
         .animation(LaunchMotion.letterRise, value: state)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

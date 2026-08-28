@@ -122,19 +122,6 @@ struct CommunityAuthorProfileView: View {
             }
 
             Section {
-                Button(app.peerContactActionTitle(for: name, context: chatContext)) {
-                    peerContactRoute = app.openPeerContact(
-                        with: name,
-                        context: chatContext
-                    )
-                }
-                if showsBuddyHomeShortcut, let item = buddyMatch {
-                    NavigationLink {
-                        BuddyDetailRouteView(item: item)
-                    } label: {
-                        Text("查看搭子主页")
-                    }
-                }
                 Button("举报", role: .destructive) {
                     showReport = true
                 }
@@ -146,6 +133,9 @@ struct CommunityAuthorProfileView: View {
         .listStyle(.insetGrouped)
         .navigationTitle(name)
         .navigationBarTitleDisplayMode(.inline)
+        .platformDetailBottomBar {
+            authorActionBar
+        }
         .peerContactDestination(route: $peerContactRoute)
         .alert(
             "举报 \(name)",
@@ -190,20 +180,61 @@ struct CommunityAuthorProfileView: View {
         return .communityAuthor
     }
 
+    @ViewBuilder
+    private var authorActionBar: some View {
+        if showsBuddyHomeShortcut, let item = buddyMatch {
+            DetailBottomActionBar {
+                NavigationLink {
+                    BuddyDetailRouteView(item: item)
+                } label: {
+                    Text(CommunityCopy.openBuddyProfile)
+                }
+                .activityDetailBottomSecondaryCTA()
+
+                Button(app.peerContactActionTitle(for: name, context: chatContext)) {
+                    peerContactRoute = app.openPeerContact(
+                        with: name,
+                        context: chatContext
+                    )
+                }
+                .activityDetailBottomPrimaryCTA()
+            }
+        } else {
+            DetailBottomActionBar {
+                Button(app.peerContactActionTitle(for: name, context: chatContext)) {
+                    peerContactRoute = app.openPeerContact(
+                        with: name,
+                        context: chatContext
+                    )
+                }
+                .activityDetailBottomPrimaryCTA()
+            }
+        }
+    }
+
     private var followButton: some View {
         let following = app.isFollowing(name)
         return Button {
             app.toggleFollow(name)
         } label: {
             Text(following ? "已关注" : "关注")
-                .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(following ? Color(.tertiarySystemFill) : .accentColor)
-        .foregroundStyle(following ? Color.secondary : Color.white)
+        .modifier(FollowButtonChrome(following: following))
         .sensoryFeedback(.selection, trigger: following)
+    }
+}
+
+private struct FollowButtonChrome: ViewModifier {
+    var following: Bool
+
+    func body(content: Content) -> some View {
+        if following {
+            content
+                .activitySecondaryCTA(controlSize: .small)
+        } else {
+            content
+                .activityPrimaryCTA(controlSize: .small)
+        }
     }
 }
 

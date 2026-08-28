@@ -10,12 +10,14 @@ import Foundation
 enum ActivityDetailCopy {
     // MARK: - 决策卡
 
-    static let hostMessageAccessibility = "私信发起人"
+    static let askHostAction = "私信发起人"
     static let calendarAction = "添加日历提醒"
+    static let calendarRemoveAction = "移除日历提醒"
     static let calendarAccessDeniedTitle = "无法访问日历"
     static let calendarAccessDeniedMessage = "请在系统设置中允许「坐标系」访问日历，以便添加活动提醒。"
     static let calendarOpenSettings = "去设置"
     static let calendarFailedMessage = "暂时无法写入日历，请稍后重试"
+    static let calendarRemoveFailedMessage = "暂时无法从日历移除，请稍后重试"
     static let navigationAction = "导航前往"
     static let mapPreviewAccessibility = "查看集合地点并导航"
     static let peopleRowAccessibility = "查看已参加成员"
@@ -85,7 +87,6 @@ enum ActivityDetailCopy {
     static let commentsViewAll = "查看全部评论"
     static let commentsWriteFirst = "写评论…"
     static let relatedTitle = "相关活动"
-    static let relatedFooter = "按兴趣、距离与档期推荐"
     static let relatedCircleTitle = "相关圈子"
     static let credentialSectionTitle = "活动凭证"
     static let credentialReissueAction = "补发活动凭证"
@@ -135,28 +136,27 @@ enum ActivityDetailCopy {
     static let cancelUnpaidKeep = "继续参加"
     static let cancelUnpaidConfirm = "确认取消"
 
-    /// 底栏参加按钮：主标题 + 可选名额副标题
-    static func joinButtonLabels(
+    /// 底栏参加按钮：单行主标题（名额紧迫信息并入文案，与陪玩详情底栏对齐）
+    static func joinButtonTitle(
         free: Bool,
         almostFull: Bool,
         remaining: Int,
         full: Bool,
         waitlisted: Bool,
         hasOpenSpotFromWaitlist: Bool
-    ) -> (primary: String, subtitle: String?) {
+    ) -> String {
         if full {
-            let primary = waitlisted ? ActivityCardStatus.leaveWaitlist : ActivityCardStatus.joinWaitlist
-            return (primary, nil)
+            return waitlisted ? ActivityCardStatus.leaveWaitlist : ActivityCardStatus.joinWaitlist
         }
         if hasOpenSpotFromWaitlist {
-            return (ActivityCardStatus.joinPrimaryLabel(free: free), "候补名额已开放")
+            return "\(ActivityCardStatus.joinPrimaryLabel(free: free)) · \(ActivityCardStatus.waitlistSpotOpen)"
         }
 
         let primary = ActivityCardStatus.joinPrimaryLabel(free: free)
-        let subtitle = almostFull
-            ? spotsLabel(full: false, almostFull: true, remaining: remaining)
-            : nil
-        return (primary, subtitle)
+        if almostFull {
+            return "\(primary) · \(spotsLabel(full: false, almostFull: true, remaining: remaining))"
+        }
+        return primary
     }
 
     // MARK: - 底栏

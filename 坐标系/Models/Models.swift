@@ -204,18 +204,14 @@ enum ActivityQuickFilter: String, CaseIterable, Identifiable, Hashable {
 }
 
 enum BuddyKind: String, CaseIterable, Identifiable {
-    case all = "全部"
     case free = "搭子"
     case paid = "陪玩"
 
     var id: String { rawValue }
 
-    static var quickBarCases: [BuddyKind] { [.free, .paid] }
-
     /// 顶栏分段与页面标题
     var stageTitle: String {
         switch self {
-        case .all: "全部"
         case .free: "免费"
         case .paid: "预约"
         }
@@ -223,7 +219,6 @@ enum BuddyKind: String, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
-        case .all: "line.3.horizontal.decrease"
         case .free: "person.2"
         case .paid: "chineseyuanrenminbisign"
         }
@@ -253,15 +248,14 @@ struct BuddyFilter: Equatable {
     }
 
     mutating func reset() {
-        let currentKind = (kind == .paid) ? BuddyKind.paid : .free
+        let currentKind = kind
         self = BuddyFilter(kind: currentKind)
     }
 }
 
-/// 人列表排序：排序策略可扩展，不是内容类目树
+/// 人列表排序：推荐 / 刚活跃（「附近」由首页分区承接）
 enum BuddyPeopleSort: String, CaseIterable, Identifiable {
     case recommended = "推荐"
-    case nearby = "附近"
     case active = "刚活跃"
 
     var id: String { rawValue }
@@ -326,6 +320,9 @@ struct BuddyProfile: Identifiable, Hashable {
         }
         return String(format: "%.1fkm", distanceKM)
     }
+
+    /// 与活动「附近」同一阈值，供搭子分区复用
+    var isNearby: Bool { distanceKM <= RecommendationConfig.nearbyKM }
 
     var metricsText: String {
         "\(age)岁 · \(heightText) · \(weightText)"

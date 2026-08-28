@@ -222,6 +222,69 @@ struct ActivityZoomNavigationLink<Label: View>: View {
     }
 }
 
+// MARK: - Activity stack peer chat
+
+private struct ActivityPeerChatDestinationKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var hasActivityPeerChatDestination: Bool {
+        get { self[ActivityPeerChatDestinationKey.self] }
+        set { self[ActivityPeerChatDestinationKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// 活动 Tab 栈根：`PeerChatRoute` 与 Zoom 详情共用单层 `NavigationStack(path:)`
+    func activityPeerChatNavigationDestination() -> some View {
+        modifier(ActivityPeerChatDestinationModifier())
+    }
+}
+
+private struct ActivityPeerChatDestinationModifier: ViewModifier {
+    @Environment(\.hasActivityPeerChatDestination) private var registered
+
+    func body(content: Content) -> some View {
+        if registered {
+            content
+        } else {
+            content
+                .environment(\.hasActivityPeerChatDestination, true)
+                .navigationDestination(for: PeerChatRoute.self) { route in
+                    ConversationDetailView(
+                        conversationID: route.conversationID,
+                        chatContext: route.chatContext
+                    )
+                    .toolbarVisibility(.hidden, for: .tabBar)
+                }
+        }
+    }
+}
+
+// MARK: - Browser sheet
+
+/// 模态活动详情：独立栈 + Zoom 目的地（入口无 matched source，栈内导航与发现 Tab 一致）。
+struct ActivityBrowserSheet: View {
+    let activity: Activity
+
+    @Namespace private var zoomNamespace
+    @State private var navigation = TabNavigationState()
+
+    var body: some View {
+        @Bindable var navigation = navigation
+
+        NavigationStack(path: $navigation.path) {
+            ActivityDetailView(activity: activity)
+                .toolbarVisibility(.hidden, for: .tabBar)
+                .platformSheetConfirmationToolbar()
+        }
+        .tabNavigationState(navigation)
+        .activityPeerChatNavigationDestination()
+        .activityZoomNavigationDestination(namespace: zoomNamespace)
+    }
+}
+
 #Preview("Zoom navigation") {
     @Previewable @Namespace var ns
     let activity = SampleData.activities[0]

@@ -116,37 +116,25 @@ enum ProfileLibraryCopy {
     }
 }
 
-// MARK: - Hosted star
+// MARK: - Credential card row
 
-/// 「我发起的」星标：叠在活动长条右上角，区分参加与发起。
-struct ProfileHostedStarMark: View {
-    var body: some View {
-        Image(systemName: "star.fill")
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.yellow)
-            .symbolRenderingMode(.hierarchical)
-            .padding(PlatformMetrics.captionBadgeInset)
-            .background(.ultraThinMaterial, in: Circle())
-            .accessibilityLabel("我发起的")
-            .accessibilityAddTraits(.isStaticText)
+extension View {
+    /// 发布凭证夹横卡：统一 List 行 inset（与票面轨一致）。
+    func platformProfileCredentialCardRow() -> some View {
+        listRowInsets(
+            EdgeInsets(
+                top: PlatformMetrics.sectionHeaderSpacing,
+                leading: PlatformMetrics.contentInset,
+                bottom: PlatformMetrics.sectionHeaderSpacing,
+                trailing: PlatformMetrics.contentInset
+            )
+        )
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
     }
 }
 
-/// 「我的活动」顶栏：文案切换「只看发起」/「全部」，与票面星标含义分离。
-struct ProfileHostedStarFilterButton: View {
-    @Binding var showHostedOnly: Bool
-
-    var body: some View {
-        Button(showHostedOnly ? "全部" : "只看发起") {
-            showHostedOnly.toggle()
-        }
-        .accessibilityLabel(showHostedOnly ? "显示全部活动" : "只看我发起的")
-        .accessibilityHint("筛选你发起的活动")
-        .accessibilityAddTraits(showHostedOnly ? .isSelected : [])
-    }
-}
-
-/// 访客门禁入口：Label + 系统 chevron，替代不可用的 NavigationLink。
+// MARK: - Gated row
 struct ProfileFormGatedRow: View {
     let title: String
     let systemImage: String

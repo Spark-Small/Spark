@@ -66,7 +66,7 @@ enum ProfileMembershipAdImpression {
 
 // MARK: - Ad content view
 
-/// 自定义会员条：嵌入 List 内容流（非导航吸顶），`onTap` / `onDisappear` 对应 click / view-through。
+/// 会员入口：与 `ProfileFormGatedRow` 同形态；`onDisappear` 记 view-through。
 struct ProfileMembershipAdContentView: View {
     let isActive: Bool
     var onTap: () -> Void
@@ -80,31 +80,21 @@ struct ProfileMembershipAdContentView: View {
         isActive ? ProfileDashboardCopy.membershipCenter : ProfileDashboardCopy.membershipOpen
     }
 
+    private var systemImage: String {
+        isActive ? "checkmark.seal.fill" : "crown.fill"
+    }
+
     var body: some View {
-        HStack {
-            Label(title, systemImage: isActive ? "checkmark.seal.fill" : "crown.fill")
-                .symbolRenderingMode(.multicolor)
-                .foregroundStyle(.primary)
-                .platformContentSymbolStyle()
-
-            Spacer(minLength: 0)
-
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
+        ProfileFormGatedRow(
+            title: title,
+            systemImage: systemImage,
+            action: handleMembershipTapped
+        )
         .opacity(isHandlingTap ? 0.72 : 1)
         .onAppear { appearedAt = .now }
-        .onTapGesture { handleMembershipTapped() }
         .onDisappear { handleMembershipDisappeared() }
         .sensoryFeedback(.selection, trigger: tapCount)
-        .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
-        .accessibilityLabel(title)
-        .accessibilityAction { handleMembershipTapped() }
     }
 
     private func handleMembershipDisappeared() {

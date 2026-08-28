@@ -14,7 +14,6 @@ struct CommunityPostDetailView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
 
-    @State private var showBookmarkSheet = false
     @State private var showReportSheet = false
     @State private var confirmDelete = false
     @State private var authorDestination: CommunityAuthorDestination?
@@ -32,10 +31,6 @@ struct CommunityPostDetailView: View {
             } else {
                 ContentUnavailableView("动态不存在", systemImage: "photo.on.rectangle")
             }
-        }
-        .sheet(isPresented: $showBookmarkSheet) {
-            CommunityBookmarkSheet(postID: postID)
-                .toolbarVisibility(.hidden, for: .tabBar)
         }
         .alert(
             "举报这条分享",
@@ -103,7 +98,7 @@ struct CommunityPostDetailView: View {
                     .communityRowToContentSpacing()
                 }
 
-                CommunityPostActionBar(post: post)
+                CommunityPostActionBar(post: post, showsCommentEntry: false)
                     .communityRowToContentSpacing()
 
                 if let activity = activities.activity(relatedTo: post) {
@@ -160,9 +155,6 @@ struct CommunityPostDetailView: View {
     private func detailToolbar(for post: CommunityPost) -> some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Menu {
-                Button("收藏", systemImage: "bookmark") {
-                    showBookmarkSheet = true
-                }
                 if model.isOwnPost(post) {
                     Button("删除", systemImage: "trash", role: .destructive) {
                         confirmDelete = true
@@ -175,6 +167,7 @@ struct CommunityPostDetailView: View {
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
+            .accessibilityLabel("更多")
         }
     }
 }

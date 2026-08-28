@@ -295,19 +295,7 @@ struct BuddyDetailProfileHeader: View {
     }
 
     private var rankStack: some View {
-        HStack(spacing: -PlatformMetrics.hairlineSpacing) {
-            ForEach(0..<config.rankIconCount, id: \.self) { index in
-                Image(systemName: "medal.fill")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 22, height: 22)
-                    .background(Color.accentColor.opacity(0.92 - Double(index) * 0.12), in: Circle())
-                    .overlay {
-                        Circle().strokeBorder(Color(.systemBackground), lineWidth: 1.5)
-                    }
-            }
-        }
-        .accessibilityLabel("陪玩等级")
+        PlatformCompanionLevelStack(iconCount: config.rankIconCount)
     }
 
     private var metaRow: some View {

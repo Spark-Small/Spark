@@ -130,7 +130,7 @@ struct BuddyVoiceHallRoomView: View {
             )
             .toolbarVisibility(.hidden, for: .tabBar)
         }
-        .platformTransientFeedback($toast)
+        .platformFeedbackAlert($toast)
     }
 
     private func seatCell(_ name: String) -> some View {

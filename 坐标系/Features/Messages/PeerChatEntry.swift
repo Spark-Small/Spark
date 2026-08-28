@@ -11,6 +11,8 @@ import SwiftUI
 enum ConversationChatContext: Hashable {
     case activityHost(activityID: Activity.ID)
     case activityMember(activityID: Activity.ID)
+    /// 活动群聊（从详情 / 参加成功进群，不切消息 Tab）
+    case activityGroup(activityID: Activity.ID)
     case buddyFree(lookingFor: String, sharedHobbies: [String])
     case buddyPaid(specialty: String)
     case circleMember(circleName: String)
@@ -25,7 +27,7 @@ enum ConversationChatContext: Hashable {
     /// 已建立业务关系、可跳过好友门槛的场景。
     var bypassesFriendGate: Bool {
         switch self {
-        case .bookingCompanion:
+        case .bookingCompanion, .activityGroup, .activityHost, .activityMember:
             true
         default:
             false
@@ -40,6 +42,8 @@ enum ConversationChatContext: Hashable {
             PeerChatCopy.greetingSectionTitle
         case .bookingCompanion:
             PeerChatCopy.bookingSectionTitle
+        case .activityGroup:
+            PeerChatCopy.greetingSectionTitle
         }
     }
 
@@ -56,6 +60,8 @@ enum ConversationChatContext: Hashable {
         case .activityMember(let activityID):
             guard let activity = activities.activity(id: activityID) else { return [] }
             return ActivityDetailCopy.askMemberQuickReplies(for: activity)
+        case .activityGroup:
+            return []
         case .buddyFree(let lookingFor, let sharedHobbies):
             return PeerChatCopy.buddyFreeReplies(lookingFor: lookingFor, sharedHobbies: sharedHobbies)
         case .buddyPaid(let specialty):
@@ -220,6 +226,14 @@ enum PeerChatCopy {
 
 extension AppModel {
     func peerContactActionTitle(for nickname: String, context: ConversationChatContext) -> String {
+        switch context {
+        case .activityHost:
+            return ActivityDetailCopy.askHostAction
+        case .activityMember:
+            return MessagesCopy.friendSendMessage
+        default:
+            break
+        }
         if messages.canStartDirectChat(with: nickname, context: context) {
             return MessagesCopy.friendSendMessage
         }
@@ -302,7 +316,7 @@ struct AddFriendPeerSheet: View {
             Form {
                 Section {
                     HStack(spacing: PlatformMetrics.cardInfoSpacing) {
-                        PlatformListAvatarView(name: route.nickname, side: 52)
+                        PlatformListAvatarView(name: route.nickname, side: PlatformConversationListRow.imageSide)
                         Text(route.nickname)
                             .font(.headline)
                     }
@@ -384,12 +398,42 @@ struct AddFriendPeerSheet: View {
 
 // MARK: - Navigation
 
+extension TabNavigationState {
+    /// 活动栈已注册 `PeerChatRoute` 时：私聊走 path，加好友仍交给 sheet binding。
+    func presentPeerContact(
+        _ route: PeerContactRoute?,
+        addFriend: (PeerContactRoute) -> Void
+    ) {
+        guard let route else { return }
+        switch route {
+        case .chat(let chat):
+            path.append(chat)
+        case .addFriend:
+            addFriend(route)
+        }
+    }
+
+    /// 活动栈内打开群聊；栈空时先 Zoom 进详情，转场结束后再 push 群聊。
+    func openActivityGroupChat(for activity: Activity, route: PeerChatRoute) {
+        if path.isEmpty {
+            path.append(ActivityZoomSource(activityID: activity.id, slot: "group-entry"))
+            Task { @MainActor in
+                try? await Task.sleep(for: ActivityZoomEngagement.postTransitionDelay)
+                guard !Task.isCancelled else { return }
+                path.append(route)
+            }
+        } else {
+            path.append(route)
+        }
+    }
+}
+
 extension View {
     func peerContactDestination(route: Binding<PeerContactRoute?>) -> some View {
         modifier(PeerContactDestinationModifier(route: route))
     }
 
-    /// 仅聊天目的地（通讯录等已是好友的场景）。
+    /// 仅聊天目的地（Sheet 自有栈等未注册活动栈目的地的场景）。
     func peerChatNavigationDestination(route: Binding<PeerChatRoute?>) -> some View {
         navigationDestination(item: route) { route in
             ConversationDetailView(
@@ -403,6 +447,7 @@ extension View {
 
 private struct PeerContactDestinationModifier: ViewModifier {
     @Binding var route: PeerContactRoute?
+    @Environment(\.hasActivityPeerChatDestination) private var stackHandlesPeerChat
 
     private var chatRoute: Binding<PeerChatRoute?> {
         Binding(
@@ -438,10 +483,23 @@ private struct PeerContactDestinationModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .peerChatNavigationDestination(route: chatRoute)
+            .modifier(ConditionalPeerChatNavigation(route: chatRoute, enabled: !stackHandlesPeerChat))
             .sheet(item: addFriendRoute) { addRoute in
                 AddFriendPeerSheet(route: addRoute)
                     .toolbarVisibility(.hidden, for: .tabBar)
             }
+    }
+}
+
+private struct ConditionalPeerChatNavigation: ViewModifier {
+    @Binding var route: PeerChatRoute?
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.peerChatNavigationDestination(route: $route)
+        } else {
+            content
+        }
     }
 }

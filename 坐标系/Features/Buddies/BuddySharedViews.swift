@@ -30,7 +30,7 @@ struct BuddyDetailActionBar: View {
     var onInvite: () -> Void
 
     var body: some View {
-        HStack {
+        DetailBottomActionBar {
             Button(greetTitle, action: onGreet)
                 .activityDetailBottomSecondaryCTA()
 
@@ -46,6 +46,5 @@ struct BuddyDetailActionBar: View {
                     .disabled(!inviteEnabled)
             }
         }
-        .activityDetailBottomBarChrome()
     }
 }

@@ -141,9 +141,10 @@ struct ProfileSettingsView: View {
             }
             #endif
         }
+        .profileSecondaryListChrome()
         .navigationTitle("设置")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarVisibility(.hidden, for: .tabBar)
+        .platformHiddenTabBar()
         #if DEBUG
         .confirmationDialog("恢复演示数据？", isPresented: $confirmResetDemo, titleVisibility: .visible) {
             Button("恢复演示数据", role: .destructive) {
@@ -168,7 +169,7 @@ struct ProfileSettingsView: View {
             }
             Button("取消", role: .cancel) {}
         } message: {
-            Text("将返回登录与引导流程。")
+            Text(ProfileDashboardCopy.logoutConfirmMessage)
         }
         .alert("注销本地账号？", isPresented: $confirmDeleteAccount) {
             Button("注销本地账号", role: .destructive) {
@@ -200,10 +201,7 @@ private struct SettingsAccountView: View {
         Form {
             Section {
                 HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
-                    ProfileAvatarView(
-                        user: app.user,
-                        completion: ProfileCompletion.ratio(for: app.user)
-                    )
+                    ProfileAvatarView(user: app.user)
                     VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
                         Text(app.user.name)
                             .font(.headline)

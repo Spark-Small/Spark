@@ -5,7 +5,9 @@
 //  「我的」账号创建、会员与钱包入口页。
 //
 
+import StoreKit
 import SwiftUI
+import TipKit
 
 struct ProfileCreateAccountSheet: View {
     @Bindable var session: LocalAuthSession
@@ -142,8 +144,10 @@ struct ProfileMembershipView: View {
     @State private var errorMessage: String?
     @State private var issuedPassID: UUID?
     @State private var showCreateAccount = false
+    @State private var membershipStore = MembershipStore.shared
 
     private let membershipCents = 2_800
+    private let membershipTip = MembershipTip()
 
     var body: some View {
         Form {
@@ -161,17 +165,11 @@ struct ProfileMembershipView: View {
 
             Section {
                 TrustCredentialBadgeStrip(
-                    photoVerified: {
-                        _ = PhotoVerificationStore.shared.isVerified
-                        return PhotoVerificationStore.shared.isVerified(for: app.user.name)
-                    }(),
+                    photoVerified: PhotoVerificationStore.shared.isVerified(for: app.user.name),
                     isMember: isActive,
                     revealLocked: true
                 )
                 LabeledContent("当前状态", value: isActive ? "已开通" : "未开通")
-                if !isActive {
-                    LabeledContent("开通费用", value: WalletMoney.formatted(cents: membershipCents))
-                }
             } header: {
                 Text("会员状态")
             } footer: {
@@ -193,6 +191,42 @@ struct ProfileMembershipView: View {
                 Text("会员权益")
             } footer: {
                 Text("开通后可在活动、社区与消息中展示会员标识。")
+            }
+
+            if !isActive, !app.auth.isGuest, !YouthModePreference.isEnabled {
+                Section {
+                    SubscriptionStoreView(productIDs: Array(MembershipStore.productIDs)) {
+                        VStack(alignment: .leading, spacing: PlatformMetrics.sectionHeaderSpacing) {
+                            Text("坐标系会员")
+                                .font(.title2.weight(.bold))
+                            Text("优先提醒、会员标识与更多收藏空间。")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, PlatformMetrics.sectionHeaderSpacing)
+                        .popoverTip(membershipTip)
+                    }
+                    .storeButton(.visible, for: .restorePurchases)
+                    .onInAppPurchaseCompletion { _, result in
+                        await handleStoreKitPurchase(result)
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                } header: {
+                    Text("App Store 订阅")
+                }
+
+                Section {
+                    Button("本地演示开通（钱包扣款）") {
+                        activateMembershipDemo()
+                    }
+                    .disabled(isProcessing)
+                } footer: {
+                    Text(
+                        "无 StoreKit 环境时可用钱包余额演示开通（\(WalletMoney.formatted(cents: membershipCents))）。"
+                    )
+                }
             }
 
             if isActive {
@@ -219,20 +253,6 @@ struct ProfileMembershipView: View {
         .listSectionSpacing(.compact)
         .navigationTitle("会员中心")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button(isActive ? "已开通" : "开通") {
-                    activateMembership()
-                }
-                .fontWeight(.semibold)
-                .disabled(
-                    isActive
-                        || isProcessing
-                        || app.auth.isGuest
-                        || YouthModePreference.isEnabled
-                )
-            }
-        }
         .sheet(isPresented: $showCreateAccount) {
             ProfileCreateAccountSheet(
                 session: app.auth,
@@ -248,10 +268,20 @@ struct ProfileMembershipView: View {
         } message: {
             Text(errorMessage ?? "")
         }
+        .task {
+            await membershipStore.refreshEntitlement()
+            if membershipStore.isEntitled {
+                applyActiveMembership()
+            }
+        }
         .onAppear {
             if isActive {
                 issuedPassID = WalletPassStore.shared.issueMembershipCard(holderName: app.user.name).id
             }
+        }
+        .onChange(of: membershipStore.isEntitled) { _, entitled in
+            guard entitled else { return }
+            applyActiveMembership()
         }
     }
 
@@ -262,10 +292,34 @@ struct ProfileMembershipView: View {
         if app.auth.isGuest {
             return "创建账号后即可开通会员。"
         }
-        return "本地演示：从钱包余额扣款；开通后签发会员通行证。"
+        return "可通过 App Store 订阅开通；也可使用钱包余额做本地演示。"
     }
 
-    private func activateMembership() {
+    @MainActor
+    private func handleStoreKitPurchase(
+        _ result: Result<Product.PurchaseResult, any Error>
+    ) async {
+        switch result {
+        case .success(.success):
+            await membershipStore.refreshEntitlement()
+            if membershipStore.isEntitled {
+                applyActiveMembership()
+            }
+        case .success(.userCancelled), .success(.pending):
+            break
+        case .success:
+            break
+        case .failure(let error):
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func applyActiveMembership() {
+        isActive = true
+        issuedPassID = WalletPassStore.shared.issueMembershipCard(holderName: app.user.name).id
+    }
+
+    private func activateMembershipDemo() {
         guard !YouthModePreference.isEnabled else { return }
         guard GuestAccessGate.allow(app.auth, presentCreateAccount: $showCreateAccount) else { return }
         guard !isActive, !isProcessing else { return }
@@ -280,8 +334,7 @@ struct ProfileMembershipView: View {
         isProcessing = false
         switch outcome {
         case .success:
-            isActive = true
-            issuedPassID = WalletPassStore.shared.issueMembershipCard(holderName: app.user.name).id
+            applyActiveMembership()
         case .insufficientBalance:
             errorMessage = "余额不足，请先前往钱包充值。"
         case .failed(let message):
@@ -401,16 +454,10 @@ struct ProfileWalletView: View {
                     Label("会员", systemImage: "checkmark.seal")
                         .platformContentSymbolStyle()
                 }
-                NavigationLink {
-                    ProfileOrdersView()
-                } label: {
-                    Label("我的订单", systemImage: "list.bullet.rectangle")
-                        .platformContentSymbolStyle()
-                }
             } header: {
                 Text("支付设置")
             } footer: {
-                Text("活动票与陪玩预约凭证在「我的」活动区查看；点银行卡面可充值。")
+                Text("订单在「我的」首页「我的订单」查看；活动票与陪玩预约凭证在「我的活动」区。点银行卡面可充值。")
             }
 
             Section {
@@ -615,12 +662,29 @@ struct WalletTopUpSheet: View {
 
 /// 「成为陪玩」入驻占位：前期只保留入口与说明，正式版再接审核流。
 struct ProfileBecomeCompanionView: View {
+    @Environment(AppModel.self) private var app
+    @Environment(BuddiesModel.self) private var buddies
+
     var body: some View {
-        ContentUnavailableView(
-            ProfileDashboardCopy.becomeCompanion,
-            systemImage: "person.badge.plus",
-            description: Text("完善资料并通过审核后，即可在陪玩页接单。入驻流程将在正式版开放。")
-        )
+        List {
+            Section {
+                ContentUnavailableView(
+                    ProfileDashboardCopy.becomeCompanion,
+                    systemImage: "person.badge.plus",
+                    description: Text("完善资料并通过审核后，即可在陪玩页接单。入驻流程将在正式版开放。")
+                )
+                .listRowBackground(Color.clear)
+
+                Button("去预约页看看") {
+                    buddies.showPaidPage()
+                    app.selectedTab = .buddies
+                }
+                .activityPrimaryCTA(controlSize: .large)
+                .buttonSizing(.flexible)
+                .listRowBackground(Color.clear)
+            }
+        }
+        .profileSecondaryListChrome()
         .navigationTitle(ProfileDashboardCopy.becomeCompanion)
         .navigationBarTitleDisplayMode(.inline)
     }

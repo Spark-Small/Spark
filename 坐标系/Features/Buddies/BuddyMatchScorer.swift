@@ -22,7 +22,7 @@ enum BuddyMatchScorer {
         var value = sharedHobbies(with: profile).count * MatchWeights.sharedHobby
         if !profile.availability.contains("已满") { value += MatchWeights.availableBonus }
         value += max(0, 15 - Int(profile.distanceKM))
-        if profile.lastActiveText.contains("刚刚") || profile.lastActiveText.contains("在线") {
+        if profile.lastActiveText.contains("刚刚") || profile.lastActiveText.contains(BuddyDetailCopy.online) {
             value += MatchWeights.onlineBonus
         }
         return value
@@ -42,7 +42,7 @@ enum BuddyMatchScorer {
     static func cardStatusLine(for profile: BuddyProfile, isOnline: Bool = false) -> String {
         var parts: [String] = []
         if isOnline {
-            parts.append("在线")
+            parts.append(BuddyDetailCopy.online)
         } else if !profile.lastActiveText.isEmpty {
             parts.append(profile.lastActiveText)
         }
@@ -84,7 +84,7 @@ enum BuddyMatchScorer {
             parts.append(profile.distanceText)
         }
         if isOnline, PrivacyPreferences.showOnline {
-            parts.append("在线")
+            parts.append(BuddyDetailCopy.online)
         } else if !profile.lastActiveText.isEmpty {
             parts.append(profile.lastActiveText)
         }

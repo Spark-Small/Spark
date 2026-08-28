@@ -11,6 +11,7 @@ struct ActivityDetailView: View {
 
     @Environment(ActivitiesModel.self) private var model
     @Environment(AppModel.self) private var app
+    @Environment(\.tabNavigationStateRef) private var navigation
     @Environment(WalletPassStore.self) private var passStore
     @Environment(RefundFlowService.self) private var refunds
     @Environment(\.dismiss) private var dismiss
@@ -37,6 +38,9 @@ struct ActivityDetailView: View {
     @State private var revealsSecondaryContent = false
     @State private var showCommentsSheet = false
     @State private var activityContactRoute: PeerContactRoute?
+    @State private var showDetailInspector = false
+
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     init(activityID: Activity.ID) {
         self.activityID = activityID
@@ -157,9 +161,32 @@ struct ActivityDetailView: View {
                     moreMenuContent(for: live)
                 }
             }
+            if horizontalSizeClass == .regular {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("侧栏", systemImage: "sidebar.trailing") {
+                        showDetailInspector.toggle()
+                    }
+                }
+            }
         }
         // Form 头图落在系统顶栏下方；边缘过渡交给 scrollEdgeEffect
         .toolbarBackground(.hidden, for: .navigationBar)
+        .inspector(isPresented: $showDetailInspector) {
+            ActivityDetailSideInspector(
+                activity: live,
+                related: ActivityRelatedRecommender.related(to: live, from: model.activities),
+                onOpenPeople: { showPeopleSheet = true }
+            )
+        }
+        .inspectorColumnWidth(min: 280, ideal: 320, max: 400)
+        .onAppear {
+            if horizontalSizeClass == .regular {
+                showDetailInspector = true
+            }
+        }
+        .onChange(of: horizontalSizeClass) { _, sizeClass in
+            showDetailInspector = sizeClass == .regular
+        }
         .peerContactDestination(route: $activityContactRoute)
         .sheet(isPresented: $showPeopleSheet) {
             ActivityDetailPeopleSheet(activity: live)
@@ -271,7 +298,7 @@ struct ActivityDetailView: View {
         let joined = model.isJoined(live.id)
         let trust = ActivityHostTrust.make(
             hostName: live.hostName,
-            liveHostedCount: model.activities.filter { $0.hostName == live.hostName }.count
+            liveHostedCount: model.hostedCount(for: live.hostName)
         )
         let paidOrder = ActivityPaymentStore.displayOrder(for: live.id)
 
@@ -282,6 +309,7 @@ struct ActivityDetailView: View {
             ActivityDetailDecisionCard(
                 activity: live,
                 viewerWaitlisted: model.isWaitlisted(live.id),
+                canAddCalendarReminder: joined || model.isHost(live),
                 hostNote: blueprint.hostNote,
                 onPeople: { showPeopleSheet = true }
             )
@@ -299,8 +327,7 @@ struct ActivityDetailView: View {
         Section {
             ActivityDetailHostTrustRow(
                 trust: trust,
-                onHost: { showHostProfile = true },
-                onChat: { askHost(about: live) }
+                onHost: { showHostProfile = true }
             )
         } header: {
             Text(ActivityDetailCopy.peopleHostRole)
@@ -530,37 +557,36 @@ struct ActivityDetailView: View {
 
     @ViewBuilder
     private func bottomBar(_ activity: Activity) -> some View {
-        Group {
-            if activity.isLifecycleEnded {
-                endedBottomBar(activity)
-            } else if isHost {
-                hostBottomBar(activity)
-            } else {
-                participantBottomBar(activity)
-            }
+        if activity.isLifecycleEnded {
+            endedBottomBar(activity)
+        } else if isHost {
+            hostBottomBar(activity)
+        } else {
+            participantBottomBar(activity)
         }
-        .activityDetailBottomBarChrome()
     }
 
     @ViewBuilder
     private func endedBottomBar(_ activity: Activity) -> some View {
-        if model.isJoined(activity.id) || isHost {
-            Button {
-                openRecapCompose(for: activity)
-            } label: {
-                Label(ActivityDetailCopy.recapCTA, systemImage: "square.and.pencil")
+        DetailBottomActionBar {
+            if model.isJoined(activity.id) || isHost {
+                Button {
+                    openRecapCompose(for: activity)
+                } label: {
+                    Label(ActivityDetailCopy.recapCTA, systemImage: "square.and.pencil")
+                }
+                .activityDetailBottomPrimaryCTA()
+            } else {
+                Label(ActivityDetailCopy.activityEnded, systemImage: "calendar.badge.clock")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
             }
-            .activityDetailBottomPrimaryCTA()
-        } else {
-            Label(ActivityDetailCopy.activityEnded, systemImage: "calendar.badge.clock")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity)
         }
     }
 
     private func hostBottomBar(_ activity: Activity) -> some View {
-        HStack {
+        DetailBottomActionBar {
             NavigationLink {
                 ActivityHostManageView(activityID: activity.id)
             } label: {
@@ -574,7 +600,7 @@ struct ActivityDetailView: View {
     }
 
     private func participantBottomBar(_ activity: Activity) -> some View {
-        HStack {
+        DetailBottomActionBar {
             if model.isJoined(activity.id) {
                 Button(ActivityDetailCopy.cancelRegistration) {
                     requestCancelRegistration(activity)
@@ -592,7 +618,7 @@ struct ActivityDetailView: View {
     @ViewBuilder
     private func joinPrimaryButton(_ activity: Activity) -> some View {
         let waitlisted = model.isWaitlisted(activity.id)
-        let labels = ActivityDetailCopy.joinButtonLabels(
+        let title = ActivityDetailCopy.joinButtonTitle(
             free: activity.isFree,
             almostFull: activity.isAlmostFull,
             remaining: activity.remainingSpots,
@@ -601,27 +627,17 @@ struct ActivityDetailView: View {
             hasOpenSpotFromWaitlist: !activity.isFull && waitlisted
         )
 
-        if activity.isFull && waitlisted {
-            Button(labels.primary) { _ = model.toggleWaitlist(activity.id) }
-                .activityDetailBottomSecondaryCTA()
-        } else if activity.isFull {
-            Button(labels.primary) { _ = model.toggleWaitlist(activity.id) }
+        if activity.isFull {
+            Button(title) { _ = model.toggleWaitlist(activity.id) }
                 .activityDetailBottomPrimaryCTA()
-        } else if let subtitle = labels.subtitle {
-            Button {
-                showJoinConfirm = true
-            } label: {
-                VStack() {
-                    Text(labels.primary)
-                    Text(subtitle)
-                        .font(.caption.weight(.semibold))
-                        .opacity(0.92)
-                }
+        } else if activity.isFree {
+            Button(title) { showJoinConfirm = true }
+                .activityDetailBottomPrimaryCTA()
+        } else {
+            Button { showJoinConfirm = true } label: {
+                Label(title, systemImage: "bolt.fill")
             }
             .activityDetailBottomPrimaryCTA()
-        } else {
-            Button(labels.primary) { showJoinConfirm = true }
-                .activityDetailBottomPrimaryCTA()
         }
     }
 
@@ -685,19 +701,13 @@ struct ActivityDetailView: View {
         reportMessage = ActivityDetailCopy.reportReceivedMessage
     }
 
-    private func askHost(about activity: Activity) {
-        openActivityChat(with: activity.hostName, about: activity)
-    }
-
-    private func openActivityChat(with name: String, about activity: Activity) {
-        let context: ConversationChatContext = name == activity.hostName
-            ? .activityHost(activityID: activity.id)
-            : .activityMember(activityID: activity.id)
-        activityContactRoute = app.openPeerContact(with: name, context: context)
-    }
-
     private func openGroupChat(for activity: Activity) {
-        app.openActivityGroupChat(for: activity)
+        guard let route = app.prepareActivityGroupChatRoute(for: activity) else { return }
+        if let navigation {
+            navigation.openActivityGroupChat(for: activity, route: route)
+        } else {
+            activityContactRoute = .chat(route)
+        }
     }
 
     private func openRecapCompose(for activity: Activity) {
@@ -770,6 +780,47 @@ struct ActivityDetailView: View {
         case .failure(let error):
             joinIssueMessage = error.localizedDescription
         }
+    }
+}
+
+// MARK: - iPad inspector
+
+private struct ActivityDetailSideInspector: View {
+    let activity: Activity
+    let related: [Activity]
+    var onOpenPeople: () -> Void
+
+    var body: some View {
+        List {
+            Section {
+                LabeledContent("时间", value: Formatters.activityEventTime(from: activity.date))
+                LabeledContent("地点", value: activity.location)
+                LabeledContent("名额") {
+                    Text(ActivityCardStatus.spotsText(for: activity))
+                }
+                Button {
+                    onOpenPeople()
+                } label: {
+                    Label("查看报名伙伴", systemImage: "person.2")
+                }
+            } header: {
+                Text("活动摘要")
+            }
+
+            if !related.isEmpty {
+                Section {
+                    ForEach(related.prefix(6)) { item in
+                        LabeledContent(item.title) {
+                            Text(Formatters.activityEventTime(from: item.date))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Text(ActivityDetailCopy.relatedTitle)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
     }
 }
 

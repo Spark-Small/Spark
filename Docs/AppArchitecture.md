@@ -19,9 +19,11 @@
 入口链路：
 
 ```
-未登录 → Launch（信封 / 登录）
-已登录未完善 → Onboarding（兴趣）
-已登录已完善 → TabView 五 Tab
+未登录 → Launch（信封 / 登录）→ 协议勾选与登录分离
+已登录 → TabView 五 Tab
+  └─ 首次进入活动 Tab → AppWelcomeGuideView（半屏 4 页价值引导，可跳过）
+       └─ 完成后静默写入默认兴趣（无全屏兴趣选择）
+兴趣维护 → 我的 → 编辑资料 → InterestTaxonomyFormEditor
 ```
 
 实现：`坐标系App` → `ContentView` → `AppModel` + 各 Feature `@Observable` Model。
@@ -94,7 +96,7 @@
 | 能力类 | 功能 |
 |--------|------|
 | 发现 | 分类标题菜单（猜你喜欢为首）、精选 Hero、推荐货架、搜索式筛选 |
-| 详情 | Form 决策信息（时间地点费用名额）、评论、相关活动 / 圈子 |
+| 详情 | Form 决策信息（时间地点费用名额）、评论、相关活动 / 圈子；日历提醒仅已参加 / 主办可见 |
 | 转化 | 参加确认、演示支付、加入活动群 |
 | 主办 | 发起 / 编辑、管理名额与改期、取消与退款演示 |
 | 凭证 | 参加后活动凭证（「我的」夹内查看 / Wallet） |
@@ -183,7 +185,7 @@
 
 | 板块 | 作用 | 主要落点 |
 |------|------|----------|
-| **Launch** | 品牌信封、本地登录 | `Features/Launch/` |
+| **Launch** | 品牌信封、本地登录、半屏欢迎引导 | `Features/Launch/`、`AppWelcomeGuideView` |
 | **信任账本** | 行为事件 → 四轴信用（非星级墙） | `Services/Trust/` + [TrustBehaviorModel.md](TrustBehaviorModel.md) |
 | **钱包 / 支付 / 退款** | 演示支付、Pass、退款策略 | `WalletStore`、`RefundFlow`、PassKit |
 | **位置 / 天气** | 附近排序、问候天气 | `LocationService`、`GreetingWeatherStore` |
@@ -210,6 +212,9 @@
 ├── Models/                    # 领域模型、持久化快照
 └── Services/                  # 仓库、支付、PassKit、信任、通知、位置
 Docs/
+├── README.md                  # 文档索引与实现快照
+├── Vision.md
+├── UserJourneyTechControl.md
 ├── BuddiesProductPlan.md
 ├── TrustBehaviorModel.md
 └── AppArchitecture.md         # 本文
@@ -272,7 +277,7 @@ flowchart LR
 
 | 界面 | 最重要操作 | 角色 / 状态变化 |
 |------|------------|-----------------|
-| **活动详情** | **参加**（免费参加 / 确认支付等） | 已参加 → **进入活动群**；主办 → **进入活动群**（「管理活动」次要）；已结束且相关 → **分享体验** |
+| **活动详情** | **参加**（免费参加 / 确认支付等） | 已参加 → **进入活动群** + 日历提醒；主办 → **进入活动群**；未参加无「私信发起人」底栏 |
 | **活动卡（发现）** | **参加** | 满员 → **加入候补**；已参加 → 展示「已参加」 |
 | **同好详情** | **邀约一起**（主）+ **打招呼**（次） | 底栏双钮，邀约是转化主钮 |
 | **陪玩详情** | **快速下单 / 预约陪玩**（主）+ **打招呼**（次） | 不可约时主钮禁用，先打招呼 |
@@ -319,6 +324,13 @@ flowchart LR
 | Tab 根标题 | `toolbarTitleDisplayMode(.inlineLarge)` + 系统 scroll edge |
 | 消息列表 | Messages：会话列表 + 未读、系统 List 密度 |
 | 信任与隐私 | 行为信用私有 / 公开展示分层（对齐 HIG 隐私最小化，非星级打卡墙） |
+| 最近浏览 | SwiftData `@Model` / `@Query`（`RecentBrowseItem`） |
+| 信任行为轴 | Swift Charts `BarMark`（`TrustAxisBars`） |
+| 功能引导 | 活动 Tab 半屏欢迎引导（`AppWelcomeGuideView`）+ TipKit（筛选、发起等按行为出现） |
+| 会员订阅 | StoreKit 2 `SubscriptionStoreView`；本地配置见 `坐标系/StoreKit/Configuration.storekit`（Scheme → Run → Options 中手动选择） |
+| 启动舞台 | `MeshGradient`（`LaunchStageBackground`） |
+| 详情滚动 / iPad | `onScrollGeometryChange` + `visualEffect` + `.inspector` |
+| 广场互动符号 | `symbolEffect(.bounce)` |
 
 设计约束见 `DESIGN_SYSTEM.md`：SwiftUI First、无品牌色板、系统容器优先、禁止自定义 toast / 装饰 glow。
 
@@ -332,7 +344,7 @@ flowchart LR
 4. **消息与关系** — 会话、通讯录、通话  
 5. **我的账户与履约资产** — 身份、订单、凭证、钱包、会员  
 6. **信任与安全** — 行为账本、认证、签到  
-7. **启动与鉴权** — Launch、本地登录、Onboarding  
+7. **启动与鉴权** — Launch、本地登录、半屏欢迎引导  
 8. **平台基建** — Design System、深链、通知、位置、域事件同步  
 
 ---
@@ -341,12 +353,14 @@ flowchart LR
 
 | 文档 | 回答什么 |
 |------|----------|
+| `Docs/README.md` | **文档索引 + 当前实现快照（改代码后先对这里）** |
 | 本文 `AppArchitecture.md` | **整 App 导航、板块地图与各屏主 CTA** |
 | `Vision.md` | **产品愿景 V1**（让一起玩，变得简单、自然、可信） |
+| `UserJourneyTechControl.md` | 用户旅程与技控（产品视角） |
 | `BuddiesProductPlan.md` | 搭子 Tab 产品第一性原理与 IA |
 | `TrustBehaviorModel.md` | 信任账本事件与公私展示 |
 | `DESIGN_SYSTEM.md` | 视觉 / 组件 / 反模式与实现锚点 |
 
 ---
 
-*文档随代码演进；若 Tab 增减、深链 API 或主 CTA 文案变更，以 `ContentView.swift` / `AppModel`、各 Feature 根视图与上表文案锚点为准。*
+*文档随代码演进（2026-08-28）；若 Tab 增减、深链 API 或主 CTA 文案变更，以 `ContentView.swift` / `AppModel`、各 Feature 根视图与上表文案锚点为准。*

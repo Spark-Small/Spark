@@ -30,7 +30,7 @@
 
 1. **SwiftUI First**：布局、导航、材质、动效优先系统 API。  
 2. **官方组件优先**：`NavigationStack`、`TabView`、`Form`/`List`、`Label`、`ButtonStyle.glass`、`ContentUnavailableView`、SF Symbols。  
-3. **无品牌色体系**：颜色只用系统语义色（`primary` / `secondary` / `tint` / `Color(.system…)`）。  
+3. **单一品牌强调色**：`PlatformAction.brandAccent`（App Icon 四叶草紫瓣）；Tab tint、主 CTA、引导页强调。其余只用系统语义色（`primary` / `secondary` / `tint` / `Color(.system…)`）。  
 4. **不自算沉浸**：顶栏显隐、scroll edge、Tab 折叠交给系统。  
 5. **转化优先**：详情首屏只保留决策信息；长说明下沉；禁止冗杂脚注干扰参加。  
 6. **一套节奏两套页面**：发现 = 媒体货架；详情 = Form 副标题行。  
@@ -38,8 +38,8 @@
 
 ## 1.4 反模式（禁止）
 
-- 自定义 HSB 品牌紫 / 奶油纸质风 / 报纸排版风  
-- 手写 toast 浮层（用触觉 + VoiceOver 播报）  
+- 自定义 HSB 色板（**除** `PlatformAction.brandAccent` 外）/ 奶油纸质风 / 报纸排版风  
+- 手写 toast 浮层（用系统 `.alert` / `.confirmationDialog`）
 - 详情页穿状态栏的全幅沉浸（精选发现页除外）  
 - 固定 pt 字号、忽略 Dynamic Type  
 - 自定义 disclosure chevron（应用 `NavigationLink` 系统箭头）  
@@ -70,12 +70,13 @@
 
 # 2 Visual Language
 
-## 2.1 颜色（仅系统语义）
+## 2.1 颜色（系统语义 + 品牌强调）
 
-实现：`PlatformSurface` / `PlatformStatus`。
+实现：`PlatformSurface` / `PlatformStatus` / `PlatformAction`。
 
 | Token | API | 用途 |
 |-------|-----|------|
+| `brandAccent` | `PlatformAction.brandAccent`（= `cloverPurple`） | **品牌色**：App Icon 四叶草紫瓣；五 Tab `.tint`、活动主 CTA、欢迎引导 |
 | `groupedPage` | `Color(.systemGroupedBackground)` | 发现页、列表底 |
 | `canvas` | `Color(.systemBackground)` | 内容流、部分详情正文场景 |
 | `elevated` | `Color(.secondarySystemGroupedBackground)` | 分组上的卡片面 |
@@ -397,7 +398,7 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
 | **ScrollView + LazyVStack** | 发现货架、混合 Hero + 多分区、横滑轨外层 |
 | **Form** | 详情主结构、支付/确认/发布类设置流、发起人管理 |
 | **List** | 纯列表 Sheet（成员、订单、导航 App）、系统 inset 列表体验 |
-| **LazyVGrid / Grid** | 本版活动主路径不用；兴趣选择等再用 |
+| **LazyVGrid / Grid** | 搭子人墙等；兴趣维护用 Form Toggle（`InterestTaxonomyFormEditor`） |
 | **横滑 ScrollView** | `scrollTargetLayout` + `viewAligned` + `contentMargins`（`DiscoverBrowseLayout`） |
 
 ## 7.1 Form 细则（详情）
@@ -456,7 +457,8 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
 | **Large Title collapse** | 系统（非发现默认） | 适用 Large Title 页 |
 | **Tab minimize** | `.tabBarMinimizeBehavior(.onScrollDown)` | 根 Tab |
 | **Matched geometry** | Zoom namespace；非装饰性 match | 仅导航转场 |
-| **Sensory** | `.sensoryFeedback` + `PlatformFeedback.announce` | 成功参加等 |
+| **Sensory** | `.sensoryFeedback` | 发送、点赞等即时交互；结果告知走 Alert |
+| **结果告知** | `platformFeedbackAlert` | 收藏、筛选、订单状态等 |
 | **Reduce Motion** | 尊重环境值；不叠加额外炫光动画 | 全局 |
 
 Sheet 档位：
@@ -520,10 +522,18 @@ Sheet 档位：
 
 分类用 `Picker` / `Menu` + `Label`（顶栏），不自绘 segmented 皮肤。
 
-## 9.8 Toast
+## 9.8 反馈（Alert / Confirmation Dialog）
 
-**禁止自定义 Toast。**  
-`platformTransientFeedback` = 成功触觉 + `AccessibilityNotification.Announcement`。
+**禁止自定义 Toast 浮层。**  
+操作结果用系统容器：
+
+| 场景 | API | 规则 |
+|------|-----|------|
+| 告知结果（收藏、筛选、订单状态等） | `.alert` + `platformFeedbackAlert` | 单一「好的」；文案绑定 `String?` |
+| 破坏性 / 多选项决策 | `.confirmationDialog` 或 `.alert` | 见 §12.4 |
+| 需表单或下一步 | `.platformSheet(...)` | 不压成 Alert |
+
+`platformFeedbackAlert` = 对 `Binding<String?>` 的系统 Alert 封装。
 
 ## 9.9 Empty / Loading
 
@@ -549,7 +559,7 @@ Sheet 档位：
 3. **勿强制彩色**：Tab Bar、Toolbar Menu、Navigation chevron、破坏性 `role`、系统选中 tint。  
 4. 与文字并排：优先 `Label`；列表行主操作除外。  
 5. 权重跟随正文 Dynamic Type，不写死 pointSize（列表标准头像位图除外）。  
-6. 镜像与本地化：使用系统可本地化符号名；颜色只用系统语义色与 `PlatformStatus`，无品牌色板。  
+6. 镜像与本地化：使用系统可本地化符号名；颜色用系统语义色、`PlatformStatus` 与 **`PlatformAction.brandAccent`**（品牌强调）。
 
 ## 10.2 活动常用
 
@@ -666,7 +676,7 @@ Form
 | 活动举报受理收尾 | `.alert` | Sheet 提交材料后弹出「已收到反馈」；单一「好的」 |
 | 菜单触发的移出群聊 | `.confirmationDialog` | `titleVisibility: .visible`；破坏动作必须 `.destructive`，必须有 `.cancel` |
 | 有输入、摘要、支付或下一步 | `.platformSheet(.confirm/.form/.browser)` | 不压缩为 Alert/Dialog |
-| 非阻塞成功反馈 | `platformTransientFeedback` | 触觉 + VoiceOver；不弹成功 Alert |
+| 非阻塞成功 / 状态告知 | `.alert` + `platformFeedbackAlert` | 单一「好的」；不用 Toast / 自绘浮层 |
 
 破坏性动作不得从 `Menu`、`List` 行或详情按钮直接执行；先写入待确认状态，再由系统 Dialog 执行。
 
@@ -687,7 +697,7 @@ Form
 | Zoom | `Design/ActivityZoomNavigation.swift`、`Features/Buddies/BuddyZoomNavigation.swift` |
 | Sheet | `Design/PlatformSheet.swift` |
 | 发现页 | `Features/Activities/ActivitiesView.swift` |
-| 搭子选人 | `Features/Buddies/BuddiesView.swift`、`BuddyBrowseShelves.swift`、`BuddyPaidMarketViews.swift`、`BuddyLobbyCard.swift`、`BuddyGridCard.swift`、`BuddyPosterShelfCard.swift`、`BuddyOrgInfoViews.swift`、`BuddyMemberProfileSheet.swift`、`BuddyMemberListSheet.swift`、`BuddyMemberCopy.swift`、`BuddyVoiceHallViews.swift`、`BuddiesModeSwitch.swift`、`BuddyFilterSheet.swift`、`BuddyBookingSheet.swift`、`BuddyScheduleSlot.swift`、`BuddyCityCatalog.swift` |
+| 搭子选人 | `Features/Buddies/BuddiesView.swift`、`BuddyBrowseShelves.swift`、`BuddyPaidMarketViews.swift`、`BuddyGridCard.swift`、`BuddyPosterShelfCard.swift`、`BuddyOrgInfoViews.swift`、`BuddyMemberProfileSheet.swift`、`BuddyMemberListSheet.swift`、`BuddyMemberCopy.swift`、`BuddyVoiceHallViews.swift`、`BuddiesModeSwitch.swift`、`BuddyFilterSheet.swift`、`BuddyBookingSheet.swift`、`BuddyScheduleSlot.swift`、`BuddyCityCatalog.swift` |
 | 详情 | `Features/Activities/ActivityDetailView.swift`、`ActivityDetailSections.swift` |
 | Tab 折叠 | `ContentView.swift` |
 
@@ -695,6 +705,7 @@ Form
 
 # Appendix B — 设计评审清单
 
+- [ ] 品牌强调是否只用 `PlatformAction.brandAccent`？  
 - [ ] 是否只用系统色与 Material？  
 - [ ] 字号是否全部系统 Text Style（无项目字阶枚举）？  
 - [ ] Form/List 页是否把间距交给系统容器，而非 Features 手调 Metrics？  
@@ -706,7 +717,7 @@ Form
 - [ ] 详情是否 Form + compact section spacing？  
 - [ ] 头像行是否垂直居中且无错误折行？  
 - [ ] 进详情是否 Zoom 而非纯 push（发现卡）？  
-- [ ] 反馈是否无自定义 Toast？  
+- [ ] 反馈是否无自定义 Toast（用 `platformFeedbackAlert` / `.confirmationDialog`）？  
 - [ ] Dynamic Type / 大字叠字是否已切 stacked？  
 - [ ] 是否引入了禁止的装饰阴影或品牌渐变？  
 

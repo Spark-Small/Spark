@@ -26,6 +26,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				StoreKit/Configuration.storekit,
 			);
 			target = 80E75794300761E8001E6272 /* 坐标系 */;
 		};

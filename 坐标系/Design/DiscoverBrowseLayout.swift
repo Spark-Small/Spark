@@ -238,16 +238,4 @@ extension View {
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)
     }
-
-    /// Form 内贴边行：与头图 Section 相同，inset 归零（卡片铺满 Section 白框）
-    func platformFormEdgeToEdgeRow() -> some View {
-        listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-    }
-
-    /// Form 内横滑轨贴边（同 `platformFormEdgeToEdgeRow`）
-    func platformFormFullBleedRailRow() -> some View {
-        platformFormEdgeToEdgeRow()
-    }
 }

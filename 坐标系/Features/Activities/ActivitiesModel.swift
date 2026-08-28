@@ -72,31 +72,49 @@ final class ActivitiesModel {
         )
     }
 
-    var showsFeatured: Bool { !featured.isEmpty && showsBrowseModules }
-
-    /// 长列表推荐分区（精选 Hero 以下）。按输入指纹缓存，返回详情后滑动不重算整库。
+    /// 长列表货架（活动 Tab 主列表）。按输入指纹缓存。
     var recommendationShelves: [ActivityBrowseShelf] {
         let key = RecommendationShelvesCacheKey(
             category: selectedCategory,
             filters: quickFilters,
             dayFilter: dayFilter.map { Calendar.current.startOfDay(for: $0).timeIntervalSince1970 },
             activityRevision: activities.map(\.id),
+            distanceRevision: activities.map { activity in
+                UInt16(min(65_535, max(0, Int((activity.distanceKM * 10).rounded()))))
+            },
+            availabilityRevision: activities.map { activity in
+                (UInt32(min(65_535, activity.joined)) << 16)
+                    | UInt32(min(65_535, max(0, activity.capacity)))
+            },
             joinedIDs: joinedIDs,
-            featuredIDs: Set(featured.map(\.id))
+            spotlightID: spotlightActivity?.id
         )
         if key == recommendationShelvesCacheKey {
             return cachedRecommendationShelves
         }
-        let built = ActivityBrowseShelfBuilder.build(
-            catalog: filtered,
-            featuredIDs: key.featuredIDs,
-            joinedIDs: joinedIDs,
-            interests: ActivityRecommender.userInterests,
-            catalogIndex: catalogIndexByID
+        let built = ActivityBrowseHomeCatalog.shelves(
+            activities: filtered,
+            joined: joinedActivities,
+            catalogIndex: catalogIndexByID,
+            excluding: spotlightExcludedIDs
         )
         cachedRecommendationShelves = built
         recommendationShelvesCacheKey = key
         return built
+    }
+
+    /// 今日焦点：浏览态用精选池首卡，否则用当前目录首卡。
+    var spotlightActivity: Activity? {
+        if showsBrowseModules, let featured = featured.first {
+            return featured
+        }
+        return filtered.first
+    }
+
+    /// 焦点 Hero 占用的活动 id（货架编排跨轨去重）。
+    private var spotlightExcludedIDs: Set<UUID> {
+        guard let spotlightActivity else { return [] }
+        return [spotlightActivity.id]
     }
 
     /// 打开详情即记一次隐式浏览信号，喂给推荐做行为学习（见 ActivityEngagementStore）
@@ -159,6 +177,10 @@ final class ActivitiesModel {
         return isHost(activity)
     }
 
+    func hostedCount(for hostName: String) -> Int {
+        activities.count { $0.hostName == hostName }
+    }
+
     /// 改名后同步发起/参加名单中的昵称
     func migrateUserName(from oldName: String, to newName: String) {
         guard !oldName.isEmpty, !newName.isEmpty, oldName != newName else { return }
@@ -191,7 +213,13 @@ final class ActivitiesModel {
         }
         if changed {
             activities = next
+            invalidateRecommendationShelvesCache()
         }
+    }
+
+    private func invalidateRecommendationShelvesCache() {
+        recommendationShelvesCacheKey = nil
+        cachedRecommendationShelves = []
     }
 
     func activity(id: Activity.ID) -> Activity? {
@@ -553,10 +581,6 @@ final class ActivitiesModel {
 
     private func flash(_ message: String) {
         toastMessage = message
-        Task {
-            try? await Task.sleep(for: .seconds(2))
-            if toastMessage == message { toastMessage = nil }
-        }
     }
 
     private func persist() {
@@ -623,12 +647,14 @@ final class ActivitiesModel {
     }
 }
 
-/// 货架缓存指纹：分类 / 筛选 / 目录顺序 / 报名 / 精选变化时失效
+/// 货架缓存指纹：分类 / 筛选 / 目录顺序 / 距离 / 报名变化时失效
 private struct RecommendationShelvesCacheKey: Equatable {
     var category: ActivityCategory
     var filters: Set<ActivityQuickFilter>
     var dayFilter: TimeInterval?
     var activityRevision: [UUID]
+    var distanceRevision: [UInt16]
+    var availabilityRevision: [UInt32]
     var joinedIDs: Set<UUID>
-    var featuredIDs: Set<UUID>
+    var spotlightID: UUID?
 }

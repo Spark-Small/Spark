@@ -212,6 +212,7 @@ struct FriendProfileDetailView: View {
             if let selectedPostID {
                 NavigationStack {
                     CommunityPostDetailView(postID: selectedPostID)
+                        .platformSheetConfirmationToolbar()
                 }
                 .toolbarVisibility(.hidden, for: .tabBar)
                 .platformSheet(.browser)
@@ -318,21 +319,13 @@ struct FriendProfileDetailView: View {
         ) {
             Button(MessagesCopy.friendDelete, role: .destructive) {
                 model.deleteFriend(named: nickname)
-                feedback = MessagesCopy.friendDeleted
                 dismiss()
             }
             Button(MessagesCopy.cancel, role: .cancel) {}
         } message: {
             Text(MessagesCopy.friendDeleteConfirmMessage)
         }
-        .platformTransientFeedback($feedback)
-        .onChange(of: feedback) { _, value in
-            guard value != nil else { return }
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(800))
-                if feedback == value { feedback = nil }
-            }
-        }
+        .platformFeedbackAlert($feedback)
     }
 
     private func openChat() {
@@ -425,26 +418,13 @@ private struct FriendProfileActionBar: View {
     var onCall: () -> Void
 
     var body: some View {
-        HStack(spacing: PlatformMetrics.railCardSpacing) {
+        DetailBottomActionBar {
             Button(MessagesCopy.friendSendMessage, systemImage: "message.fill", action: onMessage)
-                .fontWeight(.semibold)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .buttonBorderShape(.capsule)
-                .frame(maxWidth: .infinity)
+                .activityDetailBottomPrimaryCTA()
 
             Button(MessagesCopy.friendAVCall, systemImage: "video", action: onCall)
-                .fontWeight(.semibold)
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-                .buttonBorderShape(.capsule)
-                .frame(maxWidth: .infinity)
+                .activityDetailBottomSecondaryCTA()
         }
         .labelStyle(.titleAndIcon)
-        .font(.body)
-        .padding(.horizontal, PlatformMetrics.contentInset)
-        .padding(.top, PlatformMetrics.detailBottomBarTopPadding)
-        .padding(.bottom, PlatformMetrics.detailBottomBarBottomPadding)
-        .background(.bar)
     }
 }

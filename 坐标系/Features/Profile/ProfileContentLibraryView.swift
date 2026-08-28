@@ -57,9 +57,8 @@ struct ProfilePublishedLibraryView: View {
                 Text(segment == .posts ? "分享凭证夹" : "发起凭证夹")
             }
         }
-        .listStyle(.insetGrouped)
-        .listSectionSpacing(.compact)
-        .navigationTitle("我发布的")
+        .profileSecondaryListChrome()
+        .navigationTitle(ProfileDashboardCopy.activityHosted)
         .navigationBarTitleDisplayMode(.inline)
         .activityZoomNavigationDestinationIfNeeded(fallback: zoomNamespace)
         .onAppear {
@@ -90,9 +89,7 @@ struct ProfilePublishedLibraryView: View {
                         idHint: item.post.id.uuidString
                     )
                 }
-                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+                .platformProfileCredentialCardRow()
             }
         }
     }
@@ -104,7 +101,7 @@ struct ProfilePublishedLibraryView: View {
             ContentUnavailableView(
                 "还没有发起活动",
                 systemImage: "flag",
-                description: Text("发起活动后，会出现在这里，也可在「我的活动」里管理。")
+                description: Text("发起活动后会出现在这里。")
             )
             .listRowBackground(Color.clear)
         } else {
@@ -121,9 +118,7 @@ struct ProfilePublishedLibraryView: View {
                         idHint: item.activity.id.uuidString
                     )
                 }
-                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+                .platformProfileCredentialCardRow()
             }
         }
     }
@@ -133,17 +128,27 @@ struct ProfilePublishedLibraryView: View {
 
 struct ProfileFavoriteActivitiesLibraryView: View {
     @Environment(ActivitiesModel.self) private var model
+    @Environment(AppModel.self) private var app
     @Namespace private var zoomNamespace
 
     var body: some View {
         List {
             if model.favoriteActivities.isEmpty {
-                ContentUnavailableView(
-                    "还没有收藏活动",
-                    systemImage: "bookmark",
-                    description: Text("在活动详情里点收藏，想去的局会出现在这里。")
-                )
-                .listRowBackground(Color.clear)
+                Section {
+                    ContentUnavailableView(
+                        "还没有收藏活动",
+                        systemImage: "bookmark",
+                        description: Text("在活动详情里点收藏，想去的局会出现在这里。")
+                    )
+                    .listRowBackground(Color.clear)
+
+                    Button("去发现活动") {
+                        app.selectedTab = .activities
+                    }
+                    .activityPrimaryCTA(controlSize: .large)
+                    .buttonSizing(.flexible)
+                    .listRowBackground(Color.clear)
+                }
             } else {
                 ForEach(model.favoriteActivities) { activity in
                     ActivityZoomNavigationLink(
@@ -161,8 +166,7 @@ struct ProfileFavoriteActivitiesLibraryView: View {
                 }
             }
         }
-        .listStyle(.insetGrouped)
-        .listSectionSpacing(.compact)
+        .profileSecondaryListChrome()
         .navigationTitle("收藏的活动")
         .navigationBarTitleDisplayMode(.inline)
         .activityZoomNavigationDestinationIfNeeded(fallback: zoomNamespace)

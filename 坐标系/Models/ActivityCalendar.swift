@@ -2,6 +2,9 @@
 //  ActivityCalendar.swift
 //  坐标系
 //
+//  EventKit 写入 / 移除活动提醒；持久化 activityID ↔ eventIdentifier，
+//  供详情与参加成功页共用同一套日历状态与符号着色。
+//
 
 import EventKit
 import Foundation
@@ -11,14 +14,36 @@ import UIKit
 enum ActivityCalendar {
     enum Outcome: Equatable {
         case added(withReminders: Bool)
+        case removed
         case accessDenied
         case failed
     }
 
-    /// 写入日历并设置开场前提醒（适合各年龄：提前 1 天 + 提前 1 小时）
-    static func add(_ activity: Activity, withReminders: Bool = true) async -> Outcome {
-        let store = EKEventStore()
+    /// 日历提醒按钮符号：未加入 `calendar.badge.clock`（􀐭），已加入 `calendar.badge.checkmark`（􀐮）。
+    enum Symbol {
+        static let off = "calendar.badge.clock"
+        static let on = "calendar.badge.checkmark"
 
+        static func systemName(isScheduled: Bool) -> String {
+            isScheduled ? on : off
+        }
+    }
+
+    private static let mappingKey = "activity.calendarEventIdentifiers"
+    private static let store = EKEventStore()
+
+    static func isScheduled(activityID: Activity.ID) -> Bool {
+        eventIdentifier(for: activityID) != nil
+    }
+
+    static func toggle(_ activity: Activity, withReminders: Bool = true) async -> Outcome {
+        if isScheduled(activityID: activity.id) {
+            return await remove(activityID: activity.id)
+        }
+        return await add(activity, withReminders: withReminders)
+    }
+
+    static func add(_ activity: Activity, withReminders: Bool = true) async -> Outcome {
         if isAccessDenied {
             return .accessDenied
         }
@@ -56,10 +81,33 @@ enum ActivityCalendar {
             }
 
             try store.save(event, span: .thisEvent)
+            setEventIdentifier(event.eventIdentifier, for: activity.id)
             return .added(withReminders: withReminders)
         } catch {
             return .failed
         }
+    }
+
+    static func remove(activityID: Activity.ID) async -> Outcome {
+        guard let identifier = eventIdentifier(for: activityID) else {
+            clearEventIdentifier(for: activityID)
+            return .removed
+        }
+
+        if let event = store.event(withIdentifier: identifier) {
+            do {
+                try store.remove(event, span: .thisEvent)
+            } catch {
+                return .failed
+            }
+        }
+        clearEventIdentifier(for: activityID)
+        return .removed
+    }
+
+    static func removeIfNeeded(activityID: Activity.ID) {
+        guard isScheduled(activityID: activityID) else { return }
+        Task { _ = await remove(activityID: activityID) }
     }
 
     static var isAccessDenied: Bool {
@@ -89,9 +137,33 @@ enum ActivityCalendar {
         withReminders ? "已添加至日历，开场前将提醒你" : "已添加至日历"
     }
 
+    static let removedMessage = "已从日历移除提醒"
+
     static func openSystemSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
+    }
+
+    // MARK: - Persistence
+
+    private static func eventIdentifier(for activityID: Activity.ID) -> String? {
+        mapping()[activityID.uuidString]
+    }
+
+    private static func setEventIdentifier(_ identifier: String, for activityID: Activity.ID) {
+        var next = mapping()
+        next[activityID.uuidString] = identifier
+        UserDefaults.standard.set(next, forKey: mappingKey)
+    }
+
+    private static func clearEventIdentifier(for activityID: Activity.ID) {
+        var next = mapping()
+        next.removeValue(forKey: activityID.uuidString)
+        UserDefaults.standard.set(next, forKey: mappingKey)
+    }
+
+    private static func mapping() -> [String: String] {
+        UserDefaults.standard.dictionary(forKey: mappingKey) as? [String: String] ?? [:]
     }
 }
 

@@ -32,10 +32,13 @@ enum PlatformStatus {
 
 /// 域操作色 — 仅用于明确指定的主转化按钮
 enum PlatformAction {
-    /// 活动页关键操作 — 四叶草紫色瓣（App Icon petal-06 / 信封印章）
+    /// 坐标系品牌色 — App Icon 四叶草紫瓣（petal-06 / 信封印章）；Tab tint、主 CTA、引导页强调。
     static var cloverPurple: Color {
         Color(.displayP3, red: 0.58228, green: 0.46771, blue: 0.84753)
     }
+
+    /// 与 `cloverPurple` 同值；文档与语义化引用优先用此名。
+    static var brandAccent: Color { cloverPurple }
 }
 
 extension DynamicTypeSize {
@@ -825,11 +828,39 @@ enum DiscoverAccessibility {
     }
 }
 
-/// 系统短暂反馈：触觉 + VoiceOver 播报（不用自定义浮层 toast）
+/// 系统反馈文案（`platformFeedbackAlert` 等）
 enum PlatformFeedback {
-    @MainActor
-    static func announce(_ message: String) {
-        AccessibilityNotification.Announcement(message).post()
+    static let dismissTitle = "好的"
+}
+
+extension View {
+    /// 绑定反馈文案：系统 `.alert` 告知，单一「好的」关闭；禁止自定义 Toast 浮层。
+    func platformFeedbackAlert(
+        _ message: Binding<String?>,
+        title: String = "",
+        dismissTitle: String = PlatformFeedback.dismissTitle
+    ) -> some View {
+        alert(
+            title,
+            isPresented: Binding(
+                get: { message.wrappedValue != nil },
+                set: { if !$0 { message.wrappedValue = nil } }
+            )
+        ) {
+            Button(dismissTitle, role: .cancel) {
+                message.wrappedValue = nil
+            }
+        } message: {
+            if let text = message.wrappedValue {
+                Text(text)
+            }
+        }
+    }
+
+    /// 已废弃：请改用 `platformFeedbackAlert`。
+    @available(*, deprecated, message: "Use platformFeedbackAlert")
+    func platformTransientFeedback(_ message: Binding<String?>) -> some View {
+        platformFeedbackAlert(message)
     }
 }
 
@@ -1095,18 +1126,6 @@ struct PlatformPlaceholderFill: View {
 }
 
 extension View {
-    /// 绑定短暂反馈文案：成功触觉 + 系统播报，无自定义浮层
-    func platformTransientFeedback(_ message: Binding<String?>) -> some View {
-        self
-            .sensoryFeedback(.success, trigger: message.wrappedValue) { _, newValue in
-                newValue != nil
-            }
-            .onChange(of: message.wrappedValue) { _, newValue in
-                guard let newValue else { return }
-                PlatformFeedback.announce(newValue)
-            }
-    }
-
     /// 静态标签：材质胶囊，规格与角标一致（系统 caption2）
     func platformGlassTag() -> some View {
         self

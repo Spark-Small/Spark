@@ -10,12 +10,16 @@ import SwiftUI
 struct ActivityDetailDecisionCard: View {
     let activity: Activity
     var viewerWaitlisted: Bool
+    /// 已参加或本人发起才露出日历提醒。
+    var canAddCalendarReminder: Bool
     var hostNote: String? = nil
     var onPeople: () -> Void
 
     @State private var calendarMessage: String?
     @State private var showCalendarAccessAlert = false
     @State private var showNavigationPicker = false
+    @State private var showsMapPreview = false
+    @State private var isOnCalendar = false
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -31,25 +35,7 @@ struct ActivityDetailDecisionCard: View {
                 }
 
                 VStack(alignment: .leading) {
-                    decisionRow(
-                        title: "时间",
-                        text: Formatters.activityEventTime(from: activity.date),
-                        secondary: Formatters.activityStartCountdown(from: activity.date),
-                        actionSystemImage: "alarm",
-                        actionLabel: ActivityDetailCopy.calendarAction
-                    ) {
-                        Task {
-                            switch await ActivityCalendar.add(activity, withReminders: true) {
-                            case .added(let withReminders):
-                                calendarMessage = ActivityCalendar.successMessage(withReminders: withReminders)
-                            case .accessDenied:
-                                showCalendarAccessAlert = true
-                            case .failed:
-                                calendarMessage = ActivityDetailCopy.calendarFailedMessage
-                            }
-                        }
-                    }
-
+                    timeRow
                     locationModule
                 }
 
@@ -89,6 +75,48 @@ struct ActivityDetailDecisionCard: View {
                 .toolbarVisibility(.hidden, for: .tabBar)
         }
         .activityCalendarAccessAlert(isPresented: $showCalendarAccessAlert)
+        .onAppear {
+            isOnCalendar = ActivityCalendar.isScheduled(activityID: activity.id)
+        }
+        .onChange(of: activity.id) { _, _ in
+            isOnCalendar = ActivityCalendar.isScheduled(activityID: activity.id)
+            calendarMessage = nil
+        }
+    }
+
+    @MainActor
+    private func toggleCalendarReminder() async {
+        switch await ActivityCalendar.toggle(activity, withReminders: true) {
+        case .added(let withReminders):
+            isOnCalendar = true
+            calendarMessage = ActivityCalendar.successMessage(withReminders: withReminders)
+        case .removed:
+            isOnCalendar = false
+            calendarMessage = ActivityCalendar.removedMessage
+        case .accessDenied:
+            showCalendarAccessAlert = true
+        case .failed:
+            calendarMessage = isOnCalendar
+                ? ActivityDetailCopy.calendarRemoveFailedMessage
+                : ActivityDetailCopy.calendarFailedMessage
+        }
+    }
+
+    @ViewBuilder
+    private var timeRow: some View {
+        let text = Formatters.activityEventTime(from: activity.date)
+        let secondary = Formatters.activityStartCountdown(from: activity.date)
+        if canAddCalendarReminder {
+            decisionRow(
+                title: "时间",
+                text: text,
+                secondary: secondary
+            ) {
+                Task { await toggleCalendarReminder() }
+            }
+        } else {
+            decisionRow(title: "时间", text: text, secondary: secondary)
+        }
     }
 
     private var locationModule: some View {
@@ -121,14 +149,27 @@ struct ActivityDetailDecisionCard: View {
             }
 
             if activity.latitude != nil, activity.longitude != nil {
-                Button {
-                    showNavigationPicker = true
-                } label: {
-                    ActivityDetailLocationPreview(activity: activity)
+                if showsMapPreview {
+                    Button {
+                        showNavigationPicker = true
+                    } label: {
+                        ActivityDetailLocationPreview(activity: activity)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(ActivityDetailCopy.mapPreviewAccessibility)
+                } else {
+                    Color.clear
+                        .frame(height: PlatformMetrics.detailMapHeight)
+                        .clipShape(PlatformMetrics.mediaShape)
+                        .accessibilityHidden(true)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(ActivityDetailCopy.mapPreviewAccessibility)
             }
+        }
+        .task {
+            guard !showsMapPreview else { return }
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            showsMapPreview = true
         }
     }
 
@@ -154,9 +195,7 @@ struct ActivityDetailDecisionCard: View {
         title: String,
         text: String,
         secondary: String,
-        actionSystemImage: String,
-        actionLabel: String,
-        action: @escaping () -> Void
+        calendarAction: (() -> Void)? = nil
     ) -> some View {
         HStack(alignment: .center) {
             Label {
@@ -177,11 +216,9 @@ struct ActivityDetailDecisionCard: View {
 
             Spacer(minLength: 0)
 
-            ActivityDetailControls.GlassIconButton(
-                systemImage: actionSystemImage,
-                accessibilityLabel: actionLabel,
-                action: action
-            )
+            if let calendarAction {
+                ActivityDetailControls.CalendarGlassButton(isScheduled: isOnCalendar, action: calendarAction)
+            }
         }
     }
 }
@@ -190,51 +227,42 @@ struct ActivityDetailDecisionCard: View {
 struct ActivityDetailHostTrustRow: View {
     let trust: ActivityHostTrust
     var onHost: () -> Void
-    var onChat: () -> Void
 
     var body: some View {
-        HStack(alignment: .center) {
-            Button(action: onHost) {
-                HStack(alignment: .center) {
-                    PlatformListAvatarView(name: trust.name)
-                    VStack(alignment: .leading) {
-                        HStack {
-                            Text(trust.name)
-                            Text(trust.levelText)
-                                .foregroundStyle(.secondary)
-                            if trust.isVerified {
-                                Image(systemName: TrustBadgeKind.photoVerified.systemImage)
-                                    .foregroundStyle(.tint)
-                                    .symbolRenderingMode(.hierarchical)
-                                    .accessibilityLabel(TrustBadgeKind.photoVerified.title)
-                            }
-                            if trust.isMember {
-                                Image(systemName: TrustBadgeKind.activeMember.systemImage)
-                                    .foregroundStyle(.secondary)
-                                    .symbolRenderingMode(.hierarchical)
-                                    .accessibilityLabel(TrustBadgeKind.activeMember.title)
-                            }
-                        }
-                        .font(.body)
-                        .lineLimit(1)
-                        Text(trust.metricsLine)
-                            .font(.subheadline)
+        Button(action: onHost) {
+            HStack(alignment: .center) {
+                PlatformListAvatarView(name: trust.name)
+                VStack(alignment: .leading) {
+                    HStack {
+                        Text(trust.name)
+                        Text(trust.levelText)
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
+                        if trust.isVerified {
+                            Image(systemName: TrustBadgeKind.photoVerified.systemImage)
+                                .foregroundStyle(.tint)
+                                .symbolRenderingMode(.hierarchical)
+                                .accessibilityLabel(TrustBadgeKind.photoVerified.title)
+                        }
+                        if trust.isMember {
+                            Image(systemName: TrustBadgeKind.activeMember.systemImage)
+                                .foregroundStyle(.secondary)
+                                .symbolRenderingMode(.hierarchical)
+                                .accessibilityLabel(TrustBadgeKind.activeMember.title)
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .font(.body)
+                    .lineLimit(1)
+                    Text(trust.metricsLine)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(accessibilitySummary)
-
-            ActivityDetailControls.GlassIconButton(
-                systemImage: "bubble.left",
-                accessibilityLabel: ActivityDetailCopy.hostMessageAccessibility,
-                action: onChat
-            )
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilitySummary)
     }
 
     private var accessibilitySummary: String {
@@ -473,25 +501,10 @@ struct ActivityDetailPeopleSheet: View {
             }
             .navigationTitle("活动成员")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    peopleSheetBackButton(dismissesSheet: true)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(ActivityDetailCopy.peopleSheetDone) {
-                        dismiss()
-                    }
-                }
-            }
+            .platformSheetConfirmationToolbar(ActivityDetailCopy.peopleSheetDone)
             .navigationDestination(for: String.self) { name in
                 memberProfile(name)
                     .toolbarVisibility(.hidden, for: .tabBar)
-                    .navigationBarBackButtonHidden(true)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            peopleSheetBackButton(dismissesSheet: false)
-                        }
-                    }
             }
             .peerContactDestination(route: $memberContactRoute)
         }
@@ -519,23 +532,6 @@ struct ActivityDetailPeopleSheet: View {
             ? .activityHost(activityID: activity.id)
             : .activityMember(activityID: activity.id)
         memberContactRoute = app.openPeerContact(with: name, context: context)
-    }
-
-    private func peopleSheetBackButton(dismissesSheet: Bool) -> some View {
-        Button {
-            if dismissesSheet {
-                dismiss()
-            } else {
-                path.removeLast()
-            }
-        } label: {
-            Label(ActivityDetailCopy.peopleSheetBack, systemImage: "chevron.left")
-        }
-        .accessibilityHint(
-            dismissesSheet
-                ? "关闭活动成员列表"
-                : "返回活动成员列表"
-        )
     }
 }
 
@@ -613,8 +609,6 @@ struct ActivityCommentsSheet: View {
 
     @State private var refreshID = 0
 
-    @Environment(\.dismiss) private var dismiss
-
     private var rootCount: Int {
         PlatformReviewsStore.reviews(for: .activity(activityID)).filter(\.isRoot).count
     }
@@ -638,11 +632,7 @@ struct ActivityCommentsSheet: View {
             .id(refreshID)
             .navigationTitle(rootCount == 0 ? "评论" : "评论 \(rootCount)")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(MessagesCopy.close) { dismiss() }
-                }
-            }
+            .platformSheetCancellationToolbar(MessagesCopy.close)
         }
         .platformSheet(.form)
     }
@@ -709,7 +699,7 @@ struct ActivityDetailCommentsPreviewSection: View {
 
 // MARK: - 相关活动 / 凭证
 
-/// Form 清单行：左 leading + 主副文（相关活动、相关圈子等同构）
+/// Form 清单行：左 leading + 主副文（相关圈子等同构）
 private struct ActivityDetailFormLinkRow<Leading: View>: View {
     let title: String
     let subtitle: String
@@ -735,45 +725,36 @@ private struct ActivityDetailFormLinkRow<Leading: View>: View {
     }
 }
 
-/// 相关活动横滑轨（仅内容；Section header 由调用方提供，与「活动评论」同构）
+/// 相关活动横滑轨：与「我的 · 最近浏览」同款跟进卡。
 struct DetailRelatedActivitiesRail: View {
     let activities: [Activity]
 
     @Environment(ActivitiesModel.self) private var model
-    @Environment(AppModel.self) private var app
-    @State private var openedActivityID: Activity.ID?
+    @Environment(\.activityZoomNamespace) private var inheritedZoomNamespace
+    @Namespace private var localZoomNamespace
+
+    private var zoomNamespace: Namespace.ID {
+        inheritedZoomNamespace ?? localZoomNamespace
+    }
 
     var body: some View {
-        DiscoverHorizontalRail(
-            spacing: 0,
-            appliesHorizontalMargins: false
-        ) {
+        DiscoverHorizontalRail {
             ForEach(activities) { activity in
-                PlatformEventCard(
+                PlatformContinueCard(
                     activityID: activity.id,
+                    zoomNamespace: zoomNamespace,
                     photo: activity.coverPhoto,
-                    badge: ActivityCardStatus.hotBadge(for: activity),
                     title: activity.title,
                     timeLine: Formatters.activityEventTime(from: activity.date),
-                    metaLine: ActivityCardStatus.hotMetaLine(for: activity),
+                    metaLine: activity.districtLabel,
                     isJoined: model.isJoined(activity.id),
-                    isFull: activity.isFull,
-                    onCoverTap: { openedActivityID = activity.id },
-                    onJoin: model.isJoined(activity.id) ? nil : {
-                        _ = app.quickJoinActivity(activity) {
-                            openedActivityID = activity.id
-                        }
-                    }
+                    isFull: activity.isFull
                 )
-                .clipShape(PlatformMetrics.fullBleedShape)
-                .containerRelativeFrame(.horizontal) { length, _ in length }
+                .platformContinueRailFrame()
             }
         }
-        .platformFormEdgeToEdgeRow()
-        .navigationDestination(item: $openedActivityID) { id in
-            ActivityDetailView(activityID: id)
-                .toolbarVisibility(.hidden, for: .tabBar)
-        }
+        .scrollClipDisabled()
+        .platformFormRelatedRailRow()
     }
 }
 

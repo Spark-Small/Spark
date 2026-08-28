@@ -388,36 +388,53 @@ struct CommunityRelatedActivityLink: View {
     let activity: Activity
     var showsEventTime = false
 
-    var body: some View {
-        NavigationLink(value: activity) {
-            HStack(
-                alignment: showsEventTime ? .top : .center,
-                spacing: PlatformConversationListRow.imageToTextPadding
-            ) {
-                PlatformListSymbolAvatar(
-                    systemName: activity.category.systemImage,
-                    side: PlatformConversationListRow.imageSide
-                )
+    @Environment(\.activityZoomNamespace) private var zoomNamespace
 
-                Group {
-                    if showsEventTime {
-                        VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
-                            Text("来自 · \(activity.title)")
-                            Text(Formatters.activityEventTime(from: activity.date))
-                                .font(PlatformListTypography.trailing)
-                        }
-                    } else {
-                        Text("来自 · \(activity.title)")
-                            .lineLimit(1)
-                    }
+    var body: some View {
+        Group {
+            if let zoomNamespace {
+                ActivityZoomNavigationLink(activity: activity, namespace: zoomNamespace) {
+                    linkLabel
                 }
-                .font(PlatformListTypography.secondary)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                NavigationLink {
+                    ActivityDetailView(activity: activity)
+                        .toolbarVisibility(.hidden, for: .tabBar)
+                } label: {
+                    linkLabel
+                }
+                .buttonStyle(.plain)
             }
         }
-        .buttonStyle(.plain)
+    }
+
+    private var linkLabel: some View {
+        HStack(
+            alignment: showsEventTime ? .top : .center,
+            spacing: PlatformConversationListRow.imageToTextPadding
+        ) {
+            PlatformListSymbolAvatar(
+                systemName: activity.category.systemImage,
+                side: PlatformConversationListRow.imageSide
+            )
+
+            Group {
+                if showsEventTime {
+                    VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
+                        Text("来自 · \(activity.title)")
+                        Text(Formatters.activityEventTime(from: activity.date))
+                            .font(PlatformListTypography.trailing)
+                    }
+                } else {
+                    Text("来自 · \(activity.title)")
+                        .lineLimit(1)
+                }
+            }
+            .font(PlatformListTypography.secondary)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 
@@ -430,6 +447,7 @@ extension View {
             case .buddy(let item):
                 NavigationStack {
                     BuddyDetailRouteView(item: item)
+                        .platformSheetConfirmationToolbar()
                 }
                 .platformSheet(.browser)
             case .fallback(let name):
@@ -451,9 +469,7 @@ extension CommunityActionSheet {
             CommunityLikesSheet(postID: postID)
         case .comments:
             CommunityCommentsSheet(postID: postID)
-        case .repost:
-            CommunityRepostSheet(postID: postID)
-        case .send:
+        case .share:
             CommunityShareSheet(postID: postID)
         case .bookmark:
             CommunityBookmarkSheet(postID: postID)

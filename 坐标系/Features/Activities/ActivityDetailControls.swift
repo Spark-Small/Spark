@@ -23,6 +23,43 @@ enum ActivityDetailControls {
         }
     }
 
+    /// 活动日历切换：与详情时间行同款 glass / glassProminent 着色。
+    struct CalendarGlassButton: View {
+        var isScheduled: Bool
+        var action: () -> Void
+
+        var body: some View {
+            GlassIconButton(
+                systemImage: ActivityCalendar.Symbol.systemName(isScheduled: isScheduled),
+                accessibilityLabel: isScheduled
+                    ? ActivityDetailCopy.calendarRemoveAction
+                    : ActivityDetailCopy.calendarAction,
+                prominent: isScheduled,
+                action: action
+            )
+        }
+    }
+
+    /// Sheet 导航栏日历：标准图标按钮（已加入用 accent 着色，与详情状态一致）。
+    struct CalendarToolbarButton: View {
+        var isScheduled: Bool
+        var action: () -> Void
+
+        var body: some View {
+            Button(action: action) {
+                Image(systemName: ActivityCalendar.Symbol.systemName(isScheduled: isScheduled))
+            }
+            .symbolRenderingMode(.monochrome)
+            .foregroundStyle(isScheduled ? Color.accentColor : Color.primary)
+            .accessibilityLabel(
+                isScheduled
+                    ? ActivityDetailCopy.calendarRemoveAction
+                    : ActivityDetailCopy.calendarAction
+            )
+            .accessibilityHint("加入或移除本场活动的日历提醒")
+        }
+    }
+
     /// 官方 glass 胶囊（纯文案）：对齐发现卡「参加」主 CTA
     struct GlassCapsuleButton: View {
         let title: String
@@ -67,5 +104,17 @@ extension View {
     func activityDetailBottomSecondaryCTA() -> some View {
         activitySecondaryCTA(controlSize: .large)
             .buttonSizing(.flexible)
+    }
+}
+
+/// 详情页底部双 CTA 栏：搭子 / 陪玩 / 活动详情共用布局
+struct DetailBottomActionBar<Content: View>: View {
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        HStack(spacing: PlatformMetrics.detailBottomBarSpacing) {
+            content()
+        }
+        .activityDetailBottomBarChrome()
     }
 }

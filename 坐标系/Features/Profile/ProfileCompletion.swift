@@ -8,6 +8,7 @@
 import Foundation
 import UIKit
 
+/// 7 项资料：头像（自定义上传）、昵称、ID、城市、简介、搭子宣言、兴趣标签。
 enum ProfileCompletion {
     static let fieldCount = 7
 
@@ -34,7 +35,7 @@ enum ProfileCompletion {
 
     static func ratio(for user: AppUser) -> Double {
         ratio(
-            hasAvatar: user.hasAvatarImage,
+            hasAvatar: user.avatarLocalName != nil,
             name: user.name,
             handle: user.handle,
             city: user.city,

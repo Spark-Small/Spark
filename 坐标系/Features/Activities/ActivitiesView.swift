@@ -4,18 +4,18 @@
 //
 
 import SwiftUI
+import TipKit
 
-/// 活动发现：精选 Hero + 货架；详情 Zoom 打开。
+/// 活动发现：今日焦点 + App Store 式货架混排；详情 Zoom 打开。
 struct ActivitiesView: View {
     @Environment(ActivitiesModel.self) private var model
     @Environment(BuddiesModel.self) private var buddies
     @Environment(AppModel.self) private var app
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @AppStorage(AppWelcomeGuideCopy.storageKey) private var hasSeenAppWelcomeGuide = false
     @State private var didBootstrapLocation = false
+    @State private var showWelcomeGuide = false
     @State private var navigation = TabNavigationState()
-    @State private var seeAllShelf: ActivityBrowseShelf?
-    @State private var showLayoutDemo = false
     @Namespace private var zoomNamespace
 
     var body: some View {
@@ -28,25 +28,12 @@ struct ActivitiesView: View {
                     if model.filtered.isEmpty {
                         emptyState
                     } else {
-                        if model.showsFeatured {
-                            featuredCarousel
-                        }
-
-                        LazyVStack(alignment: .leading, spacing: PlatformMetrics.sectionSpacing) {
-                            catalogStyleModules
-                        }
-                        .padding(.top, model.showsFeatured ? PlatformMetrics.sectionSpacing : 0)
+                        browseContent
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, PlatformMetrics.sectionSpacing)
+                .discoverBrowsePageColumn()
             }
-            .scrollDismissesKeyboard(.interactively)
-            .background(PlatformSurface.groupedPage)
-            .safeAreaInset(edge: .bottom) {
-                Color.clear
-                    .frame(height: PlatformMetrics.sectionSpacing)
-            }
+            .discoverBrowseScrollChrome()
             .platformTabRootScrollChrome(title: model.selectedCategory.title)
             .platformTabRootTitleMenu {
                 ActivityBrowseCategoryTitleMenu(selection: $model.selectedCategory)
@@ -54,12 +41,16 @@ struct ActivitiesView: View {
             .platformTabRootToolbar { tabToolbar }
             .tint(PlatformAction.cloverPurple)
             .activityZoomNavigationDestination(namespace: zoomNamespace)
+            .activityPeerChatNavigationDestination()
             .circleBrowseStackChrome(
                 buddies: buddies,
                 openCircle: { navigation.openCircle($0) },
                 openConversation: { app.openMessages(conversationID: $0) }
             )
-            .onAppear { consumePendingActivityOpen() }
+            .onAppear {
+                consumePendingActivityOpen()
+                presentWelcomeGuideIfNeeded()
+            }
             .onChange(of: app.pendingActivityID) { _, _ in
                 consumePendingActivityOpen()
             }
@@ -80,13 +71,14 @@ struct ActivitiesView: View {
                 )
                 .toolbarVisibility(.hidden, for: .tabBar)
             }
-            .sheet(item: $seeAllShelf) { shelf in
-                ActivityCatalogSeeAllSheet(shelf: shelf)
-                    .toolbarVisibility(.hidden, for: .tabBar)
-            }
-            .sheet(isPresented: $showLayoutDemo) {
-                ActivityLayoutDemoView()
-                    .toolbarVisibility(.hidden, for: .tabBar)
+            .sheet(
+                isPresented: $showWelcomeGuide,
+                onDismiss: finishWelcomeGuideIfNeeded
+            ) {
+                AppWelcomeGuideView {
+                    finishWelcomeGuideIfNeeded()
+                }
+                .toolbarVisibility(.hidden, for: .tabBar)
             }
             .sheet(isPresented: joinSuccessPresented) {
                 if let activity = model.joinSuccessActivity {
@@ -109,10 +101,36 @@ struct ActivitiesView: View {
                     .toolbarVisibility(.hidden, for: .tabBar)
                 }
             }
-            .platformTransientFeedback($model.toastMessage)
+            .platformFeedbackAlert($model.toastMessage)
             .task { await bootstrapLocationIfNeeded() }
         }
         .tabNavigationState(navigation)
+    }
+
+    // MARK: - Browse
+
+    @ViewBuilder
+    private var browseContent: some View {
+        if let spotlight = model.spotlightActivity {
+            ActivityFeaturedSpotlightSection(
+                activity: spotlight,
+                zoomNamespace: zoomNamespace,
+                onJoin: join
+            )
+            .activityZoomSlot("spotlight")
+            .padding(.bottom, PlatformMetrics.sectionSpacing)
+        }
+
+        LazyVStack(alignment: .leading, spacing: PlatformMetrics.sectionSpacing) {
+            ForEach(model.recommendationShelves) { shelf in
+                ActivityBrowseShelfSection(
+                    shelf: shelf,
+                    zoomNamespace: zoomNamespace,
+                    onJoin: join
+                )
+                .activityZoomSlot("shelf-\(shelf.id)")
+            }
+        }
     }
 
     // MARK: - Toolbar
@@ -120,11 +138,6 @@ struct ActivitiesView: View {
     @ToolbarContentBuilder
     private var tabToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .topBarTrailing) {
-            Button("布局演示", systemImage: "square.grid.2x2") {
-                showLayoutDemo = true
-            }
-            .accessibilityHint("打开 Apple TV 式布局演示")
-
             Button("发起活动", systemImage: "plus", action: beginCompose)
 
             Button(
@@ -135,6 +148,7 @@ struct ActivitiesView: View {
             }
             .symbolVariant(hasActiveFilters ? .fill : .none)
             .accessibilityHint("打开筛选")
+            .popoverTip(ActivityFilterTip())
         }
     }
 
@@ -142,50 +156,12 @@ struct ActivitiesView: View {
         !model.quickFilters.isEmpty || model.dayFilter != nil
     }
 
-    // MARK: - 长列表推荐分区
-
-    @ViewBuilder
-    private var catalogStyleModules: some View {
-        ForEach(model.recommendationShelves) { shelf in
-            // 按货架分槽，保证同活动多处出现时 zoom 源 id 唯一
-            shelfModule(shelf)
-                .activityZoomSlot("shelf-\(shelf.id)")
-        }
-    }
-
-    @ViewBuilder
-    private func shelfModule(_ shelf: ActivityBrowseShelf) -> some View {
-        ActivityBrowseShelfSection(
-            shelf: shelf,
-            zoomNamespace: zoomNamespace,
-            onSeeAll: { seeAllShelf = shelf },
-            onJoin: join
-        )
-    }
-
-    private var featuredCarousel: some View {
-        Group {
-            if let featured = model.featured.first {
-                ActivityFeaturedCard(
-                    activity: featured,
-                    zoomNamespace: zoomNamespace,
-                    onJoin: { join(featured) }
-                )
-                .id(featured.id)
-            }
-        }
-        .modifier(ActivityFeaturedHeroAspectModifier(dynamicTypeSize: dynamicTypeSize))
-        .discoverBrowseContentInset()
-        .frame(maxWidth: .infinity)
-        .activityZoomSlot("featured")
-    }
-
     private var emptyState: some View {
-        let filtered = hasActiveFilters
+        let filtered = hasActiveFilters || model.selectedCategory != .forYou
         return ContentUnavailableView {
             Label(
                 filtered ? ActivityBrowseCopy.Empty.filteredTitle : ActivityBrowseCopy.Empty.title,
-                systemImage: filtered ? "line.3.horizontal.decrease" : "sparkles"
+                systemImage: filtered ? "line.3.horizontal.decrease" : "calendar.badge.plus"
             )
         } description: {
             Text(
@@ -229,6 +205,22 @@ struct ActivitiesView: View {
         model.isComposing = true
     }
 
+    /// 首次进入：等活动页内容出来后再盖半屏欢迎，让背后是真实活动界面。
+    private func presentWelcomeGuideIfNeeded() {
+        guard !hasSeenAppWelcomeGuide, !showWelcomeGuide else { return }
+        showWelcomeGuide = true
+    }
+
+    private func finishWelcomeGuideIfNeeded() {
+        guard !hasSeenAppWelcomeGuide else { return }
+        hasSeenAppWelcomeGuide = true
+        guard !app.hasCompletedOnboarding else { return }
+        let interests = app.user.interests.isEmpty
+            ? SampleData.currentUserInterests
+            : app.user.interests
+        app.completeOnboarding(interests: interests)
+    }
+
     private func open(_ activity: Activity) {
         navigation.path.append(ActivityZoomSource(activityID: activity.id, slot: "programmatic"))
     }
@@ -247,7 +239,8 @@ struct ActivitiesView: View {
     }
 
     private func openGroup(for activity: Activity) {
-        app.openActivityGroupChat(for: activity)
+        guard let route = app.prepareActivityGroupChatRoute(for: activity) else { return }
+        navigation.openActivityGroupChat(for: activity, route: route)
     }
 
     private func handlePublish(

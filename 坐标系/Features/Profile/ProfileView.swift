@@ -3,6 +3,7 @@
 //  坐标系
 //
 
+import SwiftData
 import SwiftUI
 
 struct ProfileView: View {
@@ -11,18 +12,23 @@ struct ProfileView: View {
     @Environment(BuddiesModel.self) private var buddies
     @AppStorage("profile.membership.active") private var membershipActive = false
 
+    @Query(sort: \RecentBrowseItem.viewedAt, order: .reverse)
+    private var browseItems: [RecentBrowseItem]
+
     @State private var showEditProfile = false
     @State private var showCreateAccount = false
     @State private var createAccountReason = GuestAccessGate.identityReason
     @State private var youthBlockedMessage: String?
     @State private var showSettingsFromTip = false
-    @State private var confirmSignOut = false
-    @State private var recentBrowseRecords = ProfileRecentBrowseStore.shared.items()
     @State private var navigation = TabNavigationState()
     @Namespace private var activityZoomNamespace
 
     private var photoVerified: Bool {
         PhotoVerificationStore.shared.isVerified(for: app.user.name)
+    }
+
+    private var recentBrowseRecords: [ProfileRecentBrowseRecord] {
+        Array(browseItems.prefix(ProfileRecentBrowseStore.maxItems)).map(\.asRecord)
     }
 
     var body: some View {
@@ -37,8 +43,7 @@ struct ProfileView: View {
                     showEditProfile: $showEditProfile,
                     showCreateAccount: $showCreateAccount,
                     showSettingsFromTip: $showSettingsFromTip,
-                    youthBlockedMessage: $youthBlockedMessage,
-                    confirmSignOut: $confirmSignOut
+                    youthBlockedMessage: $youthBlockedMessage
                 )
                 .profileRootDestinations(
                     navigation: navigation,
@@ -47,13 +52,13 @@ struct ProfileView: View {
                     activityZoomNamespace: activityZoomNamespace
                 )
                 .onAppear {
-                    recentBrowseRecords = ProfileRecentBrowseStore.shared.items()
                     consumePendingProfileNavigation()
                 }
                 .onChange(of: app.pendingProfileRoute) { _, route in
                     guard route != nil else { return }
                     consumePendingProfileNavigation()
                 }
+                .tint(PlatformAction.cloverPurple)
         }
         .tabNavigationState(navigation)
     }
@@ -68,7 +73,6 @@ struct ProfileView: View {
             activitiesSection
             ordersSection
             recentBrowseSection
-            logoutSection
         }
         .platformTabRootListChrome(title: ProfileDashboardCopy.rootTitle, compactSections: true)
     }
@@ -104,8 +108,7 @@ struct ProfileView: View {
                 Button(action: openIdentity) {
                     HStack(alignment: .center, spacing: PlatformConversationListRow.imageToTextPadding) {
                         ProfileAvatarView(
-                            user: app.user,
-                            completion: ProfileCompletion.ratio(for: app.user)
+                            user: app.user
                         )
 
                         VStack(alignment: .leading) {
@@ -221,7 +224,7 @@ struct ProfileView: View {
             }
             NavigationLink(value: ProfileRoute.bookingCredentials) {
                 LabeledContent {
-                    let count = buddies.actionableBookingCount
+                    let count = buddies.bookingCredentialCount
                     if count > 0 {
                         Text("\(count)")
                             .foregroundStyle(.secondary)
@@ -249,10 +252,6 @@ struct ProfileView: View {
                 Label(ProfileDashboardCopy.activityFavorites, systemImage: "star.fill")
                     .platformContentSymbolStyle()
             }
-            NavigationLink(value: ProfileRoute.browseHistory) {
-                Label(ProfileDashboardCopy.activityHistory, systemImage: "clock.arrow.circlepath")
-                    .platformContentSymbolStyle()
-            }
         } header: {
             Text(ProfileDashboardCopy.activitiesTitle)
         }
@@ -266,17 +265,6 @@ struct ProfileView: View {
                 onSeeAll: { navigation.path.append(ProfileRoute.browseHistory) }
             )
             .platformFormRelatedRailRow()
-        }
-    }
-
-    @ViewBuilder
-    private var logoutSection: some View {
-        if !app.auth.isGuest {
-            Section {
-                Button(ProfileDashboardCopy.logout, role: .destructive) {
-                    confirmSignOut = true
-                }
-            }
         }
     }
 
@@ -366,8 +354,7 @@ private extension View {
         showEditProfile: Binding<Bool>,
         showCreateAccount: Binding<Bool>,
         showSettingsFromTip: Binding<Bool>,
-        youthBlockedMessage: Binding<String?>,
-        confirmSignOut: Binding<Bool>
+        youthBlockedMessage: Binding<String?>
     ) -> some View {
         sheet(isPresented: showEditProfile) {
             EditProfileSheet(user: Binding(
@@ -391,14 +378,6 @@ private extension View {
             Button("好的", role: .cancel) { youthBlockedMessage.wrappedValue = nil }
         } message: {
             Text(youthBlockedMessage.wrappedValue ?? "")
-        }
-        .alert(ProfileDashboardCopy.logoutConfirmTitle, isPresented: confirmSignOut) {
-            Button(ProfileDashboardCopy.logout, role: .destructive) {
-                Task { await app.signOutLocally() }
-            }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text(ProfileDashboardCopy.logoutConfirmMessage)
         }
     }
 

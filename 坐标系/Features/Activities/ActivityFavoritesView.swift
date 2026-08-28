@@ -8,18 +8,12 @@
 import SwiftUI
 
 struct ActivityFavoritesView: View {
-    @Environment(\.dismiss) private var dismiss
-
     var body: some View {
         NavigationStack {
             // Sheet 自有栈：清掉外层已注册标记，避免 Zoom 目的地被跳过
             ProfileFavoriteActivitiesLibraryView()
                 .environment(\.activityZoomNamespace, nil)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("完成") { dismiss() }
-                    }
-                }
+                .platformSheetConfirmationToolbar()
         }
         .platformSheet(.browser)
     }

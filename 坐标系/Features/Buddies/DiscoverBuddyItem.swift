@@ -55,7 +55,7 @@ enum DiscoverBuddyItem: Identifiable, Hashable {
         case .paid(let companion):
             var parts: [String] = []
             if companion.isAvailable {
-                parts.append("可约")
+                parts.append(BuddyDetailCopy.available)
             }
             if !companion.profile.availability.isEmpty {
                 parts.append(companion.profile.availability)

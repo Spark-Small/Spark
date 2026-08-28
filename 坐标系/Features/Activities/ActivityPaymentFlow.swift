@@ -298,11 +298,7 @@ struct ActivityOrdersSheet: View {
             }
             .navigationTitle(ActivityDetailCopy.ordersTitle)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("完成") { dismiss() }
-                }
-            }
+            .platformSheetConfirmationToolbar()
             .alert("无法退款", isPresented: Binding(
                 get: { refundError != nil },
                 set: { if !$0 { refundError = nil } }

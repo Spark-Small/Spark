@@ -258,6 +258,16 @@ final class AppModel {
         }
     }
 
+    /// 活动 Tab 栈内 push 群聊（返回仍回到详情，不切消息 Tab）。
+    @discardableResult
+    func prepareActivityGroupChatRoute(for activity: Activity) -> PeerChatRoute? {
+        guard let convo = startActivityGroupChat(for: activity) else { return nil }
+        return PeerChatRoute(
+            conversationID: convo.id,
+            chatContext: .activityGroup(activityID: activity.id)
+        )
+    }
+
     /// 活动改期 / 改标题后同步对应群聊
     func syncActivityGroupChat(for activityID: Activity.ID) {
         syncOrchestrator.handle(.activityUpdated(activityID))
@@ -426,7 +436,6 @@ final class AppModel {
         await quiesceAllPersistence()
         AppPersistence.resetLocalDemoData()
         ActivityEngagementStore.shared.reloadFromDisk()
-        ProfileRecentBrowseStore.shared.reloadFromDisk()
         reloadFromLocalState(keepSignedIn: true)
     }
 
@@ -434,7 +443,6 @@ final class AppModel {
         await quiesceAllPersistence()
         AppPersistence.resetLocalDemoData()
         ActivityEngagementStore.shared.reloadFromDisk()
-        ProfileRecentBrowseStore.shared.reloadFromDisk()
         auth.resetStoredSession()
         reloadFromLocalState(keepSignedIn: false)
     }
@@ -518,6 +526,7 @@ struct ContentView: View {
     /// 已登录用户遇协议版本升级时需重新确认；未登录走登录页勾选。
     @State private var hasAcceptedLegalConsent = !LegalConsentPreference.needsConsent
     @State private var commercePeerContactRoute: PeerContactRoute?
+    @AppStorage(AppWelcomeGuideCopy.storageKey) private var hasSeenAppWelcomeGuide = false
 
     var body: some View {
         Group {
@@ -532,8 +541,7 @@ struct ContentView: View {
             } else {
                 // 已登录冷启动：延续启动屏底色，等模型就绪后再进主界面。
                 GeometryReader { proxy in
-                    LaunchSurface.stage
-                        .ignoresSafeArea()
+                    LaunchStageBackground()
                         .overlay {
                             Image("BrandLogo")
                                 .resizable()
@@ -548,6 +556,12 @@ struct ContentView: View {
                 }
                 .ignoresSafeArea()
             }
+        }
+        .onChange(of: auth.isSignedIn, initial: true) { _, isSignedIn in
+            syncSignedInModelPresence(isSignedIn: isSignedIn)
+        }
+        .onChange(of: hasAcceptedLegalConsent) { _, _ in
+            syncSignedInModelPresence(isSignedIn: auth.isSignedIn)
         }
         .task(id: "\(auth.isSignedIn)-\(hasAcceptedLegalConsent)") {
             // 未登录也可做轻量目录刷新；敏感权限仍在登录同意与主界面后再申请。
@@ -565,13 +579,16 @@ struct ContentView: View {
 
     @ViewBuilder
     private func signedInRoot(_ model: AppModel) -> some View {
-        if !model.hasCompletedOnboarding {
-            OnboardingSheet { interests in
-                model.completeOnboarding(interests: interests)
+        mainTabs(model)
+            .onAppear {
+                if !hasSeenAppWelcomeGuide {
+                    model.selectedTab = .activities
+                }
             }
-        } else {
-            mainTabs(model)
-        }
+            .task(id: hasSeenAppWelcomeGuide) {
+                guard hasSeenAppWelcomeGuide else { return }
+                await PermissionLaunchPrompts.requestPostLoginChainIfNeeded()
+            }
     }
 
     private func mainTabs(_ model: AppModel) -> some View {
@@ -619,8 +636,6 @@ struct ContentView: View {
             // 登录并完成引导后进入主界面时请求定位（仅系统未决定时会弹窗）
             LocationService.shared.promptWhenInUseIfNeeded()
             ProductLifecycleStore.shared.recordOpen()
-            // 协议同意后：系统「跟踪」→「通知」Alert（未请求过且未决定时才弹）
-            await PermissionLaunchPrompts.requestPostLoginChainIfNeeded()
         }
     }
 
@@ -638,11 +653,20 @@ struct ContentView: View {
         #endif
     }
 
+    /// 已登录且协议已放行时同步构造 `AppModel`，避免兴趣引导被 Logo 占位屏挡住。
+    private func syncSignedInModelPresence(isSignedIn: Bool) {
+        if isSignedIn {
+            guard model == nil else { return }
+            guard hasAcceptedLegalConsent || !LegalConsentPreference.needsConsent else { return }
+            model = AppModel(auth: auth)
+        } else {
+            model = nil
+        }
+    }
+
     private func ensureModelReady() async {
         await runDeferredStartupIfNeeded()
-        if model == nil {
-            model = AppModel(auth: auth)
-        }
+        syncSignedInModelPresence(isSignedIn: auth.isSignedIn)
         if let model {
             AppNotificationRouter.shared.bind(model)
             await model.bootstrapAsync()

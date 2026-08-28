@@ -2,7 +2,7 @@
 //  MessagesView.swift
 //  坐标系
 //
-//  消息收件箱：好友与群聊同一列表；右上通讯录；加号菜单在通讯录内。
+//  消息收件箱：会话列表为主转化；通讯录管关系与好友请求（角标）。
 //
 
 import SwiftUI
@@ -17,7 +17,6 @@ struct MessagesView: View {
     @Environment(BuddiesModel.self) private var buddies
     @Environment(AppModel.self) private var app
     @State private var navigation = TabNavigationState()
-    @State private var showRequests = false
     @State private var focusMessageID: ChatMessage.ID?
 
     private var blockedNames: [String] { Array(app.blockedUserNames) }
@@ -70,6 +69,7 @@ struct MessagesView: View {
                 prompt: MessagesCopy.searchPrompt
             )
             .platformTabRootToolbar { tabToolbar }
+            .tint(PlatformAction.cloverPurple)
             .navigationDestination(for: MessagesInboxRoute.self) { route in
                 switch route {
                 case .friends:
@@ -103,12 +103,6 @@ struct MessagesView: View {
                 openCircle: { navigation.openCircle($0) },
                 openConversation: { app.openMessages(conversationID: $0) }
             )
-            .sheet(isPresented: $showRequests) {
-                MessageRequestsSheet { conversation in
-                    openConversation(model.conversations.first { $0.id == conversation.id })
-                }
-                .toolbarVisibility(.hidden, for: .tabBar)
-            }
             .alert(
                 MessagesCopy.deleteDialogTitle,
                 isPresented: Binding(
@@ -133,22 +127,6 @@ struct MessagesView: View {
 
     @ViewBuilder
     private var inboxList: some View {
-        if model.requestBadgeCount > 0 {
-            Button {
-                showRequests = true
-            } label: {
-                PlatformConversationRow(
-                    title: MessagesCopy.messageRequestsInboxEntry,
-                    subtitle: "待处理 \(model.requestBadgeCount) 条",
-                    time: .now,
-                    isUnread: true,
-                    isPinned: false,
-                    isMuted: false
-                )
-            }
-            .buttonStyle(.plain)
-            .platformConversationListRowChrome()
-        }
         ForEach(visibleItems) { conversation in
             conversationLink(conversation)
         }
@@ -212,6 +190,8 @@ struct MessagesView: View {
     private var emptyOverlay: some View {
         if model.isSearching {
             ContentUnavailableView.search(text: model.searchText)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
         } else if model.isEmptyInbox || visibleItems.isEmpty {
             ContentUnavailableView {
                 Label(MessagesCopy.emptyInboxTitle, systemImage: "message")
@@ -221,8 +201,10 @@ struct MessagesView: View {
                 Button(MessagesCopy.friendsListTitle) {
                     navigation.path.append(MessagesInboxRoute.friends)
                 }
-                .buttonStyle(.borderedProminent)
+                .activityPrimaryCTA(controlSize: .large)
             }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
         }
     }
 

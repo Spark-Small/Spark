@@ -29,6 +29,7 @@ struct BuddyInviteDetailView: View {
     @Environment(ActivitiesModel.self) private var activities
     @Environment(MessagesModel.self) private var messages
     @Environment(AppModel.self) private var app
+    @Environment(\.activityZoomNamespace) private var zoomNamespace
     @Environment(\.dismiss) private var dismiss
     @State private var peerContactRoute: PeerContactRoute?
 
@@ -78,11 +79,7 @@ struct BuddyInviteDetailView: View {
                             )
                         }
                         if let activity = relatedActivity {
-                            NavigationLink {
-                                ActivityDetailView(activity: activity)
-                            } label: {
-                                Label("查看活动", systemImage: "calendar")
-                            }
+                            relatedActivityLink(activity)
                             if record.status == .accepted {
                                 Button("进入活动群", systemImage: "person.3") {
                                     app.openActivityGroupChat(for: activity)
@@ -128,6 +125,22 @@ struct BuddyInviteDetailView: View {
         .navigationTitle("邀约详情")
         .navigationBarTitleDisplayMode(.inline)
         .peerContactDestination(route: $peerContactRoute)
+    }
+
+    @ViewBuilder
+    private func relatedActivityLink(_ activity: Activity) -> some View {
+        if let zoomNamespace {
+            ActivityZoomNavigationLink(activity: activity, namespace: zoomNamespace) {
+                Label("查看活动", systemImage: "calendar")
+            }
+        } else {
+            NavigationLink {
+                ActivityDetailView(activity: activity)
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            } label: {
+                Label("查看活动", systemImage: "calendar")
+            }
+        }
     }
 }
 

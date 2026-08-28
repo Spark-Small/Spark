@@ -2,7 +2,7 @@
 //  ActivityBrowseFeed.swift
 //  坐标系
 //
-//  发现页精选 Hero 编排（长列表分区见 ActivityBrowseShelfBuilder）。
+//  发现页精选 Hero 编排。
 //
 
 import Foundation

@@ -29,6 +29,7 @@ struct ProfileCircleDiscoverView: View {
                 }
             }
         }
+        .profileSecondaryListChrome()
         .navigationTitle("发现圈子")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -64,8 +65,7 @@ struct ProfileBookingCredentialsView: View {
         List {
             ProfileBookingCredentialsSection()
         }
-        .listStyle(.insetGrouped)
-        .listSectionSpacing(.compact)
+        .profileSecondaryListChrome()
         .navigationTitle(ProfileDashboardCopy.bookingCredentials)
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -85,8 +85,7 @@ struct ProfileActivityInvitesView: View {
                 Text("在搭子页邀请同好参加活动后，记录会出现在这里。找新陪玩去「搭子」，好友聊天在「消息」。")
             }
         }
-        .listStyle(.insetGrouped)
-        .listSectionSpacing(.compact)
+        .profileSecondaryListChrome()
         .navigationTitle(ProfileDashboardCopy.activityInvites)
         .navigationBarTitleDisplayMode(.inline)
     }

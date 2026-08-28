@@ -13,22 +13,30 @@ enum CommunityLayout {
 
 enum CommunityCopy {
     static let rootTitle = "广场"
+    static let openBuddyProfile = "查看搭子主页"
 }
 
 // MARK: - Feed chrome
 
 extension View {
+    /// 广场信息流：对齐消息 List chrome（soft edge + 系统水平页边），底面用内容 canvas。
     func communityFeedChrome() -> some View {
         self
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(PlatformSurface.canvas)
+            .listSectionSpacing(PlatformConversationListRow.listSectionSpacing)
+            .environment(\.defaultMinListRowHeight, 0)
             .contentMargins(
                 .horizontal,
                 PlatformConversationListRow.horizontalInset,
                 for: .scrollContent
             )
+            .scrollEdgeEffectStyle(.soft, for: .top)
             .scrollDismissesKeyboard(.interactively)
+            .background(PlatformSurface.canvas)
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: PlatformMetrics.sectionSpacing)
+            }
     }
 
     func communityFeedRowChrome() -> some View {
@@ -46,6 +54,7 @@ extension View {
     func communityDetailScrollChrome() -> some View {
         self
             .scrollDismissesKeyboard(.interactively)
+            .scrollEdgeEffectStyle(.soft, for: .top)
             .contentMargins(
                 .horizontal,
                 PlatformConversationListRow.horizontalInset,

@@ -272,7 +272,7 @@ struct PlatformEventCard: View {
 
 // MARK: - 榜单竖海报（3:4）
 
-/// 排名角标 + 海报 + 底标题/类型；封面 zoom（手机密度；比例 / 轨宽见 `PlatformMetrics`）
+/// 排名符号 + 海报 + 底标题/类型；封面 zoom（手机密度；比例 / 轨宽见 `PlatformMetrics`）
 struct PlatformPosterRankCard: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -286,40 +286,39 @@ struct PlatformPosterRankCard: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             coverLink
-
-            VStack(spacing: PlatformMetrics.cardInfoSpacing) {
-                Text(title)
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(DiscoverAccessibility.titleLineLimit(for: dynamicTypeSize))
-                Text(genre)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(DiscoverAccessibility.metaLineLimit(for: dynamicTypeSize))
-            }
-            .frame(maxWidth: .infinity)
-            .padding(PlatformCatalogCardChrome.inset)
-            .colorScheme(.dark)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+            footerOverlay
         }
         .overlay(alignment: .topLeading) {
-            Text("\(rank)")
-                .font(.title2.weight(.bold))
-                .foregroundStyle(.primary)
-                .padding(.horizontal, PlatformMetrics.captionBadgePaddingHorizontal)
-                .padding(.vertical, PlatformMetrics.captionBadgePaddingVertical)
-                .background(.thinMaterial, in: Capsule())
+            PlatformRankMark(rank: rank)
+                .font(.title2)
                 .padding(.leading, PlatformMetrics.rankBadgeLeading)
                 .padding(.top, PlatformMetrics.rankBadgeTop)
-                .colorScheme(.dark)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
+        .aspectRatio(PlatformMetrics.posterCardAspectRatio, contentMode: .fit)
         .clipShape(PlatformCatalogCardChrome.shape)
         .contentShape(PlatformCatalogCardChrome.shape)
+        .colorScheme(.dark)
         .accessibilityElement(children: .contain)
+    }
+
+    private var footerOverlay: some View {
+        VStack(spacing: PlatformMetrics.cardInfoSpacing) {
+            Text(title)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .lineLimit(DiscoverAccessibility.titleLineLimit(for: dynamicTypeSize))
+            Text(genre)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.82))
+                .lineLimit(DiscoverAccessibility.metaLineLimit(for: dynamicTypeSize))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(PlatformCatalogCardChrome.inset)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     private var coverLink: some View {
@@ -327,10 +326,19 @@ struct PlatformPosterRankCard: View {
             activityID: activityID,
             namespace: zoomNamespace
         ) {
-            PlatformCatalogCoverFill(
-                photo: photo,
-                aspectRatio: PlatformMetrics.posterCardAspectRatio
-            )
+            Color.clear
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay { CommunityRemotePhoto(ref: photo) }
+                .overlay(alignment: .bottom) {
+                    LinearGradient(
+                        colors: [.black.opacity(0.75), .clear],
+                        startPoint: .bottom,
+                        endPoint: .top
+                    )
+                    .frame(height: PlatformMetrics.contentInset * 4)
+                    .allowsHitTesting(false)
+                }
+                .clipped()
         }
         .accessibilityLabel("第 \(rank) 名，\(title)，\(genre)")
         .accessibilityHint(ActivityCardStatus.openHint)

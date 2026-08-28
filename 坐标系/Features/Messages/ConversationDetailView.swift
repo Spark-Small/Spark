@@ -402,14 +402,7 @@ struct ConversationDetailView: View {
         }
         .sensoryFeedback(.success, trigger: sendPulse)
         .sensoryFeedback(.impact(flexibility: .soft), trigger: likePulse)
-        .platformTransientFeedback($copyFeedback)
-        .onChange(of: copyFeedback) { _, value in
-            guard value != nil else { return }
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(600))
-                if copyFeedback == value { copyFeedback = nil }
-            }
-        }
+        .platformFeedbackAlert($copyFeedback)
         .alert(
             MessagesCopy.deleteDialogTitle,
             isPresented: Binding(
@@ -423,12 +416,15 @@ struct ConversationDetailView: View {
             Text(MessagesCopy.deleteDialogMessage(title: conversation.title))
         }
         .sheet(item: $selectedBuddy) { item in
-            NavigationStack { BuddyDetailRouteView(item: item) }
-                .toolbarVisibility(.hidden, for: .tabBar)
-                .platformSheet(.browser)
+            NavigationStack {
+                BuddyDetailRouteView(item: item)
+                    .platformSheetConfirmationToolbar()
+            }
+            .toolbarVisibility(.hidden, for: .tabBar)
+            .platformSheet(.browser)
         }
         .sheet(item: $selectedActivity) { activity in
-            NavigationStack { ActivityDetailView(activity: activity) }
+            ActivityBrowserSheet(activity: activity)
                 .toolbarVisibility(.hidden, for: .tabBar)
                 .platformSheet(.browser)
         }
@@ -437,9 +433,12 @@ struct ConversationDetailView: View {
             set: { if !$0 { selectedPostID = nil } }
         )) {
             if let selectedPostID {
-                NavigationStack { CommunityPostDetailView(postID: selectedPostID) }
-                    .toolbarVisibility(.hidden, for: .tabBar)
-                    .platformSheet(.browser)
+                NavigationStack {
+                    CommunityPostDetailView(postID: selectedPostID)
+                        .platformSheetConfirmationToolbar()
+                }
+                .toolbarVisibility(.hidden, for: .tabBar)
+                .platformSheet(.browser)
             }
         }
     }

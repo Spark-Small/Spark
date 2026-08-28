@@ -57,7 +57,10 @@ struct BuddyPaidQuickEntryBar: View {
                     .font(PlatformListTypography.body)
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(entry.tint)
-                    .frame(width: 36, height: 36)
+                    .frame(
+                        width: PlatformMetrics.navigationBarButtonSide,
+                        height: PlatformMetrics.navigationBarButtonSide
+                    )
                     .background(
                         entry.tint.opacity(0.12),
                         in: RoundedRectangle(cornerRadius: PlatformMetrics.radiusMedia, style: .continuous)
@@ -368,13 +371,8 @@ struct BuddyFeaturedCompanionCard: View {
             } else {
                 ZStack(alignment: .bottom) {
                     coverLink
-                    HStack(alignment: .bottom, spacing: PlatformMetrics.cardFooterSpacing) {
-                        footerInfo(onMedia: true)
-                        footerAction(onMedia: true)
-                            .layoutPriority(1)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .bottomLeading)
-                    .padding(PlatformMetrics.contentInset)
+                    footerChrome(onMedia: true)
+                        .padding(PlatformMetrics.contentInset)
                 }
             }
         }
@@ -408,7 +406,7 @@ struct BuddyFeaturedCompanionCard: View {
     }
 
     private func footerChrome(onMedia: Bool) -> some View {
-        VStack(alignment: .leading, spacing: PlatformMetrics.cardFooterSpacing) {
+        HStack(alignment: .bottom, spacing: PlatformMetrics.cardFooterSpacing) {
             footerInfo(onMedia: onMedia)
             footerAction(onMedia: onMedia)
         }
@@ -433,7 +431,7 @@ struct BuddyFeaturedCompanionCard: View {
                 Label(companion.priceText, systemImage: "tag")
                 Label("\(companion.orderCount) 单", systemImage: "checkmark.rectangle")
                 if companion.isAvailable {
-                    Label("可约", systemImage: "calendar")
+                    Label(BuddyDetailCopy.available, systemImage: "calendar")
                 }
             }
             .font(.caption.weight(.medium))
@@ -446,12 +444,11 @@ struct BuddyFeaturedCompanionCard: View {
     }
 
     private func footerAction(onMedia: Bool) -> some View {
-        Button(companion.isAvailable ? "下单" : "暂不可约", action: onBook)
-            .font(.subheadline.weight(.semibold))
-            .frame(maxWidth: onMedia ? nil : .infinity, alignment: .leading)
-        .activityPrimaryCTA()
-        .disabled(!companion.isAvailable)
-        .colorScheme(onMedia ? .dark : .light)
+        Button(companion.isAvailable ? BuddyBrowseCopy.bookAction : BuddyBrowseCopy.bookUnavailable, action: onBook)
+            .activityPrimaryCTA(controlSize: .large)
+            .disabled(!companion.isAvailable)
+            .colorScheme(onMedia ? .dark : .light)
+            .layoutPriority(1)
     }
 }
 
@@ -506,8 +503,7 @@ struct BuddyPaidLeaderboard: View {
 
     var body: some View {
         DiscoverBrowseSection(
-            title: "推荐陪玩",
-            subtitle: "成单多 · 响应快 · 近期可约"
+            title: "推荐陪玩"
         ) {
             VStack(spacing: PlatformMetrics.discoverCardSpacing) {
                 if !topThree.isEmpty {
@@ -529,11 +525,10 @@ struct BuddyPaidLeaderboard: View {
                 }
 
                 VStack(spacing: PlatformMetrics.cardInfoSpacing) {
-                    HStack(spacing: PlatformMetrics.minContentGap) {
-                        Text("排行榜")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                        Spacer(minLength: PlatformMetrics.minContentGap)
+                    DiscoverSectionTitleRow(
+                        title: BuddyBrowseCopy.leaderboardRankTitle,
+                        showsHorizontalInset: false
+                    ) {
                         Menu {
                             ForEach(BuddyPaidBoardPeriod.allCases) { option in
                                 Button {
@@ -604,13 +599,8 @@ struct BuddyPaidTopCard: View {
             } else {
                 ZStack(alignment: .bottom) {
                     coverLink
-                    HStack(alignment: .bottom, spacing: PlatformMetrics.cardFooterSpacing) {
-                        topCardMeta(onMedia: true)
-                        topCardAction(onMedia: true)
-                            .layoutPriority(1)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .bottomLeading)
-                    .padding(PlatformMetrics.captionBadgeInset)
+                    footerChrome(onMedia: true)
+                        .padding(PlatformMetrics.captionBadgeInset)
                 }
             }
         }
@@ -627,7 +617,7 @@ struct BuddyPaidTopCard: View {
                 .overlay { CommunityRemotePhoto(ref: companion.profile.coverPhoto) }
                 .overlay(alignment: .topLeading) {
                     HStack(spacing: PlatformMetrics.hairlineSpacing) {
-                        Image(systemName: rank <= 3 ? "medal.fill" : "\(rank).circle.fill")
+                        PlatformRankMark(rank: rank, foregroundTint: .white)
                             .font(.caption2.weight(.bold))
                         Text(badge.rawValue)
                     }
@@ -657,7 +647,7 @@ struct BuddyPaidTopCard: View {
     }
 
     private func footerChrome(onMedia: Bool) -> some View {
-        VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
+        HStack(alignment: .bottom, spacing: PlatformMetrics.cardFooterSpacing) {
             topCardMeta(onMedia: onMedia)
             topCardAction(onMedia: onMedia)
         }
@@ -669,22 +659,21 @@ struct BuddyPaidTopCard: View {
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
 
             Text("\(companion.orderCount) 单 · \(companion.priceText)")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .colorScheme(onMedia ? .dark : .light)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 
     private func topCardAction(onMedia: Bool) -> some View {
-        Button(companion.isAvailable ? "下单" : "暂不可约", action: onBook)
-            .font(.caption.weight(.semibold))
-            .activityPrimaryCTA(controlSize: .mini)
+        Button(companion.isAvailable ? BuddyBrowseCopy.bookAction : BuddyBrowseCopy.bookUnavailable, action: onBook)
+            .activityPrimaryCTA(controlSize: .large)
             .disabled(!companion.isAvailable)
             .colorScheme(onMedia ? .dark : .light)
             .layoutPriority(1)
@@ -822,9 +811,8 @@ struct BuddyPaidLeaderboardRow: View {
                     .foregroundStyle(PlatformStatus.warning)
                     .lineLimit(1)
                     .monospacedDigit()
-                Button(companion.isAvailable ? "下单" : "暂不可约", action: onBook)
-                    .font(.subheadline.weight(.semibold))
-                    .activityPrimaryCTA(controlSize: .small)
+                Button(companion.isAvailable ? BuddyBrowseCopy.bookAction : BuddyBrowseCopy.bookUnavailable, action: onBook)
+                    .activityPrimaryCTA(controlSize: .regular)
                     .disabled(!companion.isAvailable)
             }
             .layoutPriority(1)
@@ -845,37 +833,11 @@ struct BuddyPaidLeaderboardRow: View {
             side: avatarSide
         )
         .overlay(alignment: .bottomTrailing) {
-            rankBadge
+            PlatformRankMark(rank: rank)
+                .font(.caption2)
+                .accessibilityHidden(true)
         }
         .accessibilityHidden(true)
-    }
-
-    @ViewBuilder
-    private var rankBadge: some View {
-        if rank <= 3 {
-            Image(systemName: "medal.fill")
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(medalTint)
-                .symbolRenderingMode(.hierarchical)
-                .padding(PlatformMetrics.captionBadgePaddingVertical)
-                .background(.thinMaterial, in: Circle())
-                .accessibilityLabel("第\(rank)名")
-        } else {
-            Text("\(rank)")
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(.primary)
-                .padding(PlatformMetrics.captionBadgePaddingVertical)
-                .background(.thinMaterial, in: Circle())
-                .accessibilityLabel("第\(rank)名")
-        }
-    }
-
-    private var medalTint: Color {
-        switch rank {
-        case 1: .yellow
-        case 2: .gray
-        default: .orange
-        }
     }
 }
 
@@ -1072,9 +1034,7 @@ struct BuddyCompanionServiceSKURow: View {
                     .font(sku.isNegotiable ? .caption.weight(.semibold) : .subheadline.weight(.semibold))
                     .foregroundStyle(sku.isNegotiable ? .secondary : PlatformStatus.warning)
                 Button(sku.isNegotiable ? "约聊议价" : "下单", action: onBook)
-                    .font(.caption.weight(.semibold))
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+                    .activityPrimaryCTA(controlSize: .regular)
                     .disabled(!bookEnabled)
             }
         }

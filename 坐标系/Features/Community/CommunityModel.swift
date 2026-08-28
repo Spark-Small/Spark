@@ -5,7 +5,6 @@
 
 import Foundation
 import Observation
-import UIKit
 
 enum CommunityPublishResult: Equatable {
     case published(CommunityPost.ID)
@@ -200,25 +199,6 @@ final class CommunityModel {
         guard let index = posts.firstIndex(where: { $0.id == id }) else { return }
         posts[index].shareCount += 1
         persist()
-    }
-
-    func shareExternally(_ id: CommunityPost.ID) {
-        guard let index = posts.firstIndex(where: { $0.id == id }) else { return }
-        let text = posts[index].shareText
-        posts[index].shareCount += 1
-        persist()
-
-        let activity = UIActivityViewController(activityItems: [text], applicationActivities: nil)
-        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let root = scene.windows.first(where: \.isKeyWindow)?.rootViewController
-        else { return }
-
-        var presenter = root
-        while let presented = presenter.presentedViewController {
-            presenter = presented
-        }
-        activity.popoverPresentationController?.sourceView = presenter.view
-        presenter.present(activity, animated: true)
     }
 
     func publish(

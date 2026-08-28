@@ -85,9 +85,8 @@ struct LoginView: View {
             }
         )
         .task {
-            async let reveal: Void = runStaggeredReveal()
+            await runStaggeredReveal()
             await LaunchWeather.refreshIfAuthorized(weather)
-            await reveal
             if LegalConsentPreference.isAccepted {
                 await PermissionLaunchPrompts.requestTrackingAfterConsentIfNeeded()
             }

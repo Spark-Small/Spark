@@ -70,7 +70,7 @@ struct CommunityComposeSheet: View {
 
                     if !previewImages.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
+                            HStack(spacing: PlatformMetrics.minContentGap) {
                                 ForEach(Array(previewImages.enumerated()), id: \.offset) { index, image in
                                     Image(uiImage: image)
                                         .resizable()
@@ -115,11 +115,18 @@ struct CommunityComposeSheet: View {
                         .focused($focused, equals: .tags)
 
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack {
+                        HStack(spacing: PlatformMetrics.minContentGap) {
                             ForEach(suggestedTags, id: \.self) { tag in
-                                Button(tag) { appendTag(tag) }
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.small)
+                                PlatformFilterChipButton(
+                                    title: tag,
+                                    systemImage: "number",
+                                    isSelected: tagText
+                                        .split(whereSeparator: \.isWhitespace)
+                                        .map(String.init)
+                                        .contains(tag)
+                                ) {
+                                    appendTag(tag)
+                                }
                             }
                         }
                     }

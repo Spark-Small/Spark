@@ -18,8 +18,8 @@ enum BuddyScheduleSlot {
         /// 日期下短标签：可约 / 有档期感用「可约」；已满 / 待开放
         var caption: String? {
             switch self {
-            case .bookable: "可约"
-            case .full: "已满"
+            case .bookable: BuddyDetailCopy.available
+            case .full: ActivityCardStatus.full
             case .pending: "待开放"
             case .none: nil
             }

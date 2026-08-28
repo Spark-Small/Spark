@@ -29,7 +29,7 @@ enum ActivityCardStatus {
     static let waitlistSpotOpen = "候补名额已开放"
     /// 详情决策语境（比角标「已满」稍完整）
     static let fullVerbose = "名额已满"
-    static let openGroupChat = "加入群聊"
+    static let openGroupChat = "进群打招呼"
     static let shareActivity = "分享活动"
     static let favorite = "收藏"
     static let unfavorite = "取消收藏"
@@ -76,7 +76,7 @@ enum ActivityCardStatus {
         return fallback
     }
 
-    /// 热场 / 相关活动横卡：地点 · 费用或剩余席位
+    /// 热场横卡：地点 · 费用或剩余席位
     static func hotMetaLine(for activity: Activity) -> String {
         if activity.isAlmostFull || activity.isFull {
             return "\(activity.districtLabel) · \(spotsText(for: activity, spaced: true))"
@@ -85,7 +85,7 @@ enum ActivityCardStatus {
         return "\(activity.districtLabel) · \(fee)"
     }
 
-    /// 热场 / 相关活动横卡角标
+    /// 热场横卡角标
     @MainActor
     static func hotBadge(for activity: Activity) -> String? {
         captionBadge(for: activity, fallback: activity.category.shortTitle)

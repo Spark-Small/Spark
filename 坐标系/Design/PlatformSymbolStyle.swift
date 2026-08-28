@@ -69,3 +69,57 @@ extension View {
         platformSymbolStyle(.multicolor)
     }
 }
+
+// MARK: - Rank mark
+
+/// 系统排名符号：前三 `medal.fill`，其余 `N.circle.fill`（SF Symbols 序号圆）。
+struct PlatformRankMark: View {
+    let rank: Int
+    /// 叠在有色底或照片上时传入（如 Top 卡胶囊）；默认保留奖牌分层色。
+    var foregroundTint: Color? = nil
+
+    var body: some View {
+        Group {
+            if rank <= 3 {
+                Image(systemName: "medal.fill")
+                    .foregroundStyle(foregroundTint ?? Self.medalColor(for: rank))
+                    .symbolRenderingMode(.hierarchical)
+            } else {
+                Image(systemName: "\(rank).circle.fill")
+                    .foregroundStyle(foregroundTint ?? .primary)
+            }
+        }
+        .accessibilityLabel("第 \(rank) 名")
+    }
+
+    static func medalColor(for rank: Int) -> Color {
+        switch rank {
+        case 1: .yellow
+        case 2: .gray
+        default: .orange
+        }
+    }
+}
+
+// MARK: - Companion level
+
+/// 陪玩等级叠放勋章（语义为等级，非榜单名次；榜单用 `PlatformRankMark`）。
+struct PlatformCompanionLevelStack: View {
+    let iconCount: Int
+
+    var body: some View {
+        HStack(spacing: -PlatformMetrics.hairlineSpacing) {
+            ForEach(0..<iconCount, id: \.self) { index in
+                Image(systemName: "medal.fill")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 22, height: 22)
+                    .background(Color.accentColor.opacity(0.92 - Double(index) * 0.12), in: Circle())
+                    .overlay {
+                        Circle().strokeBorder(Color(.systemBackground), lineWidth: 1.5)
+                    }
+            }
+        }
+        .accessibilityLabel("陪玩等级")
+    }
+}

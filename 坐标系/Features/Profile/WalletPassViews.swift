@@ -420,7 +420,6 @@ private struct ExportedPassFile: Identifiable {
 
 private struct SharePassFileSheet: View {
     let url: URL
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
@@ -432,11 +431,7 @@ private struct SharePassFileSheet: View {
             }
             .navigationTitle("导出")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("完成") { dismiss() }
-                }
-            }
+            .platformSheetConfirmationToolbar()
         }
         .platformSheet(.confirm)
     }

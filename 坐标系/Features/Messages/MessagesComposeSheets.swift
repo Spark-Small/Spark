@@ -102,7 +102,7 @@ struct StartChatSheet: View {
     @ViewBuilder
     private func friendRow(_ name: String) -> some View {
         let isSelected = selectedNames.contains(name)
-        HStack(spacing: PlatformMetrics.railCardSpacing) {
+        HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                 .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
                 .imageScale(.large)

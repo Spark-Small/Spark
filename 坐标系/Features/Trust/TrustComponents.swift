@@ -6,6 +6,7 @@
 //  规范见 Docs/TrustBehaviorModel.md §6。
 //
 
+import Charts
 import SwiftUI
 
 // MARK: - Level (公开档案行)
@@ -27,12 +28,39 @@ struct TrustLevelStrip: View {
 struct TrustAxisBars: View {
     let axes: TrustAxisScores
 
-    var body: some View {
-        ForEach(Array(TrustAxisScores.labels.enumerated()), id: \.offset) { _, item in
-            let value = Int(axes[keyPath: item.0].rounded())
-            LabeledContent(item.1, value: "\(value)")
-                .accessibilityLabel("\(item.1) \(value)")
+    private var chartRows: [(label: String, value: Double)] {
+        TrustAxisScores.labels.map { keyPath, title in
+            (title, axes[keyPath: keyPath])
         }
+    }
+
+    var body: some View {
+        Chart(chartRows, id: \.label) { row in
+            BarMark(
+                x: .value("分数", row.value),
+                y: .value("维度", row.label)
+            )
+            .foregroundStyle(by: .value("维度", row.label))
+            .annotation(position: .trailing, alignment: .trailing) {
+                Text("\(Int(row.value.rounded()))")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .chartLegend(.hidden)
+        .chartXScale(domain: 0...100)
+        .chartXAxis {
+            AxisMarks(values: [0, 50, 100])
+        }
+        .frame(height: CGFloat(chartRows.count) * 36)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilitySummary)
+    }
+
+    private var accessibilitySummary: String {
+        chartRows
+            .map { "\($0.label) \(Int($0.value.rounded()))" }
+            .joined(separator: "，")
     }
 }
 

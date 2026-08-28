@@ -71,6 +71,7 @@ extension View {
     /// 注入与 `NavigationStack(path:)` 绑定的导航状态
     func tabNavigationState(_ state: TabNavigationState) -> some View {
         environment(state)
+            .environment(\.tabNavigationStateRef, state)
     }
 
     /// Tab 栈根：圈子详情 + 成员详情
@@ -149,6 +150,10 @@ private struct CircleBrowseSheetDismissKey: EnvironmentKey {
     static let defaultValue: (() -> Void)? = nil
 }
 
+private struct TabNavigationStateRefKey: EnvironmentKey {
+    static let defaultValue: TabNavigationState? = nil
+}
+
 extension EnvironmentValues {
     var hasCircleBrowseDestination: Bool {
         get { self[CircleBrowseDestinationKey.self] }
@@ -163,6 +168,12 @@ extension EnvironmentValues {
     var circleBrowseSheetDismiss: (() -> Void)? {
         get { self[CircleBrowseSheetDismissKey.self] }
         set { self[CircleBrowseSheetDismissKey.self] = newValue }
+    }
+
+    /// 活动 / 搭子等 Tab 栈的 `NavigationStack(path:)`；Sheet 或未注入时为 `nil`。
+    var tabNavigationStateRef: TabNavigationState? {
+        get { self[TabNavigationStateRefKey.self] }
+        set { self[TabNavigationStateRefKey.self] = newValue }
     }
 }
 
@@ -186,6 +197,7 @@ private struct IndependentNavigationSheetChrome: ViewModifier {
         content
             .environment(\.hasCircleBrowseDestination, false)
             .environment(\.hasBuddyZoomDestination, false)
+            .environment(\.hasActivityPeerChatDestination, false)
             .environment(\.buddyZoomNamespace, nil)
             .environment(\.circleBrowseSheetDismiss, dismissSheet)
     }

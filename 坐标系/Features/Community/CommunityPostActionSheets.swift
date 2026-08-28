@@ -9,8 +9,7 @@ import UIKit
 enum CommunityActionSheet: String, Identifiable {
     case likes
     case comments
-    case repost
-    case send
+    case share
     case bookmark
 
     var id: String { rawValue }
@@ -91,6 +90,7 @@ struct CommunityLikesSheet: View {
             .sheet(item: $selectedBuddy) { item in
                 NavigationStack {
                     BuddyDetailRouteView(item: item)
+                        .platformSheetConfirmationToolbar()
                 }
                 .toolbarVisibility(.hidden, for: .tabBar)
                 .platformSheet(.browser)
@@ -105,8 +105,6 @@ struct CommunityCommentsSheet: View {
     let postID: CommunityPost.ID
 
     @Environment(CommunityModel.self) private var model
-    @Environment(\.dismiss) private var dismiss
-    @State private var showShare = false
     @State private var translateComment: CommunityComment?
 
     private var post: CommunityPost? { model.post(id: postID) }
@@ -134,18 +132,7 @@ struct CommunityCommentsSheet: View {
             }
             .navigationTitle(post.map { "评论 \($0.commentCount)" } ?? "评论")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button("分享", systemImage: "square.and.arrow.up") {
-                        showShare = true
-                    }
-                    Button(MessagesCopy.close) { dismiss() }
-                }
-            }
-            .sheet(isPresented: $showShare) {
-                CommunityShareSheet(postID: postID)
-                    .toolbarVisibility(.hidden, for: .tabBar)
-            }
+            .platformSheetCancellationToolbar(MessagesCopy.close)
             .sheet(item: $translateComment) { comment in
                 CommunityCommentTranslateSheet(comment: comment)
                     .toolbarVisibility(.hidden, for: .tabBar)
@@ -157,16 +144,13 @@ struct CommunityCommentsSheet: View {
 
 // MARK: - Share / Forward
 
-/// 分享与转发：搜索联系人网格 + 底部快捷操作（对齐主流社交分享 Sheet）。
 struct CommunityShareSheet: View {
     let postID: CommunityPost.ID
 
     @Environment(CommunityModel.self) private var model
-    @Environment(MessagesModel.self) private var messages
     @Environment(AppModel.self) private var app
     @Environment(BuddiesModel.self) private var buddies
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @State private var query = ""
     @State private var sentNames: Set<String> = []
@@ -175,81 +159,83 @@ struct CommunityShareSheet: View {
     @State private var quoteDraft = ""
     @State private var showRepostDetail = false
     @State private var didCopyLink = false
+    @State private var showSystemShare = false
 
     private var isReposted: Bool { model.isReposted(postID) }
 
+    private var deepLink: String {
+        "zuobiaoxi://community/\(postID.uuidString)"
+    }
+
+    private var sharePayload: String {
+        model.post(id: postID)?.shareText ?? deepLink
+    }
+
     private var recipients: [DiscoverBuddyItem] {
-        let pooled = buddies.freeItems + buddies.paidItems
-        let all = pooled.isEmpty
-            ? SampleData.circleBuddies.map(DiscoverBuddyItem.free)
-                + SampleData.paidCompanions.map(DiscoverBuddyItem.paid)
-            : pooled
-        // Sample data reuses nicknames across free/paid pools; uniqueKeysWithValues crashes on dups.
-        var seenIDs = Set<UUID>()
-        var seenNicks = Set<String>()
-        var unique: [DiscoverBuddyItem] = []
-        for item in all {
-            let nick = item.profile.nickname.lowercased()
-            guard seenIDs.insert(item.id).inserted else { continue }
-            guard seenNicks.insert(nick).inserted else { continue }
-            unique.append(item)
-        }
-        unique.sort {
-            $0.profile.nickname.localizedStandardCompare($1.profile.nickname) == .orderedAscending
-        }
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return unique }
-        return unique.filter {
-            $0.profile.nickname.localizedCaseInsensitiveContains(trimmed)
-                || $0.profile.tags.contains { $0.localizedCaseInsensitiveContains(trimmed) }
-        }
-    }
-
-    private var avatarSide: CGFloat {
-        (dynamicTypeSize.listAvatarSide * 2.1).rounded(.toNearestOrAwayFromZero)
-    }
-
-    private var gridColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: PlatformMetrics.railCardSpacing), count: 3)
+        CommunityShareRecipients.filtered(from: buddies, query: query)
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: PlatformMetrics.sectionHeaderSpacing) {
-                    if !sentNames.isEmpty {
-                        VStack(alignment: .leading, spacing: PlatformMetrics.minContentGap) {
-                            Text("最近已发送")
-                                .font(.headline)
-                            Text(sentNames.sorted().joined(separator: "、"))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+        MessagesFormSheet(title: "分享") {
+            List {
+                Section {
+                    Button {
+                        showStartChat = true
+                    } label: {
+                        Label("发起聊天", systemImage: "person.badge.plus")
+                    }
+                }
+
+                Section("发送给") {
+                    if recipients.isEmpty {
+                        Text(query.isEmpty ? "暂无联系人" : "无匹配结果")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(recipients) { buddy in
+                            recipientRow(buddy)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, PlatformMetrics.contentInset)
+                    }
+                }
+
+                Section("更多") {
+                    Button {
+                        if !isReposted {
+                            model.createRepost(of: postID, quote: nil)
+                        }
+                        showRepostDetail = true
+                    } label: {
+                        Label(
+                            isReposted ? "查看转发" : "转发到社区",
+                            systemImage: "arrow.2.squarepath"
+                        )
                     }
 
-                    LazyVGrid(columns: gridColumns, spacing: PlatformMetrics.sectionHeaderSpacing) {
-                        ForEach(recipients) { buddy in
-                            recipientCell(buddy)
-                        }
+                    Button {
+                        showQuoteComposer = true
+                    } label: {
+                        Label("引用转发", systemImage: "text.quote")
+                    }
+
+                    Button {
+                        UIPasteboard.general.string = deepLink
+                        model.recordShare(postID)
+                        didCopyLink = true
+                    } label: {
+                        Label(
+                            didCopyLink ? "已复制链接" : "复制链接",
+                            systemImage: didCopyLink ? "checkmark" : "link"
+                        )
+                    }
+
+                    Button {
+                        model.recordShare(postID)
+                        showSystemShare = true
+                    } label: {
+                        Label("分享到…", systemImage: "square.and.arrow.up")
                     }
                 }
-                .padding(.top, PlatformMetrics.minContentGap)
-                .padding(.bottom, PlatformMetrics.sectionSpacing)
             }
-            .background(PlatformSurface.canvas)
-            .safeAreaInset(edge: .top, spacing: 0) {
-                shareSearchHeader
-            }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                shareActionRail
-            }
-            .overlay {
-                if recipients.isEmpty {
-                    ContentUnavailableView.search(text: query)
-                }
-            }
+            .searchable(text: $query, prompt: "搜索联系人")
             .sheet(isPresented: $showStartChat) {
                 StartChatSheet { conversationID in
                     showStartChat = false
@@ -266,129 +252,41 @@ struct CommunityShareSheet: View {
                 CommunityRepostDetailSheet(originalID: postID)
                     .toolbarVisibility(.hidden, for: .tabBar)
             }
+            .sheet(isPresented: $showSystemShare) {
+                PlatformShareSheet(items: [sharePayload])
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            }
         }
-        .platformSheet(.browser)
     }
 
-    private var shareSearchHeader: some View {
-        HStack(spacing: PlatformMetrics.railCardSpacing) {
-            HStack(spacing: PlatformMetrics.minContentGap) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                TextField("搜索", text: $query)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(Color(.tertiarySystemFill), in: Capsule())
-
-            Button {
-                showStartChat = true
-            } label: {
-                Image(systemName: "person.badge.plus")
-                    .font(.body.weight(.semibold))
-                    .frame(width: PlatformMetrics.navigationBarButtonSide, height: PlatformMetrics.navigationBarButtonSide)
-                    .background(Color(.tertiarySystemFill), in: Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("发起聊天")
-        }
-        .padding(.horizontal, PlatformMetrics.contentInset)
-        .padding(.vertical, PlatformMetrics.minContentGap)
-        .background(.bar)
-    }
-
-    private var shareActionRail: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 18) {
-                shareAction(
-                    title: isReposted ? "已转发" : "转发到社区",
-                    systemImage: "arrow.2.squarepath",
-                    tint: isReposted ? PlatformStatus.success : nil
-                ) {
-                    if isReposted {
-                        showRepostDetail = true
-                    } else {
-                        model.createRepost(of: postID, quote: nil)
-                        showRepostDetail = true
-                    }
-                }
-
-                shareAction(title: "引用转发", systemImage: "text.quote") {
-                    showQuoteComposer = true
-                }
-
-                shareAction(title: didCopyLink ? "已复制" : "复制链接", systemImage: didCopyLink ? "checkmark" : "link") {
-                    copyLink()
-                }
-
-                shareAction(title: "分享到…", systemImage: "square.and.arrow.up") {
-                    model.shareExternally(postID)
-                }
-            }
-            .padding(.horizontal, PlatformMetrics.contentInset)
-            .padding(.vertical, PlatformMetrics.sectionHeaderSpacing)
-        }
-        .background(.bar)
-    }
-
-    private func recipientCell(_ buddy: DiscoverBuddyItem) -> some View {
+    private func recipientRow(_ buddy: DiscoverBuddyItem) -> some View {
         let name = buddy.profile.nickname
         let sent = sentNames.contains(name)
         return Button {
-            send(to: name)
+            guard !sent, app.shareCommunityPost(postID, to: name) != nil else { return }
+            sentNames.insert(name)
         } label: {
-            VStack(spacing: PlatformMetrics.minContentGap) {
-                ZStack(alignment: .bottomTrailing) {
-                    PlatformListAvatarView(name: name, side: avatarSide)
+            Label {
+                HStack {
+                    Text(name)
+                    Spacer(minLength: 0)
                     if sent {
-                        Image(systemName: "checkmark.circle.fill")
-                            .platformSymbolStyle(
-                                .badge(primary: .white, secondary: Color.accentColor)
-                            )
-                            .background(Circle().fill(PlatformSurface.canvas).padding(-2))
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(Color.accentColor)
+                            .accessibilityHidden(true)
                     }
                 }
-                Text(name)
-                    .font(.caption)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .frame(maxWidth: .infinity)
+            } icon: {
+                PlatformListAvatarView(
+                    name: name,
+                    side: PlatformConversationListRow.imageSide
+                )
             }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(sent ? "已发送给\(name)" : "发送给\(name)")
         .disabled(sent)
-    }
-
-    private func shareAction(
-        title: String,
-        systemImage: String,
-        fill: Color? = nil,
-        tint: Color? = nil,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            VStack(spacing: PlatformMetrics.minContentGap) {
-                Image(systemName: systemImage)
-                    .font(.title3)
-                    .foregroundStyle(fill == nil ? (tint ?? .primary) : .white)
-                    .frame(width: PlatformMetrics.navigationBarButtonSide * 1.5, height: PlatformMetrics.navigationBarButtonSide * 1.5)
-                    .background(
-                        (fill ?? Color(.tertiarySystemFill)),
-                        in: Circle()
-                    )
-                Text(title)
-                    .font(.caption2)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-            }
-            .frame(width: 72)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
+        .accessibilityLabel(sent ? "已发送给\(name)" : "发送给\(name)")
     }
 
     private var quoteComposer: some View {
@@ -417,31 +315,40 @@ struct CommunityShareSheet: View {
         }
         .platformSheet(.form)
     }
+}
 
-    private func send(to name: String) {
-        guard !sentNames.contains(name) else { return }
-        if app.shareCommunityPost(postID, to: name) != nil {
-            sentNames.insert(name)
+@MainActor
+private enum CommunityShareRecipients {
+    static func filtered(from buddies: BuddiesModel, query: String) -> [DiscoverBuddyItem] {
+        let pooled = buddies.freeItems + buddies.paidItems
+        let all = pooled.isEmpty
+            ? SampleData.circleBuddies.map(DiscoverBuddyItem.free)
+                + SampleData.paidCompanions.map(DiscoverBuddyItem.paid)
+            : pooled
+
+        var seenIDs = Set<UUID>()
+        var seenNicks = Set<String>()
+        var unique: [DiscoverBuddyItem] = []
+        for item in all {
+            let nick = item.profile.nickname.lowercased()
+            guard seenIDs.insert(item.id).inserted else { continue }
+            guard seenNicks.insert(nick).inserted else { continue }
+            unique.append(item)
+        }
+        unique.sort {
+            $0.profile.nickname.localizedStandardCompare($1.profile.nickname) == .orderedAscending
+        }
+
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return unique }
+        return unique.filter {
+            $0.profile.nickname.localizedCaseInsensitiveContains(trimmed)
+                || $0.profile.tags.contains { $0.localizedCaseInsensitiveContains(trimmed) }
         }
     }
-
-    private func copyLink() {
-        let id = postID.uuidString
-        UIPasteboard.general.string = "zuobiaoxi://community/\(id)"
-        model.recordShare(postID)
-        didCopyLink = true
-    }
 }
 
-// MARK: - Repost (保留详情；主入口并入分享 Sheet)
-
-struct CommunityRepostSheet: View {
-    let postID: CommunityPost.ID
-
-    var body: some View {
-        CommunityShareSheet(postID: postID)
-    }
-}
+// MARK: - Repost detail
 
 struct CommunityRepostDetailSheet: View {
     let originalID: CommunityPost.ID
@@ -484,7 +391,6 @@ struct CommunityRepostDetailSheet: View {
 
 // MARK: - Bookmark
 
-/// 收藏确认 Sheet：已收藏状态行 + 创建收藏夹引导（对齐主流社交收藏面板）。
 struct CommunityBookmarkSheet: View {
     let postID: CommunityPost.ID
 
@@ -493,176 +399,37 @@ struct CommunityBookmarkSheet: View {
 
     @State private var showCreateCollection = false
     @State private var newCollectionName = ""
-    @State private var didBootstrap = false
 
-    private var post: CommunityPost? { model.post(id: postID) }
-    private var isBookmarked: Bool { model.isBookmarked(postID) }
-    private var collectionName: String {
-        model.bookmarkCollection(for: postID) ?? "私密"
-    }
-
-    private let presetCollections = ["全部收藏", "周末路线", "探店笔记", "稍后看"]
+    private let presetCollections = ["私密", "全部收藏", "周末路线", "探店笔记", "稍后看"]
 
     var body: some View {
-        VStack(spacing: 0) {
-            confirmationRow
-                .padding(.horizontal, PlatformMetrics.contentInset)
-                .padding(.top, PlatformMetrics.sectionHeaderSpacing)
-                .padding(.bottom, PlatformMetrics.sectionHeaderSpacing)
-
-            Divider()
-
-            guideSection
-                .padding(.horizontal, PlatformMetrics.contentInset)
-                .padding(.top, PlatformMetrics.sectionSpacing)
-                .padding(.bottom, PlatformMetrics.sectionSpacing)
-        }
-        .frame(maxWidth: .infinity, alignment: .top)
-        .background(PlatformSurface.canvas)
-        .onAppear(perform: bootstrapBookmarkIfNeeded)
-        .sheet(isPresented: $showCreateCollection) {
-            createCollectionSheet
-                .toolbarVisibility(.hidden, for: .tabBar)
-        }
-        .platformSheet(.confirm)
-    }
-
-    private var confirmationRow: some View {
-        HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
-            thumbnail
-                .frame(width: PlatformConversationListRow.imageSide, height: PlatformConversationListRow.imageSide)
-                .clipShape(RoundedRectangle(cornerRadius: PlatformMetrics.radiusMedia, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(isBookmarked ? "已收藏" : "收藏")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.primary)
-                Menu {
+        MessagesFormSheet(title: "收藏", dismissAction: .cancel) {
+            List {
+                Section {
                     ForEach(presetCollections, id: \.self) { name in
-                        Button(name) {
+                        Button {
                             model.saveBookmark(postID, collection: name)
-                        }
-                    }
-                    Button("创建收藏夹…") {
-                        showCreateCollection = true
-                    }
-                    if isBookmarked {
-                        Divider()
-                        Button("取消收藏", role: .destructive) {
-                            model.removeBookmark(postID)
                             dismiss()
+                        } label: {
+                            Text(name)
+                                .foregroundStyle(.primary)
                         }
                     }
-                } label: {
-                    HStack(spacing: PlatformMetrics.hairlineSpacing * 2) {
-                        Text(collectionName)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
+
+                    Button {
+                        showCreateCollection = true
+                    } label: {
+                        Label("创建收藏夹…", systemImage: "folder.badge.plus")
                     }
+                } header: {
+                    Text("收藏到")
                 }
             }
-
-            Spacer(minLength: 0)
-
-            Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
-                .font(.title3)
-                .foregroundStyle(.primary)
-                .accessibilityHidden(true)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(isBookmarked ? "已收藏，\(collectionName)" : "收藏")
-    }
-
-    @ViewBuilder
-    private var thumbnail: some View {
-        if let photo = post?.displayPhotos.first {
-            CommunityRemotePhoto(ref: photo)
-                .scaledToFill()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-        } else {
-            ZStack {
-                Color(.tertiarySystemFill)
-                Image(systemName: "photo")
-                    .foregroundStyle(.secondary)
+            .sheet(isPresented: $showCreateCollection) {
+                createCollectionSheet
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
-    }
-
-    private var guideSection: some View {
-        VStack(spacing: PlatformMetrics.sectionHeaderSpacing) {
-            HStack {
-                Spacer(minLength: 0)
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: PlatformMetrics.navigationBarButtonSide * 0.85, height: PlatformMetrics.navigationBarButtonSide * 0.85)
-                        .background(Color(.tertiarySystemFill), in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("关闭")
-            }
-
-            bookmarkHeroIcon
-
-            VStack(spacing: PlatformMetrics.minContentGap) {
-                Text("收藏你喜欢的帖子")
-                    .font(.title3.weight(.bold))
-                    .multilineTextAlignment(.center)
-                Text("把帖子收藏到你的专属收藏夹，或者与他人一起创建收藏夹。")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.horizontal, PlatformMetrics.minContentGap)
-
-            Button("创建收藏夹") {
-                showCreateCollection = true
-            }
-            .activityPrimaryCTA(controlSize: .large)
-            .buttonSizing(.flexible)
-            .padding(.top, PlatformMetrics.minContentGap)
-        }
-    }
-
-    private var bookmarkHeroIcon: some View {
-        ZStack {
-            Image(systemName: "bookmark")
-                .font(.system(.largeTitle, design: .default).weight(.light))
-                .foregroundStyle(.secondary)
-                .symbolRenderingMode(.hierarchical)
-
-            // 轻装饰：系统色点缀，避免品牌彩虹风
-            Capsule()
-                .fill(Color.accentColor.opacity(0.55))
-                .frame(width: 10, height: 3)
-                .rotationEffect(.degrees(-28))
-                .offset(x: -34, y: -18)
-            Capsule()
-                .fill(PlatformStatus.warning.opacity(0.7))
-                .frame(width: 10, height: 3)
-                .rotationEffect(.degrees(24))
-                .offset(x: 34, y: -16)
-            Capsule()
-                .fill(PlatformStatus.success.opacity(0.65))
-                .frame(width: 8, height: 3)
-                .rotationEffect(.degrees(70))
-                .offset(x: 30, y: 20)
-            Capsule()
-                .fill(Color.pink.opacity(0.55))
-                .frame(width: 8, height: 3)
-                .rotationEffect(.degrees(-60))
-                .offset(x: -30, y: 18)
-        }
-        .frame(height: PlatformMetrics.detailRelatedThumb)
-        .accessibilityHidden(true)
     }
 
     private var createCollectionSheet: some View {
@@ -692,6 +459,7 @@ struct CommunityBookmarkSheet: View {
                         model.saveBookmark(postID, collection: name)
                         newCollectionName = ""
                         showCreateCollection = false
+                        dismiss()
                     }
                     .fontWeight(.semibold)
                     .disabled(newCollectionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -700,20 +468,12 @@ struct CommunityBookmarkSheet: View {
         }
         .platformSheet(.form)
     }
-
-    private func bootstrapBookmarkIfNeeded() {
-        guard !didBootstrap else { return }
-        didBootstrap = true
-        if !isBookmarked {
-            model.saveBookmark(postID, collection: "私密")
-        }
-    }
 }
 
-/// 本地评论译文（系统 Form；无网络翻译服务）
+// MARK: - Translate
+
 struct CommunityCommentTranslateSheet: View {
     let comment: CommunityComment
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
@@ -737,11 +497,7 @@ struct CommunityCommentTranslateSheet: View {
             .navigationTitle("查看翻译")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarVisibility(.hidden, for: .tabBar)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }
-                }
-            }
+            .platformSheetConfirmationToolbar()
         }
         .platformSheet(.browser)
     }

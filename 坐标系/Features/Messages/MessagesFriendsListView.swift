@@ -159,14 +159,18 @@ struct MessagesFriendsListView: View {
                 Button(MessagesCopy.inviteFriends) {
                     MessagesInviteFriends.presentSystemShare()
                 }
-                .buttonStyle(.borderedProminent)
+                .activityPrimaryCTA(controlSize: .large)
                 Button(MessagesCopy.addFriendByUID) {
                     showAddFriendByUID = true
                 }
-                .buttonStyle(.bordered)
+                .activitySecondaryCTA(controlSize: .large)
             }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
         } else {
             ContentUnavailableView.search(text: searchText)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
         }
     }
 }

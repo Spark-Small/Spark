@@ -35,7 +35,6 @@ nonisolated enum BuddyDetailCopy {
     static let reviewsEmpty = "暂无评价"
     static let reviewsFilteredEmpty = "暂无符合筛选的评价"
     static let reviewsFooter = "评价来自完成履约的预约，仅供参考。"
-    static let reviewsSeeAll = "查看全部"
     static let reviewsComposerPlaceholder = "写下你的评价…"
 
     static func reviewsTitleCount(_ count: Int) -> String {
@@ -64,14 +63,11 @@ nonisolated enum BuddyDetailCopy {
     static func ageValue(_ age: Int) -> String { "\(age) 岁" }
     static func ordersValue(_ count: Int) -> String { "\(count) 单" }
 
-    static func photosCount(_ count: Int) -> String { "\(count) 张" }
-
     static let profileIDPrefix = "ID"
     static let statOrders = "接单数"
     static let statRating = "评分"
     static let statPositiveRate = "好评率"
     static let statResponse = "响应时长"
-    static let statActive = "活跃"
 
     static func responseDurationShort(_ text: String) -> String {
         let digits = text.filter(\.isNumber)
@@ -126,7 +122,7 @@ nonisolated enum BuddyBookingFlowCopy {
     static let confirmStepTitle = "确认预约"
     static let nextStep = "下一步"
     static let submitBooking = "提交预约"
-    static let unavailableTitle = "暂不可约"
+    static let unavailableTitle = BuddyDetailCopy.bookUnavailable
     static let unavailableBody = "对方档期已满或暂停接单，可先打招呼沟通时间。"
     static let conflictHint = "该时间与已有预约冲突，请改选其他时段。"
     static let submittedHint = "接单后系统会通知你支付；也可在「我的 → 陪玩预约」查看进度。"

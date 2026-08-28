@@ -19,7 +19,7 @@ nonisolated enum BuddyMemberCopy {
 
     static let roleAdmin = "管理员"
     static let roleMember = "成员"
-    static let roleAvailable = "可约"
+    static let roleAvailable = BuddyDetailCopy.available
     static let roleBusy = "档期已满"
     static let roleHost = "厅主"
     static let roleOnMic = "麦上"

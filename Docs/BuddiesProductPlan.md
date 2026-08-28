@@ -46,38 +46,32 @@
 
 | 位置 | 内容 |
 |--|--|
-| Leading | 筛选（地区 / 性别 / 距离 / 兴趣…） |
-| Principal | **免费 \| 预约** |
-| Trailing | 我的预约（未完成角标） |
+| 大标题菜单 | **免费 \| 预约**（`platformTabRootTitleMenu`，对齐活动分类菜单） |
+| Trailing | **搜索**（按需唤起，首页无常驻 drawer）+ **筛选** |
+| 陪玩预约 | **仅**「我的 → 陪玩预约」（含待处理数量） |
+| 细条件 | **仅**筛选 Sheet（排序 / 仅可约 / 服务类型 / 地区…）；首页无 chip 条 |
 
 ### 免费
 
 ```
-我也想找…（用户自填状态）
-搜一搜（开放域）
-排序：推荐 | 附近 | 刚活跃
-人列表（我想… + 为什么推你 + 打招呼）
+精选横滑（无标题，≤4）
+有信号辅轨（≤2：附近 / 同频 / 今晚有空 / 接着逛）
+双列人墙（剩余全部）
 兴趣圈子（次要）
 ```
 
-无产品场景磁贴。无假组局人数。无空壳「发起邀约」。
+无产品场景磁贴。无假组局人数。无空壳「发起邀约」。辅轨跨轨去重；无信号不出轨。排序默认推荐；刚活跃仅在筛选。
 
 ### 预约
 
 ```
-品牌头「搭子·陪玩」
-意图入口：运动 / 聊天 / 线下 / 活动（从擅长与服务类型涌现，非游戏品类树）
-Hero 匹配条 → 立即匹配
-排序：推荐 | 价格 | 最早可约 + 仅可约
-热门推荐横滑
-快捷：快速匹配 / 语音派对 / 线下搭子
-擅长分类 chip
-陪玩师排行榜（日/周/月）
-更多服务者列表
+精选横滑（无标题）
+推荐榜（日/周/月 + 快捷长条 → 打开筛选或进厅）
+更多陪玩双列墙（剩余全部）
 语音厅（次要）
 ```
 
-详情：分段「服务 | 资料 | 评价」；底栏「私信 + 快速下单」。评价为履约反馈演示，信任档案仍在「资料」。
+页内不用 chip；比价排序 / 仅可约 / 服务类型只在筛选 Sheet。发现卡主操作统一「选档期」+ `activityPrimaryCTA`。
 
 ---
 
@@ -86,7 +80,7 @@ Hero 匹配条 → 立即匹配
 ### 免费找人
 
 - **双列照片卡**为主：封面、距离/共同兴趣角标、在线、我想…、匹配理由、打招呼  
-- 顶栏压缩：想找 → 兴趣快开 → 搜 → 排序（不再堆大标题）  
+- 顶栏压缩：想找 → 排序 chip → 搜 → 筛选  
 - 不要：字母圆头像列表、假组局、空壳邀约  
 
 ### 花钱找人
@@ -106,13 +100,15 @@ Hero 匹配条 → 立即匹配
 
 ## 6. 分阶段
 
-### 已落地（对齐「找人玩」+ 提速匹配）
+### 已落地（对齐「找人玩」+ 与活动同 chrome）
 
-- 分段免费 / 预约；开放搜索跨模式保留  
-- 「我也想找」+ 兴趣快筛；推荐优先意图重合，卡面标「契合」  
-- 人卡：匹配理由 + 共同兴趣 chip + 侧栏打招呼（更高密度）  
-- 预约：比价排序 + 连续列表；货架分区对齐 DiscoverBrowseSection  
-- 顶栏 glass 圆形筛选；去掉自造指标条 / 假组局 / 装饰描边  
+- 大标题菜单切 **免费 \| 预约**；Trailing **搜索 Sheet + 筛选**；首页无 `.searchable` drawer  
+- 陪玩预约入口只在 **「我的」**（待处理数量）；发现顶栏不再放预约  
+- 页面壳：`discoverBrowseScrollChrome` + `discoverBrowsePageColumn`（与活动同间距）  
+- 筛选 Sheet 唯一收纳：排序、仅可约、服务类型、地区…；首页无 chip  
+- Catalog：精选 + ≤2 有信号辅轨 + 全量人墙；今晚档用 `BuddyScheduleSlot`  
+- 发现 CTA：`activityPrimaryCTA` / `activitySecondaryCTA`；主操作文案「选档期」  
+- 辅轨「查看全部」  
 
 ### 后续（数据层）
 
@@ -125,10 +121,12 @@ Hero 匹配条 → 立即匹配
 
 | 项 | 代码 |
 |--|--|
-| 免费 \| 预约 | `BuddiesModeSwitch` |
-| 搜索 / 排序 | `.searchable` + `BuddyPeopleBrowseHeader` / `BuddyBookingSort` |
-| 预约市场货架 | `BuddyPaidMarketViews`（意图 / Hero / 热门 / 快捷 / 排行） |
-| 人列表 / 服务卡 | `BuddyGridCard` / `BuddyServiceCard` |
-| 预约顶栏 | `BuddyBookingCatalogHeader` + `BuddyBookingSort` |
-| 筛选 | `BuddyFilterSheet`（细条件，非首页主轴） |
+| 免费 \| 预约 | `BuddiesModeTitleMenu` + `BuddiesModeSwitchToolbar` |
+| 目录 / 去重 | `BuddyBrowseHomeCatalog` |
+| 货架 UI / 查看全部 | `BuddyBrowseShelves` |
+| 搜索 | 工具栏放大镜 → `BuddyBrowseSearchSheet`（无 `.searchable`） |
+| 陪玩预约 | `ProfileView` → `ProfileRoute.bookingCredentials` |
+| 预约市场 | `BuddyPaidMarketViews`（精选轨 / 排行榜） |
+| 人列表 | `BuddyGridCard` / `BuddyPickRail` |
+| 筛选 | `BuddyFilterSheet`（含排序；与活动同 Form + 重置/完成） |
 | 信任模型 | `Docs/TrustBehaviorModel.md` |

@@ -2,7 +2,7 @@
 //  ActivityBrowseShelfViews.swift
 //  坐标系
 //
-//  活动发现货架：布局演示与活动 Tab 共用的官方卡片渲染。
+//  活动发现货架：活动 Tab 官方卡片渲染。
 //
 
 import SwiftUI
@@ -10,21 +10,12 @@ import SwiftUI
 // MARK: - Section
 
 struct ActivityBrowseShelfSection: View {
-    @Environment(ActivitiesModel.self) private var model
-
     let shelf: ActivityBrowseShelf
     var zoomNamespace: Namespace.ID
-    var showsSubtitle = true
-    var showsSeeAll = true
-    var onSeeAll: (() -> Void)? = nil
     var onJoin: (Activity) -> Void
 
     var body: some View {
-        DiscoverBrowseSection(
-            title: shelf.title,
-            subtitle: showsSubtitle ? shelf.subtitle : nil,
-            onSeeAll: showsSeeAll ? onSeeAll : nil
-        ) {
+        DiscoverBrowseSection(title: shelf.title) {
             ActivityBrowseShelfRailContent(
                 shelf: shelf,
                 zoomNamespace: zoomNamespace,
@@ -48,7 +39,7 @@ struct ActivityBrowseShelfRailContent: View {
         case .editorial:
             editorialRail(shelf.activities, shelfID: shelf.id)
         case .following:
-            continueRail(shelf.activities, meta: \.districtLabel)
+            continueRail(shelf.activities)
         case .hot:
             eventRail(shelf.activities, shelfID: shelf.id)
         case .ranked:
@@ -78,10 +69,7 @@ struct ActivityBrowseShelfRailContent: View {
         }
     }
 
-    private func continueRail(
-        _ activities: [Activity],
-        meta keyPath: KeyPath<Activity, String>
-    ) -> some View {
+    private func continueRail(_ activities: [Activity]) -> some View {
         DiscoverHorizontalRail {
             ForEach(activities) { activity in
                 PlatformContinueCard(
@@ -90,7 +78,7 @@ struct ActivityBrowseShelfRailContent: View {
                     photo: activity.coverPhoto,
                     title: activity.title,
                     timeLine: Formatters.activityEventTime(from: activity.date),
-                    metaLine: activity[keyPath: keyPath],
+                    metaLine: activity.districtLabel,
                     isJoined: model.isJoined(activity.id),
                     isFull: activity.isFull,
                     onJoin: joinAction(for: activity)
@@ -143,7 +131,6 @@ struct ActivityBrowseShelfRailContent: View {
                     activity: activity,
                     isJoined: model.isJoined(activity.id),
                     zoomNamespace: zoomNamespace,
-                    enablesOpenTap: false,
                     onJoin: { onJoin(activity) }
                 )
             }
@@ -159,7 +146,6 @@ struct ActivityBrowseShelfRailContent: View {
 // MARK: - Spotlight Hero
 
 struct ActivityFeaturedSpotlightSection: View {
-    let title: String
     let activity: Activity
     var zoomNamespace: Namespace.ID
     var onJoin: (Activity) -> Void
@@ -167,16 +153,14 @@ struct ActivityFeaturedSpotlightSection: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        DiscoverBrowseSection(title: title) {
-            ActivityFeaturedCard(
-                activity: activity,
-                zoomNamespace: zoomNamespace,
-                onJoin: { onJoin(activity) }
-            )
-            .modifier(ActivityFeaturedHeroAspectModifier(dynamicTypeSize: dynamicTypeSize))
-            .discoverBrowseContentInset()
-            .frame(maxWidth: .infinity)
-        }
+        ActivityFeaturedCard(
+            activity: activity,
+            zoomNamespace: zoomNamespace,
+            onJoin: { onJoin(activity) }
+        )
+        .modifier(ActivityFeaturedHeroAspectModifier(dynamicTypeSize: dynamicTypeSize))
+        .discoverBrowseContentInset()
+        .frame(maxWidth: .infinity)
     }
 }
 

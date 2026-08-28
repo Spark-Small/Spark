@@ -132,6 +132,7 @@ struct ProfileOrdersView: View {
     @Environment(BuddiesModel.self) private var buddies
     @Environment(ActivitiesModel.self) private var activities
     @Environment(RefundFlowService.self) private var refunds
+    @Environment(\.activityZoomNamespace) private var zoomNamespace
     @State private var segment: ProfileOrdersSegment = .all
     @State private var shortcutFilter: ProfileOrderShortcutFilter?
     @State private var revision = 0
@@ -207,7 +208,7 @@ struct ProfileOrdersView: View {
                 }
             }
         }
-        .listStyle(.insetGrouped)
+        .profileSecondaryListChrome()
         .navigationTitle("我的订单")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { revision += 1 }
@@ -263,13 +264,19 @@ struct ProfileOrdersView: View {
                         systemImage: "calendar"
                     )
                 }
+            } else if let activity = activities.activity(id: order.activityID) {
+                activityOrderLink(for: activity) {
+                    orderLabel(
+                        title: order.activityTitle,
+                        subtitle: "活动 · \(ActivityPaymentStore.statusLabel(for: order.status))",
+                        amount: ActivityFeeParser.formattedPrice(cents: order.amountCents),
+                        time: Formatters.conversationListTime(from: order.createdAt),
+                        systemImage: "calendar"
+                    )
+                }
             } else {
                 NavigationLink {
-                    if let activity = activities.activity(id: order.activityID) {
-                        ActivityDetailView(activity: activity)
-                    } else {
-                        ContentUnavailableView("活动不可用", systemImage: "calendar")
-                    }
+                    ContentUnavailableView("活动不可用", systemImage: "calendar")
                 } label: {
                     orderLabel(
                         title: order.activityTitle,
@@ -306,6 +313,25 @@ struct ProfileOrdersView: View {
                         systemImage: "person.2.fill"
                     )
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func activityOrderLink<Label: View>(
+        for activity: Activity,
+        @ViewBuilder label: @escaping () -> Label
+    ) -> some View {
+        if let zoomNamespace {
+            ActivityZoomNavigationLink(activity: activity, namespace: zoomNamespace) {
+                label()
+            }
+        } else {
+            NavigationLink {
+                ActivityDetailView(activity: activity)
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            } label: {
+                label()
             }
         }
     }

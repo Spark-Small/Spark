@@ -69,3 +69,73 @@ private struct PlatformSheetModifier: ViewModifier {
         }
     }
 }
+
+// MARK: - Toolbar chrome
+
+extension View {
+    /// Sheet 左上角：`cancellationAction`（取消 / 关闭 / 稍后）。
+    func platformSheetCancellationToolbar(
+        _ title: String,
+        action: (() -> Void)? = nil
+    ) -> some View {
+        modifier(PlatformSheetCancellationToolbar(title: title, action: action))
+    }
+
+    /// Sheet 右上角：`confirmationAction`（完成 / 保存 / 发送）。
+    func platformSheetConfirmationToolbar(
+        _ title: String = "完成",
+        isEnabled: Bool = true,
+        action: (() -> Void)? = nil
+    ) -> some View {
+        modifier(
+            PlatformSheetConfirmationToolbar(
+                title: title,
+                isEnabled: isEnabled,
+                action: action
+            )
+        )
+    }
+}
+
+private struct PlatformSheetCancellationToolbar: ViewModifier {
+    let title: String
+    var action: (() -> Void)?
+    @Environment(\.dismiss) private var dismiss
+
+    func body(content: Content) -> some View {
+        content.toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button(title) {
+                    if let action {
+                        action()
+                    } else {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct PlatformSheetConfirmationToolbar: ViewModifier {
+    let title: String
+    var isEnabled: Bool
+    var action: (() -> Void)?
+    @Environment(\.dismiss) private var dismiss
+
+    func body(content: Content) -> some View {
+        content.toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button(title) {
+                    if let action {
+                        action()
+                    } else {
+                        dismiss()
+                    }
+                }
+                .fontWeight(.semibold)
+                .disabled(!isEnabled)
+            }
+        }
+    }
+}

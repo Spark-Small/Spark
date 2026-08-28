@@ -5,6 +5,7 @@
 //  「我的」文案，以及最近浏览横滑轨与二级列表。
 //
 
+import SwiftData
 import SwiftUI
 
 // MARK: - Copy
@@ -16,7 +17,6 @@ enum ProfileDashboardCopy {
     static let activityHosted = "我发起的"
     static let activityJoined = "我报名的"
     static let activityFavorites = "我收藏的"
-    static let activityHistory = "浏览记录"
     static let bookingCredentials = "陪玩预约"
     static let activityInvites = "活动邀约"
 
@@ -47,6 +47,7 @@ enum ProfileDashboardCopy {
     static let logout = "退出登录"
     static let logoutConfirmTitle = "退出登录？"
     static let logoutConfirmMessage = "退出后需重新登录才能同步订单与消息。"
+    static let ordersPendingBookingFooter = "有待支付或待确认的预约，请到「我的订单」处理。"
 }
 
 // MARK: - Routes
@@ -96,6 +97,16 @@ struct ProfileRouteDestination: View {
         case .bookingDetail(let recordID):
             BookingCredentialExpandedView(recordID: recordID)
         }
+    }
+}
+
+// MARK: - Secondary list chrome
+
+extension View {
+    /// 「我的」二级页：insetGrouped + 紧凑分区（与订单 / 凭证夹一致）。
+    func profileSecondaryListChrome() -> some View {
+        listStyle(.insetGrouped)
+            .listSectionSpacing(.compact)
     }
 }
 
@@ -151,22 +162,37 @@ struct ProfileRecentBrowseShelf: View {
 
 struct ProfileRecentBrowseListView: View {
     @Environment(ActivitiesModel.self) private var activities
-    @State private var records = ProfileRecentBrowseStore.shared.items()
+    @Environment(AppModel.self) private var app
+    @Query(sort: \RecentBrowseItem.viewedAt, order: .reverse)
+    private var browseItems: [RecentBrowseItem]
+    @Namespace private var zoomNamespace
+
+    private var records: [ProfileRecentBrowseRecord] {
+        Array(browseItems.prefix(ProfileRecentBrowseStore.maxItems)).map(\.asRecord)
+    }
 
     var body: some View {
         List {
             if records.isEmpty {
-                ContentUnavailableView(
-                    ProfileDashboardCopy.recentBrowseEmpty,
-                    systemImage: "clock.arrow.circlepath",
-                    description: Text(ProfileDashboardCopy.recentBrowseEmptyHint)
-                )
+                Section {
+                    ContentUnavailableView(
+                        ProfileDashboardCopy.recentBrowseEmpty,
+                        systemImage: "clock.arrow.circlepath",
+                        description: Text(ProfileDashboardCopy.recentBrowseEmptyHint)
+                    )
+                    .listRowBackground(Color.clear)
+
+                    Button("去发现活动") {
+                        app.selectedTab = .activities
+                    }
+                    .activityPrimaryCTA(controlSize: .large)
+                    .buttonSizing(.flexible)
+                    .listRowBackground(Color.clear)
+                }
             } else {
                 ForEach(records) { record in
                     if let activity = activities.activity(id: record.activityID) {
-                        NavigationLink {
-                            ActivityDetailView(activity: activity)
-                        } label: {
+                        ActivityZoomNavigationLink(activity: activity, namespace: zoomNamespace) {
                             LabeledContent(record.title) {
                                 Text(Formatters.conversationListTime(from: record.viewedAt))
                                     .foregroundStyle(.secondary)
@@ -176,6 +202,8 @@ struct ProfileRecentBrowseListView: View {
                 }
             }
         }
+        .activityZoomNavigationDestination(namespace: zoomNamespace)
+        .profileSecondaryListChrome()
         .navigationTitle(ProfileDashboardCopy.recentBrowseListTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -183,7 +211,6 @@ struct ProfileRecentBrowseListView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(ProfileDashboardCopy.recentBrowseClear, role: .destructive) {
                         ProfileRecentBrowseStore.shared.clear()
-                        records = []
                     }
                 }
             }

@@ -476,7 +476,7 @@ private struct CloverShape: Shape {
         onOpenFinished: {}
     )
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(LaunchSurface.stage)
+    .background { LaunchStageBackground() }
 }
 
 #Preview("Opening") {
@@ -490,5 +490,5 @@ private struct CloverShape: Shape {
         onOpenFinished: {}
     )
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(LaunchSurface.stage)
+    .background { LaunchStageBackground() }
 }

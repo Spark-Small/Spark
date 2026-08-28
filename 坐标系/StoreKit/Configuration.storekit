@@ -1,0 +1,116 @@
+{
+  "identifier" : "A1B2C3D4",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "214E5F60",
+      "localizations" : [
+        {
+          "description" : "坐标系会员订阅",
+          "displayName" : "会员",
+          "locale" : "zh_CN"
+        },
+        {
+          "description" : "Spark membership",
+          "displayName" : "Membership",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "Membership",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "28.00",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "7C9D2A11",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "优先提醒、会员标识与更多收藏空间。",
+              "displayName" : "坐标系会员（月）",
+              "locale" : "zh_CN"
+            },
+            {
+              "description" : "Priority alerts, member badge, and more bookmarks.",
+              "displayName" : "Spark Membership Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.spark.membership.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Membership Monthly",
+          "subscriptionGroupID" : "214E5F60",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

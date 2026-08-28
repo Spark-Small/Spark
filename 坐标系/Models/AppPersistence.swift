@@ -572,11 +572,11 @@ struct ProfileRecentBrowseRecord: Codable, Identifiable, Hashable {
     var id: UUID { activityID }
 }
 
+/// 仅用于从旧 JSON 一次性迁入 SwiftData。
 struct ProfileRecentBrowseSnapshot: Codable {
     var items: [ProfileRecentBrowseRecord]
 
     static let seed = ProfileRecentBrowseSnapshot(items: [])
-    static let maxItems = 20
 
     init(items: [ProfileRecentBrowseRecord] = []) {
         self.items = items
@@ -646,8 +646,10 @@ enum AppPersistence {
         load("profile_recent_browse.json", fallback: .seed)
     }
 
-    static func saveRecentBrowse(_ snapshot: ProfileRecentBrowseSnapshot) {
-        save(snapshot, to: "profile_recent_browse.json")
+    /// SwiftData 迁移完成后删除旧 JSON，避免重复导入。
+    static func clearRecentBrowseFile() {
+        let url = fileURL("profile_recent_browse.json")
+        try? FileManager.default.removeItem(at: url)
     }
 
     @MainActor
@@ -657,7 +659,8 @@ enum AppPersistence {
         saveBuddies(.seed)
         saveProfile(.seed)
         saveEngagement(.seed)
-        saveRecentBrowse(.seed)
+        clearRecentBrowseFile()
+        ProfileRecentBrowseStore.shared.clear()
         CommunityPersistence.resetToSeed()
         CommunityPhotoStore.resetAll()
         ActivityPaymentStore.resetAll()

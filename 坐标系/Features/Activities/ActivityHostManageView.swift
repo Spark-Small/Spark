@@ -14,6 +14,7 @@ struct ActivityHostManageView: View {
     @Environment(ActivitiesModel.self) private var model
     @Environment(MessagesModel.self) private var messages
     @Environment(AppModel.self) private var app
+    @Environment(\.tabNavigationStateRef) private var navigation
     @Environment(\.dismiss) private var dismiss
 
     @State private var capacity: Int = 8
@@ -137,7 +138,12 @@ struct ActivityHostManageView: View {
                 }
 
                 Button {
-                    app.openActivityGroupChat(for: live)
+                    guard let route = app.prepareActivityGroupChatRoute(for: live) else { return }
+                    if let navigation {
+                        navigation.path.append(route)
+                    } else {
+                        app.openActivityGroupChat(for: live)
+                    }
                 } label: {
                     Label("进入活动群", systemImage: "bubble.left.and.bubble.right")
                 }

@@ -105,10 +105,8 @@ private extension View {
             NavigationStack {
                 doc.destination
                     .toolbarVisibility(.hidden, for: .tabBar)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("完成") { document.wrappedValue = nil }
-                        }
+                    .platformSheetConfirmationToolbar("完成") {
+                        document.wrappedValue = nil
                     }
             }
             .platformSheet(.browser)
@@ -194,8 +192,7 @@ struct LegalConsentGate: View {
     @State private var confirmExit = false
 
     var body: some View {
-        LaunchSurface.stage
-            .ignoresSafeArea()
+        LaunchStageBackground()
             .legalConsentAlert(
                 isPresented: $showAlert,
                 onAgree: onAccepted,

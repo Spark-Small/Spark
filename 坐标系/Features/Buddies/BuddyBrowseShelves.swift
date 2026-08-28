@@ -2,10 +2,176 @@
 //  BuddyBrowseShelves.swift
 //  坐标系
 //
-//  语音厅：频道卡 + 横滑轨。
+//  搭子发现货架渲染 + 查看全部 + 语音厅。
 //
 
 import SwiftUI
+
+// MARK: - See all route
+
+struct BuddyBrowseSeeAllRoute: Hashable, Identifiable {
+    let id: String
+    let title: String
+    let itemIDs: [UUID]
+}
+
+struct BuddyBrowseSeeAllView: View {
+    let title: String
+    let items: [DiscoverBuddyItem]
+    var intentQuery: String = ""
+    var zoomNamespace: Namespace.ID
+    var onChat: (DiscoverBuddyItem) -> Void
+    var onBook: (DiscoverBuddyItem) -> Void
+
+    var body: some View {
+        ScrollView {
+            BuddyPersonGrid(
+                items: items,
+                intentQuery: intentQuery,
+                zoomNamespace: zoomNamespace,
+                onChat: onChat,
+                onBook: onBook
+            )
+            .padding(.vertical, PlatformMetrics.sectionSpacing)
+        }
+        .background(PlatformSurface.groupedPage)
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarVisibility(.hidden, for: .tabBar)
+    }
+}
+
+// MARK: - Shelf section
+
+struct BuddyBrowseShelfSection: View {
+    let shelf: BuddyBrowseShelf
+    var intentQuery: String = ""
+    var zoomNamespace: Namespace.ID
+    var boardPeriod: Binding<BuddyPaidBoardPeriod>? = nil
+    var onChat: (DiscoverBuddyItem) -> Void
+    var onBook: (DiscoverBuddyItem) -> Void
+    var onQuickEntry: ((BuddyPaidQuickEntry) -> Void)? = nil
+    var onSeeAll: ((BuddyBrowseShelf) -> Void)? = nil
+
+    var body: some View {
+        switch shelf.layout {
+        case .leaderboard:
+            if let boardPeriod {
+                BuddyPaidLeaderboard(
+                    items: shelf.items,
+                    period: boardPeriod,
+                    zoomNamespace: zoomNamespace,
+                    onBook: onBook,
+                    onQuickEntry: { onQuickEntry?($0) }
+                )
+            }
+        default:
+            DiscoverBrowseSection(
+                title: shelf.title,
+                showsChevron: shelf.showsSeeAll && onSeeAll != nil,
+                onSeeAll: shelf.showsSeeAll ? { onSeeAll?(shelf) } : nil
+            ) {
+                BuddyBrowseShelfRailContent(
+                    shelf: shelf,
+                    intentQuery: intentQuery,
+                    zoomNamespace: zoomNamespace,
+                    onChat: onChat,
+                    onBook: onBook
+                )
+            }
+        }
+    }
+}
+
+struct BuddyBrowseShelfRailContent: View {
+    let shelf: BuddyBrowseShelf
+    var intentQuery: String = ""
+    var zoomNamespace: Namespace.ID
+    var onChat: (DiscoverBuddyItem) -> Void
+    var onBook: (DiscoverBuddyItem) -> Void
+
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        switch shelf.layout {
+        case .editorial:
+            editorialRail(shelf.items)
+        case .hot:
+            hotRail(shelf.items)
+        case .leaderboard:
+            EmptyView()
+        }
+    }
+
+    private func editorialRail(_ items: [DiscoverBuddyItem]) -> some View {
+        DiscoverHorizontalRail {
+            ForEach(items) { item in
+                BuddyPickCard(
+                    item: item,
+                    intentQuery: intentQuery,
+                    contactActionTitle: contactTitle(for: item),
+                    zoomNamespace: zoomNamespace,
+                    onAction: { action(for: item) }
+                )
+                .platformEditorialRailFrame()
+            }
+        }
+    }
+
+    private func hotRail(_ items: [DiscoverBuddyItem]) -> some View {
+        DiscoverHorizontalRail {
+            ForEach(items) { item in
+                BuddyGridCard(
+                    item: item,
+                    intentQuery: intentQuery,
+                    contactActionTitle: contactTitle(for: item),
+                    zoomNamespace: zoomNamespace,
+                    onAction: { action(for: item) }
+                )
+                .platformPosterRailFrame()
+            }
+        }
+    }
+
+    private func contactTitle(for item: DiscoverBuddyItem) -> String {
+        app.peerContactActionTitle(
+            for: item.profile.nickname,
+            context: .forBuddyItem(item)
+        )
+    }
+
+    private func action(for item: DiscoverBuddyItem) {
+        switch item {
+        case .free: onChat(item)
+        case .paid: onBook(item)
+        }
+    }
+}
+
+// MARK: - Circles rail
+
+struct BuddyInterestCirclesRail: View {
+    let circles: [InterestCircle]
+    var onOpen: (InterestCircle) -> Void
+    var onSeeAll: () -> Void
+
+    var body: some View {
+        DiscoverBrowseSection(
+            title: BuddyBrowseCopy.circlesTitle,
+            showsChevron: true,
+            onSeeAll: onSeeAll
+        ) {
+            DiscoverHorizontalRail {
+                ForEach(circles) { circle in
+                    BuddyPosterShelfCard.circle(circle) {
+                        onOpen(circle)
+                    }
+                    .platformPosterRailFrame()
+                }
+            }
+        }
+    }
+}
 
 // MARK: - 语音厅
 
@@ -85,10 +251,7 @@ struct BuddyVoiceChannelRail: View {
     var onOpen: (VoiceHall) -> Void
 
     var body: some View {
-        DiscoverBrowseSection(
-            title: "语音厅",
-            subtitle: "先听氛围再决定"
-        ) {
+        DiscoverBrowseSection(title: "语音厅") {
             DiscoverHorizontalRail {
                 ForEach(halls) { hall in
                     BuddyVoiceChannelCard(hall: hall) {
