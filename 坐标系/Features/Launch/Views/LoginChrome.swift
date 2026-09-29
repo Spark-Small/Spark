@@ -33,12 +33,12 @@ enum LoginChrome {
 }
 
 extension View {
-    /// 凭证行：系统 Form 行 inset / 行高；背景为 Regular Material。
+    /// Form 凭证行：系统行高 / 字号；材质底。
     func loginFormMaterialRow() -> some View {
         listRowBackground(LoginFormMaterialRowBackground())
     }
 
-    /// CTA / 社交：透明行底，露出视频与玻璃控件。
+    /// Form CTA / 社交行：透明底。
     func loginClearListRow() -> some View {
         listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
@@ -57,7 +57,7 @@ private struct LoginFormMaterialRowBackground: View {
     }
 }
 
-/// 发送验证码：系统 `arrow.right.circle` + `.title3`（Dynamic Type）。
+/// 发送验证码：系统符号 + `imageScale`，字号跟随 Form 环境（不手写 pt / text style）。
 struct LoginSendCodeButton: View {
     var isLoading: Bool
     var isEnabled: Bool
@@ -68,10 +68,10 @@ struct LoginSendCodeButton: View {
         Button(action: action) {
             if isLoading {
                 ProgressView()
-                    .controlSize(.regular)
+                    .controlSize(.small)
             } else {
                 Image(systemName: "arrow.right.circle")
-                    .font(.title3)
+                    .imageScale(.large)
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(isEnabled ? .secondary : .tertiary)
             }

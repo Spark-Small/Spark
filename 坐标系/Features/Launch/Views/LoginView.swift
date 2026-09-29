@@ -2,7 +2,7 @@
 //  LoginView.swift
 //  坐标系
 //
-//  视频背景 + 系统 Form 原生行（行高 / 字号 / inset 由 Form 承担）；验证码发送后插入。
+//  视频背景 + 系统 Form：字号 / 行高 / 箭头缩放交给 Form 环境；验证码发送后插入。
 //
 
 import CoordinateFeatureFlags
@@ -134,7 +134,7 @@ struct LoginView: View {
         }
     }
 
-    // MARK: - Sections
+    // MARK: - Form sections
 
     private var credentialsSection: some View {
         Section {
@@ -173,14 +173,9 @@ struct LoginView: View {
             .disabled(isBusy)
             .loginFormMaterialRow()
         } footer: {
-            if let errorMessage {
-                Text(errorMessage)
-                    .foregroundStyle(PlatformStatus.danger)
-                    .accessibilityAddTraits(.updatesFrequently)
-            } else if !hasRequestedCode {
-                Text(Copy.codeFooter)
-            }
+            credentialsFooter
         }
+        .animation(.default, value: hasRequestedCode)
     }
 
     private var actionsSection: some View {
@@ -217,6 +212,17 @@ struct LoginView: View {
                 Spacer(minLength: 0)
             }
             .loginClearListRow()
+        }
+    }
+
+    @ViewBuilder
+    private var credentialsFooter: some View {
+        if let errorMessage {
+            Text(errorMessage)
+                .foregroundStyle(PlatformStatus.danger)
+                .accessibilityAddTraits(.updatesFrequently)
+        } else if !hasRequestedCode {
+            Text(Copy.codeFooter)
         }
     }
 
@@ -299,10 +305,8 @@ struct LoginView: View {
     }
 
     private func revealCodeFieldAfterSend() {
-        PlatformMotion.withAnimation(.default) {
-            hasRequestedCode = true
-            phoneUsedForCode = phoneNumber
-        }
+        hasRequestedCode = true
+        phoneUsedForCode = phoneNumber
         startCooldown()
         focusedField = .code
         sendSuccessPulse += 1
@@ -400,9 +404,7 @@ struct LoginView: View {
         codeCooldownSeconds = 0
         code = ""
         phoneUsedForCode = nil
-        PlatformMotion.withAnimation(.default) {
-            hasRequestedCode = false
-        }
+        hasRequestedCode = false
         clearErrorIfMatches(Copy.needCode)
     }
 
