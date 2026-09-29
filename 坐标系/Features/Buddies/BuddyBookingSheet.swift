@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 private enum BuddyBookingStep: Hashable {
     case select
@@ -359,6 +360,7 @@ struct BuddyBookingSheet: View {
 
     private func submitBooking() {
         guard GuestAccessGate.allow(app.auth, presentCreateAccount: $showCreateAccount) else { return }
+        guard app.requireIdentityAccess() else { return }
         onBooked(
             resolvedStart,
             hours,

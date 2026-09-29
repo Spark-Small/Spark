@@ -10,7 +10,9 @@ import EventKit
 import Foundation
 import SwiftUI
 import UIKit
+import CoordinateModels
 
+@MainActor
 enum ActivityCalendar {
     enum Outcome: Equatable {
         case added(withReminders: Bool)
@@ -29,7 +31,6 @@ enum ActivityCalendar {
         }
     }
 
-    private static let mappingKey = "activity.calendarEventIdentifiers"
     private static let store = EKEventStore()
 
     static func isScheduled(activityID: Activity.ID) -> Bool {
@@ -107,7 +108,9 @@ enum ActivityCalendar {
 
     static func removeIfNeeded(activityID: Activity.ID) {
         guard isScheduled(activityID: activityID) else { return }
-        Task { _ = await remove(activityID: activityID) }
+        Task { @MainActor in
+            _ = await remove(activityID: activityID)
+        }
     }
 
     static var isAccessDenied: Bool {
@@ -147,23 +150,15 @@ enum ActivityCalendar {
     // MARK: - Persistence
 
     private static func eventIdentifier(for activityID: Activity.ID) -> String? {
-        mapping()[activityID.uuidString]
+        ActivityCalendarStore.eventIdentifier(for: activityID)
     }
 
     private static func setEventIdentifier(_ identifier: String, for activityID: Activity.ID) {
-        var next = mapping()
-        next[activityID.uuidString] = identifier
-        UserDefaults.standard.set(next, forKey: mappingKey)
+        ActivityCalendarStore.setEventIdentifier(identifier, for: activityID)
     }
 
     private static func clearEventIdentifier(for activityID: Activity.ID) {
-        var next = mapping()
-        next.removeValue(forKey: activityID.uuidString)
-        UserDefaults.standard.set(next, forKey: mappingKey)
-    }
-
-    private static func mapping() -> [String: String] {
-        UserDefaults.standard.dictionary(forKey: mappingKey) as? [String: String] ?? [:]
+        ActivityCalendarStore.clearEventIdentifier(for: activityID)
     }
 }
 

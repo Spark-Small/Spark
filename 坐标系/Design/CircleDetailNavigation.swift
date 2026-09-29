@@ -5,6 +5,7 @@
 //  圈子浏览：Tab 单层 NavigationStack + 程序化 path（Apple Understanding the navigation stack）
 //
 
+import CoordinateModels
 import Observation
 import SwiftUI
 
@@ -81,12 +82,10 @@ extension View {
 
     /// Sheet 内独立 `NavigationStack`：清掉 Tab 继承的注册标记，避免 destination 被跳过。
     func independentNavigationSheetChrome(
-        dismissSheet: (() -> Void)? = nil,
         resetMemberSheetDestination: Bool = false
     ) -> some View {
         modifier(
             IndependentNavigationSheetChrome(
-                dismissSheet: dismissSheet,
                 resetMemberSheetDestination: resetMemberSheetDestination
             )
         )
@@ -98,6 +97,7 @@ extension View {
         openConversation: @escaping (UUID) -> Void
     ) -> some View {
         circleBrowseNavigationDestination()
+            .circlePeerChatNavigationDestination()
             .buddyOrgJoinChrome(
                 buddies: buddies,
                 openCircle: openCircle,
@@ -108,6 +108,51 @@ extension View {
     /// Sheet 内独立 NavigationStack 的成员目的地
     func circleMemberSheetNavigationDestination() -> some View {
         modifier(CircleMemberSheetDestination())
+    }
+}
+
+// MARK: - Club group chat destination
+
+private struct CirclePeerChatDestinationKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var hasCirclePeerChatDestination: Bool {
+        get { self[CirclePeerChatDestinationKey.self] }
+        set { self[CirclePeerChatDestinationKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// 俱乐部浏览栈：`PeerChatRoute` 与资料 / 成员页共用单层栈
+    func circlePeerChatNavigationDestination() -> some View {
+        modifier(CirclePeerChatDestinationModifier())
+    }
+}
+
+private struct CirclePeerChatDestinationModifier: ViewModifier {
+    @Environment(\.hasCirclePeerChatDestination) private var registered
+    @Environment(TabNavigationState.self) private var navigation
+
+    func body(content: Content) -> some View {
+        if registered {
+            content
+        } else {
+            content
+                .environment(\.hasCirclePeerChatDestination, true)
+                .navigationDestination(for: PeerChatRoute.self) { route in
+                    ConversationDetailView(
+                        conversationID: route.conversationID,
+                        chatContext: route.chatContext,
+                        onOpenCircleInfo: { circle in
+                            navigation.openCircle(circle)
+                        }
+                    )
+                    .toolbarVisibility(.hidden, for: .tabBar)
+                    .environment(navigation)
+                }
+        }
     }
 }
 
@@ -146,12 +191,9 @@ private struct CircleMemberSheetDestinationKey: EnvironmentKey {
     static let defaultValue = false
 }
 
-private struct CircleBrowseSheetDismissKey: EnvironmentKey {
-    static let defaultValue: (() -> Void)? = nil
-}
-
-private struct TabNavigationStateRefKey: EnvironmentKey {
-    static let defaultValue: TabNavigationState? = nil
+extension EnvironmentValues {
+    /// 活动 / 搭子等 Tab 栈的 `NavigationStack(path:)`；Sheet 或未注入时为 `nil`。
+    @Entry var tabNavigationStateRef: TabNavigationState? = nil
 }
 
 extension EnvironmentValues {
@@ -164,23 +206,11 @@ extension EnvironmentValues {
         get { self[CircleMemberSheetDestinationKey.self] }
         set { self[CircleMemberSheetDestinationKey.self] = newValue }
     }
-
-    var circleBrowseSheetDismiss: (() -> Void)? {
-        get { self[CircleBrowseSheetDismissKey.self] }
-        set { self[CircleBrowseSheetDismissKey.self] = newValue }
-    }
-
-    /// 活动 / 搭子等 Tab 栈的 `NavigationStack(path:)`；Sheet 或未注入时为 `nil`。
-    var tabNavigationStateRef: TabNavigationState? {
-        get { self[TabNavigationStateRefKey.self] }
-        set { self[TabNavigationStateRefKey.self] = newValue }
-    }
 }
 
 // MARK: - Sheet chrome
 
 private struct IndependentNavigationSheetChrome: ViewModifier {
-    var dismissSheet: (() -> Void)?
     var resetMemberSheetDestination: Bool
 
     @ViewBuilder
@@ -199,7 +229,6 @@ private struct IndependentNavigationSheetChrome: ViewModifier {
             .environment(\.hasBuddyZoomDestination, false)
             .environment(\.hasActivityPeerChatDestination, false)
             .environment(\.buddyZoomNamespace, nil)
-            .environment(\.circleBrowseSheetDismiss, dismissSheet)
     }
 }
 
@@ -249,6 +278,7 @@ private struct CircleMemberSheetDestination: ViewModifier {
     }
 }
 
+@MainActor
 @ViewBuilder
 private func circleBrowseDestination(for route: CircleBrowseRoute) -> some View {
     switch route {

@@ -4,52 +4,70 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
-/// 广场：活动图文分享流（种草 / 复盘），找人与陪玩在「搭子」页完成
-struct CommunityView: View {
+enum CommunityFeedPresentation {
+    case tabRoot
+    case embedded
+}
+
+/// 广场信息流（Tab 根或从活动 Tab push）。
+struct CommunityFeedStack: View {
+    var presentation: CommunityFeedPresentation = .tabRoot
+    @Binding var path: NavigationPath
+    var zoomNamespace: Namespace.ID
+
     @Environment(CommunityModel.self) private var model
-    @State private var path = NavigationPath()
-    @Namespace private var zoomNamespace
 
     var body: some View {
         @Bindable var model = model
 
-        NavigationStack(path: $path) {
-            List {
-                Section {
-                    if model.items.isEmpty {
-                        emptyState
+        List {
+            Section {
+                if let error = model.loadErrorMessage, model.items.isEmpty {
+                    errorState(message: error)
+                        .communityFeedRowChrome()
+                } else if model.items.isEmpty {
+                    emptyState
+                        .communityFeedRowChrome()
+                } else {
+                    ForEach(model.items) { post in
+                        CommunityPostCard(post: post)
                             .communityFeedRowChrome()
-                    } else {
-                        ForEach(model.items) { post in
-                            CommunityPostCard(post: post)
-                                .communityFeedRowChrome()
-                        }
                     }
                 }
             }
-            .communityFeedChrome()
-            .platformTabRootListChrome(title: CommunityCopy.rootTitle)
-            .platformTabRootToolbar { tabToolbar }
-            .tint(PlatformAction.cloverPurple)
-            .navigationDestination(for: CommunityPost.self) { post in
-                CommunityPostDetailView(postID: post.id)
-                    .toolbarVisibility(.hidden, for: .tabBar)
+        }
+        .communityFeedChrome()
+        .refreshable {
+            await model.reloadFromRepository()
+        }
+        .modifier(CommunityFeedPresentationChrome(presentation: presentation))
+        .communityFeedToolbar(presentation: presentation) { feedToolbar }
+        .tint(PlatformAction.cloverPurple)
+        .task {
+            // 首次进入时再拉一次，便于区分空列表与加载失败。
+            if model.loadErrorMessage == nil {
+                await model.reloadFromRepository()
             }
-            .activityZoomNavigationDestination(namespace: zoomNamespace)
-            .navigationDestination(for: CommunityLibraryDestination.self) { destination in
-                CommunityLibraryRouter(destination: destination)
-                    .toolbarVisibility(.hidden, for: .tabBar)
-            }
-            .sheet(isPresented: $model.isComposing) {
-                CommunityComposeSheet()
-                    .toolbarVisibility(.hidden, for: .tabBar)
-            }
+        }
+        .navigationDestination(for: CommunityPost.self) { post in
+            CommunityPostDetailView(postID: post.id)
+                .toolbarVisibility(.hidden, for: .tabBar)
+        }
+        .activityZoomNavigationDestination(namespace: zoomNamespace)
+        .navigationDestination(for: CommunityLibraryDestination.self) { destination in
+            CommunityLibraryRouter(destination: destination)
+                .toolbarVisibility(.hidden, for: .tabBar)
+        }
+        .sheet(isPresented: $model.isComposing) {
+            CommunityComposeSheet()
+                .toolbarVisibility(.hidden, for: .tabBar)
         }
     }
 
     @ToolbarContentBuilder
-    private var tabToolbar: some ToolbarContent {
+    private var feedToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .topBarTrailing) {
             Button("发分享", systemImage: "plus") {
                 model.isComposing = true
@@ -81,9 +99,9 @@ struct CommunityView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label("还没有分享", systemImage: "photo.on.rectangle")
+            Label(CommunityCopy.emptyTitle, systemImage: "photo.on.rectangle")
         } description: {
-            Text("把好玩的局、路线和探店记下来，让更多人看见")
+            Text(CommunityCopy.emptyDescription)
         } actions: {
             Button("发分享") { model.isComposing = true }
                 .activityPrimaryCTA(controlSize: .large)
@@ -91,10 +109,87 @@ struct CommunityView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
     }
+
+    private func errorState(message: String) -> some View {
+        ContentUnavailableView {
+            Label(CommunityCopy.loadFailedTitle, systemImage: "exclamationmark.triangle")
+        } description: {
+            Text(message)
+        } actions: {
+            Button(CommunityCopy.retryLoad) {
+                Task { await model.reloadFromRepository() }
+            }
+            .activityPrimaryCTA(controlSize: .large)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
+    }
+}
+
+private struct CommunityFeedPresentationChrome: ViewModifier {
+    let presentation: CommunityFeedPresentation
+
+    func body(content: Content) -> some View {
+        switch presentation {
+        case .tabRoot:
+            content.platformTabRootListChrome(title: CommunityCopy.rootTitle)
+        case .embedded:
+            content
+                .navigationTitle(CommunityCopy.embeddedTitle)
+                .navigationBarTitleDisplayMode(.inline)
+                .platformHiddenTabBar()
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func communityFeedToolbar(
+        presentation: CommunityFeedPresentation,
+        @ToolbarContentBuilder content: () -> some ToolbarContent
+    ) -> some View {
+        switch presentation {
+        case .tabRoot:
+            platformTabRootToolbar(content: content)
+        case .embedded:
+            toolbar(content: content)
+        }
+    }
+}
+
+/// 广场：活动图文分享流（种草 / 复盘），找人与陪玩在「搭子」页完成
+struct CommunityView: View {
+    @State private var path = NavigationPath()
+    @Namespace private var zoomNamespace
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            CommunityFeedStack(
+                presentation: .tabRoot,
+                path: $path,
+                zoomNamespace: zoomNamespace
+            )
+        }
+    }
+}
+
+/// 活动 Tab 内嵌入口：安装 7 日且广场零打开时替代独立 Tab。
+struct CommunityFeedEmbeddedDestination: View {
+    @State private var path = NavigationPath()
+    @Namespace private var zoomNamespace
+
+    var body: some View {
+        CommunityFeedStack(
+            presentation: .embedded,
+            path: $path,
+            zoomNamespace: zoomNamespace
+        )
+    }
 }
 
 #Preview("广场") {
+    let app = AppModel.preview
     CommunityView()
-        .environment(CommunityModel())
-        .environment(ActivitiesModel())
+        .environment(app.community)
+        .environment(app.activities)
 }

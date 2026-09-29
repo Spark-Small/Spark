@@ -1,6 +1,7 @@
 //
 //  CorePersistenceTests.swift
 //  坐标系Tests
+import CoordinateDomain
 import XCTest
 @testable import 坐标系
 
@@ -25,7 +26,8 @@ final class CorePersistenceTests: XCTestCase {
         let repo = InMemoryMessagesRepository(
             snapshot: MessagesSnapshot(conversations: [], threads: [:])
         )
-        let messages = MessagesModel(snapshot: repo.snapshot, repository: repo)
+        let deps = AppDependencies.inMemoryForTests()
+        let messages = deps.makeMessagesModel(snapshot: repo.snapshot, repository: repo)
         var callbackCount = 0
         messages.onConversationsChanged = {
             callbackCount += 1
@@ -45,7 +47,8 @@ final class CorePersistenceTests: XCTestCase {
         let repo = InMemoryBuddiesRepository(
             snapshot: BuddiesSnapshot(inviteRecords: [], bookingRecords: [], joinedCircleNames: [])
         )
-        let buddies = BuddiesModel(snapshot: repo.snapshot, repository: repo)
+        let deps = AppDependencies.inMemoryForTests()
+        let buddies = deps.makeBuddiesModel(snapshot: repo.snapshot, repository: repo)
         var callbackCount = 0
         buddies.onRecordsChanged = {
             callbackCount += 1
@@ -86,7 +89,8 @@ final class CorePersistenceTests: XCTestCase {
         let repo = InMemoryMessagesRepository(
             snapshot: MessagesSnapshot(conversations: [], threads: [:])
         )
-        let messages = MessagesModel(snapshot: repo.snapshot, repository: repo)
+        let deps = AppDependencies.inMemoryForTests()
+        let messages = deps.makeMessagesModel(snapshot: repo.snapshot, repository: repo)
         let activity = Activity(
             id: UUID(),
             title: "同名",
@@ -110,7 +114,8 @@ final class CorePersistenceTests: XCTestCase {
         let repo = InMemoryBuddiesRepository(
             snapshot: BuddiesSnapshot(inviteRecords: [], bookingRecords: [], joinedCircleNames: [])
         )
-        let buddies = BuddiesModel(snapshot: repo.snapshot, repository: repo)
+        let deps = AppDependencies.inMemoryForTests()
+        let buddies = deps.makeBuddiesModel(snapshot: repo.snapshot, repository: repo)
         guard let companion = SampleData.paidCompanions.first else {
             return XCTFail("缺少陪玩样本")
         }
@@ -123,6 +128,12 @@ final class CorePersistenceTests: XCTestCase {
         guard let id = record?.id else { return XCTFail("无订单") }
         buddies.acceptBooking(id)
         XCTAssertEqual(buddies.bookingRecords.first?.status, .awaitingPayment)
+        XCTAssertNotNil(buddies.bookingRecords.first?.paymentDueAt)
+        XCTAssertNil(buddies.pendingPaymentBooking)
+        XCTAssertEqual(buddies.pendingAwaitingPaymentReviewID, id)
+        buddies.beginPayment(id)
+        XCTAssertEqual(buddies.pendingPaymentBooking?.id, id)
+        XCTAssertNil(buddies.pendingAwaitingPaymentReviewID)
         buddies.confirmPayment(id)
         XCTAssertEqual(buddies.bookingRecords.first?.status, .paid)
     }
@@ -131,7 +142,8 @@ final class CorePersistenceTests: XCTestCase {
         let repo = InMemoryBuddiesRepository(
             snapshot: BuddiesSnapshot(inviteRecords: [], bookingRecords: [], joinedCircleNames: [])
         )
-        let buddies = BuddiesModel(snapshot: repo.snapshot, repository: repo)
+        let deps = AppDependencies.inMemoryForTests()
+        let buddies = deps.makeBuddiesModel(snapshot: repo.snapshot, repository: repo)
         let activity = Activity(
             id: UUID(),
             title: "测试邀约局",
@@ -173,7 +185,8 @@ final class CorePersistenceTests: XCTestCase {
                 waitlistIDs: []
             )
         )
-        let model = ActivitiesModel(currentUserName: "Tester", repository: repo)
+        let deps = AppDependencies.inMemoryForTests()
+        let model = deps.makeActivitiesModel(currentUserName: "Tester", repository: repo)
         XCTAssertTrue(model.activities[0].isFull)
         XCTAssertTrue(model.toggleWaitlist(activity.id))
         XCTAssertTrue(model.isWaitlisted(activity.id))
@@ -202,7 +215,8 @@ final class CorePersistenceTests: XCTestCase {
                 waitlistIDs: [activityID]
             )
         )
-        let model = ActivitiesModel(currentUserName: "测试用户", repository: repo)
+        let deps = AppDependencies.inMemoryForTests()
+        let model = deps.makeActivitiesModel(currentUserName: "测试用户", repository: repo)
         XCTAssertTrue(model.isWaitlisted(activityID))
 
         model.activities[0].joined = 1
@@ -245,14 +259,15 @@ final class CorePersistenceTests: XCTestCase {
     }
 
     func testModerationTicketStatusMachine() {
-        let app = AppModel(profileRepository: InMemoryProfileRepository(
-            snapshot: ProfileSnapshot(
+        let repos = AppRepositories.inMemoryForTests(
+            profile: ProfileSnapshot(
                 user: SampleData.currentUser,
                 hasCompletedOnboarding: true,
                 blockedUserNames: [],
                 moderationTickets: []
             )
-        ))
+        )
+        let app = AppDependencies.inMemoryForTests(repositories: repos).makeAppModel()
         app.addModerationTicket(
             postID: UUID(),
             title: "测试动态",
@@ -273,7 +288,8 @@ final class CorePersistenceTests: XCTestCase {
         let repo = InMemoryBuddiesRepository(
             snapshot: BuddiesSnapshot(inviteRecords: [], bookingRecords: [], joinedCircleNames: [])
         )
-        let buddies = BuddiesModel(snapshot: repo.snapshot, repository: repo)
+        let deps = AppDependencies.inMemoryForTests()
+        let buddies = deps.makeBuddiesModel(snapshot: repo.snapshot, repository: repo)
         guard let companion = SampleData.paidCompanions.first else {
             return XCTFail("缺少陪玩样本")
         }
@@ -352,7 +368,7 @@ final class CorePersistenceTests: XCTestCase {
             ]
         )
 
-        let repaired = AppPersistence.repairedMessagesSnapshot(from: snapshot)
+        let repaired = MessagesSnapshotCatalog.repair(from: snapshot)
 
         XCTAssertNotNil(repaired.threads[directID.uuidString])
         XCTAssertNotNil(repaired.threads[groupID.uuidString])
@@ -418,7 +434,7 @@ final class CorePersistenceTests: XCTestCase {
             likedCommentIDs: [rootCommentID, invalidCommentID]
         )
 
-        let repaired = CommunityPersistence.repairedSnapshot(from: snapshot)
+        let repaired = CommunitySnapshotCatalog.repair(from: snapshot)
 
         XCTAssertEqual(repaired.posts.first?.commentCount, 2)
         XCTAssertEqual(repaired.posts.first?.likeCount, 2)

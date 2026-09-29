@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 // MARK: - Shared chrome
 
@@ -42,6 +43,7 @@ private struct PlatformCatalogHeroFooter: View {
     let timeLine: String
     let metaLine: String
     var isJoined = false
+    var isWaitlisted = false
     var isFull = false
     /// true：叠在封面上（深色字阶）；false：图下文（页面语义色）
     var onMedia = true
@@ -74,6 +76,7 @@ private struct PlatformCatalogHeroFooter: View {
 
             ActivityPrimaryAction(
                 isJoined: isJoined,
+                isWaitlisted: isWaitlisted,
                 isFull: isFull,
                 controlSize: .regular,
                 onMedia: onMedia,
@@ -96,6 +99,7 @@ struct PlatformContinueCard: View {
     var timeLine: String
     var metaLine: String
     var isJoined = false
+    var isWaitlisted = false
     var isFull = false
     var onJoin: (() -> Void)?
 
@@ -114,6 +118,7 @@ struct PlatformContinueCard: View {
                         timeLine: timeLine,
                         metaLine: metaLine,
                         isJoined: isJoined,
+                        isWaitlisted: isWaitlisted,
                         isFull: isFull,
                         onMedia: false,
                         onJoin: onJoin
@@ -127,6 +132,7 @@ struct PlatformContinueCard: View {
                         timeLine: timeLine,
                         metaLine: metaLine,
                         isJoined: isJoined,
+                        isWaitlisted: isWaitlisted,
                         isFull: isFull,
                         onMedia: true,
                         onJoin: onJoin
@@ -176,6 +182,7 @@ struct PlatformEventCard: View {
     var timeLine: String
     var metaLine: String
     var isJoined = false
+    var isWaitlisted = false
     var isFull = false
     var onCoverTap: (() -> Void)? = nil
     var onJoin: (() -> Void)?
@@ -196,6 +203,7 @@ struct PlatformEventCard: View {
                         timeLine: timeLine,
                         metaLine: metaLine,
                         isJoined: isJoined,
+                        isWaitlisted: isWaitlisted,
                         isFull: isFull,
                         onMedia: false,
                         onJoin: onJoin
@@ -211,6 +219,7 @@ struct PlatformEventCard: View {
                         timeLine: timeLine,
                         metaLine: metaLine,
                         isJoined: isJoined,
+                        isWaitlisted: isWaitlisted,
                         isFull: isFull,
                         onMedia: true,
                         onJoin: onJoin
@@ -361,6 +370,7 @@ struct PlatformEditorialCard: View {
     var metaLine: String
     var metaSymbol: String = "sparkles"
     var isJoined = false
+    var isWaitlisted = false
     var isFull = false
     var onJoin: (() -> Void)?
 
@@ -441,6 +451,7 @@ struct PlatformEditorialCard: View {
 
             ActivityPrimaryAction(
                 isJoined: isJoined,
+                isWaitlisted: isWaitlisted,
                 isFull: isFull,
                 controlSize: .regular,
                 onMedia: onMedia,

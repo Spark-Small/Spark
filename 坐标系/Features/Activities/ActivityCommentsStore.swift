@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 struct ActivityComment: Identifiable, Hashable, Codable {
     let id: UUID

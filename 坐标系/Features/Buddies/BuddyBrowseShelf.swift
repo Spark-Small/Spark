@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum BuddyBrowseShelfLayout: String, Hashable {
     case editorial
@@ -37,6 +38,7 @@ struct BuddyBrowseHomeSnapshot {
     let leaderboard: BuddyBrowseShelf?
 }
 
+@MainActor
 enum BuddyBrowseHomeCatalog {
     static let minimumCount = 2
     static let paidSpotlightLimit = 5
@@ -250,6 +252,8 @@ enum BuddyBrowseHomeCatalog {
 }
 
 enum BuddyBrowseCopy {
+    static let rootTitle = "搭子"
+
     enum Shelf {
         static let nearbyTitle = "附近的人"
         static let affinityTitle = "同频的人"
@@ -261,11 +265,29 @@ enum BuddyBrowseCopy {
         static let paidWallTitle = "更多陪玩"
     }
 
-    static let circlesTitle = "兴趣圈子"
+    static let circlesTitle = "同城俱乐部"
     static let searchResultsTitle = "搜索结果"
     static let availableOnlyChip = "仅可约"
     static let leaderboardRankTitle = "排行榜"
     /// 发现卡 / 成员半屏：打开档期选择（详情底栏见 `BuddyDetailCopy.quickBook`）
     static let bookAction = "选档期"
     static let bookUnavailable = BuddyDetailCopy.bookUnavailable
+
+    enum VoiceHall {
+        static let sectionTitle = "语音厅"
+        static let sectionSubtitle = "实时语音闲聊，与预约陪玩分开"
+    }
+
+    enum MyBookings {
+        static let bannerTitle = "我的预约"
+        static func bannerSubtitle(count: Int, needsAttention: Int) -> String {
+            if needsAttention > 0 {
+                return "\(needsAttention) 笔待确认或待支付 · 共 \(count) 笔进行中"
+            }
+            return "\(count) 笔进行中"
+        }
+    }
+
+    static let showSocialCTA = "看看免费搭子"
+    static let unifiedSearchPrompt = "搜搭子、陪玩、兴趣或擅长"
 }

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 /// 发布行尾部系统更多菜单（分享）。
 struct ProfilePublishedShareMenu: View {

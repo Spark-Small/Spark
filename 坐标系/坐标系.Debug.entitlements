@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Debug / 个人开发团队：不含 Sign in with Apple（该能力需付费 Apple Developer Program）。
+	     Release 使用 坐标系.entitlements，提审前切到带 Sign in with Apple 的付费 Team。 -->
+</dict>
+</plist>

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 struct BuddyFilterSheet: View {
     @Binding var filter: BuddyFilter
@@ -53,13 +54,10 @@ struct BuddyFilterSheet: View {
                 genderSection
                 distanceSection
                 hobbySection
-                if filter.kind == .paid {
-                    bookingSortSection
-                    serviceTypeSection
-                    availabilitySection
-                } else {
-                    peopleActivitySection
-                }
+                peopleActivitySection
+                bookingSortSection
+                serviceTypeSection
+                availabilitySection
             }
             .navigationTitle("筛选")
             .navigationBarTitleDisplayMode(.inline)
@@ -245,9 +243,9 @@ struct BuddyFilterSheet: View {
             activitySortRow(.recommended, title: "推荐", systemImage: "sparkles")
             activitySortRow(.active, title: "刚活跃", systemImage: "bolt")
         } header: {
-            Text("排序")
+            Text("找搭子排序")
         } footer: {
-            Text("默认按推荐排序。选「刚活跃」优先看最近在线的人。附近的人在首页「附近的人」分区浏览。")
+            Text("默认按推荐排序。选「刚活跃」优先看最近在线的人。附近的人在「找搭子」分区浏览。")
         }
     }
 
@@ -257,7 +255,7 @@ struct BuddyFilterSheet: View {
             bookingSortRow(.price, title: BuddyBookingSort.price.rawValue, systemImage: "tag")
             bookingSortRow(.earliest, title: BuddyBookingSort.earliest.rawValue, systemImage: "calendar")
         } header: {
-            Text("排序")
+            Text("约陪玩排序")
         } footer: {
             Text("推荐优先认证与可约；价格从低到高；最早可约按档期排序。")
         }

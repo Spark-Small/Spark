@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 struct RefundStatusView: View {
     let requestID: UUID

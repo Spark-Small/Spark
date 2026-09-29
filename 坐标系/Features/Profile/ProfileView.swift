@@ -5,12 +5,16 @@
 
 import SwiftData
 import SwiftUI
+import CoordinateModels
 
 struct ProfileView: View {
     @Environment(AppModel.self) private var app
     @Environment(CommunityModel.self) private var community
     @Environment(BuddiesModel.self) private var buddies
-    @AppStorage("profile.membership.active") private var membershipActive = false
+    @Environment(MessagesModel.self) private var messages
+    @Environment(MembershipStore.self) private var membership
+    @Environment(ProductLifecycleStore.self) private var lifecycle
+    @Environment(PhotoVerificationStore.self) private var photoVerification
 
     @Query(sort: \RecentBrowseItem.viewedAt, order: .reverse)
     private var browseItems: [RecentBrowseItem]
@@ -24,7 +28,7 @@ struct ProfileView: View {
     @Namespace private var activityZoomNamespace
 
     private var photoVerified: Bool {
-        PhotoVerificationStore.shared.isVerified(for: app.user.name)
+        photoVerification.isVerified(for: app.user)
     }
 
     private var recentBrowseRecords: [ProfileRecentBrowseRecord] {
@@ -48,6 +52,7 @@ struct ProfileView: View {
                 .profileRootDestinations(
                     navigation: navigation,
                     buddies: buddies,
+                    messages: messages,
                     app: app,
                     activityZoomNamespace: activityZoomNamespace
                 )
@@ -69,8 +74,10 @@ struct ProfileView: View {
         List {
             lifecycleTipSection
             identitySection
-            accountServicesSection
+            reputationSection
+            commerceSection
             activitiesSection
+            clubsSection
             ordersSection
             recentBrowseSection
         }
@@ -83,18 +90,11 @@ struct ProfileView: View {
     private var lifecycleTipSection: some View {
         if let tip = lifecycleTips.first {
             Section {
-                Text(tip.detail)
-                    .foregroundStyle(.secondary)
-                if tip.id == "privacy" {
-                    Button("去设置") { showSettingsFromTip = true }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.primary)
-                }
-                Button("关闭", role: .cancel) {
-                    ProductLifecycleStore.shared.dismissTip(tip.id)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.primary)
+                ProductLifecycleTipSectionContent(
+                    tip: tip,
+                    onDismiss: { lifecycle.dismissTip(tip.id) },
+                    onOpenSettings: tip.id == "privacy" ? { showSettingsFromTip = true } : nil
+                )
             } header: {
                 Label(tip.title, systemImage: tip.systemImage)
                     .platformContentSymbolStyle()
@@ -127,7 +127,7 @@ struct ProfileView: View {
                             } else {
                                 TrustCredentialBadgeStrip(
                                     photoVerified: photoVerified,
-                                    isMember: membershipActive
+                                    isMember: membership.isEntitled
                                 )
                             }
                         }
@@ -156,21 +156,27 @@ struct ProfileView: View {
         }
     }
 
-    private var accountServicesSection: some View {
+    private var reputationSection: some View {
         Section {
-            ProfileMembershipAdContentView(
-                isActive: membershipActive,
-                onTap: {
-                    openCommerce { navigation.path.append(ProfileRoute.membership) }
-                }
-            )
-
             ProfileFormGatedRow(
                 title: ProfileDashboardCopy.trustEntry,
                 systemImage: "checkmark.shield.fill"
             ) {
                 navigation.path.append(ProfileRoute.trust)
             }
+        } header: {
+            Text(ProfileDashboardCopy.reputationSectionTitle)
+        }
+    }
+
+    private var commerceSection: some View {
+        Section {
+            ProfileMembershipAdContentView(
+                isActive: membership.isEntitled,
+                onTap: {
+                    openCommerce { navigation.path.append(ProfileRoute.membership) }
+                }
+            )
 
             ProfileFormGatedRow(
                 title: ProfileDashboardCopy.walletEntry,
@@ -186,7 +192,7 @@ struct ProfileView: View {
                 openCommerce { navigation.path.append(ProfileRoute.becomeCompanion) }
             }
         } header: {
-            Text(ProfileDashboardCopy.reputationSectionTitle)
+            Text(ProfileDashboardCopy.commerceSectionTitle)
         }
     }
 
@@ -257,6 +263,35 @@ struct ProfileView: View {
         }
     }
 
+    private var clubsSection: some View {
+        Section {
+            NavigationLink(value: ProfileRoute.myClubs) {
+                LabeledContent {
+                    let count = buddies.joinedCircles.count
+                    if count > 0 {
+                        Text("\(count)")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                } label: {
+                    Label(ProfileDashboardCopy.myClubsTitle, systemImage: "person.3.fill")
+                        .platformContentSymbolStyle()
+                }
+            }
+
+            if !buddies.joinedCircles.isEmpty {
+                ProfileMyClubsShelf(circles: Array(buddies.joinedCircles.prefix(6)))
+                    .platformFormRelatedRailRow()
+            }
+        } header: {
+            Text(ProfileDashboardCopy.myClubsTitle)
+        } footer: {
+            if buddies.joinedCircles.isEmpty {
+                Text(ProfileDashboardCopy.myClubsEmptyHint)
+            }
+        }
+    }
+
     private var recentBrowseSection: some View {
         Section {
             ProfileRecentBrowseShelf(
@@ -293,7 +328,7 @@ struct ProfileView: View {
             parts.append(
                 [
                     photoVerified ? "认证已通过" : "认证未认证",
-                    membershipActive ? "会员已开通" : "会员未开通"
+                    membership.isEntitled ? "会员已开通" : "会员未开通"
                 ].joined(separator: " · ")
             )
         }
@@ -308,9 +343,10 @@ struct ProfileView: View {
     }
 
     private var lifecycleTips: [ProductLifecycleTip] {
+        guard lifecycle.daysSinceInstall < 7 else { return [] }
         let hasOrders = !ActivityPaymentStore.allOrders().isEmpty
             || !buddies.bookingRecords.isEmpty
-        return ProductLifecycleStore.shared.activeTips(
+        return lifecycle.activeTips(
             isGuest: app.auth.isGuest,
             profileComplete: ProfileCompletion.ratio(for: app.user) >= 0.8,
             hasOrders: hasOrders
@@ -346,6 +382,26 @@ struct ProfileView: View {
 }
 
 // MARK: - Stack chrome
+
+@MainActor
+private func profileOpenClubConversation(
+    _ conversationID: UUID,
+    navigation: TabNavigationState,
+    messages: MessagesModel,
+    buddies: BuddiesModel,
+    app: AppModel
+) {
+    guard let conversation = messages.conversations.first(where: { $0.id == conversationID }),
+          conversation.kind == .circle,
+          let circleID = conversation.relatedCircleID,
+          let circle = buddies.circle(id: circleID)
+    else {
+        app.openMessages(conversationID: conversationID)
+        return
+    }
+    guard let route = app.prepareClubGroupChatRoute(for: circle) else { return }
+    navigation.openClubGroupChat(for: circle, route: route)
+}
 
 private extension View {
     func profileRootPresentations(
@@ -384,6 +440,7 @@ private extension View {
     func profileRootDestinations(
         navigation: TabNavigationState,
         buddies: BuddiesModel,
+        messages: MessagesModel,
         app: AppModel,
         activityZoomNamespace: Namespace.ID
     ) -> some View {
@@ -394,8 +451,17 @@ private extension View {
         .circleBrowseStackChrome(
             buddies: buddies,
             openCircle: { navigation.openCircle($0) },
-            openConversation: { app.openMessages(conversationID: $0) }
+            openConversation: { conversationID in
+                profileOpenClubConversation(
+                    conversationID,
+                    navigation: navigation,
+                    messages: messages,
+                    buddies: buddies,
+                    app: app
+                )
+            }
         )
+        .activityPeerChatNavigationDestination()
         .activityZoomNavigationDestination(namespace: activityZoomNamespace)
         .navigationDestination(for: ProfileRoute.self) { route in
             ProfileRouteDestination(route: route)

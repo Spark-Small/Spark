@@ -5,6 +5,7 @@
 //  SwiftData：最近浏览活动（替代 profile_recent_browse.json）。
 //
 
+import CoordinateModels
 import Foundation
 import SwiftData
 

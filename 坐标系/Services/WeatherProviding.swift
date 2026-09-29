@@ -7,6 +7,7 @@
 
 import CoreLocation
 import Foundation
+import CoordinateModels
 
 protocol WeatherProviding: Sendable {
     /// 按坐标拉取实况；`legalAttributionURL` 仅 WeatherKit 需要展示归属。

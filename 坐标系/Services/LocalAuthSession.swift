@@ -5,8 +5,11 @@
 
 import Foundation
 import Observation
+import CoordinateModels
+import CoordinateNetworking
+import CoordinateFeatureFlags
 
-/// 本机账号身份类型（演示登录；正式版可换真实 OAuth）。
+/// 本机账号身份类型。
 enum LocalAccountProvider: String, Codable, CaseIterable {
     case guest
     case phone
@@ -33,6 +36,7 @@ final class LocalAuthSession {
         static let provider = "auth.provider"
     }
 
+    /// 仅 DEBUG 本地短信演示码；Release 必须走远程验证码。
     static let demoCode = "123456"
 
     /// 本机用户 UUID（游客与登录用户共用）。
@@ -99,37 +103,101 @@ final class LocalAuthSession {
         provider = resolvedProvider
     }
 
+    /// 本地演示短信登录（仅 DEBUG）。
     @discardableResult
     func signIn(phone: String, code: String) -> Bool {
+        #if DEBUG
         let trimmed = phone.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= 8, code == Self.demoCode else { return false }
-        LocalUserIdentity.ensure()
-        phoneNumber = trimmed
-        provider = .phone
-        isGuest = false
-        isSignedIn = true
+        applySignedIn(phone: trimmed, provider: .phone)
         return true
+        #else
+        return false
+        #endif
     }
 
-    func signInDemoApple() {
-        LocalUserIdentity.ensure()
-        if phoneNumber.isEmpty || phoneNumber == "demo.wechat" {
-            phoneNumber = "demo.apple"
+    /// 远端短信登录（Release 默认；DEBUG 由 `useRemoteAuth` 控制）。
+    @discardableResult
+    func signInRemote(phone: String, code: String) async -> String? {
+        let trimmed = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 8 else { return "手机号格式不正确" }
+        do {
+            _ = try await RemoteAuthAPI.loginSMS(phone: trimmed, code: code)
+            applySignedIn(phone: trimmed, provider: .phone)
+            return nil
+        } catch let error as APIError {
+            return error.localizedDescription
+        } catch {
+            return error.localizedDescription
         }
-        provider = .apple
-        isGuest = false
-        isSignedIn = true
+    }
+
+    /// 发送短信验证码（远程）。
+    @discardableResult
+    func sendRemoteSMSCode(phone: String) async -> String? {
+        let trimmed = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 8 else { return "手机号格式不正确" }
+        do {
+            let data = try await RemoteAuthAPI.sendSMS(phone: trimmed)
+            #if DEBUG
+            if let dev = data.devCode, !dev.isEmpty {
+                return nil // 成功；dev_code 由 UI footer 提示服务端行为
+            }
+            #endif
+            _ = data
+            return nil
+        } catch let error as APIError {
+            return error.localizedDescription
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    /// 真实 Sign in with Apple（可编程请求，用于协议同意后）。
+    @discardableResult
+    func signInWithApple() async -> String? {
+        do {
+            let result = try await AppleSignInService.signIn()
+            return applyAppleCredential(
+                userID: result.userID,
+                displayName: result.email
+                    ?? [result.fullName?.givenName, result.fullName?.familyName]
+                        .compactMap { $0 }
+                        .joined(separator: " ")
+            )
+        } catch AppleSignInError.canceled {
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    /// `SignInWithAppleButton` 回调已取得凭证时写入会话（避免二次弹窗）。
+    @discardableResult
+    func signInWithAppleUsingCredential(userID: String, displayName: String) async -> String? {
+        applyAppleCredential(userID: userID, displayName: displayName)
+    }
+
+    @discardableResult
+    private func applyAppleCredential(userID: String, displayName: String) -> String? {
+        AuthTokenStore.appleUserID = userID
+        let label = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        applySignedIn(
+            phone: label.isEmpty ? "apple.\(userID.prefix(8))" : label,
+            provider: .apple
+        )
+        return nil
+    }
+
+    #if DEBUG
+    func signInDemoApple() {
+        applySignedIn(phone: phoneNumber.isEmpty || phoneNumber == "demo.wechat" ? "demo.apple" : phoneNumber, provider: .apple)
     }
 
     func signInDemoWeChat() {
-        LocalUserIdentity.ensure()
-        if phoneNumber.isEmpty || phoneNumber == "demo.apple" {
-            phoneNumber = "demo.wechat"
-        }
-        provider = .wechat
-        isGuest = false
-        isSignedIn = true
+        applySignedIn(phone: phoneNumber.isEmpty || phoneNumber == "demo.apple" ? "demo.wechat" : phoneNumber, provider: .wechat)
     }
+    #endif
 
     /// 以访客身份继续：不绑定手机号，保留本机 UUID。
     func continueAsGuest() {
@@ -138,12 +206,14 @@ final class LocalAuthSession {
         provider = .guest
         isGuest = true
         isSignedIn = true
+        AuthTokenStore.clear()
     }
 
     func signOut() {
         isSignedIn = false
         isGuest = false
         provider = .guest
+        AuthTokenStore.clear()
     }
 
     func resetStoredSession() {
@@ -151,11 +221,29 @@ final class LocalAuthSession {
         isGuest = false
         isSignedIn = false
         provider = .guest
+        AuthTokenStore.clearAllIncludingAppleUser()
         UserDefaults.standard.removeObject(forKey: Keys.phone)
         UserDefaults.standard.removeObject(forKey: Keys.signedIn)
         UserDefaults.standard.removeObject(forKey: Keys.guest)
         UserDefaults.standard.removeObject(forKey: Keys.provider)
         LocalUserIdentity.regenerate()
+    }
+
+    /// 刷新失败等场景：清会话并回到登录。
+    func invalidateRemoteSession() {
+        AuthTokenStore.clear()
+        if provider != .guest, !isGuest {
+            isSignedIn = false
+            provider = .guest
+        }
+    }
+
+    private func applySignedIn(phone: String, provider: LocalAccountProvider) {
+        LocalUserIdentity.ensure()
+        phoneNumber = phone
+        self.provider = provider
+        isGuest = false
+        isSignedIn = true
     }
 
     private static func inferredProvider(isGuest: Bool, phone: String) -> LocalAccountProvider {
@@ -164,7 +252,9 @@ final class LocalAuthSession {
         case "demo.apple": return .apple
         case "demo.wechat": return .wechat
         case "": return .guest
-        default: return .phone
+        default:
+            if phone.hasPrefix("apple.") { return .apple }
+            return .phone
         }
     }
 }

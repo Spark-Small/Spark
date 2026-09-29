@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum PassConfiguration {
     /// Developer → Identifiers → Pass Type IDs 中注册后填入

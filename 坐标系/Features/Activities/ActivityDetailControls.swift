@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 enum ActivityDetailControls {
     /// 官方圆形 glass 图标：闹钟 / 导航 / 私信 / 关闭 / 发送

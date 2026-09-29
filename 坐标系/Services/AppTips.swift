@@ -7,6 +7,7 @@
 
 import SwiftUI
 import TipKit
+import CoordinateModels
 
 struct ActivityFilterTip: Tip {
     var title: Text {

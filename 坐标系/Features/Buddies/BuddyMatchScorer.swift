@@ -4,7 +4,9 @@
 //
 
 import Foundation
+import CoordinateModels
 
+@MainActor
 enum BuddyMatchScorer {
     /// 由 AppModel 在启动 / 引导 / 改资料后注入
     static var myInterests: [String] = SampleData.currentUserInterests

@@ -7,6 +7,7 @@
 
 import Foundation
 import Observation
+import CoordinateModels
 
 struct OpsAnnouncement: Identifiable, Codable, Hashable {
     let id: String
@@ -28,7 +29,7 @@ struct OpsFeedbackRecord: Identifiable, Codable, Hashable {
 @MainActor
 @Observable
 final class OpsContentStore {
-    static let shared = OpsContentStore()
+    static var shared: OpsContentStore { AppComposition.opsContentStore }
 
     private static let feedbackFile = "ops_feedback.json"
     private static let dismissedAnnouncementsKey = "ops.dismissedAnnouncements"
@@ -61,7 +62,7 @@ final class OpsContentStore {
         )
     ]
 
-    private init() {
+    init() {
         feedback = Self.loadFeedback()
         let dismissed = UserDefaults.standard.stringArray(forKey: Self.dismissedAnnouncementsKey) ?? []
         dismissedAnnouncementIDs = Set(dismissed)

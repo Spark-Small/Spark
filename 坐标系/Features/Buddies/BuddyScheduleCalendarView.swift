@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 struct BuddyScheduleCalendarView: View {
     let slots: [String]

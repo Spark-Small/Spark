@@ -5,7 +5,9 @@
 //  搭子 / 陪玩详情文案。
 //
 
+import CoordinateFeatureFlags
 import Foundation
+import CoordinateModels
 
 nonisolated enum BuddyDetailCopy {
     static let greet = "打招呼"
@@ -27,9 +29,9 @@ nonisolated enum BuddyDetailCopy {
     static let relatedTitle = "可以一起去"
     static let relatedFooter = "根据 TA 常约的类型推荐"
     static let performanceTitle = "接单与口碑"
-    static let circleTitle = "所在圈子"
-    static let returnToCircleHint = "返回圈子信息"
-    static let openCircleHint = "查看圈子详情"
+    static let circleTitle = "所在俱乐部"
+    static let returnToCircleHint = "返回俱乐部信息"
+    static let openCircleHint = "查看俱乐部详情"
     static let trustArchiveTitle = "信任档案"
     static let reviewsTitle = "用户评价"
     static let reviewsEmpty = "暂无评价"
@@ -125,7 +127,48 @@ nonisolated enum BuddyBookingFlowCopy {
     static let unavailableTitle = BuddyDetailCopy.bookUnavailable
     static let unavailableBody = "对方档期已满或暂停接单，可先打招呼沟通时间。"
     static let conflictHint = "该时间与已有预约冲突，请改选其他时段。"
-    static let submittedHint = "接单后系统会通知你支付；也可在「我的 → 陪玩预约」查看进度。"
+    static let submittedDemoSimulationBadge = "演示环境模拟接单"
+    static let waitStepSubmitted = "已提交预约"
+    static let waitStepAwaitingCompanion = "等待陪玩确认"
+    static let waitStepPayment = "完成支付"
+    static var submittedHint: String {
+        if FeatureFlags.useRemoteBuddies {
+            return "接单后可在「我的 → 我的订单」核对并完成支付；陪玩确认后会在 App 内通知你。"
+        }
+        if FeatureFlags.simulateBookingCompanionAcceptance {
+            return "接单后可在「我的 → 我的订单」核对并完成支付；\(submittedDemoSimulationBadge)，约 4 秒内自动推进。"
+        }
+        return "接单后可在「我的 → 我的订单」查看进度；陪玩通常在 30 分钟内确认，超时将自动取消。"
+    }
+    static let companionAcceptedPayHint = "对方已接单，请核对订单后完成支付"
+    static let companionDeclinedHint = "对方已拒单"
+    static let awaitingPaymentTitle = "待支付预约"
+    static let orderDetailTitle = "预约订单"
+    static let awaitingPaymentReviewFooter = "请核对陪玩、时间与费用后再支付。支付成功后生成预约凭证。"
+    static let paymentExpiredHint = "支付超时，预约已自动取消"
+    static let confirmationExpiredHint = "陪玩未在时限内确认，预约已自动取消"
+    static func confirmationDeadlineFooter(for record: BuddyBookingRecord, now: Date = .now) -> String {
+        guard record.status == .pendingConfirm, let due = record.confirmDueAt else {
+            return "提交后请耐心等待陪玩确认；确认结果将通过通知告知你。"
+        }
+        if now >= due {
+            return "确认时限已过，订单将自动取消。"
+        }
+        return "陪玩通常在 \(Formatters.activityEventTime(from: due, relativeTo: now)) 前确认；超时订单将自动取消。"
+    }
+    static func paymentDeadlineFooter(for record: BuddyBookingRecord, now: Date = .now) -> String {
+        guard record.status == .awaitingPayment, let due = record.paymentDueAt else {
+            return awaitingPaymentReviewFooter
+        }
+        if now >= due {
+            return "支付时限已过，订单将自动释放。"
+        }
+        return "请在 \(Formatters.activityEventTime(from: due, relativeTo: now)) 前完成支付，超时订单将自动取消。"
+    }
+    static let goToPay = "去支付"
+    static let payLater = "稍后支付"
+    static let viewCancellationPolicy = "查看取消规则"
+    static let cancellationPolicyBody = "待支付订单可随时撤回；支付后取消与退款按预约详情中的规则处理。"
     static let successTitle = "支付成功"
     static let successSubtitle = "预约凭证已生成，开场前会提醒你。"
     static let inviteConfirmTitle = "确认邀约"
@@ -155,6 +198,13 @@ nonisolated enum BuddyBookingFlowCopy {
     static let durationLabel = "时长"
     static let feeLabel = "费用"
     static let hoursUnit = "小时"
+    static let confirmServiceCompleted = "确认服务已完成"
+    static let markServiceStarted = "标记服务已开始"
+    static let fulfillmentSectionFooter = "多数履约一步确认即可；如需留痕，可先标记服务已开始。"
+    static let refundingFooter = "退款处理中，请耐心等待。完成前不可改期或再次申请退款。"
+    static let refundedFooter = "退款已完成，金额将按原支付方式退回。"
+    static let refundCTA = "申请退款"
+    static let bookingRefundPolicyNote = "待支付订单可随时撤回；支付后如需取消须申请退款，审核通过后按原支付方式退回。"
 
     static func submittedStatus(for record: BuddyBookingRecord) -> String {
         switch record.status {

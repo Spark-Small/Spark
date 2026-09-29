@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum ActivityDetailCopy {
     // MARK: - 决策卡
@@ -34,11 +35,27 @@ enum ActivityDetailCopy {
         return parts.joined(separator: " · ")
     }
 
+    static func friendsGoingLine(friends: [String]) -> String? {
+        guard !friends.isEmpty else { return nil }
+        let preview = friends.prefix(3).joined(separator: "、")
+        let suffix = friends.count > 3 ? " 等 \(friends.count) 位好友" : ""
+        return "\(preview)\(suffix)也报名了"
+    }
+
     static let joinConfirmTitle = ActivityCardStatus.joinConfirm
     static let joinConfirmMessage = "参加后将自动加入活动群，可在开始前取消。"
-    static let joinConfirmPaidHint = "确认后将一次性完成支付与参加，并自动加入活动群。当前为演示支付，不会发起真实扣款。"
+    static let joinConfirmPaidHint = "确认后将用所选方式完成支付并参加，成功后自动加入活动群。"
     static let joinConfirmNotePlaceholder = "给发起人留言（可选）"
     static let joinConfirmPayCTA = "支付并参加"
+    static let joinConfirmPayAction = "支付"
+    static let waitlistPromotionTitle = "候补名额已开放"
+    static let waitlistPromotionFreeDetail = "有空位了，确认后即可转正参加并进入活动群。"
+    static let waitlistPromotionPaidDetail = "有空位了，支付后即可转正参加；名额有限，请尽快确认。"
+    static let waitlistConfirmTitle = "候补转正"
+    static let waitlistConfirmMessage = "确认后将立即转正并加入活动群。"
+    static let waitlistConfirmPaidHint = "支付后将立即转正并加入活动群。"
+    static let waitlistPromotePayAction = "支付并转正"
+    static let waitlistPromotePaidAction = "确认转正"
     static let joinConflictHeader = "时间冲突"
     static let joinConflictFooter = "你已有行程与本场时间重叠，确认后仍可参加，请自行协调安排。"
     static func joinConflictTitle(_ count: Int) -> String {
@@ -67,13 +84,13 @@ enum ActivityDetailCopy {
     static let joinNotePrefix = "【参加留言】"
     static let reportReceivedTitle = ActivityCardStatus.reportReceived
 
-    // MARK: - 支付（本地模拟）
+    // MARK: - 支付
 
     static let paymentTitle = "确认支付"
     static let paymentProcessing = "支付处理中…"
-    static let paymentMockHint = "当前为演示支付流程，不会发起真实扣款。支付成功后将自动完成参加。"
+    static let paymentMockHint = "支付成功后将更新订单并完成参加。钱包余额为本地账本；外部通道就绪前仅支持余额。"
     static let joinFailedFullAfterPayTitle = ActivityCardStatus.fullVerbose
-    static let joinFailedFullAfterPayMessage = "支付完成时名额刚满，演示流程已自动退款。你可以加入候补，有空位时再参加。"
+    static let joinFailedFullAfterPayMessage = "支付完成时名额刚满，已自动退款。你可以加入候补，有空位时再参加。"
 
     // MARK: - 评论 / 推荐
 
@@ -87,11 +104,11 @@ enum ActivityDetailCopy {
     static let commentsViewAll = "查看全部评论"
     static let commentsWriteFirst = "写评论…"
     static let relatedTitle = "相关活动"
-    static let relatedCircleTitle = "相关圈子"
-    static let credentialSectionTitle = "活动凭证"
+    static let relatedCircleTitle = "相关俱乐部"
+    static let credentialSectionTitle = "我的行程"
     static let credentialReissueAction = "补发活动凭证"
     static let credentialVoidedAction = "凭证已作废"
-    static let credentialViewAction = "查看活动凭证"
+    static let credentialViewAction = "打开我的行程"
     static let timelineEditorTitle = "行程安排"
     static let timelineEditorHint = "每行一条，格式：时间｜环节｜说明"
     static let gearEditorTitle = "装备清单"
@@ -109,10 +126,10 @@ enum ActivityDetailCopy {
     static let hostManageRescheduleNotePlaceholder = "改期说明（可选，如：因天气顺延 1 小时）"
     static let hostManageEditBasics = "编辑标题、地点与简介"
     static let hostManageCancelActivity = "取消活动"
-    static let hostManageCancelHint = "取消后活动将从发现列表移除；已支付订单将演示退款，群聊会收到通知。"
+    static let hostManageCancelHint = "取消后活动将从发现列表移除；已支付订单将退款，群聊会收到通知。"
     static let hostManageCancelAlertTitle = "确认取消活动？"
     static func hostManageCancelAlertMessage(title: String) -> String {
-        "「\(title)」将被取消；已支付成员将收到演示退款，活动群会收到取消通知。"
+        "「\(title)」将被取消；已支付成员将收到退款，活动群会收到取消通知。"
     }
 
     static let hostManageActionsTitle = "快捷操作"
@@ -170,6 +187,10 @@ enum ActivityDetailCopy {
     static let navigationAddressField = "活动地址"
     static let recapCTA = "活动已结束 · 分享你的体验"
     static let activityEnded = "活动已结束"
+    static let experienceFeedbackTitle = "参与者感受"
+    static func experienceFeedbackLine(tags: [(tag: String, count: Int)]) -> String {
+        tags.map { "\($0.tag) \($0.count)" }.joined(separator: " · ")
+    }
     static let hostCancelledNotice = "发起人已取消本次活动"
     static let missingActivity = "活动不存在"
 

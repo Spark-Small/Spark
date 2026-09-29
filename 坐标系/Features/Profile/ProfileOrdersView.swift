@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 enum ProfileOrderShortcutFilter: String, CaseIterable, Identifiable, Hashable {
     case pendingPayment
@@ -71,7 +72,7 @@ struct ProfileOrderShortcutCounts {
             switch record.status {
             case .awaitingPayment: counts.pendingPayment += 1
             case .pendingConfirm: counts.pendingConfirm += 1
-            case .paid, .inProgress: counts.pendingJoin += 1
+            case .paid, .inProgress, .refunding: counts.pendingJoin += 1
             case .completed, .refunded: counts.completed += 1
             case .cancelled: counts.cancelled += 1
             }
@@ -120,7 +121,7 @@ private enum ProfileCommerceOrderItem: Identifiable {
             switch filter {
             case .pendingPayment: record.status == .awaitingPayment
             case .pendingConfirm: record.status == .pendingConfirm
-            case .pendingJoin: record.status == .paid || record.status == .inProgress
+            case .pendingJoin: record.status == .paid || record.status == .inProgress || record.status == .refunding
             case .completed: record.status == .completed || record.status == .refunded
             case .cancelled: record.status == .cancelled
             }
@@ -288,8 +289,21 @@ struct ProfileOrdersView: View {
                 }
             }
         case .booking(let record):
-            if let refund = refunds.latestRequest(forOrderID: record.id),
-               refund.status == .submitted || refund.status == .processing {
+            if record.status == .refunding,
+               let refund = refunds.latestRequest(forOrderID: record.id) {
+                NavigationLink {
+                    RefundStatusView(requestID: refund.id)
+                } label: {
+                    orderLabel(
+                        title: "陪玩 · \(record.companionNickname)",
+                        subtitle: "退款中 · \(record.hours) 小时",
+                        amount: record.priceText,
+                        time: Formatters.conversationListTime(from: refund.createdAt),
+                        systemImage: "arrow.uturn.backward.circle"
+                    )
+                }
+            } else if let refund = refunds.latestRequest(forOrderID: record.id),
+                      refund.status == .submitted || refund.status == .processing {
                 NavigationLink {
                     RefundStatusView(requestID: refund.id)
                 } label: {
@@ -298,6 +312,19 @@ struct ProfileOrdersView: View {
                         subtitle: "退款\(refund.status.label) · \(record.hours) 小时",
                         amount: record.priceText,
                         time: Formatters.conversationListTime(from: record.paidAt ?? record.bookedAt),
+                        systemImage: "arrow.uturn.backward.circle"
+                    )
+                }
+            } else if record.status == .refunded,
+                      let refund = refunds.latestRequest(forOrderID: record.id) {
+                NavigationLink {
+                    RefundStatusView(requestID: refund.id)
+                } label: {
+                    orderLabel(
+                        title: "陪玩 · \(record.companionNickname)",
+                        subtitle: "已退款 · \(record.hours) 小时",
+                        amount: record.priceText,
+                        time: Formatters.conversationListTime(from: refund.completedAt ?? record.paidAt ?? record.bookedAt),
                         systemImage: "arrow.uturn.backward.circle"
                     )
                 }

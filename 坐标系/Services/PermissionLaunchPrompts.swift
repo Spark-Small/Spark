@@ -2,25 +2,28 @@
 //  PermissionLaunchPrompts.swift
 //  坐标系
 //
-//  协议同意后的系统权限弹窗：跟踪（登录页）→ 通知（进入主界面）。
-//  仅调用系统 API，文案由 iOS / Info.plist 提供。
+//  系统权限弹窗：通知在报名成功时请求；跟踪仅在设置页主动触发。
 //
 
 import AppTrackingTransparency
 import Foundation
 import UserNotifications
+import CoordinateModels
 
 @MainActor
 enum PermissionLaunchPrompts {
     private static let didAskTrackingKey = "compliance.didAskTrackingAuthorization"
     private static let didAskNotificationKey = "compliance.didAskNotificationAuthorization"
 
+    private static var trackingTask: Task<Void, Never>?
+    private static var notificationTask: Task<Void, Never>?
+
     static func reset() {
         UserDefaults.standard.removeObject(forKey: didAskTrackingKey)
         UserDefaults.standard.removeObject(forKey: didAskNotificationKey)
     }
 
-    /// 登录页：隐私同意后请求「允许跟踪」（系统 ATT Alert）。
+    /// 设置页等主动入口：请求 ATT（不在开屏 / 登录链触发）。
     static func requestTrackingAfterConsentIfNeeded() async {
         guard LegalConsentPreference.isAccepted else { return }
         guard !UserDefaults.standard.bool(forKey: didAskTrackingKey) else { return }
@@ -38,9 +41,6 @@ enum PermissionLaunchPrompts {
         trackingTask = nil
     }
 
-    private static var trackingTask: Task<Void, Never>?
-    private static var notificationTask: Task<Void, Never>?
-
     private static func performTrackingRequest() async {
         guard !UserDefaults.standard.bool(forKey: didAskTrackingKey) else { return }
 
@@ -50,19 +50,16 @@ enum PermissionLaunchPrompts {
             return
         }
 
-        // 等协议 Alert 收起后再弹，避免叠层。
-        try? await Task.sleep(for: .milliseconds(700))
-        guard !Task.isCancelled else { return }
-        guard ATTrackingManager.trackingAuthorizationStatus == .notDetermined else {
-            UserDefaults.standard.set(true, forKey: didAskTrackingKey)
-            return
-        }
-
         UserDefaults.standard.set(true, forKey: didAskTrackingKey)
         _ = await ATTrackingManager.requestTrackingAuthorization()
     }
 
-    /// 主界面：请求「发送通知」（系统通知权限 Alert）。
+    /// 首次报名成功：请求通知权限（动机最强）。
+    static func requestNotificationWhenJoiningIfNeeded() async {
+        await requestNotificationAfterEnterHomeIfNeeded()
+    }
+
+    /// 请求「发送通知」（系统通知权限 Alert）。
     static func requestNotificationAfterEnterHomeIfNeeded() async {
         guard LegalConsentPreference.isAccepted else { return }
         guard !UserDefaults.standard.bool(forKey: didAskNotificationKey) else { return }
@@ -89,23 +86,8 @@ enum PermissionLaunchPrompts {
             return
         }
 
-        try? await Task.sleep(for: .milliseconds(900))
-        guard !Task.isCancelled else { return }
-        let latest = await NotificationService.authorizationStatus()
-        guard latest == .notDetermined else {
-            UserDefaults.standard.set(true, forKey: didAskNotificationKey)
-            return
-        }
-
         UserDefaults.standard.set(true, forKey: didAskNotificationKey)
         _ = await NotificationService.requestAuthorization()
-    }
-
-    /// 已登录冷启动进主页：若登录页未走过跟踪，则先跟踪再通知。
-    static func requestPostLoginChainIfNeeded() async {
-        guard LegalConsentPreference.isAccepted else { return }
-        await requestTrackingAfterConsentIfNeeded()
-        await requestNotificationAfterEnterHomeIfNeeded()
     }
 
     static var trackingStatusText: String {

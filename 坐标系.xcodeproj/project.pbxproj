@@ -6,6 +6,20 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C0A1B2C3D4E5F60718293A01 /* CoordinateNetworking in Frameworks */ = {isa = PBXBuildFile; productRef = C0A1B2C3D4E5F60718293A11 /* CoordinateNetworking */; };
+		C0A1B2C3D4E5F60718293A02 /* CoordinateFeatureFlags in Frameworks */ = {isa = PBXBuildFile; productRef = C0A1B2C3D4E5F60718293A12 /* CoordinateFeatureFlags */; };
+		C0A1B2C3D4E5F60718293A05 /* CoordinateDomain in Frameworks */ = {isa = PBXBuildFile; productRef = C0A1B2C3D4E5F60718293A13 /* CoordinateDomain */; };
+		C0A1B2C3D4E5F60718293A07 /* CoordinateModels in Frameworks */ = {isa = PBXBuildFile; productRef = C0A1B2C3D4E5F60718293A14 /* CoordinateModels */; };
+		C0A1B2C3D4E5F60718293A09 /* CoordinateData in Frameworks */ = {isa = PBXBuildFile; productRef = C0A1B2C3D4E5F60718293A15 /* CoordinateData */; };
+		D4E5F60718293A20B1C2D3E4 /* SVGView in Frameworks */ = {isa = PBXBuildFile; productRef = D4E5F60718293A21B1C2D3E4 /* SVGView */; };
+		E1A2B3C4D5E6F708192A3B11 /* CoordinateNetworking in Frameworks */ = {isa = PBXBuildFile; productRef = E1A2B3C4D5E6F708192A3B21 /* CoordinateNetworking */; };
+		E1A2B3C4D5E6F708192A3B12 /* CoordinateFeatureFlags in Frameworks */ = {isa = PBXBuildFile; productRef = E1A2B3C4D5E6F708192A3B22 /* CoordinateFeatureFlags */; };
+		E1A2B3C4D5E6F708192A3B13 /* CoordinateDomain in Frameworks */ = {isa = PBXBuildFile; productRef = E1A2B3C4D5E6F708192A3B23 /* CoordinateDomain */; };
+		E1A2B3C4D5E6F708192A3B14 /* CoordinateModels in Frameworks */ = {isa = PBXBuildFile; productRef = E1A2B3C4D5E6F708192A3B24 /* CoordinateModels */; };
+		E1A2B3C4D5E6F708192A3B15 /* CoordinateData in Frameworks */ = {isa = PBXBuildFile; productRef = E1A2B3C4D5E6F708192A3B25 /* CoordinateData */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		90A001001122334455667707 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -25,6 +39,7 @@
 		80E7579A300761E8001E6272 /* Exceptions for "坐标系" folder in "坐标系" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				"Info-Debug.plist",
 				Info.plist,
 				StoreKit/Configuration.storekit,
 			);
@@ -53,6 +68,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C0A1B2C3D4E5F60718293A01 /* CoordinateNetworking in Frameworks */,
+				C0A1B2C3D4E5F60718293A02 /* CoordinateFeatureFlags in Frameworks */,
+				C0A1B2C3D4E5F60718293A05 /* CoordinateDomain in Frameworks */,
+				C0A1B2C3D4E5F60718293A07 /* CoordinateModels in Frameworks */,
+				C0A1B2C3D4E5F60718293A09 /* CoordinateData in Frameworks */,
+				D4E5F60718293A20B1C2D3E4 /* SVGView in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -60,6 +81,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E1A2B3C4D5E6F708192A3B11 /* CoordinateNetworking in Frameworks */,
+				E1A2B3C4D5E6F708192A3B12 /* CoordinateFeatureFlags in Frameworks */,
+				E1A2B3C4D5E6F708192A3B13 /* CoordinateDomain in Frameworks */,
+				E1A2B3C4D5E6F708192A3B14 /* CoordinateModels in Frameworks */,
+				E1A2B3C4D5E6F708192A3B15 /* CoordinateData in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -104,6 +130,12 @@
 			);
 			name = "坐标系";
 			packageProductDependencies = (
+				C0A1B2C3D4E5F60718293A11 /* CoordinateNetworking */,
+				C0A1B2C3D4E5F60718293A12 /* CoordinateFeatureFlags */,
+				C0A1B2C3D4E5F60718293A13 /* CoordinateDomain */,
+				C0A1B2C3D4E5F60718293A14 /* CoordinateModels */,
+				C0A1B2C3D4E5F60718293A15 /* CoordinateData */,
+				D4E5F60718293A21B1C2D3E4 /* SVGView */,
 			);
 			productName = "坐标系";
 			productReference = 80E75795300761E8001E6272 /* 坐标系.app */;
@@ -127,6 +159,11 @@
 			);
 			name = "坐标系Tests";
 			packageProductDependencies = (
+				E1A2B3C4D5E6F708192A3B21 /* CoordinateNetworking */,
+				E1A2B3C4D5E6F708192A3B22 /* CoordinateFeatureFlags */,
+				E1A2B3C4D5E6F708192A3B23 /* CoordinateDomain */,
+				E1A2B3C4D5E6F708192A3B24 /* CoordinateModels */,
+				E1A2B3C4D5E6F708192A3B25 /* CoordinateData */,
 			);
 			productName = "坐标系Tests";
 			productReference = 90A001001122334455667701 /* 坐标系Tests.xctest */;
@@ -139,8 +176,8 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2660;
-				LastUpgradeCheck = 2660;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					80E75794300761E8001E6272 = {
 						CreatedOnToolsVersion = 26.6;
@@ -161,6 +198,8 @@
 			mainGroup = 80E7578C300761E8001E6272;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				C0A1B2C3D4E5F60718293A10 /* XCLocalSwiftPackageReference "Packages/CoordinateKit" */,
+				D4E5F60718293A22B1C2D3E4 /* XCRemoteSwiftPackageReference "SVGView" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 80E75796300761E8001E6272 /* Products */;
@@ -221,6 +260,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -250,6 +290,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = A95ZH5QY7B;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -285,6 +326,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -314,6 +356,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = A95ZH5QY7B;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -342,14 +385,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "坐标系/坐标系.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "坐标系/坐标系.Debug.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = A95ZH5QY7B;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "坐标系/Info.plist";
+				INFOPLIST_FILE = "坐标系/Info-Debug.plist";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "用于把已报名的活动写入系统日历";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "用于把已报名的活动写入系统日历";
 				INFOPLIST_KEY_NSCameraUsageDescription = "用于形象认证自拍，以及后续扫一扫识别搭子或活动群二维码";
@@ -358,6 +401,7 @@
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = "请放心，坐标系无法获取你在其他应用内的隐私。开启权限仅用于更优质、安全的个性化服务与内容推荐；开启后可在系统「设置 → 隐私与安全性」中随时关闭。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -365,16 +409,17 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "coordinate.---";
+				PRODUCT_BUNDLE_IDENTIFIER = app.zuobiaoxi.coordinate;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -399,6 +444,7 @@
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = "请放心，坐标系无法获取你在其他应用内的隐私。开启权限仅用于更优质、安全的个性化服务与内容推荐；开启后可在系统「设置 → 隐私与安全性」中随时关闭。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -406,16 +452,17 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "coordinate.---";
+				PRODUCT_BUNDLE_IDENTIFIER = app.zuobiaoxi.coordinate;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -440,9 +487,10 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/坐标系.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/坐标系";
 			};
 			name = Debug;
@@ -468,9 +516,10 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/坐标系.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/坐标系";
 			};
 			name = Release;
@@ -506,6 +555,82 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		C0A1B2C3D4E5F60718293A10 /* XCLocalSwiftPackageReference "Packages/CoordinateKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/CoordinateKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D4E5F60718293A22B1C2D3E4 /* XCRemoteSwiftPackageReference "SVGView" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/exyte/SVGView";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.6;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C0A1B2C3D4E5F60718293A11 /* CoordinateNetworking */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C0A1B2C3D4E5F60718293A10 /* XCLocalSwiftPackageReference "Packages/CoordinateKit" */;
+			productName = CoordinateNetworking;
+		};
+		C0A1B2C3D4E5F60718293A12 /* CoordinateFeatureFlags */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C0A1B2C3D4E5F60718293A10 /* XCLocalSwiftPackageReference "Packages/CoordinateKit" */;
+			productName = CoordinateFeatureFlags;
+		};
+		C0A1B2C3D4E5F60718293A13 /* CoordinateDomain */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C0A1B2C3D4E5F60718293A10 /* XCLocalSwiftPackageReference "Packages/CoordinateKit" */;
+			productName = CoordinateDomain;
+		};
+		C0A1B2C3D4E5F60718293A14 /* CoordinateModels */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C0A1B2C3D4E5F60718293A10 /* XCLocalSwiftPackageReference "Packages/CoordinateKit" */;
+			productName = CoordinateModels;
+		};
+		C0A1B2C3D4E5F60718293A15 /* CoordinateData */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C0A1B2C3D4E5F60718293A10 /* XCLocalSwiftPackageReference "Packages/CoordinateKit" */;
+			productName = CoordinateData;
+		};
+		D4E5F60718293A21B1C2D3E4 /* SVGView */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D4E5F60718293A22B1C2D3E4 /* XCRemoteSwiftPackageReference "SVGView" */;
+			productName = SVGView;
+		};
+		E1A2B3C4D5E6F708192A3B21 /* CoordinateNetworking */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C0A1B2C3D4E5F60718293A10 /* XCLocalSwiftPackageReference "Packages/CoordinateKit" */;
+			productName = CoordinateNetworking;
+		};
+		E1A2B3C4D5E6F708192A3B22 /* CoordinateFeatureFlags */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C0A1B2C3D4E5F60718293A10 /* XCLocalSwiftPackageReference "Packages/CoordinateKit" */;
+			productName = CoordinateFeatureFlags;
+		};
+		E1A2B3C4D5E6F708192A3B23 /* CoordinateDomain */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C0A1B2C3D4E5F60718293A10 /* XCLocalSwiftPackageReference "Packages/CoordinateKit" */;
+			productName = CoordinateDomain;
+		};
+		E1A2B3C4D5E6F708192A3B24 /* CoordinateModels */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C0A1B2C3D4E5F60718293A10 /* XCLocalSwiftPackageReference "Packages/CoordinateKit" */;
+			productName = CoordinateModels;
+		};
+		E1A2B3C4D5E6F708192A3B25 /* CoordinateData */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C0A1B2C3D4E5F60718293A10 /* XCLocalSwiftPackageReference "Packages/CoordinateKit" */;
+			productName = CoordinateData;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 80E7578D300761E8001E6272 /* Project object */;
 }

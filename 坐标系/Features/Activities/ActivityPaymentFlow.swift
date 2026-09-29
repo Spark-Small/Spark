@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import CoordinateModels
 
 enum ActivityOrderStatus: String, Codable {
     case pending
@@ -60,8 +61,15 @@ enum ActivityFeeParser {
 
 @MainActor
 enum ActivityPaymentStore {
+    /// 由 `AppDerivedStateService` 在 `AppModel` 就绪后注入。
+    static var walletStore: WalletStore?
+    static var walletPassStore: WalletPassStore?
+
     private static let fileName = "activity_orders.json"
     private static var cache: [ActivityOrder] = loadAll()
+
+    private static func requireWallet() -> WalletStore? { walletStore }
+    private static func requirePassStore() -> WalletPassStore? { walletPassStore }
 
     static func orders(for activityID: Activity.ID) -> [ActivityOrder] {
         cache.filter { $0.activityID == activityID }.sorted { $0.createdAt > $1.createdAt }
@@ -107,9 +115,10 @@ enum ActivityPaymentStore {
     static func finalizeRefund(orderID: UUID) {
         guard let index = cache.firstIndex(where: { $0.id == orderID }) else { return }
         guard cache[index].status == .refunding else { return }
+        guard let wallet = requireWallet() else { return }
         let order = cache[index]
         let method = PaymentMethod.resolve(order.paymentMethod)
-        WalletStore.shared.credit(
+        wallet.credit(
             amountCents: order.amountCents,
             method: method,
             kind: .activityRefund,
@@ -119,14 +128,17 @@ enum ActivityPaymentStore {
         )
         cache[index].status = .refunded
         persist()
-        WalletPassStore.shared.void(relatedID: order.id)
+        requirePassStore()?.void(relatedID: order.id)
     }
 
-    /// 主办取消活动时，批量演示退款已支付订单
+    /// 主办取消活动时，批量退款已支付订单。
+    /// DEBUG：本地即时完结；Release：仅标记退款中（由 RefundFlow / 服务端确认）。
     static func refundAllPaidOrders(for activityID: Activity.ID) {
         for order in orders(for: activityID) where order.status == .paid {
             _ = requestRefund(orderID: order.id)
-            finalizeRefund(orderID: order.id)
+            if CommercePaymentPolicy.simulatesLocalRefundCompletion {
+                finalizeRefund(orderID: order.id)
+            }
         }
     }
 
@@ -159,7 +171,7 @@ enum ActivityPaymentStore {
     }
 
     @discardableResult
-    static func markPaid(orderID: UUID, method: PaymentMethod = .applePay) -> PaymentOutcome {
+    static func markPaid(orderID: UUID, method: PaymentMethod = .wallet) -> PaymentOutcome {
         guard let index = cache.firstIndex(where: { $0.id == orderID }) else {
             return .failed("订单不存在")
         }
@@ -167,8 +179,14 @@ enum ActivityPaymentStore {
         guard cache[index].status == .pending else {
             return .failed("订单状态已变更")
         }
+        if method != .wallet, !CommercePaymentPolicy.allowsSimulatedExternalCheckout {
+            return .failed(CommercePaymentPolicy.externalCheckoutUnavailableMessage)
+        }
+        guard let wallet = requireWallet() else {
+            return .failed("支付服务未就绪，请稍后重试")
+        }
         let order = cache[index]
-        let outcome = WalletStore.shared.charge(
+        let outcome = wallet.charge(
             amountCents: order.amountCents,
             method: method,
             kind: .activityPayment,
@@ -180,7 +198,9 @@ enum ActivityPaymentStore {
         cache[index].status = .paid
         cache[index].paymentMethod = method.displayName
         persist()
-        WalletPassStore.shared.issueActivityTicket(order: cache[index])
+        if let passStore = requirePassStore() {
+            passStore.issueActivityTicket(order: cache[index])
+        }
         return .success
     }
 
@@ -190,6 +210,41 @@ enum ActivityPaymentStore {
             cache[index].status = .cancelled
             persist()
         }
+    }
+
+    /// 演示：为「剧本杀：情感本」写入已支付订单并签发 Pass（不扣钱包，仅本地演示）。
+    /// 仅 DEBUG 引导路径调用；Release 不得伪造已支付订单。
+    @discardableResult
+    static func installDemoPaidOrder(
+        activity: Activity,
+        orderID: UUID,
+        passStore: WalletPassStore
+    ) -> ActivityOrder {
+        #if DEBUG
+        if let existing = paidOrder(for: activity.id) {
+            _ = passStore.issueActivityTicket(order: existing, activity: activity)
+            return existing
+        }
+
+        let payable = ActivityFeeParser.payableAmount(for: activity)
+            ?? (display: activity.fee, cents: 12_800)
+        let order = ActivityOrder(
+            id: orderID,
+            activityID: activity.id,
+            activityTitle: activity.title,
+            feeDisplay: payable.display,
+            amountCents: payable.cents,
+            createdAt: .now,
+            status: .paid,
+            paymentMethod: PaymentMethod.applePay.displayName
+        )
+        cache.insert(order, at: 0)
+        persist()
+        _ = passStore.issueActivityTicket(order: order, activity: activity)
+        return order
+        #else
+        preconditionFailure("installDemoPaidOrder is DEBUG-only")
+        #endif
     }
 
     private static func loadAll() -> [ActivityOrder] {
@@ -204,8 +259,13 @@ enum ActivityPaymentStore {
     private static func persist() {
         let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent(fileName)
-        guard let data = try? JSONEncoder().encode(cache) else { return }
-        try? data.write(to: url, options: [.atomic])
+        do {
+            let data = try JSONEncoder().encode(cache)
+            try data.write(to: url, options: [.atomic])
+        } catch {
+            assertionFailure("ActivityPaymentStore persist failed: \(error)")
+            PersistenceWriteFailureReporter.record(domainKey: "activityOrders", error: error)
+        }
     }
 
     static func resetAll() {
@@ -218,6 +278,7 @@ struct ActivityPaymentSheet: View {
     let activity: Activity
     var onPaid: () -> Void
 
+    @Environment(WalletPassStore.self) private var walletPassStore
     @State private var order: ActivityOrder?
 
     private var payable: (display: String, cents: Int)? {
@@ -241,7 +302,7 @@ struct ActivityPaymentSheet: View {
                         let outcome = ActivityPaymentStore.markPaid(orderID: ensured.id, method: method)
                         if outcome == .success {
                             if let paid = ActivityPaymentStore.order(id: ensured.id) {
-                                WalletPassStore.shared.issueActivityTicket(order: paid, activity: activity)
+                                walletPassStore.issueActivityTicket(order: paid, activity: activity)
                             }
                             onPaid()
                         }
@@ -310,7 +371,7 @@ struct ActivityOrdersSheet: View {
             .sheet(item: $refundTarget) { order in
                 let activity = activities.activity(id: order.activityID)
                 let notes = activity.map { ActivityDetailBlueprint.make(for: $0).refundNotes } ?? []
-                RefundRequestSheet.activityOrder(order, activity: activity, refundNotes: notes) { reason, detail in
+                RefundRequestSheet.activityOrder(order, activity: activity, refundNotes: notes) { reason, detail, _ in
                     beginRefund(order, reason: reason, detail: detail)
                 }
                 .toolbarVisibility(.hidden, for: .tabBar)
@@ -337,7 +398,8 @@ struct ActivityOrdersSheet: View {
         }
     }
 
-    private func beginRefund(_ order: ActivityOrder, reason: String, detail: String) {
+    @discardableResult
+    private func beginRefund(_ order: ActivityOrder, reason: String, detail: String) -> Bool {
         let activity = activities.activity(id: order.activityID)
         let notes = activity.map { ActivityDetailBlueprint.make(for: $0).refundNotes } ?? []
         let result = refunds.submitActivityRefund(
@@ -353,8 +415,10 @@ struct ActivityOrdersSheet: View {
             presentedRefundRequestID = record.id
             reload()
             onRefundCompleted?()
+            return true
         case .failure(let error):
             refundError = error.localizedDescription
+            return false
         }
     }
 }

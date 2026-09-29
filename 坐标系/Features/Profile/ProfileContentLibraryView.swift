@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 // MARK: - Published (分享 / 发起)
 
@@ -159,11 +160,15 @@ struct ProfileFavoriteActivitiesLibraryView: View {
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         Button("取消收藏", systemImage: "bookmark.slash") {
-                            model.toggleFavorite(activity.id)
+                            PlatformMotion.withAnimation(.easeOut(duration: 0.25)) {
+                                model.toggleFavorite(activity.id)
+                            }
                         }
                         .tint(.gray)
                     }
+                    .transition(.opacity.combined(with: .move(edge: .leading)))
                 }
+                .platformAnimation(.easeOut(duration: 0.25), value: model.favoriteIDs)
             }
         }
         .profileSecondaryListChrome()

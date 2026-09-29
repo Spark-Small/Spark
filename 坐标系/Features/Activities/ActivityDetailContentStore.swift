@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 struct ActivityDetailContentOverride: Codable, Hashable {
     /// 自定义行程（为空则用类别模板）
@@ -86,7 +87,7 @@ enum ActivityDetailContentStore {
         let key = id.uuidString
         if let names = cache[key]?.galleryPhotoNames {
             for name in names {
-                CommunityPhotoStore.delete(named: name)
+                LocalMediaLibrary.delete(named: name)
             }
         }
         cache.removeValue(forKey: key)
@@ -96,7 +97,7 @@ enum ActivityDetailContentStore {
     static func resetAll() {
         for override in cache.values {
             for name in override.galleryPhotoNames ?? [] {
-                CommunityPhotoStore.delete(named: name)
+                LocalMediaLibrary.delete(named: name)
             }
         }
         cache = [:]
@@ -111,7 +112,7 @@ enum ActivityDetailContentStore {
         }
         let extras = override(for: activity.id)?.galleryPhotoNames ?? []
         for name in extras where name != activity.localCoverName {
-            if let url = CommunityPhotoStore.fileURL(named: name) {
+            if let url = LocalMediaLibrary.fileURL(named: name) {
                 refs.append(.file(url))
             }
         }

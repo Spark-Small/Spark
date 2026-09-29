@@ -5,6 +5,7 @@
 //  消息：业务只保留「好友」与「群聊」两类社交会话。
 //
 
+import CoordinateModels
 import Foundation
 
 /// Pure string constants — opt out of default MainActor isolation so values can be
@@ -18,7 +19,23 @@ nonisolated enum MessagesCopy {
     static let searchSectionHistory = "聊天记录"
     static let filterFriends = "好友聊天"
     static let filterGroups = "群聊"
-    static let circleGroupSubtitle = "圈子"
+    static let filterActivityGroups = "活动群"
+    static let filterClubGroups = "俱乐部"
+    static let filterAll = "全部"
+    static let activityGroupBadge = "活动群"
+    static let circleGroupBadge = "俱乐部"
+    /// 收件箱 / 导航短标签（无成员数）
+    static let circleGroupSubtitle = circleGroupBadge
+    static func activityGroupWelcome(title: String) -> String {
+        "这是「\(title)」的活动群，集合信息会发在这里"
+    }
+    static func activityGroupSubtitleLine(eventAt: Date?) -> String {
+        guard let eventAt else { return activityGroupBadge }
+        return "\(activityGroupBadge) · \(Formatters.activityEventTime(from: eventAt))"
+    }
+    static func circleGroupSubtitleLine(memberCount: Int) -> String {
+        "\(circleGroupBadge) · \(memberCount) 位成员"
+    }
     static let friendsListTitle = "通讯录"
     static let friendsListEmptyTitle = "通讯录为空"
     static let friendsListEmptyDescription = "邀请好友一起玩，或通过 UID 添加联系人"
@@ -76,7 +93,12 @@ nonisolated enum MessagesCopy {
     static let messageRequestsPreview = "预览"
 
     static let emptyInboxTitle = "还没有会话"
-    static let emptyInboxDescription = "接受好友申请后，或参加活动进入群聊，会话会出现在这里"
+    static let emptyInboxDescription = "参加活动会自动创建活动群；加入俱乐部或去搭子页打招呼，会话会出现在这里"
+    static let emptyInboxBrowseActivities = "去发现活动"
+    static let emptyInboxMeetBuddies = "去找搭子"
+    static let emptyInboxJoinClubs = "加入俱乐部"
+    static let activityGroupInboxHint = "你报名的活动群在这里"
+    static let activityGroupInboxFilterAction = "只看活动群"
     static let startChat = "发起聊天"
     static let startChatTitle = "发起聊天"
     static let startChatFooter = "选一位好友开始聊天；选多位好友将创建群聊。"
@@ -89,7 +111,7 @@ nonisolated enum MessagesCopy {
     static let addFriendByUIDField = "对方 UID"
     static let addFriendByUIDPlaceholder = "9 位数字"
     static let addFriendByUIDAction = "添加"
-    static let addFriendByUIDFooter = "输入对方对外 UID（9 位数字）。可在「我的 → 账号与安全」查看自己的 UID。"
+    static let addFriendByUIDFooter = "输入对方对外 UID（9 位数字）。发送后需对方同意才能成为好友。可在「我的 → 账号与安全」查看自己的 UID。"
     static let addFriendByUIDInvalid = "请输入 9 位数字 UID"
     static let addFriendByUIDNotFound = "未找到该 UID 对应的用户"
     static let addFriendByUIDIsSelf = "不能添加自己"
@@ -97,7 +119,10 @@ nonisolated enum MessagesCopy {
         "「\(name)」已是好友"
     }
     static func addFriendByUIDSuccess(_ name: String) -> String {
-        "已添加「\(name)」为好友"
+        "已向「\(name)」发送好友申请，对方同意后即可开始聊天"
+    }
+    static func addFriendByUIDPending(_ name: String) -> String {
+        "已向「\(name)」发送过申请，请等待对方验证"
     }
     static func addFriendByUIDGreeting(uid: String) -> String {
         "你好，我通过 UID \(UserPublicID.formatDisplay(uid)) 加你为好友"
@@ -249,6 +274,11 @@ nonisolated enum MessagesCopy {
     static let activeNow = "在线"
     static let seenStatus = "已读"
     static let deliveredStatus = "已送达"
+    static let sentStatus = "已发送"
+    static let failedStatus = "发送失败"
+    static let retrySend = "重发"
+    static let loadOlderMessages = "加载更早消息"
+    static let photoImportFailed = "无法导入所选图片，请换一张再试"
 
     // MARK: - Attach / social sheets
 

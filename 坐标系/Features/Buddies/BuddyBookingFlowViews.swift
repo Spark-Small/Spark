@@ -6,6 +6,134 @@
 //
 
 import SwiftUI
+import CoordinateFeatureFlags
+import CoordinateModels
+
+private enum BookingWaitStepState {
+    case complete
+    case current
+    case upcoming
+}
+
+struct BuddyBookingWaitProgressView: View {
+    let record: BuddyBookingRecord
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: PlatformMetrics.detailMicroSpacing) {
+            waitStepRow(
+                title: BuddyBookingFlowCopy.waitStepSubmitted,
+                state: submittedStepState
+            )
+            waitStepRow(
+                title: BuddyBookingFlowCopy.waitStepAwaitingCompanion,
+                state: awaitingCompanionStepState
+            )
+            waitStepRow(
+                title: BuddyBookingFlowCopy.waitStepPayment,
+                state: paymentStepState
+            )
+
+            if FeatureFlags.simulateBookingCompanionAcceptance,
+               !FeatureFlags.useRemoteBuddies,
+               record.status == .pendingConfirm {
+                Label(BuddyBookingFlowCopy.submittedDemoSimulationBadge, systemImage: "wand.and.stars")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, PlatformMetrics.hairlineSpacing)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var submittedStepState: BookingWaitStepState {
+        switch record.status {
+        case .pendingConfirm, .awaitingPayment, .paid, .inProgress, .completed, .refunding, .refunded:
+            return .complete
+        case .cancelled:
+            return .complete
+        }
+    }
+
+    private var awaitingCompanionStepState: BookingWaitStepState {
+        switch record.status {
+        case .pendingConfirm:
+            return .current
+        case .awaitingPayment, .paid, .inProgress, .completed, .refunding, .refunded:
+            return .complete
+        case .cancelled:
+            return .upcoming
+        }
+    }
+
+    private var paymentStepState: BookingWaitStepState {
+        switch record.status {
+        case .pendingConfirm:
+            return .upcoming
+        case .awaitingPayment:
+            return .current
+        case .paid, .inProgress, .completed, .refunding, .refunded:
+            return .complete
+        case .cancelled:
+            return .upcoming
+        }
+    }
+
+    @ViewBuilder
+    private func waitStepRow(title: String, state: BookingWaitStepState) -> some View {
+        HStack(spacing: PlatformMetrics.minContentGap) {
+            Image(systemName: waitStepIcon(for: state))
+                .font(.body.weight(.semibold))
+                .foregroundStyle(waitStepColor(for: state))
+                .frame(width: 22)
+
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(state == .upcoming ? .secondary : .primary)
+
+            Spacer(minLength: 0)
+
+            if state == .current {
+                ProgressView()
+                    .controlSize(.small)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel(for: title, state: state))
+    }
+
+    private func waitStepIcon(for state: BookingWaitStepState) -> String {
+        switch state {
+        case .complete:
+            "checkmark.circle.fill"
+        case .current:
+            "clock.fill"
+        case .upcoming:
+            "circle"
+        }
+    }
+
+    private func waitStepColor(for state: BookingWaitStepState) -> Color {
+        switch state {
+        case .complete:
+            PlatformStatus.success
+        case .current:
+            Color.accentColor
+        case .upcoming:
+            Color.secondary.opacity(0.45)
+        }
+    }
+
+    private func accessibilityLabel(for title: String, state: BookingWaitStepState) -> String {
+        switch state {
+        case .complete:
+            "\(title)，已完成"
+        case .current:
+            "\(title)，进行中"
+        case .upcoming:
+            "\(title)，待进行"
+        }
+    }
+}
 
 private struct BuddyBookingSummaryCard: View {
     let record: BuddyBookingRecord
@@ -26,6 +154,77 @@ private struct BuddyBookingSummaryCard: View {
         .padding(PlatformMetrics.cardInfoSpacing)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(PlatformSurface.elevated, in: PlatformMetrics.cardShape)
+    }
+}
+
+struct BookingAwaitingPaymentSheet: View {
+    let record: BuddyBookingRecord
+    var onPay: () -> Void
+    var onContactCompanion: () -> Void
+    var onPayLater: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var showCancellationPolicy = false
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: PlatformMetrics.sectionSpacing) {
+                VStack(spacing: PlatformMetrics.detailMicroSpacing) {
+                    Text(BuddyBookingFlowCopy.submittedStatus(for: record))
+                        .font(.title3.weight(.bold))
+                        .multilineTextAlignment(.center)
+
+                    Text(BuddyBookingFlowCopy.paymentDeadlineFooter(for: record))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                BuddyBookingSummaryCard(record: record)
+
+                Spacer(minLength: 0)
+
+                VStack(spacing: PlatformMetrics.minContentGap) {
+                    Button {
+                        onPay()
+                        dismiss()
+                    } label: {
+                        Label(BuddyBookingFlowCopy.goToPay, systemImage: "yensign.circle")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button {
+                        onContactCompanion()
+                    } label: {
+                        Label(BuddyBookingFlowCopy.contactCompanion, systemImage: "message.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+
+                    Button(BuddyBookingFlowCopy.viewCancellationPolicy) {
+                        showCancellationPolicy = true
+                    }
+                    .font(.subheadline)
+
+                    Button(BuddyBookingFlowCopy.payLater) {
+                        onPayLater()
+                        dismiss()
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, PlatformMetrics.contentInset)
+            .padding(.bottom, PlatformMetrics.minContentGap)
+            .navigationTitle(BuddyBookingFlowCopy.awaitingPaymentTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .alert(BuddyBookingFlowCopy.viewCancellationPolicy, isPresented: $showCancellationPolicy) {
+                Button(BuddyBookingFlowCopy.gotIt, role: .cancel) {}
+            } message: {
+                Text(BuddyBookingFlowCopy.cancellationPolicyBody)
+            }
+        }
+        .platformSheet(.confirm)
     }
 }
 
@@ -96,7 +295,13 @@ struct BuddyBookingSubmittedSheet: View {
                     .font(.title3.weight(.bold))
                     .multilineTextAlignment(.center)
 
-                Text(BuddyBookingFlowCopy.submittedHint)
+                if record.status == .pendingConfirm {
+                    BuddyBookingWaitProgressView(record: record)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, PlatformMetrics.hairlineSpacing)
+                }
+
+                Text(BuddyBookingFlowCopy.confirmationDeadlineFooter(for: record))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

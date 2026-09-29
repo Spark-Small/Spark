@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 struct TagFlow: View {
     let tags: [String]

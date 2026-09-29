@@ -8,6 +8,7 @@
 import PhotosUI
 import SwiftUI
 import UIKit
+import CoordinateModels
 
 struct ActivityReportSheet: View {
     let activity: Activity
@@ -61,18 +62,18 @@ struct ActivityReportSheet: View {
                 }
 
                 Section {
+                    let evidencePickerTitle = PlatformPhotosPickerCopy.evidenceLabel(
+                        count: previewImages.count,
+                        emptyTitle: ActivityDetailCopy.reportEvidenceAdd,
+                        selectedTitle: ActivityDetailCopy.reportEvidenceSelected
+                    )
                     PhotosPicker(
                         selection: $pickerItems,
                         maxSelectionCount: maxEvidence,
                         matching: .images,
                         photoLibrary: .shared()
                     ) {
-                        Label(
-                            previewImages.isEmpty
-                                ? ActivityDetailCopy.reportEvidenceAdd
-                                : ActivityDetailCopy.reportEvidenceSelected(previewImages.count),
-                            systemImage: "photo.on.rectangle.angled"
-                        )
+                        Label(evidencePickerTitle, systemImage: "photo.on.rectangle.angled")
                     }
                     .onChange(of: pickerItems) { _, items in
                         Task { await loadEvidence(items) }

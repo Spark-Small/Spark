@@ -7,16 +7,17 @@
 
 import Foundation
 import Observation
+import CoordinateModels
 
 @MainActor
 @Observable
 final class PassStore {
-    static let shared = PassStore()
+    static var shared: PassStore { AppComposition.walletPassStore }
 
     private static let fileName = "wallet_passes.json"
     private(set) var passes: [PassRecord]
 
-    private init() {
+    init() {
         passes = Self.load().sorted { $0.createdAt > $1.createdAt }
         PassConfiguration.ensureDirectories()
     }
@@ -94,7 +95,7 @@ final class PassStore {
     /// 预览轨：排除已作废 / 退款 / 取消；完成票可保留。
     func shouldShowBookingOnPreviewRail(_ record: BuddyBookingRecord) -> Bool {
         switch record.status {
-        case .refunded, .cancelled:
+        case .refunded, .cancelled, .refunding:
             return false
         case .pendingConfirm, .awaitingPayment:
             return false
@@ -209,12 +210,15 @@ final class PassStore {
     }
 
     private func applyDraftFields(_ draft: PassDraft, to record: inout PassRecord) {
+        record.headerFields = draft.headerFields
         record.primaryFields = draft.primaryFields
         record.secondaryFields = draft.secondaryFields
         record.auxiliaryFields = draft.auxiliaryFields
         record.backFields = draft.backFields
         record.relevantDate = draft.relevantDate
         record.expirationDate = draft.expirationDate
+        record.appearanceKey = draft.appearanceKey
+        record.backgroundColorRGB = draft.backgroundColorRGB
     }
 
     // MARK: - Void / Revoke

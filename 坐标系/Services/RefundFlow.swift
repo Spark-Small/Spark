@@ -7,6 +7,7 @@
 
 import Foundation
 import Observation
+import CoordinateModels
 
 // MARK: - Models
 
@@ -135,7 +136,7 @@ enum RefundPolicy {
             return Evaluation(
                 allowed: true,
                 headline: "临近开始仍可退",
-                detail: "距开始不足 2 小时，提交后将尽快处理；演示环境按原支付方式退回。"
+                detail: "距开始不足 2 小时，提交后将尽快处理，并按原支付方式退回。"
             )
         }
         return Evaluation(
@@ -157,7 +158,7 @@ enum RefundPolicy {
 
 enum RefundFlowCopy {
     static let statusNavigationTitle = "退款进度"
-    static let submittedHint = "申请已提交，正在排队处理"
+    static let submittedHint = "申请已提交，到账结果以支付服务商与运营审核为准"
     static let processingHint = "退款处理中，请稍候"
     static let completedHint = "退款已完成"
     static let rejectedHint = "退款未通过"
@@ -172,7 +173,7 @@ enum RefundFlowCopy {
         if method.affectsWalletBalance {
             return "\(amountDisplay) 已退回钱包余额"
         }
-        return "\(amountDisplay) 将原路退回 \(method.displayName)，演示环境即时到账"
+        return "\(amountDisplay) 将原路退回 \(method.displayName)"
     }
 }
 
@@ -181,13 +182,24 @@ enum RefundFlowCopy {
 @MainActor
 @Observable
 final class RefundFlowService {
-    static let shared = RefundFlowService()
+    static var shared: RefundFlowService { AppComposition.refundFlowService }
+
+    private let walletStore: WalletStore
+    private let walletPassStore: WalletPassStore
+    private let trustService: TrustService
 
     private static let fileName = "refund_requests.json"
     private(set) var requests: [RefundRequestRecord] = []
     private var processingTasks: [UUID: Task<Void, Never>] = [:]
 
-    private init() {
+    init(
+        walletStore: WalletStore,
+        walletPassStore: WalletPassStore,
+        trustService: TrustService
+    ) {
+        self.walletStore = walletStore
+        self.walletPassStore = walletPassStore
+        self.trustService = trustService
         requests = Self.loadAll().sorted { $0.createdAt > $1.createdAt }
     }
 
@@ -318,7 +330,8 @@ final class RefundFlowService {
         detail: String,
         initiator: RefundInitiator = .user,
         expedited: Bool = false,
-        onFinalize: @escaping (BuddyBookingRecord.ID) -> Void = { _ in }
+        onFinalize: @escaping (BuddyBookingRecord.ID) -> Void = { _ in },
+        onReject: @escaping (BuddyBookingRecord.ID) -> Void = { _ in }
     ) -> Result<RefundRequestRecord, RefundSubmitError> {
         if isRefunding(orderID: record.id) {
             return .failure(.duplicateInFlight)
@@ -329,6 +342,10 @@ final class RefundFlowService {
             guard policy.allowed else {
                 return .failure(.policyDenied(policy.detail))
             }
+            guard record.canRefund else {
+                return .failure(.orderNotRefundable)
+            }
+        } else if record.status != .refunding {
             guard record.canRefund else {
                 return .failure(.orderNotRefundable)
             }
@@ -358,16 +375,39 @@ final class RefundFlowService {
         )
         insert(refundRecord)
         bookingFinalizeHandlers[refundRecord.id] = onFinalize
+        bookingRejectHandlers[refundRecord.id] = onReject
         enqueueProcessing(recordID: refundRecord.id, expedited: expedited) {}
         return .success(refundRecord)
     }
 
     private var bookingFinalizeHandlers: [UUID: (BuddyBookingRecord.ID) -> Void] = [:]
+    private var bookingRejectHandlers: [UUID: (BuddyBookingRecord.ID) -> Void] = [:]
+
+    /// 演示 / 客服：拒绝退款申请并恢复预约履约态。
+    func rejectRequest(
+        requestID: UUID,
+        message: String = RefundFlowCopy.rejectedHint
+    ) {
+        guard var record = request(id: requestID) else { return }
+        guard record.status == .submitted || record.status == .processing else { return }
+        processingTasks[requestID]?.cancel()
+        processingTasks.removeValue(forKey: requestID)
+        record.status = .rejected
+        record.rejectionMessage = message
+        record.completedAt = .now
+        update(record)
+        if record.kind == .booking {
+            bookingRejectHandlers[requestID]?(record.orderID)
+            bookingRejectHandlers.removeValue(forKey: requestID)
+            bookingFinalizeHandlers.removeValue(forKey: requestID)
+        }
+    }
 
     func resetAll() {
         processingTasks.values.forEach { $0.cancel() }
         processingTasks.removeAll()
         bookingFinalizeHandlers.removeAll()
+        bookingRejectHandlers.removeAll()
         requests = []
         persist()
     }
@@ -390,6 +430,11 @@ final class RefundFlowService {
         expedited: Bool,
         onActivityCancelled: @escaping () -> Void
     ) {
+        // Release：不本地 sleep 完结；保持「已提交」，等服务端回调 / 运营审核。
+        guard CommercePaymentPolicy.simulatesLocalRefundCompletion else {
+            processingTasks[recordID] = nil
+            return
+        }
         processingTasks[recordID]?.cancel()
         processingTasks[recordID] = Task { @MainActor in
             let delay: Duration = expedited ? .milliseconds(350) : .milliseconds(900)
@@ -433,7 +478,7 @@ final class RefundFlowService {
         onActivityCancelled: () -> Void
     ) {
         ActivityPaymentStore.finalizeRefund(orderID: record.orderID)
-        TrustService.shared.record(
+        trustService.record(
             .activityRefunded,
             domain: .activity,
             actorKey: trustActorKey(),
@@ -447,7 +492,7 @@ final class RefundFlowService {
 
     private func finalizeBooking(_ record: inout RefundRequestRecord) {
         let method = PaymentMethod.resolve(record.paymentMethod)
-        WalletStore.shared.credit(
+        walletStore.credit(
             amountCents: record.amountCents,
             method: method,
             kind: .bookingRefund,
@@ -456,8 +501,13 @@ final class RefundFlowService {
             relatedID: record.orderID
         )
         NotificationService.cancelBookingReminder(bookingID: record.orderID)
-        WalletPassStore.shared.void(relatedID: record.orderID)
-        TrustService.shared.record(
+        NotificationService.scheduleBookingRefundCompletedNotification(
+            bookingID: record.orderID,
+            companion: record.subjectTitle,
+            amountDisplay: record.amountDisplay
+        )
+        walletPassStore.void(relatedID: record.orderID)
+        trustService.record(
             .bookingRefunded,
             domain: .booking,
             actorKey: trustActorKey(),
@@ -466,6 +516,7 @@ final class RefundFlowService {
         )
         bookingFinalizeHandlers[record.id]?(record.orderID)
         bookingFinalizeHandlers.removeValue(forKey: record.id)
+        bookingRejectHandlers.removeValue(forKey: record.id)
     }
 
     private func trustActorKey() -> String {
@@ -484,7 +535,12 @@ final class RefundFlowService {
     private func persist() {
         let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent(Self.fileName)
-        guard let data = try? JSONEncoder().encode(requests) else { return }
-        try? data.write(to: url, options: [.atomic])
+        do {
+            let data = try JSONEncoder().encode(requests)
+            try data.write(to: url, options: [.atomic])
+        } catch {
+            assertionFailure("RefundFlow persist failed: \(error)")
+            PersistenceWriteFailureReporter.record(domainKey: "refunds", error: error)
+        }
     }
 }

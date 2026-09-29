@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum GroupNicknameDisplay {
     static func formatted(realName: String, groupAlias: String?) -> String {

@@ -5,6 +5,7 @@
 //  兴趣圈子加入链路 Sheet（确认 → 成功）；同一 NavigationStack 只注册一份。
 //
 
+import CoordinateModels
 import SwiftUI
 
 extension View {
@@ -97,7 +98,7 @@ private struct BuddyOrgJoinChromeModifier: ViewModifier {
     private func openJoined(_ success: BuddyOrgJoinSuccess) {
         switch success.kind {
         case .circle:
-            if let circle = SampleData.interestCircles.first(where: { $0.name == success.name }) {
+            if let circle = buddies.circle(named: success.name) {
                 openCircle?(circle)
             }
         case .guild:

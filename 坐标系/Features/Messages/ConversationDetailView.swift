@@ -2,12 +2,12 @@
 //  ConversationDetailView.swift
 //  坐标系
 //
-//  会话详情：系统信息式气泡线程（群聊对方头像；引用 / 点按时间 / 双击喜欢）。
+//  会话详情编排：持有 @State，组合 Thread / Composer / Toolbar / MoreMenu。
 //
 
-import SwiftUI
 import PhotosUI
-import UIKit
+import SwiftUI
+import CoordinateModels
 
 struct ConversationDetailView: View {
     let conversationID: ChatConversation.ID
@@ -16,66 +16,66 @@ struct ConversationDetailView: View {
     var chatContext: ConversationChatContext? = nil
     var onOpenCircleInfo: ((InterestCircle) -> Void)? = nil
 
-    @Environment(MessagesModel.self) private var model
-    @Environment(BuddiesModel.self) private var buddies
-    @Environment(ActivitiesModel.self) private var activities
-    @Environment(AppModel.self) private var app
-    @Environment(\.dismiss) private var dismiss
+    @Environment(MessagesModel.self) var model
+    @Environment(BuddiesModel.self) var buddies
+    @Environment(ActivitiesModel.self) var activities
+    @Environment(AppModel.self) var app
+    @Environment(\.dismiss) var dismiss
 
-    @State private var draft = ""
-    @FocusState private var isComposerFocused: Bool
-    @State private var copyFeedback: String?
-    @State private var sendPulse = 0
-    @State private var likePulse = 0
-    @State private var replyTo: ChatMessage?
-    @State private var selectedBuddy: DiscoverBuddyItem?
-    @State private var selectedActivity: Activity?
-    @State private var selectedPostID: CommunityPost.ID?
-    @State private var showGroupManage = false
-    @State private var showTransfer = false
-    @State private var showReport = false
-    @State private var confirmBlock = false
-    @State private var confirmLeaveCircle = false
-    @State private var showLocationPicker = false
-    @State private var locationDraft = ""
-    @State private var locationLatitude: Double?
-    @State private var locationLongitude: Double?
-    @State private var photoPickerItem: PhotosPickerItem?
-    @State private var mentionDraft: String?
-    @State private var pendingScrollMessageID: ChatMessage.ID?
-    @State private var activeCallID: UUID?
-    @State private var showCallHistory = false
+    @State var draft = ""
+    @FocusState var isComposerFocused: Bool
+    @State var copyFeedback: String?
+    @State var sendPulse = 0
+    @State var likePulse = 0
+    @State var replyTo: ChatMessage?
+    @State var selectedBuddy: DiscoverBuddyItem?
+    @State var selectedActivity: Activity?
+    @State var selectedPostID: CommunityPost.ID?
+    @State var showGroupManage = false
+    @State var showTransfer = false
+    @State var showReport = false
+    @State var confirmBlock = false
+    @State var confirmLeaveCircle = false
+    @State var showLocationPicker = false
+    @State var locationDraft = ""
+    @State var locationLatitude: Double?
+    @State var locationLongitude: Double?
+    @State var photoPickerItem: PhotosPickerItem?
+    @State var mentionDraft: String?
+    @State var pendingScrollMessageID: ChatMessage.ID?
+    @State var activeCallID: UUID?
+    @State var showCallHistory = false
 
-    private var conversation: ChatConversation? {
+    var conversation: ChatConversation? {
         model.conversations.first { $0.id == conversationID }
     }
 
-    private var messages: [ChatMessage] {
+    var messages: [ChatMessage] {
         guard let conversation else { return model.messages(for: conversationID) }
-        return model.visibleMessages(
+        return model.displayedMessages(
             for: conversationID,
             viewerName: app.user.name,
             ownerName: conversation.ownerName
         )
     }
 
-    private var canSend: Bool {
+    var canSend: Bool {
         !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isOutboundBlocked
     }
 
-    private var isOutboundBlocked: Bool {
+    var isOutboundBlocked: Bool {
         guard chatContext != nil else { return false }
         guard !model.hasPeerReply(in: conversationID) else { return false }
         return model.trailingOutboundCount(for: conversationID)
             >= ConversationChatContext.coldOutreachLimit
     }
 
-    private var composerEnabled: Bool {
+    var composerEnabled: Bool {
         guard let conversation else { return false }
         return conversation.kind != .notice && !isOutboundBlocked
     }
 
-    private var quickReplyTemplates: [(label: String, text: String)] {
+    var quickReplyTemplates: [(label: String, text: String)] {
         guard let chatContext else { return [] }
         return chatContext.quickReplies(
             peerName: conversation?.title ?? "",
@@ -84,7 +84,7 @@ struct ConversationDetailView: View {
         )
     }
 
-    private var quickReplySectionTitle: String {
+    var quickReplySectionTitle: String {
         chatContext?.quickReplySectionTitle ?? MessagesCopy.quickReplySectionTitle
     }
 
@@ -109,83 +109,77 @@ struct ConversationDetailView: View {
             isGroup: conversation.isGroup,
             isNotice: conversation.kind == .notice
         )
+        let canLoadOlder = model.hasOlderMessages(
+            in: conversationID,
+            viewerName: app.user.name,
+            ownerName: conversation.ownerName
+        )
 
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    if messages.isEmpty {
-                        PlatformChatEmptyThread(peerName: conversation.title)
-                    } else {
-                        ForEach(timeline) { item in
-                            switch item {
-                            case .day(let label, let id):
-                                PlatformChatDaySeparator(label: label)
-                                    .id(id)
-                            case .tip(let message):
-                                PlatformChatSystemTip(text: message.text)
-                                    .id(message.id)
-                            case .message(let message, let chrome):
-                                messageRow(message, chrome: chrome, conversation: conversation)
-                                    .id(message.id)
-                            }
-                        }
-                    }
-                }
-            }
-            .defaultScrollAnchor(.bottom)
-            .scrollDismissesKeyboard(.interactively)
-            .scrollEdgeEffectStyle(.soft, for: .top)
-            .platformMessageThreadScrollMargins()
-            .onChange(of: messages.count) { _, _ in
-                if pendingScrollMessageID == nil {
-                    scrollToLatest(using: proxy)
-                }
-            }
-            .onAppear {
-                model.activeConversationID = conversationID
-                model.markRead(conversationID)
-                pendingScrollMessageID = focusMessageID
-                if let focusMessageID,
-                   messages.contains(where: { $0.id == focusMessageID }) {
-                    DispatchQueue.main.async {
-                        withAnimation(.easeOut(duration: 0.25)) {
-                            proxy.scrollTo(focusMessageID, anchor: .center)
-                        }
-                        pendingScrollMessageID = nil
-                    }
-                } else {
-                    scrollToLatest(using: proxy, animated: false)
-                    pendingScrollMessageID = nil
-                }
-                if conversation.kind != .notice, messages.isEmpty {
-                    isComposerFocused = true
-                }
-                if conversation.kind == .activity,
-                   let activity = relatedActivity(for: conversation) {
-                    app.handle(.activityUpdated(activity.id))
-                }
-                if activeCallID == nil, let pendingCallID {
-                    activeCallID = pendingCallID
-                    app.pendingCallID = nil
-                }
-                model.refreshTransferExpirations()
-            }
-            .onDisappear {
-                if model.activeConversationID == conversationID {
-                    model.activeConversationID = nil
-                }
-            }
-            .onChange(of: messages.map(\.id)) { _, ids in
+        ConversationThreadView(
+            peerName: conversation.title,
+            timeline: timeline,
+            isEmpty: messages.isEmpty,
+            canLoadOlder: canLoadOlder,
+            messageCount: messages.count,
+            messageIDs: messages.map(\.id),
+            focusMessageID: focusMessageID,
+            pendingScrollMessageID: $pendingScrollMessageID,
+            onLoadOlder: { model.loadOlderMessages(in: conversationID) },
+            onAppearThread: { handleThreadAppear(conversation: conversation) },
+            onDisappearThread: handleThreadDisappear,
+            onMessageIDsChanged: { ids in
                 if let replyTo, !ids.contains(replyTo.id) {
                     self.replyTo = nil
                 }
             }
+        ) { message, chrome in
+            ConversationMessageRow(
+                message: message,
+                chrome: chrome,
+                conversationKind: conversation.kind,
+                currentUserName: app.user.name,
+                onTapAvatar: {
+                    if message.isMe { return }
+                    if conversation.kind == .direct {
+                        selectedBuddy = buddies.item(for: conversation.title)
+                    } else {
+                        selectedBuddy = buddies.item(for: message.sender)
+                    }
+                },
+                onToggleLike: {
+                    model.toggleLike(messageID: message.id, in: conversationID)
+                    likePulse += 1
+                },
+                onReply: {
+                    replyTo = message
+                    isComposerFocused = true
+                },
+                onOpenActivity: { id in
+                    selectedActivity = activities.activity(id: id)
+                },
+                onOpenLink: openLink,
+                onRetrySend: {
+                    _ = model.retrySend(messageID: message.id, in: conversationID)
+                },
+                onSetReaction: { emoji in
+                    model.setReaction(emoji, on: message.id, in: conversationID)
+                },
+                onDelete: {
+                    if replyTo?.id == message.id { replyTo = nil }
+                    model.deleteMessage(messageID: message.id, in: conversationID)
+                },
+                onCopied: { copyFeedback = MessagesCopy.copied }
+            )
         }
         .background(PlatformSurface.canvas)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                chatToolbarTitle(conversation)
+                ConversationDetailToolbarTitle(
+                    conversation: conversation,
+                    viewerName: app.user.name,
+                    onTap: toolbarTapAction(for: conversation)
+                )
             }
             if conversation.kind != .notice {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -198,103 +192,33 @@ struct ConversationDetailView: View {
                         activeCallID = model.startVideoCall(in: conversation.id)?.id
                     }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    conversationMoreMenu(conversation)
-                }
-            } else {
-                ToolbarItem(placement: .topBarTrailing) {
-                    conversationMoreMenu(conversation)
-                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                moreMenu(for: conversation)
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 0) {
-                if mentionDraft != nil {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
-                            ForEach(conversation.memberNames.filter { $0 != app.user.name }, id: \.self) { name in
-                                Button("@\(name)") {
-                                    draft += "@\(name) "
-                                    mentionDraft = nil
-                                    isComposerFocused = true
-                                }
-                                .font(.caption)
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                            }
-                        }
-                        .platformMessagePagePadding()
-                        .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
-                    }
-                }
-                if isOutboundBlocked {
-                    Text(MessagesCopy.outboundBlockedNotice)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .platformMessagePagePadding()
-                        .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
-                        .background(PlatformSurface.canvas)
-                } else if !quickReplyTemplates.isEmpty {
-                    quickReplyBar(for: conversation)
-                }
-                PlatformMessageComposerBar(
-                    draft: $draft,
-                    placeholder: conversation.kind == .notice
-                        ? MessagesCopy.noticePlaceholder
-                        : MessagesCopy.sendPlaceholder,
-                    isEnabled: composerEnabled,
-                    canSend: canSend,
-                    isFocused: $isComposerFocused,
-                    replyPreview: replyTo.map {
-                        ($0.isMe ? "我" : $0.sender, $0.previewText)
-                    },
-                    onCancelReply: { replyTo = nil },
-                    onVoice: {
-                        _ = model.sendVoice(duration: Double.random(in: 2...12), to: conversation.id)
-                        sendPulse += 1
-                    },
-                    attachMenu: Group {
-                        PhotosPicker(selection: $photoPickerItem, matching: .images) {
-                            Label(MessagesCopy.attachCamera, systemImage: "camera.fill")
-                        }
-                        PhotosPicker(selection: $photoPickerItem, matching: .images) {
-                            Label(MessagesCopy.attachPhoto, systemImage: "photo")
-                        }
-                        Button(MessagesCopy.attachSticker, systemImage: "face.smiling") {
-                            _ = model.sendSticker(
-                                ["👍", "🎉", "🔥", "😎"].randomElement()!,
-                                to: conversation.id
-                            )
-                            sendPulse += 1
-                        }
-                        Button(MessagesCopy.attachLocation, systemImage: "mappin.and.ellipse") {
-                            locationDraft = app.user.city.isEmpty
-                                ? MessagesCopy.currentLocation
-                                : app.user.city
-                            locationLatitude = nil
-                            locationLongitude = nil
-                            showLocationPicker = true
-                        }
-                        if let activity = relatedActivity(for: conversation)
-                            ?? activities.inviteableActivities.first {
-                            Button(MessagesCopy.attachActivity, systemImage: "calendar") {
-                                _ = model.sendActivityCard(activity, to: conversation.id)
-                                sendPulse += 1
-                            }
-                        }
-                        Button(MessagesCopy.attachTransfer, systemImage: "yensign.circle") {
-                            showTransfer = true
-                        }
-                        if conversation.isGroup {
-                            Button(MessagesCopy.mentionMembers, systemImage: "at") {
-                                mentionDraft = ""
-                            }
-                        }
-                    },
-                    onSend: { send(to: conversation.id) }
-                )
+            ConversationComposerSection(
+                conversation: conversation,
+                draft: $draft,
+                isComposerFocused: $isComposerFocused,
+                mentionDraft: $mentionDraft,
+                replyTo: replyTo,
+                isOutboundBlocked: isOutboundBlocked,
+                composerEnabled: composerEnabled,
+                canSend: canSend,
+                quickReplySectionTitle: quickReplySectionTitle,
+                quickReplyTemplates: quickReplyTemplates,
+                memberNamesExcludingSelf: conversation.memberNames.filter { $0 != app.user.name },
+                onCancelReply: { replyTo = nil },
+                onVoice: {
+                    _ = model.sendVoice(duration: Double.random(in: 2...12), to: conversation.id)
+                    sendPulse += 1
+                },
+                onSend: { send(to: conversation.id) },
+                onQuickReply: { sendQuickReply($0, to: conversation.id) }
+            ) {
+                attachMenu(for: conversation)
             }
         }
         .onChange(of: photoPickerItem) { _, item in
@@ -443,326 +367,89 @@ struct ConversationDetailView: View {
         }
     }
 
-    private func openLink(_ urlString: String) {
-        if let postID = Self.communityPostID(from: urlString) {
-            selectedPostID = postID
-            return
-        }
-        if let url = URL(string: urlString), UIApplication.shared.canOpenURL(url) {
-            UIApplication.shared.open(url)
-        }
-    }
-
-    private static func communityPostID(from urlString: String) -> UUID? {
-        guard let url = URL(string: urlString),
-              url.scheme == "zuobiaoxi",
-              url.host == "community"
-        else { return nil }
-        let idString = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return UUID(uuidString: idString)
-    }
-
     @ViewBuilder
-    private func messageRow(
-        _ message: ChatMessage,
-        chrome: PlatformChatBubbleChrome,
-        conversation: ChatConversation
-    ) -> some View {
-        PlatformChatBubble(
-            text: message.text,
-            sentAt: message.sentAt,
-            sender: message.isMe ? app.user.name : message.sender,
-            isMe: message.isMe,
-            chrome: chrome,
-            message: message,
-            isLiked: message.isLiked,
-            replyToSender: message.replyToSender,
-            replyToText: message.replyToText,
-            onTapAvatar: {
-                if message.isMe { return }
-                if conversation.kind == .direct {
-                    selectedBuddy = buddies.item(for: conversation.title)
-                } else {
-                    selectedBuddy = buddies.item(for: message.sender)
+    private func moreMenu(for conversation: ChatConversation) -> some View {
+        ConversationDetailMoreMenu(
+            conversation: conversation,
+            isOwnedByViewer: conversation.isOwned(by: app.user.name),
+            hasBuddyProfile: buddies.item(for: conversation.title) != nil,
+            hasRelatedActivity: relatedActivity(for: conversation) != nil,
+            hasCircleInfo: circleForConversation(conversation) != nil,
+            onTogglePin: { model.togglePin(conversation.id) },
+            onToggleMute: { model.toggleMute(conversation.id) },
+            onCallHistory: { showCallHistory = true },
+            onCircleInfo: {
+                if let circle = circleForConversation(conversation) {
+                    onOpenCircleInfo?(circle)
                 }
             },
-            onDoubleTap: {
-                guard conversation.kind != .notice else { return }
-                model.toggleLike(messageID: message.id, in: conversationID)
-                likePulse += 1
-            },
-            onOpenActivity: { id in
-                selectedActivity = activities.activity(id: id)
-            },
-            onOpenLink: { urlString in
-                openLink(urlString)
-            }
-        )
-        .contextMenu {
-            Button(MessagesCopy.copy, systemImage: "doc.on.doc") {
-                UIPasteboard.general.string = message.previewText
-                copyFeedback = MessagesCopy.copied
-            }
-            if conversation.kind != .notice {
-                Button(MessagesCopy.reply, systemImage: "arrowshape.turn.up.left") {
-                    replyTo = message
-                    isComposerFocused = true
-                }
-                Button(
-                    message.isLiked ? MessagesCopy.unlike : MessagesCopy.like,
-                    systemImage: message.isLiked ? "heart.slash" : "heart"
-                ) {
-                    model.toggleLike(messageID: message.id, in: conversationID)
-                    likePulse += 1
-                }
-                Menu(MessagesCopy.reactionMenu) {
-                    ForEach(["❤️", "👍", "😂", "😮", "😢"], id: \.self) { emoji in
-                        Button(emoji) {
-                            model.setReaction(emoji, on: message.id, in: conversationID)
-                        }
-                    }
-                    if message.reaction != nil {
-                        Button(MessagesCopy.clearReaction, role: .destructive) {
-                            model.setReaction(nil, on: message.id, in: conversationID)
-                        }
-                    }
-                }
-            }
-            if message.isMe {
-                Button(MessagesCopy.deleteMessage, systemImage: "trash", role: .destructive) {
-                    if replyTo?.id == message.id { replyTo = nil }
-                    model.deleteMessage(messageID: message.id, in: conversationID)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func chatToolbarTitle(_ conversation: ChatConversation) -> some View {
-        let subtitle = conversation.navigationSubtitle(viewerName: app.user.name)
-        let onTap: (() -> Void)? = {
-            switch conversation.kind {
-            case .direct:
-                return { selectedBuddy = buddies.item(for: conversation.title) }
-            case .circle:
-                return {
-                    if let circle = circleForConversation(conversation) {
-                        onOpenCircleInfo?(circle)
-                    } else {
-                        showGroupManage = true
-                    }
-                }
-            case .activity, .group, .notice:
-                return conversation.isGroup ? { showGroupManage = true } : nil
-            }
-        }()
-
-        if let onTap {
-            Button(action: onTap) {
-                PlatformToolbarPrincipalCaption(
-                    title: conversation.title,
-                    subtitle: subtitle
-                )
-            }
-            .platformToolbarPrincipalCapsuleStyle()
-        } else {
-            PlatformToolbarPrincipalCaption(
-                title: conversation.title,
-                subtitle: subtitle
-            )
-        }
-    }
-
-    @ViewBuilder
-    private func conversationMoreMenu(_ conversation: ChatConversation) -> some View {
-        Menu {
-            Button(
-                conversation.isPinned ? MessagesCopy.unpinConversation : MessagesCopy.pinConversation,
-                systemImage: conversation.isPinned ? "pin.slash" : "pin"
-            ) {
-                model.togglePin(conversation.id)
-            }
-            Button(
-                conversation.isMuted ? MessagesCopy.muteOff : MessagesCopy.muteOn,
-                systemImage: conversation.isMuted ? "bell" : "bell.slash"
-            ) {
-                model.toggleMute(conversation.id)
-            }
-            if conversation.kind != .notice {
-                Button(MessagesCopy.callHistoryTitle, systemImage: "clock.arrow.circlepath") {
-                    showCallHistory = true
-                }
-            }
-            if conversation.isGroup {
-                if conversation.isCircleGroup,
-                   let circle = circleForConversation(conversation) {
-                    Button("圈子信息", systemImage: "info.circle") {
-                        onOpenCircleInfo?(circle)
-                    }
-                }
-                Button(MessagesCopy.groupManage, systemImage: "gearshape") {
-                    showGroupManage = true
-                }
-            }
-            if conversation.kind == .activity {
-                Button(MessagesCopy.activityDetail, systemImage: "calendar") {
-                    selectedActivity = relatedActivity(for: conversation)
-                }
-                .disabled(relatedActivity(for: conversation) == nil)
-            }
-            if conversation.kind == .direct {
-                Button(MessagesCopy.viewProfile, systemImage: "person.crop.circle") {
-                    selectedBuddy = buddies.item(for: conversation.title)
-                }
-                .disabled(buddies.item(for: conversation.title) == nil)
-                Button(MessagesCopy.reportUser, systemImage: "exclamationmark.bubble") {
-                    showReport = true
-                }
-                Button(MessagesCopy.blockUser, systemImage: "hand.raised", role: .destructive) {
-                    confirmBlock = true
-                }
-            } else if conversation.kind != .notice {
-                Button(MessagesCopy.reportUser, systemImage: "exclamationmark.bubble") {
-                    showReport = true
-                }
-            }
-            if conversation.isActivityGroup {
-                if conversation.isOwned(by: app.user.name) {
-                    Button(MessagesCopy.dissolveGroup, systemImage: "trash", role: .destructive) {
-                        model.requestDelete(conversation)
-                    }
+            onGroupManage: { showGroupManage = true },
+            onActivityDetail: { selectedActivity = relatedActivity(for: conversation) },
+            onViewProfile: { selectedBuddy = buddies.item(for: conversation.title) },
+            onReport: { showReport = true },
+            onBlock: { confirmBlock = true },
+            onDissolveOrLeave: { model.requestDelete(conversation) },
+            onCancelRegistration: {
+                if let activityID = conversation.relatedActivityID {
+                    app.cancelActivityRegistration(activityID)
+                    dismiss()
                 } else {
-                    Button(MessagesCopy.leaveGroup, systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
-                        if let activityID = conversation.relatedActivityID {
-                            app.cancelActivityRegistration(activityID)
-                            dismiss()
-                        } else {
-                            model.requestDelete(conversation)
-                        }
-                    }
-                }
-            } else if conversation.isPeerGroup {
-                if conversation.isOwned(by: app.user.name) {
-                    Button(MessagesCopy.dissolveGroup, systemImage: "trash", role: .destructive) {
-                        model.requestDelete(conversation)
-                    }
-                } else {
-                    Button(MessagesCopy.leaveGroup, systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
-                        model.requestDelete(conversation)
-                    }
-                }
-            } else if conversation.isCircleGroup {
-                Button(MessagesCopy.leaveGroup, systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
-                    confirmLeaveCircle = true
-                }
-            } else {
-                Button(MessagesCopy.deleteConversation, systemImage: "trash", role: .destructive) {
                     model.requestDelete(conversation)
                 }
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-        }
-        .accessibilityLabel(MessagesCopy.more)
-    }
-
-    private func send(to id: ChatConversation.ID) {
-        guard !isOutboundBlocked else { return }
-        guard model.send(text: draft, to: id, replyingTo: replyTo) != nil else { return }
-        draft = ""
-        replyTo = nil
-        sendPulse += 1
-    }
-
-    private func sendQuickReply(_ text: String, to id: ChatConversation.ID) {
-        guard !isOutboundBlocked else { return }
-        guard model.send(text: text, to: id) != nil else { return }
-        sendPulse += 1
+            },
+            onLeaveCircle: { confirmLeaveCircle = true },
+            onDeleteConversation: { model.requestDelete(conversation) }
+        )
     }
 
     @ViewBuilder
-    private func quickReplyBar(for conversation: ChatConversation) -> some View {
-        VStack(alignment: .leading, spacing: PlatformMetrics.formRowVerticalPadding) {
-            Text(quickReplySectionTitle)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .platformMessagePagePadding()
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
-                    ForEach(quickReplyTemplates, id: \.label) { template in
-                        Button(template.label) {
-                            sendQuickReply(template.text, to: conversation.id)
-                        }
-                        .font(.caption)
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .accessibilityLabel("\(MessagesCopy.quickReplySectionTitle)：\(template.text)")
-                    }
-                }
-                .platformMessagePagePadding()
+    private func attachMenu(for conversation: ChatConversation) -> some View {
+        PhotosPicker(selection: $photoPickerItem, matching: .images) {
+            Label(MessagesCopy.attachCamera, systemImage: "camera.fill")
+        }
+        PhotosPicker(selection: $photoPickerItem, matching: .images) {
+            Label(MessagesCopy.attachPhoto, systemImage: "photo")
+        }
+        Button(MessagesCopy.attachSticker, systemImage: "face.smiling") {
+            _ = model.sendSticker(
+                ["👍", "🎉", "🔥", "😎"].randomElement()!,
+                to: conversation.id
+            )
+            sendPulse += 1
+        }
+        Button(MessagesCopy.attachLocation, systemImage: "mappin.and.ellipse") {
+            locationDraft = app.user.city.isEmpty
+                ? MessagesCopy.currentLocation
+                : app.user.city
+            locationLatitude = nil
+            locationLongitude = nil
+            showLocationPicker = true
+        }
+        if let activity = relatedActivity(for: conversation)
+            ?? activities.inviteableActivities.first {
+            Button(MessagesCopy.attachActivity, systemImage: "calendar") {
+                _ = model.sendActivityCard(activity, to: conversation.id)
+                sendPulse += 1
             }
         }
-        .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
-        .background(PlatformSurface.canvas)
-    }
-
-    private func circleForConversation(_ conversation: ChatConversation) -> InterestCircle? {
-        guard let circleID = conversation.relatedCircleID else { return nil }
-        return SampleData.circle(id: circleID)
-    }
-
-    private func leaveCircleGroupIfPossible() {
-        guard let conversation else {
-            dismiss()
-            return
+        Button(MessagesCopy.attachTransfer, systemImage: "yensign.circle") {
+            showTransfer = true
         }
-        if let circleID = conversation.relatedCircleID,
-           let circle = SampleData.interestCircles.first(where: { $0.id == circleID }) {
-            model.leaveCircleChat(circleID: circleID, leaverName: app.user.name)
-            buddies.leaveCircle(circle)
-            dismiss()
-        } else {
-            model.requestDelete(conversation)
-        }
-    }
-
-    private func loadAndSendPhoto(_ item: PhotosPickerItem?, conversationID: ChatConversation.ID) async {
-        guard let item else { return }
-        defer { photoPickerItem = nil }
-        guard let data = try? await item.loadTransferable(type: Data.self),
-              UIImage(data: data) != nil,
-              let name = CommunityPhotoStore.saveJPEG(data)
-        else { return }
-        _ = model.sendImage(localName: name, to: conversationID)
-        sendPulse += 1
-    }
-
-    private func relatedActivity(for conversation: ChatConversation) -> Activity? {
-        if let id = conversation.relatedActivityID {
-            return activities.activity(id: id)
-        }
-        return activities.activity(matchingTitle: conversation.title)
-    }
-
-    private func scrollToLatest(using proxy: ScrollViewProxy, animated: Bool = true) {
-        guard let id = messages.last?.id else { return }
-        if animated {
-            withAnimation(.easeOut(duration: 0.2)) {
-                proxy.scrollTo(id, anchor: .bottom)
+        if conversation.isGroup {
+            Button(MessagesCopy.mentionMembers, systemImage: "at") {
+                mentionDraft = ""
             }
-        } else {
-            proxy.scrollTo(id, anchor: .bottom)
         }
     }
 }
 
 #Preview("活动群聊天") {
+    let app = AppModel.preview
     NavigationStack {
         ConversationDetailView(conversationID: SampleData.conversations[0].id)
     }
-    .environment(AppModel())
-    .environment(MessagesModel())
-    .environment(BuddiesModel())
-    .environment(ActivitiesModel(currentUserName: SampleData.currentUser.name))
+    .environment(app)
+    .environment(app.messages)
+    .environment(app.buddies)
+    .environment(app.activities)
 }

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 struct CommunityPostCard: View {
     let post: CommunityPost

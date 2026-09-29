@@ -9,11 +9,12 @@
 import CoreLocation
 import Foundation
 import Observation
+import CoordinateModels
 
 @MainActor
 @Observable
 final class GreetingWeatherStore {
-    static let shared = GreetingWeatherStore()
+    static var shared: GreetingWeatherStore { AppComposition.greetingWeatherStore }
 
     enum Status: Equatable {
         case idle
@@ -54,8 +55,11 @@ final class GreetingWeatherStore {
 
     private var lastFetchedCoordinate: CLLocationCoordinate2D?
     private var lastFetchedAt: Date?
+    private let locationService: LocationService
 
-    private init() {}
+    init(locationService: LocationService) {
+        self.locationService = locationService
+    }
 
     /// 顶栏 / 问候用：系统 Label 标题
     var statusTitle: String {
@@ -142,7 +146,6 @@ final class GreetingWeatherStore {
     }
 
     func refresh(force: Bool = false) async {
-        let locationService = LocationService.shared
         locationService.refresh()
 
         switch locationService.authorization {

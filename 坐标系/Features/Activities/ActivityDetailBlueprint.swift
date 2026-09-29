@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum ActivityDetailSectionID: String, Hashable, CaseIterable {
     case plan
@@ -539,5 +540,42 @@ struct ActivityDetailBlueprint {
     private static func timeOffset(_ activity: Activity, minutes: Int) -> String {
         let date = activity.date.addingTimeInterval(TimeInterval(minutes * 60))
         return Formatters.shortTime.string(from: date)
+    }
+
+    /// 折叠分区标题下的单行摘要（帮助决策前快速扫读）
+    static func sectionSummary(
+        for id: ActivityDetailSectionID,
+        activity: Activity,
+        blueprint: ActivityDetailBlueprint
+    ) -> String {
+        switch id {
+        case .plan:
+            if blueprint.timeline.isEmpty { return "暂无行程安排" }
+            let first = blueprint.timeline[0].title
+            return blueprint.timeline.count > 1
+                ? "\(blueprint.timeline.count) 个环节 · 首项 \(first)"
+                : first
+        case .fee:
+            if activity.isFree { return "免费参加" }
+            var parts: [String] = []
+            if !blueprint.feeIncluded.isEmpty {
+                parts.append("含 \(blueprint.feeIncluded.count) 项")
+            }
+            if !blueprint.refundNotes.isEmpty {
+                parts.append("含退改说明")
+            }
+            return parts.isEmpty ? activity.fee : parts.joined(separator: " · ")
+        case .prep:
+            if !blueprint.gear.isEmpty {
+                return "\(blueprint.gear.count) 项装备清单"
+            }
+            if let first = blueprint.prepNotes.first {
+                return first
+            }
+            return "查看准备事项"
+        case .notes:
+            if blueprint.registrationNotes.isEmpty { return "暂无参加须知" }
+            return "\(blueprint.registrationNotes.count) 条须知"
+        }
     }
 }

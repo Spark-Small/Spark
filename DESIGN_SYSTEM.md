@@ -3,7 +3,7 @@
 > 基于活动版块实现沉淀的产品级设计规范。  
 > 原则：**Apple 原生 · SwiftUI First · HIG · App Store Today 编排 · Apple TV 沉浸 · Apple Music 留白**。  
 > 系统级：**业务少决策、多交给系统容器**；命名间距留给 Design 与系统读不到的几何，不是追求零 Metrics。  
-> 实现源码锚点：`Design/PlatformSemantics.swift`、`Design/PlatformCatalogCards.swift`、`Design/ActivityZoomNavigation.swift`、`Design/WalletPassFace.swift`、`Design/WalletPassStack.swift`、`Features/Activities/**`、`Features/Profile/ProfileCredentialCards.swift`、`Features/Profile/ProfileCredentialFolderViews.swift`、`Features/Profile/ActivityCredentialExpandedView.swift`、`Services/PassKit/**`。
+> 实现源码锚点：`Design/PlatformSemantics.swift`（语义色）、`Design/PlatformMetrics.swift`、`Design/PlatformChromeMeasurements.swift`（运行时控件边长）、`Design/PlatformListAvatar.swift`、`Design/PlatformToolbarChrome.swift`、`Design/PlatformConversationListChrome.swift`、`Design/PlatformActivityChrome.swift`、`Design/PlatformMessagesChrome.swift`、`Design/PlatformCatalogCards.swift`、`Design/ActivityZoomNavigation.swift`、`Design/WalletPassFace.swift`、`Design/WalletPassStack.swift`、`Design/CredentialArt/**`、`Features/Activities/**`、`Features/Profile/Credential/**`、`Features/Profile/ProfileCredentialCards.swift`、`Features/Profile/ProfileCredentialFolderViews.swift`、`Features/Profile/ActivityCredentialExpandedView.swift`、`Services/PassKit/**`。
 
 ---
 
@@ -62,6 +62,9 @@
 
 **`PlatformMetrics` 的正确角色：**
 
+- **静态 token**：`grid`、`contentInset`、圆角、构图比、列表节奏等——由系统字体 / `UIListContentConfiguration` 推导，**不**在运行时实例化 UIKit 控件。
+- **运行时控件边长**（顶栏 glass 圆钮、输入栏「+」高度）→ **`PlatformChromeMeasurements`**（`PlatformChromeRoot` @ `坐标系App` + background 探针 + `PreferenceKey`）；View 内 `@Environment(\.platformChromeMeasurements)` 读取。工程细则见 [DevelopmentGuide §7](Docs/DevelopmentGuide.md#7-并发mainactor-与-ui)。
+
 - 保留：系统字体 / 列表边距推导出的共享几何，以及构图比、轨可见比例。  
 - 消费方优先是 **Design 组件**，不是 Features 随手引用。  
 - Features 若必须引用，仅限货架编排已有 token（如 `sectionSpacing`），且不得再发明局部魔法数。
@@ -115,7 +118,7 @@
 | 场景 | 正确做法 | 错误做法 |
 |------|----------|----------|
 | Form 行、Section 间距 | 系统默认 + `.listSectionSpacing(.compact)` | Features 里 `.padding(.vertical, formRowVerticalPadding)` 微调整页 |
-| 按钮 / chip 高度 | `.controlSize(.large/.regular/.small)` | 手写 horizontal/vertical padding 冒充系统控件 |
+| 按钮 / chip 高度 | `.controlSize(.large/.regular/.small)`；须与顶栏圆钮对齐时读 `PlatformChromeMeasurements` | 手写 padding 或静态 `UIButton` 探测 |
 | 发现分区节奏、卡圆角、轨宽 | Design 组件内部用 Metrics | 业务文件复制一组 `spacing: 14` |
 | 任意业务 UI | 零魔法数 | `padding(4)` / `spacing: 12` 散落 |
 
@@ -218,7 +221,7 @@
 | 跟进/热场 | 0.86 | 同左 |
 | 榜单海报 | 0.36 | 约两张半/屏 + 露边；配合 3:4 控轨高 |
 | 我的 Wallet 票面轨 | 0.29 | 约三张竖向通行证 + 露出第 4 张 |
-| 我的竖海报内容轨 | 0.29 | 约三张 2:3 圈子海报 + 露出第 4 张 |
+| 我的竖海报内容轨 | 0.29 | 约三张 2:3 俱乐部海报 + 露出第 4 张 |
 
 ## 4.5 Section 间距
 
@@ -239,10 +242,10 @@
 
 ## 5.1 根结构
 
-- `TabView(selection:)` + `Tab(_:systemImage:value:)`：活动 / 搭子 / 社区 / 消息 / 我的  
+- `TabView(selection:)` + `Tab(_:systemImage:value:)`：活动 / 搭子 / **广场** / 消息 / 我的  
 - `.tabBarMinimizeBehavior(.onScrollDown)`（一级页下滑收纳，WWDC25）  
 - 各 Tab 内 `NavigationStack`  
-- Tab Bar 显隐（官方 `toolbarVisibility`）：只在被推入页 `.hidden`（`.tabPushDestination`）。根页不写显隐。不要写在 Sheet 上，不要在根页按 path 开关
+- Tab Bar 显隐（官方 `toolbarVisibility`）：只在被推入页 `.toolbarVisibility(.hidden, for: .tabBar)`。根页不写显隐。不要写在 Sheet 上，不要在根页按 path 开关
 
 ## 5.2 Title 模式
 
@@ -251,7 +254,7 @@
 | 活动发现 | `.inline`（Photos 式中间胶囊，不用 Large Title 抢 Hero） |
 | 搭子选人 | `.inline`（「筛选」· 中间「免费 \| 预约」·「我的预约」） |
 | 消息收件箱 | `.inline`（左通讯录 · 右加号；好友与群聊同列表） |
-| 社区 Feed | `.inline`（左更多：收藏 / 赞过 / 我的分享 / 转发 / 公约 · 右发分享） |
+| 广场 Feed | `.inline`（左更多：收藏 / 赞过 / 我的分享 / 转发 / 公约 · 右发分享） |
 | 活动详情 | `.inline`（滚动后顶栏显示活动名；工具栏 glass 操作） |
 | Sheet / 二级列表 | `.inline` |
 | 需要层级列表且无 Hero 时 | 可用 `.large`（非活动发现默认） |
@@ -284,9 +287,11 @@
 - 身份区：头像 + 昵称 + `@账号`，整行进入编辑资料
 - 身份区下方：两个等宽大号系统按钮；左「开通会员」，右「我的钱包」
 - **钱包**：顶部银行卡面主卡；下方 Form 为支付设置与交易流水。活动票 / 陪玩凭证在「我的」内容库以凭证卡展示，不堆在钱包里。
-- **我的内容库**：活动 / 陪玩凭证均为 **长条凭证** 纵向叠放；Zoom / 推入展开页用 **Form**：票面头图（无叠字顶栏）+ 主文/副文 + 时间/日期等 `LabeledContent`；活动另有安排/细则，陪玩页内含联系 / 订单操作 / 补发等（不再跳「管理预约」）；右上角加入 Apple Wallet。无中间履约预览页。发现/活动 Tab 仍 Zoom 进完整详情。已作废票不出现在预览。
+- **我的内容库**：活动 / 陪玩凭证均为 **长条凭证** 纵向叠放；Zoom 推入展开页用 **Form**：`ActivityJourneyCredentialFace` 票面（CredentialArt 头图 + 字段区）+ 安排/细则 `LabeledContent`；活动履约态含条码，结束后切换 **memento**（无条码）。主 CTA **分享纪念票**；**加入 Apple Wallet** 在「更多」菜单。陪玩页内含联系 / 订单操作 / 补发等。无中间履约预览页。已作废票不出现在预览。
 
-### PassKit 凭证链路（官方同构 · 本机闭环）
+### PassKit 凭证链路（可选导出 · 本机闭环）
+
+App 内主路径见上；以下链路仅用于生成 `.pkpass` / 系统 Wallet：
 
 ```
 Source(PassSourceFactory)
@@ -310,9 +315,9 @@ Source(PassSourceFactory)
 
 签名证书与 Pass Builder **不进 App**；真机加入需开发者签名后放入 Signed 目录。
 
-- 一级内容库：我的活动 / 我的发布 / 我的圈子 / 我的陪玩预约卡片轨；**不含收藏聚合**
-- 收藏分域：社区分享 → 社区左上角 Menu「收藏的分享」；活动 → 活动页「更多」→「收藏的活动」
-- 栈内 push 用 `.tabPushDestination`（目的地 `.toolbarVisibility(.hidden, for: .tabBar)`）。根页不写显隐。Sheet 不要改 Tab 显隐
+- 一级内容库：我的活动 / 我的发布 / 我的俱乐部 / 我的陪玩预约卡片轨；**不含收藏聚合**
+- 收藏分域：广场分享 → 广场左上角 Menu「收藏的分享」；活动 → 活动页「更多」→「收藏的活动」
+- 栈内 push 目的地用 `.toolbarVisibility(.hidden, for: .tabBar)`。根页不写显隐。Sheet 不要改 Tab 显隐
 - Accessibility Dynamic Type：圈子海报卡可切图下堆叠；活动 / 陪玩 / 发布凭证以票面叠字为主（`ProfileCredentialCards`）
 
 **详情顶栏**
@@ -320,7 +325,7 @@ Source(PassSourceFactory)
 - `.toolbarBackground(.hidden, for: .navigationBar)`  
 - Trailing：`GlassIconMenu`（分享/更多）；搭子详情为系统 `Menu`（不感兴趣 / 举报 / 拉黑）  
 - Zoom cover 预览态可有关闭钮  
-- Tab Bar：一级页可见（根页不写显隐）；栈内 push 用 `.tabPushDestination`（`.toolbarVisibility(.hidden, for: .tabBar)`）。不要写在 Sheet 上，不要在根页按 path 开关
+- Tab Bar：一级页可见（根页不写显隐）；栈内 push 目的地 `.toolbarVisibility(.hidden, for: .tabBar)`。不要写在 Sheet 上，不要在根页按 path 开关
 
 ## 5.4 Back Button
 
@@ -353,15 +358,15 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
 | **Discover 竖大卡** | 兴趣/品类流 | 16:9 | 20 | 封面叠字或 a11y 图下堆叠 |
 | **Continue / Hot 横卡** | 跟进、热场轨 | 16:9 | 14 | 轨宽 ~0.86；底栏同 Hero 结构 |
 | **Poster 榜单** | 排名轨 | 3:4 | 14 | 轨宽 ~0.36；序号角标 |
-| **Wallet Pass Stack** | 长条凭证堆 | 露条 = `walletPassStackHeaderPeek`（字阶）；堆高 = 条高+min((n−1)×peek, maxExtra) | strip | 系统 Wallet 同构叠放；Zoom → 展开票面 |
-| **Wallet Pass Face** | 展开态履约票面 | 3:4 | poster | 头图认票 + 长条凭证码 + 地点/系统 glass 导航；安排/细则在票面下 Form；Wallet 在右上角 |
-| **Profile Circle Poster** | 「我的圈子」预览 | 2:3 竖海报 | poster | `ProfileLibraryShelfCard`；圈子卡不显示「已加入」 |
+| **Wallet Pass Stack** | 长条凭证堆（「我的」夹预览） | 露条 = `walletPassStackHeaderPeek`（字阶）；堆高 = 条高+min((n−1)×peek, maxExtra) | strip | 叠放预览；Zoom → 展开行程页 |
+| **Activity Journey Credential** | 活动行程展开票面 | 3:4 头图区 | poster | `ActivityJourneyCredentialFace` + CredentialArt；fulfillment / memento 双模式 |
+| **Wallet Pass Face** | 夹内长条预览卡 | 条带比例 | strip | `WalletPassRecordFace`；非展开页主票面 |
+| **Profile Circle Poster** | 「我的俱乐部」预览 | 2:3 竖海报 | poster | `ProfileLibraryShelfCard`；俱乐部卡不显示「已加入」 |
 | **Editorial 焦点** | 焦点大卡 | 4:5 | 24 | 轨宽 ~0.88 |
 | **Person 找人** | 双列照片卡 + 精选轨 | 3:4 | people | 精选 ≤4 横滑；`BuddyPickRail` / `BuddyGridCard` |
-| **Booking 预约** | 市场货架 + 排行 | 轨 / 榜行 | service | `BuddyPaidMarketViews` + `BuddyServiceCard` |
-| **Browse 顶栏** | 想找+搜索+排序 | — | browse | 压缩首屏；`BuddyPeopleBrowseHeader` |
-| **Catalog 预约顶** | 搜索+比价排序 | — | catalog | `BuddyBookingCatalogHeader` |
-| **Circle 圈子** | 免费末幕 | 3:4 | poster | 次于选人 |
+| **Booking 预约** | 市场货架 + 排行 | 轨 / 榜行 | service | `BuddyPaidMarketViews`、`BuddyPosterShelfCard` |
+| **Browse 顶栏** | 大标题菜单 + 搜索 + 筛选 | — | browse | `platformTabRootTitleMenu` + `BuddyBrowseSearchSheet` + `BuddyFilterSheet`；**首页无 chip** |
+| **Circle 俱乐部** | 免费末幕 | 3:4 | poster | 次于选人 |
 | **Voice 语音厅** | 预约列表后 | 横卡 | continue | 试水再预约 |
 | **Detail Hero** | 详情头图 | 3:4 | card（圆角卡） | 安全区下；天气胶囊；相册控件 |
 | **Detail Related** | 相关活动推荐 | 16:9 横卡 | rail | Form header + 横滑轨；`PlatformEventCard`；footer 说明推荐逻辑 |
@@ -414,8 +419,8 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
 
 ### 列表行
 
-- **组件：** `PlatformConversationRow` + `PlatformToolbarAvatarButton`（单层 glass，内容铺满 `navigationBarButtonSide`）
-- 编辑资料：`PhotosPicker` + `PlatformToolbarAvatarLabel` → `CommunityPhotoStore` / `avatarLocalName`
+- **组件：** `PlatformConversationRow` + `PlatformToolbarAvatarLabel`（单层 glass，边长 = `@Environment(\.platformChromeMeasurements)`）
+- 编辑资料：`PhotosPicker` + `PlatformToolbarAvatarLabel` → `CommunityPhotoStore` / `avatarLocalName`（**Sendable label**：预览与按钮分离，见 [DevelopmentGuide §7.7](Docs/DevelopmentGuide.md#77-photospicker-与-sendable-label)）
 - **导航：** `NavigationLink`（隐藏 disclosure）+ `platformConversationListChrome()` / `platformConversationListRowChrome()`
 - **禁止：** 在 List/`NavigationLink` 行内嵌 `UIListContentView`（会裁切头像）；勿同时叠行水平 insets 与 List contentMargins
 
@@ -505,8 +510,8 @@ Sheet 档位：
 
 `PlatformListAvatarView`：
 
-- 消息模块：`PlatformToolbarAvatarButton` / `Label` — **单层** `glassEffect(.circle)`，头像盘与 glass 同边长（`navigationBarButtonSide`），无内嵌小圆
-- 编辑资料选图：`PhotosPicker` + `PlatformToolbarAvatarLabel`；保存仍走 `CommunityPhotoStore` → `avatarLocalName`
+- 消息模块：`PlatformToolbarAvatarLabel` — **单层** `glassEffect(.circle)`，头像盘与 glass 同边长（`@Environment(\.platformChromeMeasurements)`），无内嵌小圆
+- 编辑资料选图：`PhotosPicker` + `PlatformToolbarAvatarLabel`；保存仍走 `CommunityPhotoStore` → `avatarLocalName`（label 闭包仅 `String`，见 [DevelopmentGuide §7.7](Docs/DevelopmentGuide.md#77-photospicker-与-sendable-label)）
 - 列表页边：`contentInset`（与顶栏 leading 对齐）；铺满后视觉边距不再被外圈 glass 撑开
 - 其它模块默认：`PlatformListAvatarView` + `listAvatarSide`
 
@@ -530,6 +535,7 @@ Sheet 档位：
 | 场景 | API | 规则 |
 |------|-----|------|
 | 告知结果（收藏、筛选、订单状态等） | `.alert` + `platformFeedbackAlert` | 单一「好的」；文案绑定 `String?` |
+| 复制等无需打断的轻量结果 | `platformLightFeedback` | 触觉反馈 + 自动清空绑定；不用 Alert |
 | 破坏性 / 多选项决策 | `.confirmationDialog` 或 `.alert` | 见 §12.4 |
 | 需表单或下一步 | `.platformSheet(...)` | 不压成 Alert |
 
@@ -617,11 +623,15 @@ Sheet 档位：
 ```
 NavigationStack
 └─ ScrollView
+   ├─ [可选] 「下一场」摘要 Banner（`ActivityNextUpBanner`）
+   │     · 两行 + 单 CTA；无 checklist
+   │     · 条件：见过欢迎引导 + 下一场 ≤7 天（或结束 ≤7 天且未复盘）
+   ├─ 快捷筛选 chip 条（本周末 / 今天 / 免费）
    ├─ [可选] Featured Hero（全宽 3:4，穿顶）
    └─ LazyVStack(spacing: sectionSpacing)
       ├─ Section Header（双行）
       ├─ 横滑轨 / 竖卡流 / 榜单 / 焦点…
-      └─ …
+      └─ [可选] 活动分享入口（广场 Tab 合并时）
 Toolbar: Photos 圆形 + 胶囊；Trailing「更多」含发起 / 收藏的活动 / 筛选
 Background: groupedPage
 ScrollEdge: soft top
@@ -639,11 +649,14 @@ Form
 ├─ Section 发起人（header「发起人」）
 ├─ Section* 行程 / 费用 / 装备 / 须知（按 blueprint 排序）
 ├─ [可选] 管理 / 订单
-├─ [已参加] Section 活动凭证（订单区下方）
+├─ [已参加] 顶栏「我的行程」票券按钮（`ticket.fill`，在分享/更多左侧）
 ├─ Section 活动讨论（转场后再挂）
 └─ Section 相关活动（横滑轨贴边；header 同参加须知）
 + safeAreaInset 底栏 CTA
-+ toolbar glass
+  · 参与者已参加：secondary「取消参加」+ primary「打开我的行程」
+  · 参与者已结束：primary「打开我的行程」（复盘在行程页）
+  · 群聊：Toolbar「更多」→ 打开活动群
++ toolbar：`ToolbarItemGroup` + 文字图标钮（同活动 / 广场 Tab 根）；更多用 `ellipsis`
 + listSectionSpacing(.compact)
 ```
 
@@ -672,7 +685,7 @@ Form
 | 需理解后果的多结果决策 | `.alert` | 如「仅取消 / 取消并退款」；按钮角色明确 |
 | 退出登录 / 注销账号 | `.alert` | 设置页账号后果确认；破坏动作 `.destructive`，必须有 `.cancel` |
 | 删除预约记录 / 取消预约 | `.alert` | 陪玩订单详情后果确认；破坏动作 `.destructive`，必须有 `.cancel` |
-| 退出圈子 / 用户举报 / 拉黑 / 删除会话 | `.alert` | 后果确认或选择举报原因；破坏动作 `.destructive`，必须有 `.cancel` |
+| 退出俱乐部 / 用户举报 / 拉黑 / 删除会话 | `.alert` | 后果确认或选择举报原因；破坏动作 `.destructive`，必须有 `.cancel` |
 | 活动举报受理收尾 | `.alert` | Sheet 提交材料后弹出「已收到反馈」；单一「好的」 |
 | 菜单触发的移出群聊 | `.confirmationDialog` | `titleVisibility: .visible`；破坏动作必须 `.destructive`，必须有 `.cancel` |
 | 有输入、摘要、支付或下一步 | `.platformSheet(.confirm/.form/.browser)` | 不压缩为 Alert/Dialog |
@@ -691,13 +704,16 @@ Form
 
 | 主题 | 文件 |
 |------|------|
-| 色 / 间距 / 字 / glass / avatar / 消息 chrome | `Design/PlatformSemantics.swift`、`Design/PlatformMessagesChrome.swift` |
+| 色 / 语义 / 状态 | `Design/PlatformSemantics.swift` |
+| 间距 / 圆角 / 形状 | `Design/PlatformMetrics.swift` |
+| 运行时控件边长（顶栏圆钮、输入栏） | `Design/PlatformChromeMeasurements.swift` |
+| 列表头像 / 顶栏 / 消息与活动 chrome | `PlatformListAvatar.swift`、`PlatformToolbarChrome.swift`、`PlatformConversationListChrome.swift`、`PlatformActivityChrome.swift`、`PlatformMessagesChrome.swift` |
 | 货架卡 | `Design/PlatformCatalogCards.swift`、`Features/Activities/ActivityCards.swift` |
 | 横滑布局 | `Design/DiscoverBrowseLayout.swift` |
 | Zoom | `Design/ActivityZoomNavigation.swift`、`Features/Buddies/BuddyZoomNavigation.swift` |
 | Sheet | `Design/PlatformSheet.swift` |
 | 发现页 | `Features/Activities/ActivitiesView.swift` |
-| 搭子选人 | `Features/Buddies/BuddiesView.swift`、`BuddyBrowseShelves.swift`、`BuddyPaidMarketViews.swift`、`BuddyGridCard.swift`、`BuddyPosterShelfCard.swift`、`BuddyOrgInfoViews.swift`、`BuddyMemberProfileSheet.swift`、`BuddyMemberListSheet.swift`、`BuddyMemberCopy.swift`、`BuddyVoiceHallViews.swift`、`BuddiesModeSwitch.swift`、`BuddyFilterSheet.swift`、`BuddyBookingSheet.swift`、`BuddyScheduleSlot.swift`、`BuddyCityCatalog.swift` |
+| 搭子选人 | `Features/Buddies/BuddiesView.swift`、`BuddyBrowseShelves.swift`、`BuddyPaidMarketViews.swift`、`BuddyGridCard.swift`、`BuddyPosterShelfCard.swift`、`BuddyOrgInfoScaffold.swift`、`CircleGroupManageViews.swift`、`ProfileCircleDetailView.swift`、`ProfileGuildsListView.swift`、`BuddyMemberProfileSheet.swift`、`BuddyMemberListSheet.swift`、`BuddyMemberCopy.swift`、`BuddyVoiceHallViews.swift`、`BuddiesModeSwitch.swift`、`BuddyFilterSheet.swift`、`BuddyBookingSheet.swift`、`BuddyScheduleSlot.swift`、`BuddyCityCatalog.swift` |
 | 详情 | `Features/Activities/ActivityDetailView.swift`、`ActivityDetailSections.swift` |
 | Tab 折叠 | `ContentView.swift` |
 
@@ -723,4 +739,4 @@ Form
 
 ---
 
-*文档版本：系统级 = 业务少决策、多交给系统容器；命名间距保留给 Design 与系统读不到的几何。新增 UI 先选 Form/List/controlSize，再复用 Design 组件，最后才扩 `PlatformMetrics`。*
+*最后同步：2026-08-28（Tab 文案统一「广场」；PlatformSemantics 仅语义色；搭子圈子 View / MessagesModel 拆分已反映于 Appendix A）。*

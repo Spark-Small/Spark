@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 /// 分区卡片信息密度 / 视觉形态（活动域）
 enum ActivityBrowseShelfLayout: String, Hashable {

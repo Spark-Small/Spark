@@ -6,11 +6,12 @@
 import CoreLocation
 import Foundation
 import Observation
+import CoordinateModels
 
 @MainActor
 @Observable
 final class LocationService: NSObject, CLLocationManagerDelegate {
-    static let shared = LocationService()
+    static var shared: LocationService { AppComposition.locationService }
 
     private let manager = CLLocationManager()
     private(set) var authorization: CLAuthorizationStatus
@@ -42,7 +43,7 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         return authorization == .notDetermined
     }
 
-    override private init() {
+    override init() {
         authorization = manager.authorizationStatus
         super.init()
         manager.delegate = self
@@ -97,25 +98,27 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     }
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
         Task { @MainActor in
-            self.authorization = manager.authorizationStatus
-            if manager.authorizationStatus == .authorizedWhenInUse
-                || manager.authorizationStatus == .authorizedAlways {
-                manager.requestLocation()
+            authorization = status
+            if status == .authorizedWhenInUse || status == .authorizedAlways {
+                self.manager.requestLocation()
             }
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        let coordinate = locations.last?.coordinate
         Task { @MainActor in
-            self.coordinate = locations.last?.coordinate
-            self.lastError = nil
+            self.coordinate = coordinate
+            lastError = nil
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        let message = error.localizedDescription
         Task { @MainActor in
-            self.lastError = error.localizedDescription
+            lastError = message
         }
     }
 }

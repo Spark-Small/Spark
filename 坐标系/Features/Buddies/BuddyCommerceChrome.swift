@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 extension View {
     /// 邀约链路 Sheet
@@ -22,14 +23,21 @@ extension View {
         )
     }
 
-    /// 预约、待确认、支付、成功闭环 Sheet
+    /// 搭子 Tab：选档下单与提交待确认 Sheet
     func buddyBookingChrome(
+        buddies: BuddiesModel
+    ) -> some View {
+        modifier(BuddyBookingFlowChromeModifier(buddies: buddies))
+    }
+
+    /// Tab 根：待支付 / 支付 / 成功 / 履约安全确认（「我的」订单详情也会触发）
+    func buddyBookingSharedSheets(
         buddies: BuddiesModel,
         app: AppModel,
         peerContactRoute: Binding<PeerContactRoute?>
     ) -> some View {
         modifier(
-            BuddyBookingChromeModifier(
+            BuddyBookingSharedSheetsModifier(
                 buddies: buddies,
                 app: app,
                 peerContactRoute: peerContactRoute
@@ -88,10 +96,8 @@ private struct BuddyInviteChromeModifier: ViewModifier {
     }
 }
 
-private struct BuddyBookingChromeModifier: ViewModifier {
+private struct BuddyBookingFlowChromeModifier: ViewModifier {
     @Bindable var buddies: BuddiesModel
-    var app: AppModel
-    @Binding var peerContactRoute: PeerContactRoute?
 
     func body(content: Content) -> some View {
         content
@@ -122,6 +128,39 @@ private struct BuddyBookingChromeModifier: ViewModifier {
                     },
                     onDismiss: {
                         buddies.dismissBookingAcknowledgement()
+                    }
+                )
+                .toolbarVisibility(.hidden, for: .tabBar)
+            }
+    }
+}
+
+private struct BuddyBookingSharedSheetsModifier: ViewModifier {
+    @Bindable var buddies: BuddiesModel
+    var app: AppModel
+    @Binding var peerContactRoute: PeerContactRoute?
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(item: Binding(
+                get: { buddies.pendingAwaitingPaymentReview },
+                set: { if $0 == nil { buddies.dismissAwaitingPaymentReview() } }
+            )) { record in
+                BookingAwaitingPaymentSheet(
+                    record: record,
+                    onPay: {
+                        buddies.beginPayment(record.id)
+                    },
+                    onContactCompanion: {
+                        let scheduleLine = PeerChatCopy.bookingScheduleLine(for: record)
+                        peerContactRoute = app.openPeerContact(
+                            with: record.companionNickname,
+                            context: .bookingCompanion(scheduleLine: scheduleLine)
+                        )
+                        buddies.dismissAwaitingPaymentReview()
+                    },
+                    onPayLater: {
+                        buddies.dismissAwaitingPaymentReview()
                     }
                 )
                 .toolbarVisibility(.hidden, for: .tabBar)

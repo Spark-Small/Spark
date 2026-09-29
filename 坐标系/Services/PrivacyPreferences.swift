@@ -2,11 +2,12 @@
 //  PrivacyPreferences.swift
 //  坐标系
 //
-//  隐私偏好：设置页写入，搭子卡 / 详情 / 邀约读取。
+//  隐私偏好：设置页经 Store 写入；域逻辑经本枚举读取（同键 UserDefaults）。
 //
 
 import Foundation
 import SwiftUI
+import CoordinateModels
 
 enum PrivacyPreferenceKey {
     static let showDistance = "settings.privacy.showDistance"
@@ -16,24 +17,15 @@ enum PrivacyPreferenceKey {
 
 enum PrivacyPreferences {
     static var showDistance: Bool {
-        if UserDefaults.standard.object(forKey: PrivacyPreferenceKey.showDistance) == nil {
-            return true
-        }
-        return UserDefaults.standard.bool(forKey: PrivacyPreferenceKey.showDistance)
+        resolvedBool(forKey: PrivacyPreferenceKey.showDistance, default: true)
     }
 
     static var showOnline: Bool {
-        if UserDefaults.standard.object(forKey: PrivacyPreferenceKey.showOnline) == nil {
-            return true
-        }
-        return UserDefaults.standard.bool(forKey: PrivacyPreferenceKey.showOnline)
+        resolvedBool(forKey: PrivacyPreferenceKey.showOnline, default: true)
     }
 
     static var allowInvite: Bool {
-        if UserDefaults.standard.object(forKey: PrivacyPreferenceKey.allowInvite) == nil {
-            return true
-        }
-        return UserDefaults.standard.bool(forKey: PrivacyPreferenceKey.allowInvite)
+        resolvedBool(forKey: PrivacyPreferenceKey.allowInvite, default: true)
     }
 
     /// 搭子卡次要 meta：按隐私开关过滤距离 / 在线态。
@@ -51,7 +43,6 @@ enum PrivacyPreferences {
         } else if !showOnline,
                   !statusLine.isEmpty,
                   statusLine != BuddyDetailCopy.online {
-            // 关闭「在线」时仍可显示「今日活跃」等非实时文案
             parts.append(statusLine)
         }
         return parts.filter { !$0.isEmpty }.joined(separator: " · ")
@@ -62,5 +53,10 @@ enum PrivacyPreferences {
             return showOnline ? BuddyDetailCopy.online : nil
         }
         return lastActiveText.isEmpty ? nil : lastActiveText
+    }
+
+    private static func resolvedBool(forKey key: String, default defaultValue: Bool) -> Bool {
+        if UserDefaults.standard.object(forKey: key) == nil { return defaultValue }
+        return UserDefaults.standard.bool(forKey: key)
     }
 }

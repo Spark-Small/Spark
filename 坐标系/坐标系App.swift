@@ -9,30 +9,49 @@ import SwiftData
 import SwiftUI
 import TipKit
 import UserNotifications
+import CoordinateModels
 
 @main
 struct 坐标系App: App {
     private let modelContainer: ModelContainer
+    @State private var persistenceHealth = AppPersistenceHealth()
 
     init() {
         AppNotificationRouter.shared.install()
         AppTips.configure()
 
+        let health = AppPersistenceHealth()
         do {
-            modelContainer = try ModelContainer(for: RecentBrowseItem.self)
+            modelContainer = try AppSwiftDataContainer.makeProduction()
         } catch {
-            fatalError("SwiftData ModelContainer failed: \(error)")
+            // Apple: 磁盘满 / 库损坏时勿 fatalError；降级内存容器并提示用户可恢复。
+            assertionFailure("SwiftData ModelContainer failed: \(error)")
+            do {
+                modelContainer = try AppSwiftDataContainer.makeInMemory()
+                health.markEphemeralFallback(error: error)
+            } catch {
+                preconditionFailure("In-memory ModelContainer also failed: \(error)")
+            }
         }
-        ProfileRecentBrowseStore.shared.attach(container: modelContainer)
-        MembershipStore.shared.startListeningForTransactions()
+        _persistenceHealth = State(initialValue: health)
+        PersistenceWriteFailureReporter.bind(health)
+
+        AppComposition.profileRecentBrowseStore.attach(container: modelContainer)
+        SwiftDataSnapshotRegistry.attach(container: modelContainer)
+        AppComposition.membershipStore.startListeningForTransactions()
     }
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .task {
-                    await MembershipStore.shared.refreshEntitlement()
-                }
+            PlatformChromeRoot {
+                ContentView()
+                    .environment(persistenceHealth)
+                    .environment(AppComposition.greetingWeatherStore)
+                    .environment(AppComposition.locationService)
+                    .task {
+                        await AppComposition.membershipStore.refreshEntitlement()
+                    }
+            }
         }
         .modelContainer(modelContainer)
     }

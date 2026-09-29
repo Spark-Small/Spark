@@ -6,6 +6,7 @@
 import PhotosUI
 import SwiftUI
 import UIKit
+import CoordinateModels
 
 struct ActivityComposeSheet: View {
     var editingActivity: Activity? = nil
@@ -38,6 +39,7 @@ struct ActivityComposeSheet: View {
     ) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppModel.self) private var app
     @State private var title = ""
     @State private var category: ActivityCategory = .outdoorSports
     @State private var location = ""
@@ -57,6 +59,7 @@ struct ActivityComposeSheet: View {
     @State private var latitude: Double?
     @State private var longitude: Double?
     @State private var showMapPicker = false
+    @State private var moderationAlert: String?
 
     private var isEditing: Bool { editingActivity != nil }
 
@@ -75,18 +78,19 @@ struct ActivityComposeSheet: View {
         NavigationStack {
             Form {
                 Section {
+                    if let coverPreview {
+                        Image(uiImage: coverPreview)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: PlatformMetrics.composeCoverHeight)
+                            .clipShape(PlatformMetrics.mediaShape)
+                    }
+
+                    let coverActionTitle = localCoverName == nil ? "添加封面图" : "更换封面"
                     PhotosPicker(selection: $pickerItem, matching: .images) {
-                        if let coverPreview {
-                            Image(uiImage: coverPreview)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(maxWidth: .infinity)
-                                .frame(height: PlatformMetrics.composeCoverHeight)
-                                .clipShape(PlatformMetrics.mediaShape)
-                        } else {
-                            Label("添加封面图", systemImage: "photo.on.rectangle.angled")
-                                .frame(maxWidth: .infinity, minHeight: PlatformMetrics.galleryEditorThumb)
-                        }
+                        Label(coverActionTitle, systemImage: "photo.on.rectangle.angled")
+                            .frame(maxWidth: .infinity, minHeight: PlatformMetrics.galleryEditorThumb)
                     }
                     .onChange(of: pickerItem) { _, item in
                         Task { await loadCover(item) }
@@ -164,6 +168,7 @@ struct ActivityComposeSheet: View {
             }
         }
         .platformSheet(.form)
+        .platformFeedbackAlert($moderationAlert)
     }
 
     private var parsedTags: [String] {
@@ -189,7 +194,7 @@ struct ActivityComposeSheet: View {
         latitude = activity.latitude
         longitude = activity.longitude
         if let name = activity.localCoverName,
-           let url = CommunityPhotoStore.fileURL(named: name),
+           let url = LocalMediaLibrary.fileURL(named: name),
            let data = try? Data(contentsOf: url),
            let image = UIImage(data: data) {
             coverPreview = image
@@ -197,18 +202,23 @@ struct ActivityComposeSheet: View {
     }
 
     private func discardUncommittedCoverIfNeeded() {
-        CommunityPhotoStore.discardUncommitted(
+        LocalMediaLibrary.discardUncommitted(
             current: localCoverName.map { [$0] } ?? [],
             baseline: baselineCoverName.map { [$0] } ?? []
         )
     }
 
     private func submit() {
+        let combined = [title, summary, tagText, location].joined(separator: "\n")
+        if case .block(let reason) = ContentModeration.scanText(combined) {
+            moderationAlert = reason
+            return
+        }
         // 编辑时替换封面：提交后再删旧文件
         if isEditing,
            let baseline = baselineCoverName,
            baseline != localCoverName {
-            CommunityPhotoStore.delete(named: baseline)
+            LocalMediaLibrary.delete(named: baseline)
         }
         didCommitSave = true
         if let activity = editingActivity, let onUpdate {
@@ -233,14 +243,25 @@ struct ActivityComposeSheet: View {
 
         // 本会话内换图：先丢掉上一张未提交新图，保留基线封面文件
         if let old = localCoverName, old != baselineCoverName {
-            CommunityPhotoStore.delete(named: old)
+            LocalMediaLibrary.delete(named: old)
             localCoverName = nil
         }
 
         guard let data = try? await item.loadTransferable(type: Data.self),
-              let image = UIImage(data: data),
-              let name = CommunityPhotoStore.saveJPEG(data)
+              let image = UIImage(data: data)
         else { return }
+
+        let decision = await MediaModerationService.moderateImage(
+            image,
+            context: .activityCover,
+            actorKey: app.user.name
+        )
+        if case .block(let reason) = decision {
+            moderationAlert = reason
+            return
+        }
+
+        guard let name = LocalMediaLibrary.saveJPEG(data) else { return }
 
         coverPreview = image
         localCoverName = name

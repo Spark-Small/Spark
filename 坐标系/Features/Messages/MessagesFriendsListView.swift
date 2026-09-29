@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import CoordinateModels
 
 struct MessagesFriendsListView: View {
     var onOpenChat: (String) -> Void
@@ -193,6 +194,7 @@ private struct FriendSection: Identifiable {
     let collationIndex: Int
     let friends: [FriendListEntry]
 
+    @MainActor
     static func build(
         from friends: [FriendListEntry],
         displayName: (String) -> String

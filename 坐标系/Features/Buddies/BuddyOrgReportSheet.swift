@@ -5,6 +5,7 @@
 //  圈子 / 工会投诉：Form 填写原因、说明与材料；提交后写入举报工单。
 //
 
+import CoordinateModels
 import PhotosUI
 import SwiftUI
 import UIKit
@@ -23,12 +24,12 @@ nonisolated enum BuddyOrgReportCopy {
     static let submitFooter = "恶意投诉可能影响账号权限。提交前请确认材料与说明属实。"
 
     static func title(kind: OrgMembershipKind) -> String {
-        kind == .circle ? "投诉圈子" : "投诉工会"
+        kind == .circle ? "投诉俱乐部" : "投诉工会"
     }
 
     static func receivedMessage(kind: OrgMembershipKind) -> String {
         kind == .circle
-            ? "我们已收到对该圈子的反馈，将尽快核查。可在「设置 → 举报记录」查看进度。"
+            ? "我们已收到对该俱乐部的反馈，将尽快核查。可在「设置 → 举报记录」查看进度。"
             : "我们已收到对该工会的反馈，将尽快核查。可在「设置 → 举报记录」查看进度。"
     }
 }
@@ -82,18 +83,18 @@ struct BuddyOrgReportSheet: View {
                 }
 
                 Section {
+                    let evidencePickerTitle = PlatformPhotosPickerCopy.evidenceLabel(
+                        count: previewImages.count,
+                        emptyTitle: BuddyOrgReportCopy.evidenceAdd,
+                        selectedTitle: BuddyOrgReportCopy.evidenceSelected
+                    )
                     PhotosPicker(
                         selection: $pickerItems,
                         maxSelectionCount: maxEvidence,
                         matching: .images,
                         photoLibrary: .shared()
                     ) {
-                        Label(
-                            previewImages.isEmpty
-                                ? BuddyOrgReportCopy.evidenceAdd
-                                : BuddyOrgReportCopy.evidenceSelected(previewImages.count),
-                            systemImage: "photo.on.rectangle.angled"
-                        )
+                        Label(evidencePickerTitle, systemImage: "photo.on.rectangle.angled")
                     }
                     .onChange(of: pickerItems) { _, items in
                         Task { await loadEvidence(items) }

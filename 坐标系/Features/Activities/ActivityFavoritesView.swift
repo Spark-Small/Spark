@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 struct ActivityFavoritesView: View {
     var body: some View {

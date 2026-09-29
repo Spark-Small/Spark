@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 // MARK: - Target
 
@@ -277,8 +278,8 @@ enum PlatformReviewsStore {
     ) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        if let word = ContentModeration.containsSensitive(trimmed) {
-            return "评论包含敏感词「\(word)」"
+        if case .block(let reason) = ContentModeration.scanText(trimmed) {
+            return reason
         }
 
         let key = target.storageKey

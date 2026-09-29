@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 // MARK: - Booking detail
 
@@ -16,6 +17,7 @@ func bookingStatusColor(_ status: BookingOrderStatus) -> Color {
     case .paid: .blue
     case .inProgress: .indigo
     case .completed: PlatformStatus.success
+    case .refunding: PlatformStatus.warning
     case .refunded, .cancelled: .secondary
     }
 }
@@ -80,9 +82,12 @@ struct BuddyInviteDetailView: View {
                         }
                         if let activity = relatedActivity {
                             relatedActivityLink(activity)
-                            if record.status == .accepted {
-                                Button("进入活动群", systemImage: "person.3") {
-                                    app.openActivityGroupChat(for: activity)
+                            if record.status == .accepted, app.activities.isJoined(activity.id) {
+                                NavigationLink {
+                                    ActivityCredentialExpandedView(activityID: activity.id)
+                                        .toolbarVisibility(.hidden, for: .tabBar)
+                                } label: {
+                                    Label(ActivityDetailCopy.credentialViewAction, systemImage: "ticket.fill")
                                 }
                             }
                         }

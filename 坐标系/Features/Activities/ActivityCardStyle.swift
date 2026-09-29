@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 // MARK: - Status vocabulary（发现表面唯一出口）
 
@@ -26,10 +27,12 @@ enum ActivityCardStatus {
     static let fullWaitlistAnnounce = "已满，可加入候补"
     static let joinWaitlist = "加入候补"
     static let leaveWaitlist = "退出候补"
+    static let waitlisted = "已候补"
     static let waitlistSpotOpen = "候补名额已开放"
     /// 详情决策语境（比角标「已满」稍完整）
     static let fullVerbose = "名额已满"
-    static let openGroupChat = "进群打招呼"
+    static let openGroupChat = "打开活动群"
+    static let joinSuccessGroupHint = "活动群已在消息 → 活动群，集合信息会发在群里"
     static let shareActivity = "分享活动"
     static let favorite = "收藏"
     static let unfavorite = "取消收藏"
@@ -128,9 +131,24 @@ struct ActivityJoinedStatusChip: View {
     }
 }
 
+/// 已候补：与「已参加」同形态，状态即反馈
+struct ActivityWaitlistedStatusChip: View {
+    var controlSize: ControlSize = .regular
+    var expandsHorizontally = false
+
+    var body: some View {
+        Label(ActivityCardStatus.waitlisted, systemImage: "clock.badge.checkmark")
+            .activitySecondaryCTA(controlSize: controlSize)
+            .frame(maxWidth: expandsHorizontally ? .infinity : nil)
+            .labelStyle(.titleOnly)
+            .accessibilityLabel(ActivityCardStatus.waitlisted)
+    }
+}
+
 /// 参加 / 加入候补 / 已参加 — Featured、轨卡、列表大卡共用
 struct ActivityPrimaryAction: View {
     var isJoined: Bool
+    var isWaitlisted: Bool = false
     var isFull: Bool
     var controlSize: ControlSize = .regular
     var expandsHorizontally = false
@@ -140,6 +158,12 @@ struct ActivityPrimaryAction: View {
     var body: some View {
         if isJoined {
             ActivityJoinedStatusChip(
+                controlSize: controlSize,
+                expandsHorizontally: expandsHorizontally
+            )
+            .colorScheme(onMedia ? .dark : .light)
+        } else if isWaitlisted {
+            ActivityWaitlistedStatusChip(
                 controlSize: controlSize,
                 expandsHorizontally: expandsHorizontally
             )
@@ -172,8 +196,10 @@ struct ActivityCardStatusBadge: View {
 
 /// 活动封面叠字卡（发现流）
 struct ActivityHeroCard<Meta: View>: View {
+    @Environment(ActivitiesModel.self) private var activities
     let activity: Activity
     var isJoined: Bool
+    var isWaitlisted: Bool = false
     var layout: HeroMediaCardLayout
     var zoomNamespace: Namespace.ID? = nil
     var enablesOpenTap = true
@@ -203,6 +229,7 @@ struct ActivityHeroCard<Meta: View>: View {
             actions: {
                 ActivityPrimaryAction(
                     isJoined: isJoined,
+                    isWaitlisted: isWaitlisted,
                     isFull: activity.isFull,
                     controlSize: .regular,
                     onJoin: onJoin

@@ -6,12 +6,14 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 struct TrustSafetyCheckInSheet: View {
     let record: BuddyBookingRecord
     var onDone: () -> Void
 
     @Environment(AppModel.self) private var app
+    @Environment(TrustService.self) private var trust
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -55,7 +57,7 @@ struct TrustSafetyCheckInSheet: View {
     }
 
     private func submit(wentWell: Bool) {
-        TrustService.shared.submitSafetyCheckIn(
+        trust.submitSafetyCheckIn(
             actorKey: app.user.name,
             companionNickname: record.companionNickname,
             bookingID: record.id,

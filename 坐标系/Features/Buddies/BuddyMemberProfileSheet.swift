@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 struct BuddyMemberProfileSheet: View {
     let target: BuddyMemberProfileTarget
@@ -81,10 +82,7 @@ struct BuddyMemberProfileSheet: View {
             .circleMemberSheetNavigationDestination()
         }
         .tabNavigationState(navigation)
-        .independentNavigationSheetChrome(
-            dismissSheet: { dismiss() },
-            resetMemberSheetDestination: true
-        )
+        .independentNavigationSheetChrome(resetMemberSheetDestination: true)
         .platformSheet(.browser)
     }
 

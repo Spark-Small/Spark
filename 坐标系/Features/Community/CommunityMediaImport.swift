@@ -9,6 +9,7 @@ import CoreTransferable
 import PhotosUI
 import SwiftUI
 import UniformTypeIdentifiers
+import CoordinateModels
 
 extension CommunityPhotoStore {
     static let photosAndVideos: PHPickerFilter = .any(of: [.images, .videos])

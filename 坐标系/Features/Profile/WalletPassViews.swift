@@ -7,6 +7,7 @@
 
 import PassKit
 import SwiftUI
+import CoordinateModels
 
 struct WalletPassesSection: View {
     @Environment(WalletPassStore.self) private var passStore
@@ -57,6 +58,7 @@ struct WalletPassDetailView: View {
     let passID: UUID
 
     @Environment(WalletPassStore.self) private var passStore
+    @Environment(ActivitiesModel.self) private var activities
     #if DEBUG
     @Environment(PassUpdateWebService.self) private var updateService
     @State private var exportedFile: ExportedPassFile?
@@ -71,6 +73,35 @@ struct WalletPassDetailView: View {
     }
 
     var body: some View {
+        Group {
+            if let pass,
+               pass.style == .eventTicket,
+               let activityID = activityID(for: pass) {
+                ActivityCredentialExpandedView(activityID: activityID)
+            } else {
+                passDetailForm
+            }
+        }
+        #if DEBUG
+        .alert("无法导出", isPresented: $showExportError) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            Text(exportError ?? "")
+        }
+        .alert("模拟拉取结果", isPresented: $showPullResult) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            Text(pullResult ?? "")
+        }
+        .sheet(item: $exportedFile) { file in
+            SharePassFileSheet(url: file.url)
+                .toolbarVisibility(.hidden, for: .tabBar)
+        }
+        #endif
+    }
+
+    @ViewBuilder
+    private var passDetailForm: some View {
         Form {
             if let pass {
                 if pass.voided {
@@ -143,22 +174,17 @@ struct WalletPassDetailView: View {
         .listSectionSpacing(.compact)
         .navigationTitle(pass?.style.displayName ?? "通行证")
         .navigationBarTitleDisplayMode(.inline)
-        #if DEBUG
-        .alert("无法导出", isPresented: $showExportError) {
-            Button("好的", role: .cancel) {}
-        } message: {
-            Text(exportError ?? "")
+    }
+
+    private func activityID(for pass: PassRecord) -> Activity.ID? {
+        guard let relatedID = pass.relatedID else { return nil }
+        if activities.activity(id: relatedID) != nil {
+            return relatedID
         }
-        .alert("模拟拉取结果", isPresented: $showPullResult) {
-            Button("好的", role: .cancel) {}
-        } message: {
-            Text(pullResult ?? "")
+        if let order = ActivityPaymentStore.order(id: relatedID) {
+            return order.activityID
         }
-        .sheet(item: $exportedFile) { file in
-            SharePassFileSheet(url: file.url)
-                .toolbarVisibility(.hidden, for: .tabBar)
-        }
-        #endif
+        return nil
     }
 
     @ViewBuilder

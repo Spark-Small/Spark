@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 // MARK: - Group manage
 
@@ -177,7 +178,7 @@ struct GroupManageSheet: View {
 
             if canExpandMembers, !showAllMembers {
                 Button {
-                    withAnimation(.snappy) { showAllMembers = true }
+                    PlatformMotion.withAnimation(.snappy) { showAllMembers = true }
                 } label: {
                     HStack {
                         Spacer()
@@ -195,7 +196,7 @@ struct GroupManageSheet: View {
 
             if showAllMembers, canExpandMembers {
                 Button {
-                    withAnimation(.snappy) { showAllMembers = false }
+                    PlatformMotion.withAnimation(.snappy) { showAllMembers = false }
                 } label: {
                     HStack {
                         Spacer()

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 struct BuddyMemberListSheet: View {
     let title: String
@@ -53,7 +54,7 @@ struct BuddyMemberListSheet: View {
             .circleMemberSheetNavigationDestination()
         }
         .tabNavigationState(navigation)
-        .independentNavigationSheetChrome(dismissSheet: { dismiss() })
+        .independentNavigationSheetChrome()
         .platformSheet(.browser)
     }
 

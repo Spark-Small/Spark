@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum ActivityFeedbackCopy {
     static let favorited = "已收藏活动"
@@ -14,6 +15,12 @@ enum ActivityFeedbackCopy {
     static let waitlistUnnecessary = "当前无需候补"
     static let waitlistLeft = "已退出候补"
     static let waitlistJoined = "已加入候补，有空位时会提醒你"
+    static let waitlistPromoted = "已转正参加"
+    static let waitlistPaymentRequired = "请先支付后再转正参加"
+    static let joinFailed = "暂时无法完成报名，请稍后重试"
+    static let activityUnavailable = "活动不可用或已下架"
+    static let feedbackThanks = "感谢你的反馈"
+    static let recapPublished = "复盘已发布"
 
     static func waitlistSpotOpened(title: String) -> String {
         "「\(title)」有空位了，可转正参加"

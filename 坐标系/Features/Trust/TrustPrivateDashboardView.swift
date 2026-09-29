@@ -5,6 +5,7 @@
 //  「我的信誉」：对齐会员中心 / 账号与安全的 Form + LabeledContent。
 //
 
+import CoordinateModels
 import SwiftUI
 
 struct TrustPrivateDashboardView: View {
@@ -12,23 +13,24 @@ struct TrustPrivateDashboardView: View {
     @Environment(BuddiesModel.self) private var buddies
     @Environment(ActivitiesModel.self) private var activities
     @Environment(MessagesModel.self) private var messages
-    @AppStorage("profile.membership.active") private var membershipActive = false
-
-    private var photoStore: PhotoVerificationStore { .shared }
+    @Environment(MembershipStore.self) private var membership
+    @Environment(TrustService.self) private var trust
+    @Environment(ProductLifecycleStore.self) private var lifecycle
+    @Environment(PhotoVerificationStore.self) private var photoVerification
 
     private var status: TrustPrivateStatus {
-        _ = TrustService.shared.revision
-        _ = photoStore.isVerified
+        _ = trust.revision
+        _ = photoVerification.isVerified
         let friends = messages.conversations.filter(\.isFriendChat).count
-        return TrustService.shared.privateStatus(
+        return trust.privateStatus(
             userName: app.user.name,
             signals: TrustPrivateSignals(
                 profileRatio: ProfileCompletion.ratio(for: app.user),
-                isMember: membershipActive,
+                isMember: membership.isEntitled,
                 isGuest: app.auth.isGuest,
                 hasPhone: !app.auth.isGuest && !app.auth.phoneNumber.isEmpty,
-                photoVerified: photoStore.isVerified(for: app.user.name),
-                accountCreatedAt: ProductLifecycleStore.shared.installAt,
+                photoVerified: photoVerification.isVerified(for: app.user),
+                accountCreatedAt: lifecycle.installAt,
                 friendCount: friends,
                 liveHostedCount: activities.hostedActivities.count
             )
@@ -37,7 +39,7 @@ struct TrustPrivateDashboardView: View {
 
     var body: some View {
         let data = status
-        let photoOK = photoStore.isVerified(for: app.user.name)
+        let photoOK = photoVerification.isVerified(for: app.user)
         Form {
             Section {
                 LabeledContent("等级", value: data.level.title)
@@ -61,13 +63,13 @@ struct TrustPrivateDashboardView: View {
             } header: {
                 Text("防欺诈认证")
             } footer: {
-                Text("自拍与头像本机比对，降低盗图冒用；影像不上传。")
+                Text("摄像头采集人脸与资料认证照本机比对；影像不上传。认证照可设是否对外展示。")
             }
 
             Section {
                 TrustCredentialStatusRows(
                     photoVerified: photoOK,
-                    isMember: membershipActive
+                    isMember: membership.isEntitled
                 )
                 TrustBadgeRow(badges: earnedExtraBadges(from: data.badges))
             } header: {

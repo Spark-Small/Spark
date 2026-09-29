@@ -2,16 +2,24 @@
 //  PassPackageBuilder.swift
 //  坐标系
 //
-//  Build：pass.json + 资源 + manifest → 未签名包（Building a Pass）。
+//  Build：pass.json + 官方模板资源 + manifest → 未签名包（Building a Pass）。
 //  签名须在 Pass Builder / 服务端完成，勿把证书打进 App。
 //
 
 import CryptoKit
 import Foundation
 import UIKit
+import CoordinateModels
 
 enum PassPackageBuilder {
     static func makePassJSON(for pass: PassRecord) -> [String: Any] {
+        let background = pass.backgroundColorRGB
+            ?? PassTemplateResources.rgbString(
+                from: PassTemplateResources.uiBackgroundColor(
+                    for: ActivityCategory(rawValue: pass.appearanceKey ?? "") ?? .forYou
+                )
+            )
+
         var root: [String: Any] = [
             "formatVersion": 1,
             "passTypeIdentifier": PassConfiguration.passTypeIdentifier,
@@ -21,23 +29,30 @@ enum PassPackageBuilder {
             "description": pass.description,
             "logoText": PassConfiguration.logoText,
             "foregroundColor": "rgb(255, 255, 255)",
-            "backgroundColor": "rgb(28, 28, 30)",
+            "backgroundColor": background,
             "labelColor": "rgb(174, 174, 178)",
             "webServiceURL": pass.webServiceURL,
             "authenticationToken": pass.authenticationToken,
-            "barcode": [
-                "format": "PKBarcodeFormatQR",
-                "message": pass.barcodeMessage,
-                "messageEncoding": "iso-8859-1"
-            ] as [String: String]
+            "barcodes": [
+                [
+                    "format": pass.style == .eventTicket ? "PKBarcodeFormatCode128" : "PKBarcodeFormatQR",
+                    "message": pass.barcodeMessage,
+                    "messageEncoding": "iso-8859-1",
+                    "altText": pass.title
+                ] as [String: String]
+            ]
         ]
 
-        root[pass.style.passJSONKey] = [
+        var styleBody: [String: Any] = [
             "primaryFields": pass.primaryFields.map(fieldDict),
             "secondaryFields": pass.secondaryFields.map(fieldDict),
             "auxiliaryFields": pass.auxiliaryFields.map(fieldDict),
             "backFields": pass.backFields.map(fieldDict)
-        ] as [String: Any]
+        ]
+        if !pass.headerFields.isEmpty {
+            styleBody["headerFields"] = pass.headerFields.map(fieldDict)
+        }
+        root[pass.style.passJSONKey] = styleBody
 
         if let relevantDate = pass.relevantDate {
             root["relevantDate"] = PassDateFormatting.tag(from: relevantDate)
@@ -53,10 +68,16 @@ enum PassPackageBuilder {
     }
 
     private static func fieldDict(_ field: PassField) -> [String: String] {
-        ["key": field.key, "label": field.label, "value": field.value]
+        var dict = ["key": field.key, "label": field.label, "value": field.value]
+        if field.key == "event" || field.key == "companion" || field.key == "member" {
+            dict["textAlignment"] = "PKTextAlignmentLeft"
+        }
+        return dict
     }
 
     /// 写出未签名 pass 包（zip），供 Pass Builder / 证书流程签名。
+    /// 须在主线程调用：票面 strip 依赖 SwiftUI 渲染，禁止 `DispatchQueue.main.sync`。
+    @MainActor
     static func makeUnsignedPackageData(for pass: PassRecord) throws -> Data {
         let temp = FileManager.default.temporaryDirectory
             .appendingPathComponent("pass-\(pass.serialNumber)", isDirectory: true)
@@ -67,14 +88,7 @@ enum PassPackageBuilder {
         let jsonData = try JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys])
         try jsonData.write(to: temp.appendingPathComponent("pass.json"), options: [.atomic])
 
-        if let icon = symbolPNG(named: pass.style.systemImage, side: 58) {
-            try icon.write(to: temp.appendingPathComponent("icon.png"), options: [.atomic])
-            try icon.write(to: temp.appendingPathComponent("paula.r@example.org"), options: [.atomic])
-        }
-        if let logo = symbolPNG(named: "wallet.bifold.fill", side: 50) {
-            try logo.write(to: temp.appendingPathComponent("logo.png"), options: [.atomic])
-            try logo.write(to: temp.appendingPathComponent("paula.r@example.org"), options: [.atomic])
-        }
+        try writeTemplateAssets(for: pass, into: temp)
 
         var manifest: [String: String] = [:]
         let contents = try FileManager.default.contentsOfDirectory(at: temp, includingPropertiesForKeys: nil)
@@ -89,22 +103,37 @@ enum PassPackageBuilder {
         return try PassZip.directory(temp)
     }
 
-    private static func symbolPNG(named name: String, side: CGFloat) -> Data? {
-        let config = UIImage.SymbolConfiguration(pointSize: side * 0.55, weight: .medium)
-        guard let image = UIImage(systemName: name, withConfiguration: config) else { return nil }
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        format.opaque = false
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format)
-        let rendered = renderer.image { _ in
-            UIColor.black.setFill()
-            UIRectFill(CGRect(x: 0, y: 0, width: side, height: side))
-            let size = image.size
-            let origin = CGPoint(x: (side - size.width) / 2, y: (side - size.height) / 2)
-            image.withTintColor(.white, renderingMode: .alwaysOriginal)
-                .draw(in: CGRect(origin: origin, size: size))
+    @MainActor
+    private static func writeTemplateAssets(for pass: PassRecord, into directory: URL) throws {
+        let iconFiles = PassTemplateResources.iconPNG(systemName: pass.style.systemImage)
+        for (name, data) in iconFiles {
+            try data.write(to: directory.appendingPathComponent(name), options: [.atomic])
         }
-        return rendered.pngData()
+
+        let logoFiles = PassTemplateResources.logoPNG()
+        for (name, data) in logoFiles {
+            try data.write(to: directory.appendingPathComponent(name), options: [.atomic])
+        }
+
+        if pass.style == .eventTicket {
+            let category = ActivityCategory(rawValue: pass.appearanceKey ?? "") ?? .forYou
+            let stripSurface = PassTemplateResources.uiStripSurfaceColor(for: pass.appearanceKey)
+            let cover = renderCredentialArtStripCover(for: category)
+            let stripFiles = PassTemplateResources.eventStripPNG(
+                stripColor: stripSurface,
+                cover: cover,
+                usesCredentialArt: cover != nil
+            )
+            for (name, data) in stripFiles {
+                try data.write(to: directory.appendingPathComponent(name), options: [.atomic])
+            }
+        }
+    }
+
+    @MainActor
+    private static func renderCredentialArtStripCover(for category: ActivityCategory) -> UIImage? {
+        let pixelSize = PassTemplateResources.pixelSize(kind: .eventStrip, scale: .x1)
+        return CredentialArtStripRenderer.walletStripImage(for: category, pixelSize: pixelSize)
     }
 }
 

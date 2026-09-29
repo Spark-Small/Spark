@@ -7,6 +7,7 @@
 
 import Foundation
 import Observation
+import CoordinateModels
 
 enum ProductLifecyclePhase: String, Codable {
     case new
@@ -24,7 +25,7 @@ struct ProductLifecycleTip: Identifiable, Hashable {
 @MainActor
 @Observable
 final class ProductLifecycleStore {
-    static let shared = ProductLifecycleStore()
+    static var shared: ProductLifecycleStore { AppComposition.productLifecycleStore }
 
     private enum Key {
         static let installAt = "lifecycle.installAt"
@@ -32,6 +33,12 @@ final class ProductLifecycleStore {
         static let openCount = "lifecycle.openCount"
         static let dismissedTips = "lifecycle.dismissedTips"
         static let lastVersionSeen = "lifecycle.lastVersionSeen"
+        static let tabVisits = "lifecycle.tabVisits"
+    }
+
+    private struct TabVisitRecord: Codable {
+        let tab: String
+        let date: Date
     }
 
     private(set) var installAt: Date
@@ -40,7 +47,7 @@ final class ProductLifecycleStore {
     private(set) var dismissedTipIDs: Set<String>
     private(set) var phase: ProductLifecyclePhase = .new
 
-    private init() {
+    init() {
         let defaults = UserDefaults.standard
         let resolvedInstall: Date
         if let stamp = defaults.object(forKey: Key.installAt) as? Date {
@@ -106,12 +113,49 @@ final class ProductLifecycleStore {
         }
     }
 
+    /// 切换 Tab 时记一次访问，用于 7 日打开率观察（如广场是否应并入活动）。
+    func recordTabVisit(_ tab: AppTab) {
+        var records = loadTabVisits()
+        records.append(TabVisitRecord(tab: tab.analyticsKey, date: .now))
+        let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
+        records = records.filter { $0.date >= cutoff }
+        saveTabVisits(records)
+    }
+
+    func tabVisitCount(_ tab: AppTab, withinDays days: Int = 7) -> Int {
+        guard days > 0 else { return 0 }
+        let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: .now) ?? .now
+        return loadTabVisits().filter { $0.tab == tab.analyticsKey && $0.date >= cutoff }.count
+    }
+
+    /// 安装满 7 天且广场 Tab 零打开时，可在设置或运营侧参考。
+    var shouldReviewCommunityTabPlacement: Bool {
+        daysSinceInstall >= 7 && tabVisitCount(.community, withinDays: 7) == 0
+    }
+
+    /// 满足观察条件时，将广场并入活动 Tab（独立 Tab 隐藏）。
+    var shouldMergeCommunityIntoActivitiesTab: Bool {
+        shouldReviewCommunityTabPlacement
+    }
+
+    private func loadTabVisits() -> [TabVisitRecord] {
+        guard let data = UserDefaults.standard.data(forKey: Key.tabVisits),
+              let records = try? JSONDecoder().decode([TabVisitRecord].self, from: data)
+        else { return [] }
+        return records
+    }
+
+    private func saveTabVisits(_ records: [TabVisitRecord]) {
+        guard let data = try? JSONEncoder().encode(records) else { return }
+        UserDefaults.standard.set(data, forKey: Key.tabVisits)
+    }
+
     func dismissTip(_ id: String) {
         dismissedTipIDs.insert(id)
         UserDefaults.standard.set(Array(dismissedTipIDs), forKey: Key.dismissedTips)
     }
 
-    func activeTips(
+    func eligibleTips(
         isGuest: Bool,
         profileComplete: Bool,
         hasOrders: Bool
@@ -173,7 +217,15 @@ final class ProductLifecycleStore {
             )
         }
 
-        return Array(tips.prefix(2))
+        return tips
+    }
+
+    func activeTips(
+        isGuest: Bool,
+        profileComplete: Bool,
+        hasOrders: Bool
+    ) -> [ProductLifecycleTip] {
+        Array(eligibleTips(isGuest: isGuest, profileComplete: profileComplete, hasOrders: hasOrders).prefix(1))
     }
 
     func resetAll() {
@@ -188,5 +240,6 @@ final class ProductLifecycleStore {
         defaults.set(0, forKey: Key.openCount)
         defaults.removeObject(forKey: Key.dismissedTips)
         defaults.removeObject(forKey: Key.lastVersionSeen)
+        defaults.removeObject(forKey: Key.tabVisits)
     }
 }

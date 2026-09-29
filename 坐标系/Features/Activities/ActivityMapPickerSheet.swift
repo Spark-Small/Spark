@@ -5,6 +5,7 @@
 
 import MapKit
 import SwiftUI
+import CoordinateModels
 
 struct ActivityMapPickerSheet: View {
     @Binding var locationText: String
@@ -12,6 +13,7 @@ struct ActivityMapPickerSheet: View {
     @Binding var longitude: Double?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(LocationService.self) private var location
     @State private var position: MapCameraPosition = .region(
         MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: 31.2304, longitude: 121.4737),
@@ -61,7 +63,7 @@ struct ActivityMapPickerSheet: View {
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, PlatformMetrics.contentInset)
                     .padding(.vertical, PlatformMetrics.sectionHeaderSpacing)
-                    .background(.bar)
+                    .platformBarMaterialFill()
             }
             .onAppear {
                 if let latitude, let longitude {
@@ -72,7 +74,7 @@ struct ActivityMapPickerSheet: View {
                             span: MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.04)
                         )
                     )
-                } else if let user = LocationService.shared.coordinate {
+                } else if let user = location.coordinate {
                     pin = user
                     position = .region(
                         MKCoordinateRegion(
@@ -81,8 +83,8 @@ struct ActivityMapPickerSheet: View {
                         )
                     )
                 }
-                LocationService.shared.requestWhenInUse()
-                LocationService.shared.refresh()
+                location.requestWhenInUse()
+                location.refresh()
             }
             // 官方写法：SwiftUI `.task` + MapKit `MKReverseGeocodingRequest`
             .task(id: geocodeTaskID) {

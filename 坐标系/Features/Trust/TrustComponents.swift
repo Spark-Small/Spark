@@ -8,6 +8,7 @@
 
 import Charts
 import SwiftUI
+import CoordinateModels
 
 // MARK: - Level (公开档案行)
 

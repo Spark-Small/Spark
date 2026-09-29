@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 /// 搭子发现 Zoom 栈路由（勿与 CircleBrowseRoute.member 混用）
 struct BuddyZoomRoute: Hashable {

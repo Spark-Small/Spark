@@ -8,6 +8,7 @@
 
 import Foundation
 import Observation
+import CoordinateModels
 
 struct PassDeviceRegistration: Identifiable, Codable, Hashable {
     var id: String { deviceLibraryIdentifier }

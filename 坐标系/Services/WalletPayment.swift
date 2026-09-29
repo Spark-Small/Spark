@@ -8,6 +8,7 @@
 import Foundation
 import Observation
 import SwiftUI
+import CoordinateModels
 
 // MARK: - Money
 
@@ -149,16 +150,20 @@ enum PaymentOutcome: Equatable {
 @MainActor
 @Observable
 final class WalletStore {
-    static let shared = WalletStore()
+    static var shared: WalletStore { AppComposition.walletStore }
 
     private static let fileName = "wallet_ledger.json"
     private static let legacyBalanceKey = "profile.wallet.balanceCents"
+    private static let couponCountKey = "profile.wallet.couponCount"
+    private static let pointsKey = "profile.wallet.points"
 
     private(set) var balanceCents: Int
     private(set) var lifetimeTopUpCents: Int
     private(set) var entries: [WalletLedgerEntry]
+    private(set) var couponCount: Int
+    private(set) var points: Int
 
-    private init() {
+    init() {
         let snapshot = Self.load()
         let loadedEntries = snapshot.entries.sorted { $0.createdAt > $1.createdAt }
         let lifetime = snapshot.lifetimeTopUpCents
@@ -166,6 +171,14 @@ final class WalletStore {
         balanceCents = snapshot.balanceCents
         lifetimeTopUpCents = lifetime
         entries = loadedEntries
+        couponCount = Self.resolvedDemoCount(
+            forKey: Self.couponCountKey,
+            default: 6
+        )
+        points = Self.resolvedDemoCount(
+            forKey: Self.pointsKey,
+            default: 20
+        )
         migrateLegacyBalanceIfNeeded()
         seedWelcomeIfNeeded()
     }
@@ -190,6 +203,9 @@ final class WalletStore {
         relatedID: UUID? = nil
     ) -> PaymentOutcome {
         guard amountCents > 0 else { return .failed("金额无效") }
+        if method != .wallet, !CommercePaymentPolicy.allowsSimulatedExternalCheckout {
+            return .failed(CommercePaymentPolicy.externalCheckoutUnavailableMessage)
+        }
         if method.affectsWalletBalance {
             guard canAfford(amountCents) else { return .insufficientBalance }
             balanceCents -= amountCents
@@ -255,6 +271,9 @@ final class WalletStore {
     @discardableResult
     func topUp(amountCents: Int, method: PaymentMethod = .applePay) -> PaymentOutcome {
         guard amountCents > 0 else { return .failed("金额无效") }
+        guard CommercePaymentPolicy.allowsSimulatedExternalCheckout else {
+            return .failed(CommercePaymentPolicy.externalCheckoutUnavailableMessage)
+        }
         balanceCents += amountCents
         lifetimeTopUpCents += amountCents
         prepend(
@@ -319,12 +338,26 @@ final class WalletStore {
         balanceCents = 0
         lifetimeTopUpCents = 0
         entries = []
+        couponCount = 6
+        points = 20
         persist()
+        persistDemoWalletFields()
         seedWelcomeIfNeeded(force: true)
         syncLegacyBalance()
     }
 
     // MARK: Private
+
+    private static func resolvedDemoCount(forKey key: String, default defaultValue: Int) -> Int {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: key) != nil else { return defaultValue }
+        return defaults.integer(forKey: key)
+    }
+
+    private func persistDemoWalletFields() {
+        UserDefaults.standard.set(couponCount, forKey: Self.couponCountKey)
+        UserDefaults.standard.set(points, forKey: Self.pointsKey)
+    }
 
     private func prepend(_ entry: WalletLedgerEntry) {
         entries.insert(entry, at: 0)
@@ -408,8 +441,13 @@ final class WalletStore {
             lifetimeTopUpCents: lifetimeTopUpCents,
             entries: entries
         )
-        guard let data = try? JSONEncoder().encode(snapshot) else { return }
-        try? data.write(to: url, options: [.atomic])
+        do {
+            let data = try JSONEncoder().encode(snapshot)
+            try data.write(to: url, options: [.atomic])
+        } catch {
+            assertionFailure("Wallet persist failed: \(error)")
+            PersistenceWriteFailureReporter.record(domainKey: "wallet", error: error)
+        }
     }
 }
 
@@ -419,7 +457,7 @@ struct CoordinatePaymentSheet: View {
     let navigationTitle: String
     let summary: [(label: String, value: String)]
     let amountCents: Int
-    var footer: String = "本地演示支付，不会产生真实扣款。"
+    var footer: String = "支付成功后将更新订单状态。"
     var preferredMethod: PaymentMethod = .wallet
     var onConfirm: (PaymentMethod) -> PaymentOutcome
     var onCancel: () -> Void = {}
@@ -436,7 +474,7 @@ struct CoordinatePaymentSheet: View {
         navigationTitle: String,
         summary: [(label: String, value: String)],
         amountCents: Int,
-        footer: String = "本地演示支付，不会产生真实扣款。",
+        footer: String = "支付成功后将更新订单状态。",
         preferredMethod: PaymentMethod = .wallet,
         onConfirm: @escaping (PaymentMethod) -> PaymentOutcome,
         onCancel: @escaping () -> Void = {}
@@ -445,10 +483,12 @@ struct CoordinatePaymentSheet: View {
         self.summary = summary
         self.amountCents = amountCents
         self.footer = footer
-        self.preferredMethod = preferredMethod
+        let allowed = CommercePaymentPolicy.checkoutMethods
+        let initial = allowed.contains(preferredMethod) ? preferredMethod : (allowed.first ?? .wallet)
+        self.preferredMethod = initial
         self.onConfirm = onConfirm
         self.onCancel = onCancel
-        _selectedMethod = State(initialValue: preferredMethod)
+        _selectedMethod = State(initialValue: initial)
     }
 
     var body: some View {
@@ -471,7 +511,7 @@ struct CoordinatePaymentSheet: View {
 
                 Section {
                     Picker("支付方式", selection: $selectedMethod) {
-                        ForEach(PaymentMethod.allCases) { method in
+                        ForEach(CommercePaymentPolicy.checkoutMethods) { method in
                             Text(method == .wallet
                                  ? "\(method.displayName)（\(wallet.balanceText)）"
                                  : method.displayName)
@@ -483,6 +523,8 @@ struct CoordinatePaymentSheet: View {
                     .disabled(isProcessing)
                 } header: {
                     Text("支付方式")
+                } footer: {
+                    Text(CommercePaymentPolicy.checkoutFooterSupplement)
                 }
             }
             .navigationTitle(navigationTitle)
@@ -530,6 +572,10 @@ struct CoordinatePaymentSheet: View {
 
     private func processPayment() {
         guard !isProcessing else { return }
+        if selectedMethod != .wallet, !CommercePaymentPolicy.allowsSimulatedExternalCheckout {
+            errorMessage = CommercePaymentPolicy.externalCheckoutUnavailableMessage
+            return
+        }
         if selectedMethod == .wallet, !wallet.canAfford(amountCents) {
             errorMessage = "余额不足，请充值或改用其他支付方式。"
             return
@@ -537,7 +583,9 @@ struct CoordinatePaymentSheet: View {
         isProcessing = true
         paymentTask?.cancel()
         paymentTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(900))
+            #if DEBUG
+            try? await Task.sleep(for: .milliseconds(400))
+            #endif
             guard !Task.isCancelled else { return }
             if app.auth.isGuest {
                 isProcessing = false

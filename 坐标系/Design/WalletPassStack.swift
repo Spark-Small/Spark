@@ -21,8 +21,6 @@ enum WalletPassStackStyle: Hashable {
         }
     }
 
-    var barHeight: CGFloat { PlatformMetrics.walletPassStripBarHeight }
-
     var maxExtraHeight: CGFloat { PlatformMetrics.walletPassStackMaxExtraHeight }
 }
 
@@ -36,13 +34,17 @@ struct WalletPassStack<Item: Identifiable, Content: View>: View {
     var style: WalletPassStackStyle = .collapsed
     @ViewBuilder var content: (Item) -> Content
 
+    @Environment(\.platformChromeMeasurements) private var chromeMeasurements
+
     var body: some View {
         if items.isEmpty {
             EmptyView()
         } else {
             WalletPassStackLayout(
                 peek: style.peek,
-                fallbackBarHeight: style.barHeight,
+                fallbackBarHeight: PlatformMetrics.walletPassStripBarHeight(
+                    navigationBarButtonSide: chromeMeasurements.navigationBarButtonSide
+                ),
                 maxExtraHeight: style.maxExtraHeight
             ) {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
@@ -127,4 +129,5 @@ private struct WalletPassStackLayout: Layout {
         }
         .padding(.horizontal, PlatformMetrics.contentInset)
     }
+    .platformChromeMeasurementsEnvironment()
 }

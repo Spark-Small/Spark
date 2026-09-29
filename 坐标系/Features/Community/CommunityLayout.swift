@@ -5,6 +5,7 @@
 
 import SwiftUI
 import UIKit
+import CoordinateModels
 
 enum CommunityLayout {
     static let mediaAspectRatio: CGFloat = 4 / 5
@@ -13,7 +14,16 @@ enum CommunityLayout {
 
 enum CommunityCopy {
     static let rootTitle = "广场"
+    static let embeddedTitle = "活动分享"
+    static let embeddedEntryTitle = "活动分享"
+    static let embeddedEntrySubtitle = "复盘与种草"
     static let openBuddyProfile = "查看搭子主页"
+    static let loadFailedMessage = "暂时无法加载广场，请下拉重试"
+    static let loadFailedTitle = "加载失败"
+    static let emptyTitle = "还没有分享"
+    static let emptyDescription = "把好玩的局、路线和探店记下来，让更多人看见"
+    static let retryLoad = "重试"
+    static let photoImportFailed = "无法导入所选图片，请换一张再试"
 }
 
 // MARK: - Feed chrome

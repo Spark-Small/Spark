@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 struct BuddyBrowseSearchSheet: View {
     @Binding var query: String

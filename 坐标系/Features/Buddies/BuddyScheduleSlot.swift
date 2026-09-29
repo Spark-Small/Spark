@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum BuddyScheduleSlot {
     /// 日历日期下方状态

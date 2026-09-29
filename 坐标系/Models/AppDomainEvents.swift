@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum AppDomainEvent {
     case activityJoined(Activity.ID)
@@ -20,6 +21,7 @@ enum AppDomainEvent {
     case localDataReloaded(ProfileSnapshot)
     case conversationsChanged
     case buddyRecordsChanged
+    case membershipChanged
     case statsRefreshRequested
     case recommendationRefreshRequested
 }
@@ -90,6 +92,9 @@ struct AppSyncOrchestrator {
 
         case .buddyRecordsChanged:
             derivedState.refreshAll(app: app)
+
+        case .membershipChanged:
+            derivedState.refreshRecommendations(app: app)
 
         case .statsRefreshRequested:
             derivedState.refreshProfileStats(app: app)

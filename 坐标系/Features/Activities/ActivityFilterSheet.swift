@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 /// 把「日期 / 附近 / 免费 / 有空位」收进筛选面板，首屏只留一行分类
 struct ActivityFilterSheet: View {

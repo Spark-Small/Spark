@@ -7,6 +7,7 @@
 
 import SwiftData
 import SwiftUI
+import CoordinateModels
 
 // MARK: - Copy
 
@@ -19,6 +20,11 @@ enum ProfileDashboardCopy {
     static let activityFavorites = "我收藏的"
     static let bookingCredentials = "陪玩预约"
     static let activityInvites = "活动邀约"
+    static let myClubsTitle = "我的俱乐部"
+    static let myClubsHosted = "我创建的"
+    static let myClubsJoined = "已加入"
+    static let myClubsEmpty = "还没有加入俱乐部"
+    static let myClubsEmptyHint = "在「找人玩」发现同城俱乐部，或自己创建一个。"
 
     static let membershipOpen = "开通会员"
     static let membershipCenter = "会员中心"
@@ -27,6 +33,8 @@ enum ProfileDashboardCopy {
     static let guestHint = "访客 · 创建账号解锁交易与资料"
     static let trustEntry = "我的认证"
     static let reputationSectionTitle = "我的信誉"
+    static let commerceSectionTitle = "会员与钱包"
+    static let commerceSectionFooter = "充值、会员权益与陪玩入驻。首日可先浏览活动，需要时再打开。"
 
     static let walletCoupons = "优惠券"
     static let walletPoints = "积分"
@@ -64,6 +72,7 @@ enum ProfileRoute: Hashable {
     case browseHistory
     case bookingCredentials
     case activityInvites
+    case myClubs
     case bookingDetail(BuddyBookingRecord.ID)
 }
 
@@ -94,6 +103,8 @@ struct ProfileRouteDestination: View {
             ProfileBookingCredentialsView()
         case .activityInvites:
             ProfileActivityInvitesView()
+        case .myClubs:
+            ProfileMyClubsView()
         case .bookingDetail(let recordID):
             BookingCredentialExpandedView(recordID: recordID)
         }
@@ -163,6 +174,7 @@ struct ProfileRecentBrowseShelf: View {
 struct ProfileRecentBrowseListView: View {
     @Environment(ActivitiesModel.self) private var activities
     @Environment(AppModel.self) private var app
+    @Environment(\.profileRecentBrowseStore) private var recentBrowseStore
     @Query(sort: \RecentBrowseItem.viewedAt, order: .reverse)
     private var browseItems: [RecentBrowseItem]
     @Namespace private var zoomNamespace
@@ -210,7 +222,7 @@ struct ProfileRecentBrowseListView: View {
             if !records.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(ProfileDashboardCopy.recentBrowseClear, role: .destructive) {
-                        ProfileRecentBrowseStore.shared.clear()
+                        recentBrowseStore.clear()
                     }
                 }
             }

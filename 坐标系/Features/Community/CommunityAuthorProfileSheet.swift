@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 /// 用户资料页（活动成员、社区作者等无完整搭子卡时的详情）。
 struct CommunityAuthorProfileView: View {
@@ -42,7 +43,10 @@ struct CommunityAuthorProfileView: View {
             nickname: name,
             currentUserName: app.user.name,
             buddyItem: buddyMatch,
-            membershipActive: false
+            membershipActive: false,
+            verificationPhotos: name.caseInsensitiveCompare(app.user.name) == .orderedSame
+                ? app.user.verificationPhotos
+                : []
         )
         List {
             Section {

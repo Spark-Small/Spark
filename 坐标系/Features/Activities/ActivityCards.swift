@@ -6,10 +6,12 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 /// 精选 Hero：3:4 卡片；水平页边与发现货架一致（`PlatformMetrics.contentInset`）。
 struct ActivityFeaturedCard: View {
     @Environment(ActivitiesModel.self) private var activities
+    @Environment(LocationService.self) private var location
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let activity: Activity
@@ -19,7 +21,8 @@ struct ActivityFeaturedCard: View {
 
     private var live: Activity { activities.activity(id: activity.id) ?? activity }
     private var isJoined: Bool { activities.isJoined(activity.id) }
-    private var hasUserLocation: Bool { LocationService.shared.coordinate != nil }
+    private var isWaitlisted: Bool { activities.isWaitlisted(activity.id) }
+    private var hasUserLocation: Bool { location.coordinate != nil }
 
     private var statusCaption: String? {
         if isJoined { return ActivityCardStatus.joined }
@@ -127,6 +130,7 @@ struct ActivityFeaturedCard: View {
     private func joinCTA(onMedia: Bool) -> some View {
         ActivityPrimaryAction(
             isJoined: isJoined,
+            isWaitlisted: isWaitlisted,
             isFull: live.isFull,
             controlSize: .large,
             onMedia: onMedia,
@@ -149,6 +153,7 @@ struct ActivityFeaturedCard: View {
 
 /// 发现流大卡 — 16:9；封面 Zoom
 struct ActivityDiscoverCard: View {
+    @Environment(ActivitiesModel.self) private var activities
     let activity: Activity
     var isJoined: Bool = false
     var zoomNamespace: Namespace.ID? = nil
@@ -156,12 +161,15 @@ struct ActivityDiscoverCard: View {
     var onOpen: () -> Void = {}
     var onJoin: (() -> Void)?
 
-    private var hasUserLocation: Bool { LocationService.shared.coordinate != nil }
+    private var hasUserLocation: Bool { location.coordinate != nil }
+
+    @Environment(LocationService.self) private var location
 
     var body: some View {
         ActivityHeroCard(
             activity: activity,
             isJoined: isJoined,
+            isWaitlisted: activities.isWaitlisted(activity.id),
             layout: .discover,
             zoomNamespace: zoomNamespace,
             enablesOpenTap: enablesOpenTap,

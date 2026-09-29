@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 // MARK: - Routes
 
@@ -462,6 +463,7 @@ extension View {
 }
 
 extension CommunityActionSheet {
+    @MainActor
     @ViewBuilder
     func sheet(postID: CommunityPost.ID) -> some View {
         switch self {

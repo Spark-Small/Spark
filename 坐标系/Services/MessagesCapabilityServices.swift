@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 struct TransferCreationResult {
     let record: TransferRecord
@@ -102,7 +103,7 @@ struct LocalTransferService: TransferService {
             messageKind: .transfer,
             transferAmount: amount,
             transferID: record.id,
-            deliveryStatus: .delivered
+            deliveryStatus: MessagingDeliveryPolicy.upgradesLocalSendToDelivered ? .delivered : .sent
         )
         return TransferCreationResult(record: record, message: message)
     }

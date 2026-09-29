@@ -2,22 +2,16 @@
 //  LaunchTheme.swift
 //  坐标系
 //
-//  Launch / login surfaces and shared controls.
+//  启动 / 冷启动舞台底色（已登录模型加载、协议 Gate 等）。
 //
 
 import SwiftUI
 
 enum LaunchSurface {
-    /// 加载与登录共用舞台底色。
+    /// 加载与冷启动共用舞台底色。
     static let stage = Color(.systemGroupedBackground)
-    /// 邀请函纸面：系统灰，避免纯白卡片感。
-    static let invitationPaper = Color(.systemGray6)
-    /// 信封品牌红（与 AppIcon.icon 渐变一致，Display P3）。
-    static let envelope = Color(.displayP3, red: 0.914, green: 0.276, blue: 0.338)
-    static let envelopeLift = Color(.displayP3, red: 0.917, green: 0.352, blue: 0.448)
-    static let envelopeDeep = Color(.displayP3, red: 0.910, green: 0.199, blue: 0.228)
 
-    /// 启动舞台氛围网格（低饱和系统色，非品牌红面）。
+    /// 启动舞台氛围网格（低饱和系统色）。
     static var stageMesh: MeshGradient {
         MeshGradient(
             width: 3,
@@ -49,118 +43,5 @@ struct LaunchStageBackground: View {
             }
         }
         .ignoresSafeArea()
-    }
-}
-
-enum LaunchGeometry {
-    static let invitationSurface = "invitationSurface"
-}
-
-// MARK: - Buttons
-
-struct PrimaryButton: View {
-    let title: String
-    var systemImage: String?
-    var isEnabled = true
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                if let systemImage {
-                    Image(systemName: systemImage)
-                }
-                Text(title)
-            }
-            .font(.body)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 2)
-            .contentTransition(.interpolate)
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .buttonBorderShape(.capsule)
-        .disabled(!isEnabled)
-    }
-}
-
-struct WeChatLoginButton: View {
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: "message.fill")
-                Text("微信登录")
-            }
-            .font(.body)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 2)
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .buttonBorderShape(.capsule)
-    }
-}
-
-struct SecondaryButton: View {
-    let title: String
-    var systemImage: String?
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                if let systemImage {
-                    Image(systemName: systemImage)
-                }
-                Text(title)
-            }
-            .font(.body)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 2)
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.large)
-        .buttonBorderShape(.capsule)
-    }
-}
-
-struct QuietTextButton: View {
-    let title: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(title, action: action)
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Motion helpers
-
-struct FloatingAnimationModifier: ViewModifier {
-    var enabled: Bool
-    var amplitude: CGFloat = LaunchMotion.floatAmplitude
-    var cycle: TimeInterval = LaunchMotion.floatCycle
-
-    func body(content: Content) -> some View {
-        content
-            .phaseAnimator([false, true], trigger: enabled) { view, raised in
-                view.offset(y: enabled && raised ? -amplitude : 0)
-            } animation: { _ in
-                .easeInOut(duration: cycle)
-            }
-    }
-}
-
-extension View {
-    func floatingAnimation(
-        enabled: Bool,
-        amplitude: CGFloat = LaunchMotion.floatAmplitude,
-        cycle: TimeInterval = LaunchMotion.floatCycle
-    ) -> some View {
-        modifier(FloatingAnimationModifier(enabled: enabled, amplitude: amplitude, cycle: cycle))
     }
 }

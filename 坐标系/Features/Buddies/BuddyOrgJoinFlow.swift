@@ -6,14 +6,17 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 nonisolated enum BuddyOrgJoinCopy {
-    static let confirmTitle = "加入圈子"
     static let confirmJoinCTA = "确认加入"
 
+    static let confirmCircleTitle = "加入俱乐部"
+    static let confirmGuildTitle = "关注工会"
+
     static let confirmChatRowTitle = "加入后"
-    static let confirmChatRowValue = "进入圈子群聊"
-    static let confirmChatFooter = "群聊将出现在「消息」，你可在圈子资料中随时退出。"
+    static let confirmChatRowValue = "成为俱乐部成员"
+    static let confirmChatFooter = "俱乐部与单场活动无绑定；群聊可在资料页进入，也可在「消息」查看。"
 
     static let confirmGuildRowTitle = "关注后"
     static let confirmGuildRowValue = "查看工会陪玩"
@@ -57,6 +60,13 @@ struct BuddyOrgJoinConfirmSheet: View {
         switch target {
         case .circle(let c): c.systemImage
         case .guild(let g): g.systemImage
+        }
+    }
+
+    private var confirmTitle: String {
+        switch target {
+        case .circle: BuddyOrgJoinCopy.confirmCircleTitle
+        case .guild: BuddyOrgJoinCopy.confirmGuildTitle
         }
     }
 
@@ -114,7 +124,7 @@ struct BuddyOrgJoinConfirmSheet: View {
                     Text(joinOutcomeFooter)
                 }
             }
-            .navigationTitle(BuddyOrgJoinCopy.confirmTitle)
+            .navigationTitle(confirmTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -145,6 +155,31 @@ struct BuddyOrgJoinSuccessSheet: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    private var joinedTitle: String {
+        switch success.kind {
+        case .circle: "已加入俱乐部"
+        case .guild: "已关注工会"
+        }
+    }
+
+    private var joinedHint: String? {
+        switch success.kind {
+        case .circle:
+            return hasConversation
+                ? "群聊在资料页或「消息」中进入；退出俱乐部不等于只退群聊。"
+                : "可在俱乐部资料中随时退出。"
+        case .guild:
+            return "可在工会资料中随时取消关注。"
+        }
+    }
+
+    private var viewOrgButtonTitle: String {
+        switch success.kind {
+        case .circle: "查看俱乐部"
+        case .guild: "查看资料"
+        }
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: PlatformMetrics.sectionSpacing) {
@@ -155,14 +190,14 @@ struct BuddyOrgJoinSuccessSheet: View {
                     .platformSymbolStyle(.multicolor)
                     .accessibilityHidden(true)
 
-                Text("已加入圈子")
+                Text(joinedTitle)
                     .font(.title2.weight(.bold))
 
                 Text("「\(success.name)」")
                     .font(.headline)
 
-                if !hasConversation {
-                    Text("可在「我的 · 我的圈子」里找到它。")
+                if let joinedHint {
+                    Text(joinedHint)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -172,19 +207,19 @@ struct BuddyOrgJoinSuccessSheet: View {
                 Spacer()
 
                 VStack(spacing: PlatformMetrics.cardFooterSpacing) {
+                    Button(viewOrgButtonTitle) {
+                        onViewOrg()
+                        dismiss()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+
                     if hasConversation {
                         Button("进入群聊") {
                             onEnterChat()
                             dismiss()
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                    } else {
-                        Button("查看资料") {
-                            onViewOrg()
-                            dismiss()
-                        }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.bordered)
                         .controlSize(.large)
                     }
                 }

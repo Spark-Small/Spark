@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import CoordinateModels
 
 enum ChatTimelineItem: Identifiable {
     case day(String, id: String)
@@ -108,30 +109,40 @@ extension PlatformChatBubbleChrome {
 }
 
 extension ChatConversation {
+    /// 收件箱列表副文案：类型标签 + 最后一条预览
+    var inboxListSecondary: String {
+        switch kind {
+        case .activity:
+            return "\(MessagesCopy.activityGroupBadge) · \(inboxPreview)"
+        case .circle:
+            return "\(MessagesCopy.circleGroupSubtitleLine(memberCount: max(memberNames.count, 1))) · \(inboxPreview)"
+        default:
+            return inboxPreview
+        }
+    }
+
     /// 导航栏副标题：群主可见「群主 · 时间」；好友可见在线
     func navigationSubtitle(viewerName: String) -> String {
         switch kind {
         case .activity:
-            let time: String = {
-                if let eventAt {
-                    return Formatters.activityEventTime(from: eventAt)
-                }
-                return MessagesCopy.groupSubtitle
-            }()
+            let line = MessagesCopy.activityGroupSubtitleLine(eventAt: eventAt)
             if isOwned(by: viewerName) {
-                return "\(MessagesCopy.groupOwnerBadge) · \(time)"
+                return "\(MessagesCopy.groupOwnerBadge) · \(line)"
             }
-            return time
+            return line
         case .group:
             if isOwned(by: viewerName) {
                 return "\(MessagesCopy.groupOwnerBadge) · \(MessagesCopy.groupSubtitle)"
             }
             return MessagesCopy.groupSubtitle
         case .circle:
+            let line = MessagesCopy.circleGroupSubtitleLine(
+                memberCount: max(memberNames.count, 1)
+            )
             if isOwned(by: viewerName) {
-                return "\(MessagesCopy.groupOwnerBadge) · \(MessagesCopy.circleGroupSubtitle)"
+                return "\(MessagesCopy.groupOwnerBadge) · \(line)"
             }
-            return MessagesCopy.circleGroupSubtitle
+            return line
         case .direct:
             return peerIsActive ? MessagesCopy.activeNow : MessagesCopy.friendSubtitle
         case .notice:

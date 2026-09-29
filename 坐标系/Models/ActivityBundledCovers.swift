@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum ActivityBundledCovers {
     /// 外滩夜骑 / 思南咖啡 / 徐汇市集 / 微醺小酌 / 烧烤夜局

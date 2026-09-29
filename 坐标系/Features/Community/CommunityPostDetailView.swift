@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 struct CommunityPostDetailView: View {
     let postID: CommunityPost.ID
@@ -195,11 +196,12 @@ private final class CommunityPostCommentComposerState {
 }
 
 #Preview {
-    NavigationStack {
+  let app = AppModel.preview
+  return NavigationStack {
         CommunityPostDetailView(postID: SampleData.posts[0].id)
-            .environment(CommunityModel())
-            .environment(MessagesModel())
-            .environment(ActivitiesModel())
-            .environment(BuddiesModel())
+            .environment(app.community)
+            .environment(app.messages)
+            .environment(app.activities)
+            .environment(app.buddies)
     }
 }

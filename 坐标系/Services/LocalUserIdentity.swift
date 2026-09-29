@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum LocalUserIdentity {
     private static let key = "identity.localUserID"

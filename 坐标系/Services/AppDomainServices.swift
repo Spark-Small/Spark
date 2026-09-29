@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 protocol ActivitiesDerivedStateProviding {
     var derivedJoinedIDs: Set<UUID> { get }
@@ -23,6 +24,9 @@ protocol BuddyRecordsDerivedStateProviding {
 @MainActor
 struct AppDerivedStateService {
     func refreshRecommendations(app: AppModel) {
+        ActivityPaymentStore.walletStore = app.walletStore
+        ActivityPaymentStore.walletPassStore = app.walletPassStore
+        ActivityRecommender.engagementStore = app.activityEngagementStore
         ActivityRecommender.userInterests = app.user.interests.isEmpty
             ? SampleData.currentUserInterests
             : app.user.interests
@@ -100,7 +104,7 @@ struct ActivityConversationSyncService {
     func handleCancel(activityID: Activity.ID, app: AppModel) {
         guard let activity = app.activities.activity(id: activityID) else { return }
         let notes = ActivityDetailBlueprint.make(for: activity).refundNotes
-        RefundFlowService.shared.submitSystemActivityRefunds(
+        app.refundFlowService.submitSystemActivityRefunds(
             for: activityID,
             activityTitle: activity.title,
             refundNotes: notes
@@ -123,6 +127,7 @@ struct AppProfileSyncService {
         app.user = next
         app.activities.currentUserName = next.name
         app.community.currentUserName = next.name
+        app.buddies.currentUserName = next.name
         if previousName != next.name {
             app.activities.migrateUserName(from: previousName, to: next.name)
         }
@@ -140,19 +145,21 @@ struct AppProfileSyncService {
         app.user.interests = interests
         app.activities.currentUserName = app.user.name
         app.community.currentUserName = app.user.name
+        app.buddies.currentUserName = app.user.name
         app.refreshInterestContext(interests)
-        app.hasCompletedOnboarding = true
+        app.hasCompletedWelcomeBootstrap = true
     }
 
     func apply(snapshot: ProfileSnapshot, app: AppModel) {
         var nextUser = snapshot.user
         nextUser.id = LocalUserIdentity.current
         app.user = nextUser
-        app.hasCompletedOnboarding = snapshot.hasCompletedOnboarding
+        app.hasCompletedWelcomeBootstrap = snapshot.hasCompletedOnboarding
         app.blockedUserNames = Set(snapshot.blockedUserNames)
         app.moderationTickets = snapshot.moderationTickets.sorted { $0.createdAt > $1.createdAt }
         app.activities.currentUserName = nextUser.name
         app.community.currentUserName = nextUser.name
+        app.buddies.currentUserName = nextUser.name
         app.buddies.blockedUserNames = app.blockedUserNames
         app.community.blockedUserNames = app.blockedUserNames
         app.refreshInterestContext(nextUser.interests)
@@ -165,38 +172,38 @@ struct TrustBehaviorSyncService {
         let actor = app.user.name
         switch event {
         case .activityJoined:
-            TrustService.shared.record(.activityJoined, domain: .activity, actorKey: actor)
+            app.trustService.record(.activityJoined, domain: .activity, actorKey: actor)
         case .activityLeft:
-            TrustService.shared.record(.activityLeft, domain: .activity, actorKey: actor)
+            app.trustService.record(.activityLeft, domain: .activity, actorKey: actor)
         case .activityPublished:
-            TrustService.shared.record(.activityHosted, domain: .activity, actorKey: actor)
+            app.trustService.record(.activityHosted, domain: .activity, actorKey: actor)
         case .activityCancelled:
-            TrustService.shared.record(.activityHostCancelled, domain: .activity, actorKey: actor)
+            app.trustService.record(.activityHostCancelled, domain: .activity, actorKey: actor)
         case .profileUpdated(_, let user):
-            TrustService.shared.record(
+            app.trustService.record(
                 .profileCompletionChanged,
                 domain: .account,
                 actorKey: user.name,
                 value: ProfileCompletion.ratio(for: user)
             )
         case .onboardingCompleted:
-            TrustService.shared.record(.onboardingCompleted, domain: .account, actorKey: actor)
+            app.trustService.record(.onboardingCompleted, domain: .account, actorKey: actor)
         case .userBlocked(let name):
-            TrustService.shared.record(
+            app.trustService.record(
                 .blocked,
                 domain: .social,
                 actorKey: actor,
                 subjectKey: name
             )
         case .userUnblocked(let name):
-            TrustService.shared.record(
+            app.trustService.record(
                 .unblocked,
                 domain: .social,
                 actorKey: actor,
                 subjectKey: name
             )
         case .moderationTicketAdded(let ticket) where ticket.targetKind == .person:
-            TrustService.shared.record(
+            app.trustService.record(
                 .personReported,
                 domain: .moderation,
                 actorKey: actor,

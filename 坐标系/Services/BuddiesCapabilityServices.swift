@@ -4,6 +4,8 @@
 //
 
 import Foundation
+import CoordinateDomain
+import CoordinateModels
 
 protocol BuddyInviteService {
     func createInvite(nickname: String, activity: Activity) -> BuddyInviteRecord
@@ -16,11 +18,6 @@ protocol BuddyBookingService {
         scheduledAt: Date,
         hours: Int,
         slotLabel: String?
-    ) -> BuddyBookingRecord
-
-    func advanceBooking(
-        _ record: BuddyBookingRecord,
-        to status: BookingOrderStatus
     ) -> BuddyBookingRecord
 
     func rescheduleBooking(
@@ -57,34 +54,18 @@ struct LocalBuddyBookingService: BuddyBookingService {
         hours: Int,
         slotLabel: String?
     ) -> BuddyBookingRecord {
-        BuddyBookingRecord(
+        let bookedAt = Date.now
+        return BuddyBookingRecord(
             id: UUID(),
             companionNickname: companion.profile.nickname,
             hours: hours,
             scheduledAt: scheduledAt,
-            bookedAt: .now,
+            bookedAt: bookedAt,
             priceText: "¥\(companion.hourlyPrice * hours)",
             status: .pendingConfirm,
+            confirmDueAt: BookingConfirmationPolicy.confirmDueDate(from: bookedAt),
             selectedSlotLabel: slotLabel
         )
-    }
-
-    func advanceBooking(
-        _ record: BuddyBookingRecord,
-        to status: BookingOrderStatus
-    ) -> BuddyBookingRecord {
-        var next = record
-        next.status = status
-        switch status {
-        case .paid:
-            next.paidAt = next.paidAt ?? .now
-            // paymentMethod 由调用方在确认支付时写入
-        case .completed:
-            next.completedAt = .now
-        default:
-            break
-        }
-        return next
     }
 
     func rescheduleBooking(

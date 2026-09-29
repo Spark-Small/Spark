@@ -4,5 +4,24 @@
 <dict>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
+	<!-- Release：无明文 HTTP 例外。本地 Docker 调试用下方 localhost；远程测试机请改 HTTPS 或仅 DEBUG 覆盖。 -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+			<key>127.0.0.1</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
 </dict>
 </plist>

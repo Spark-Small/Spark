@@ -2,20 +2,19 @@
 //  TrustBehaviorLedger.swift
 //  坐标系
 //
-//  行为事件账本（注册→注销）。
+//  行为事件账本（注册→注销）。由 AppComposition 注入，勿在 Feature 直接 .shared。
 //
 
 import Foundation
+import CoordinateModels
 
 @MainActor
 final class TrustBehaviorLedger {
-    static let shared = TrustBehaviorLedger()
-
     private static let fileName = "trust_behavior_events.json"
 
     private(set) var allEvents: [TrustBehaviorEvent] = []
 
-    private init() {
+    init() {
         allEvents = Self.load()
     }
 
@@ -66,8 +65,13 @@ final class TrustBehaviorLedger {
 
     private func persist() {
         let url = Self.documents.appendingPathComponent(Self.fileName)
-        guard let data = try? JSONEncoder().encode(allEvents) else { return }
-        try? data.write(to: url, options: [.atomic])
+        do {
+            let data = try JSONEncoder().encode(allEvents)
+            try data.write(to: url, options: [.atomic])
+        } catch {
+            assertionFailure("TrustBehaviorLedger persist failed: \(error)")
+            PersistenceWriteFailureReporter.record(domainKey: "trustLedger", error: error)
+        }
     }
 
     private static var documents: URL {

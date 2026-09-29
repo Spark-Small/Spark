@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 enum GuestAccessGate {
     static let commerceReason = "开通会员、充值与支付需先创建账号，便于保护余额与订单。"

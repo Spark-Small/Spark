@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum UserPublicID {
     static let digitCount = 9

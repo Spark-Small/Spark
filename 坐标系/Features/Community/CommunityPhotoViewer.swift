@@ -7,6 +7,7 @@
 
 import QuickLook
 import SwiftUI
+import CoordinateModels
 
 extension View {
     func communityQuickLook(_ destination: Binding<CommunityPhotoDestination?>) -> some View {

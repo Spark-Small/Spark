@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 // MARK: - See all route
 
@@ -13,6 +14,13 @@ struct BuddyBrowseSeeAllRoute: Hashable, Identifiable {
     let id: String
     let title: String
     let itemIDs: [UUID]
+    let pool: BuddyBrowsePool
+}
+
+/// 搭子发现分区：同好 / 陪玩（同页零切换）。
+enum BuddyBrowsePool: Hashable {
+    case free
+    case paid
 }
 
 struct BuddyBrowseSeeAllView: View {
@@ -173,6 +181,34 @@ struct BuddyInterestCirclesRail: View {
     }
 }
 
+// MARK: - 我的预约入口
+
+struct BuddyMyBookingsEntryBanner: View {
+    let bookingCount: Int
+    let attentionCount: Int
+    var onOpen: () -> Void
+
+    private var subtitle: String {
+        BuddyBrowseCopy.MyBookings.bannerSubtitle(
+            count: bookingCount,
+            needsAttention: attentionCount
+        )
+    }
+
+    var body: some View {
+        DiscoverPromoCapsuleBanner(
+            content: DiscoverPromoCapsuleContent(
+                title: BuddyBrowseCopy.MyBookings.bannerTitle,
+                subtitle: subtitle
+            ),
+            action: onOpen
+        )
+        .discoverBrowseContentInset()
+        .accessibilityLabel("\(BuddyBrowseCopy.MyBookings.bannerTitle)，\(subtitle)")
+        .accessibilityHint("打开我的预约")
+    }
+}
+
 // MARK: - 语音厅
 
 struct BuddyVoiceChannelCard: View {
@@ -251,7 +287,10 @@ struct BuddyVoiceChannelRail: View {
     var onOpen: (VoiceHall) -> Void
 
     var body: some View {
-        DiscoverBrowseSection(title: "语音厅") {
+        DiscoverBrowseSection(
+            title: BuddyBrowseCopy.VoiceHall.sectionTitle,
+            subtitle: BuddyBrowseCopy.VoiceHall.sectionSubtitle
+        ) {
             DiscoverHorizontalRail {
                 ForEach(halls) { hall in
                     BuddyVoiceChannelCard(hall: hall) {
@@ -261,5 +300,6 @@ struct BuddyVoiceChannelRail: View {
                 }
             }
         }
+        .padding(.top, PlatformMetrics.sectionSpacing)
     }
 }

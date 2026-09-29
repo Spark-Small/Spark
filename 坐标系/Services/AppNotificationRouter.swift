@@ -7,9 +7,10 @@
 
 import Foundation
 import UserNotifications
+import CoordinateModels
 
 enum NotificationDeepLink: Equatable {
-    case activity(UUID)
+    case activity(UUID, followUp: ActivityNotificationFollowUp = .none)
     case booking(UUID)
     case conversation(UUID)
 
@@ -18,7 +19,14 @@ enum NotificationDeepLink: Equatable {
         identifier: String
     ) -> NotificationDeepLink? {
         if let id = uuid(from: userInfo["activityID"]) {
-            return .activity(id)
+            let kind = userInfo["kind"] as? String
+            let followUp: ActivityNotificationFollowUp = switch kind {
+            case "activity-recap": .journeyFeedback
+            case "activity-reminder": .openJourney
+            case "waitlist-spot": .none
+            default: .none
+            }
+            return .activity(id, followUp: followUp)
         }
         if let id = uuid(from: userInfo["conversationID"]) {
             return .conversation(id)
@@ -27,10 +35,19 @@ enum NotificationDeepLink: Equatable {
             return .booking(id)
         }
 
-        if let id = uuidSuffix(identifier, prefixes: ["waitlist-spot-", "activity-"]) {
+        if identifier.hasPrefix("activity-recap-"),
+           let id = uuidSuffix(identifier, prefixes: ["activity-recap-"]) {
+            return .activity(id, followUp: .journeyFeedback)
+        }
+        if identifier.hasPrefix("activity-"),
+           !identifier.hasPrefix("activity-recap-"),
+           let id = uuidSuffix(identifier, prefixes: ["activity-"]) {
+            return .activity(id, followUp: .openJourney)
+        }
+        if let id = uuidSuffix(identifier, prefixes: ["waitlist-spot-"]) {
             return .activity(id)
         }
-        if let id = uuidSuffix(identifier, prefixes: ["booking-"]) {
+        if let id = uuidSuffix(identifier, prefixes: ["booking-refund-", "booking-accepted-", "booking-confirm-sla-", "booking-confirm-expired-", "booking-"]) {
             return .booking(id)
         }
         return nil

@@ -9,11 +9,12 @@
 import Foundation
 import Observation
 import StoreKit
+import CoordinateModels
 
 @MainActor
 @Observable
 final class MembershipStore {
-    static let shared = MembershipStore()
+    static var shared: MembershipStore { AppComposition.membershipStore }
 
     static let monthlyProductID = "com.spark.membership.monthly"
     static let productIDs: Set<String> = [monthlyProductID]
@@ -22,7 +23,7 @@ final class MembershipStore {
 
     private var updatesTask: Task<Void, Never>?
 
-    private init() {
+    init() {
         isEntitled = UserDefaults.standard.bool(forKey: Self.entitlementKey)
     }
 
@@ -30,7 +31,7 @@ final class MembershipStore {
 
     func startListeningForTransactions() {
         guard updatesTask == nil else { return }
-        updatesTask = Task { [weak self] in
+        updatesTask = Task { @MainActor [weak self] in
             for await update in Transaction.updates {
                 guard let self else { return }
                 await self.handle(verification: update)
@@ -61,5 +62,18 @@ final class MembershipStore {
     private func applyEntitlement(_ value: Bool) {
         isEntitled = value
         UserDefaults.standard.set(value, forKey: Self.entitlementKey)
+    }
+
+    /// 演示路径：钱包扣款成功后本地开通（与 StoreKit 共用 entitlement 键）。
+    /// 仅 DEBUG；Release 必须走 StoreKit Transaction。
+    func applyDemoEntitlement() {
+        #if DEBUG
+        applyEntitlement(true)
+        #endif
+    }
+
+    /// 退出登录时清除本机会员演示态（正式权益以 StoreKit / 服务端为准，下次启动会再校验）。
+    func clearLocalEntitlement() {
+        applyEntitlement(false)
     }
 }

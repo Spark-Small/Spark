@@ -7,6 +7,7 @@
 
 import Foundation
 import UIKit
+import CoordinateModels
 
 /// 7 项资料：头像（自定义上传）、昵称、ID、城市、简介、搭子宣言、兴趣标签。
 enum ProfileCompletion {
@@ -49,18 +50,42 @@ enum ProfileCompletion {
 extension AppUser {
     private static let defaultAvatarAssetName = "ProfileDefaultAvatar"
 
+    @MainActor
     var hasAvatarImage: Bool {
         avatarLocalName != nil || UIImage(named: Self.defaultAvatarAssetName) != nil
     }
 
+    @MainActor
     var localAvatarImage: UIImage? {
         if let name = avatarLocalName,
-           let url = CommunityPhotoStore.fileURL(named: name),
+           let url = LocalMediaLibrary.fileURL(named: name),
            let data = try? Data(contentsOf: url),
            let image = UIImage(data: data) {
             return image
         }
         return UIImage(named: Self.defaultAvatarAssetName)
+    }
+
+    @MainActor
+    func localVerificationImages() -> [UIImage] {
+        verificationPhotos.compactMap { photo in
+            guard let url = LocalMediaLibrary.fileURL(named: photo.localName),
+                  let data = try? Data(contentsOf: url),
+                  let image = UIImage(data: data)
+            else { return nil }
+            return image
+        }
+    }
+
+    @MainActor
+    func localPublicVerificationImages() -> [UIImage] {
+        publicVerificationPhotos.compactMap { photo in
+            guard let url = LocalMediaLibrary.fileURL(named: photo.localName),
+                  let data = try? Data(contentsOf: url),
+                  let image = UIImage(data: data)
+            else { return nil }
+            return image
+        }
     }
 
     var hasVoiceIntro: Bool {

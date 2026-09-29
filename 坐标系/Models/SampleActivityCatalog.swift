@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum SampleActivityCatalog {
     private static func day(_ offset: Int, hour: Int, minute: Int = 0) -> Date {

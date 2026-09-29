@@ -2,11 +2,12 @@
 //  PhotoVerificationCamera.swift
 //  坐标系
 //
-//  前置摄像头自拍（形象认证）。
+//  前置摄像头采集（形象认证；认证路径禁用相册）。
 //
 
 import SwiftUI
 import UIKit
+import CoordinateModels
 
 struct PhotoVerificationCameraPicker: UIViewControllerRepresentable {
     var onImage: (UIImage) -> Void

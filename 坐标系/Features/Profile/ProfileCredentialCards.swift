@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 // MARK: - Shared strip chrome
 
@@ -18,6 +19,8 @@ struct WalletPassCredentialStripChrome: View {
     var onOpenDetail: (() -> Void)? = nil
     /// 文案精简时仍占满标准条高（堆叠预览与清单同尺寸）
     var fillsCanonicalHeight: Bool = false
+
+    @Environment(\.platformChromeMeasurements) private var chromeMeasurements
 
     var body: some View {
         VStack(alignment: .leading, spacing: WalletPassChromePadding.stackSpacing) {
@@ -38,7 +41,11 @@ struct WalletPassCredentialStripChrome: View {
         .padding(.vertical, WalletPassChromePadding.vertical)
         .frame(
             maxWidth: .infinity,
-            minHeight: fillsCanonicalHeight ? PlatformMetrics.walletPassStripBarHeight : nil,
+            minHeight: fillsCanonicalHeight
+                ? PlatformMetrics.walletPassStripBarHeight(
+                    navigationBarButtonSide: chromeMeasurements.navigationBarButtonSide
+                )
+                : nil,
             alignment: .topLeading
         )
         .background {
@@ -77,7 +84,7 @@ struct WalletPassCredentialStripChrome: View {
                     .foregroundStyle(.primary)
                     .padding(.horizontal, WalletPassChromePadding.horizontal)
                     .padding(.vertical, WalletPassChromePadding.vertical)
-                    .background(.ultraThinMaterial, in: Capsule())
+                    .platformUltraThinMaterialBackground(in: Capsule())
             }
         }
         .colorScheme(.dark)

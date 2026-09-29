@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 // MARK: - Events
 
@@ -45,6 +46,9 @@ enum TrustEventName: String, Codable, CaseIterable {
     case inviteAccepted = "invite_accepted"
     case inviteDeclined = "invite_declined"
     case bookingCreated = "booking_created"
+    case bookingAccepted = "booking_accepted"
+    case bookingDeclined = "booking_declined"
+    case bookingRescheduled = "booking_rescheduled"
     case bookingPaid = "booking_paid"
     case bookingCompleted = "booking_completed"
     case bookingCancelled = "booking_cancelled"
@@ -57,6 +61,9 @@ enum TrustEventName: String, Codable, CaseIterable {
     case unblocked = "unblocked"
     case personReported = "person_reported"
     case ticketResolvedAgainst = "ticket_resolved_against"
+    case mediaBlocked = "media_blocked"
+    case identityFailed = "identity_failed"
+    case identityRemoteVerified = "identity_remote_verified"
 
     // wallet
     case membershipActivated = "membership_activated"
@@ -132,12 +139,14 @@ struct TrustAxisScores: Hashable {
     var communication: Double
     var safety: Double
 
-    static let labels: [(KeyPath<TrustAxisScores, Double>, String)] = [
-        (\.identity, "身份"),
-        (\.reliability, "守约"),
-        (\.communication, "沟通"),
-        (\.safety, "安全")
-    ]
+    static var labels: [(KeyPath<TrustAxisScores, Double>, String)] {
+        [
+            (\.identity, "身份"),
+            (\.reliability, "守约"),
+            (\.communication, "沟通"),
+            (\.safety, "安全")
+        ]
+    }
 
     var overall: Double {
         // 守约与安全权重大

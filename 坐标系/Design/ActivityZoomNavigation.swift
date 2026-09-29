@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 // MARK: - Clip
 
@@ -126,7 +127,7 @@ struct ActivityZoomDetailDestination: View {
     }
 }
 
-/// 「我的」凭证 Zoom 落点：展开为完整票面（现有 WalletPassFace 样式）。
+/// 「我的」长条凭证 Zoom 落点：展开为活动旅程页。
 struct ActivityCredentialExpandedDestination: View {
     let source: ActivityZoomSource
     let namespace: Namespace.ID
@@ -288,7 +289,7 @@ struct ActivityBrowserSheet: View {
 #Preview("Zoom navigation") {
     @Previewable @Namespace var ns
     let activity = SampleData.activities[0]
-    let app = AppModel()
+    let app = AppModel.preview
     return NavigationStack {
         ActivityFeaturedCard(
             activity: activity,

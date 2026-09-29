@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum TrustScoring {
     static let windowDays = 90
@@ -110,6 +111,13 @@ enum TrustScoring {
         }.count
         safety -= min(50, Double(blocksAgainst) * 8 + Double(reportsAgainst) * 15)
         safety -= min(15, Double(checkBad) * 5)
+        let mediaBlocks = events.filter {
+            $0.name == .mediaBlocked && $0.actorKey.caseInsensitiveCompare(key) == .orderedSame
+        }.count
+        let identityFails = events.filter {
+            $0.name == .identityFailed && $0.actorKey.caseInsensitiveCompare(key) == .orderedSame
+        }.count
+        safety -= min(10, Double(mediaBlocks) * 2 + Double(identityFails))
 
         return TrustAxisScores(
             identity: clamp(identity),

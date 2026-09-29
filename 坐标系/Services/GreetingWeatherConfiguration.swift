@@ -10,6 +10,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum GreetingWeatherConfiguration {
     /// 企业账号 + WeatherKit 能力就绪后改为 `true`。

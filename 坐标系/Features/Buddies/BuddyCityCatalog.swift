@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 struct BuddyCityChoice: Identifiable, Hashable {
     let province: String

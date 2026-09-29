@@ -5,6 +5,7 @@
 //  信任档案：等级 + 形象认证 + 履约徽章 + 近 90 天事实（单一 Form Section）。
 //
 
+import CoordinateModels
 import SwiftUI
 
 struct TrustPublicProfileSections: View {
@@ -16,27 +17,31 @@ struct TrustPublicProfileSections: View {
     var compact: Bool = false
 
     @Environment(AppModel.self) private var app
-    @AppStorage("profile.membership.active") private var membershipActive = false
+    @Environment(MembershipStore.self) private var membership
+    @Environment(TrustService.self) private var trust
+    @Environment(ProductLifecycleStore.self) private var lifecycle
+    @Environment(PhotoVerificationStore.self) private var photoVerification
 
     private var isSelf: Bool {
         nickname.caseInsensitiveCompare(currentUserName) == .orderedSame
     }
 
     private var credentials: TrustPublicCredentials.Flags {
-        _ = PhotoVerificationStore.shared.isVerified
+        _ = photoVerification.isVerified
         return TrustPublicCredentials.flags(
             nickname: nickname,
             currentUserName: currentUserName,
             buddyItem: buddyItem,
-            membershipActive: membershipActive,
-            liveHostedCount: liveHostedCount
+            membershipActive: membership.isEntitled,
+            liveHostedCount: liveHostedCount,
+            verificationPhotos: isSelf ? app.user.verificationPhotos : []
         )
     }
 
     private var card: TrustPublicCard {
-        _ = TrustService.shared.revision
+        _ = trust.revision
         let flags = credentials
-        return TrustService.shared.publicCard(
+        return trust.publicCard(
             for: nickname,
             currentUserName: currentUserName,
             buddyItem: buddyItem,
@@ -46,7 +51,7 @@ struct TrustPublicProfileSections: View {
                 isGuest: isSelf && app.auth.isGuest,
                 hasPhone: isSelf && !app.auth.isGuest && !app.auth.phoneNumber.isEmpty,
                 photoVerified: flags.photoVerified,
-                accountCreatedAt: isSelf ? ProductLifecycleStore.shared.installAt : nil,
+                accountCreatedAt: isSelf ? lifecycle.installAt : nil,
                 friendCount: 0,
                 liveHostedCount: liveHostedCount
             )
@@ -77,6 +82,10 @@ struct TrustPublicProfileSections: View {
                 .platformContentSymbolStyle()
             }
 
+            if isSelf {
+                publicVerificationPhotosRow
+            }
+
             if !extraBadges.isEmpty {
                 TrustBadgeRow(badges: extraBadges)
             } else if !isSelf, !flags.photoVerified {
@@ -103,6 +112,29 @@ struct TrustPublicProfileSections: View {
     private func earnedTrustBadges(from badges: [TrustBadge]) -> [TrustBadge] {
         badges.filter {
             $0.kind != .photoVerified && $0.kind != .activeMember
+        }
+    }
+
+    @ViewBuilder
+    private var publicVerificationPhotosRow: some View {
+        let images = app.user.localPublicVerificationImages()
+        if images.isEmpty {
+            Text("认证照未对外展示")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: PlatformMetrics.cardInfoSpacing) {
+                    ForEach(Array(images.enumerated()), id: \.offset) { _, image in
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 72, height: 72)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                }
+            }
+            .accessibilityLabel("对外展示的认证照，共 \(images.count) 张")
         }
     }
 }

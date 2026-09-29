@@ -10,6 +10,8 @@
 //
 
 import Foundation
+import CoordinateDomain
+import CoordinateModels
 
 /// 一次行为对应的隐式信号强度：报名 > 收藏 > 仅查看。
 enum ActivityEngagementEvent {
@@ -28,17 +30,17 @@ enum ActivityEngagementEvent {
 
 @MainActor
 final class ActivityEngagementStore {
-    static let shared = ActivityEngagementStore()
-
     /// 权重每天衰减一次，让近期行为主导排序，旧信号慢慢退场（保持推荐「新鲜」）
     private static let dailyDecay = 0.9
     private static let maxWeight = 60.0
     private static let dropBelow = 0.4
 
+    private let repository: any EngagementRepository
     private var snapshot: ActivityEngagementSnapshot
 
-    private init() {
-        snapshot = AppPersistence.loadEngagement()
+    init(repository: any EngagementRepository) {
+        self.repository = repository
+        snapshot = repository.load()
         applyDecayIfNeeded()
     }
 
@@ -96,11 +98,11 @@ final class ActivityEngagementStore {
     }
 
     private func persist() {
-        AppPersistence.saveEngagement(snapshot)
+        repository.save(snapshot)
     }
 
     func reloadFromDisk() {
-        snapshot = AppPersistence.loadEngagement()
+        snapshot = repository.load()
         applyDecayIfNeeded()
     }
 }

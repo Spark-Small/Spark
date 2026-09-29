@@ -1,13 +1,15 @@
 # 坐标系 · 行为信用模型
 
 > 信任来自注册→注销全生命周期行为的**衰减移动统计**，不是对人的商品式多维星级评价。  
-> 本文档供实现与后续迭代；代码入口：`Services/Trust/`、`Features/Trust/`。
+> 本文档供实现与后续迭代；代码入口：`Services/Trust/`、`Features/Trust/`。  
+> 产品需求编号见 [PRD.md](PRD.md) §3.5 / `FR-PRO-07`。
 
 ## 1. 原则
 
 1. **行为信用**：事件账本 + 移动平均 / 衰减，而非公开「友好度 / 专业度」打分墙。
 2. **公私分离**：对外 = 徽章 + 可解释履约事实；对内 = 等级进度 + 行为摘要 + 提升路径。
-3. **人对人不互评上墙**：履约后仅私密安全确认（是否顺利 / 是否举报）；付费「服务体验」若需要，挂服务侧，与用户信用分账。
+3. **人对人不互评上墙**：履约后仅私密安全确认（是否顺利 / 是否举报）；付费「服务体验」若需要，挂服务侧，与用户信用分账。  
+   → [UserJourneyTechControl.md](UserJourneyTechControl.md) 中的「评价 / 好评率」多为**行业参照或 P2**，非 V1 交付范围。
 4. **安全权重大于贡献**：举报成立、放鸽子、退款羊毛 > 发帖点赞。
 5. **冷启动诚实**：事件不足时展示「新伙伴 / 样本不足」，禁止用假星级填数。
 6. **注销清零**：`deleteLocalAccount` 清空行为账本与等级。
@@ -46,10 +48,10 @@
 `joined` · `left` · `hosted_published` · `host_cancelled` · `order_paid` · `order_refunded`
 
 #### buddy / booking
-`invite_sent` · `invite_accepted` · `invite_declined` · `booking_created` · `booking_paid` · `booking_completed` · `booking_cancelled` · `booking_refunded` · `safety_checkin_ok` · `safety_checkin_issue`
+`invite_sent` · `invite_accepted` · `invite_declined` · `booking_created` · `booking_accepted` · `booking_declined` · `booking_rescheduled` · `booking_paid` · `booking_completed` · `booking_cancelled` · `booking_refunded` · `safety_checkin_ok` · `safety_checkin_issue`
 
 #### social / moderation
-`blocked` · `unblocked` · `person_reported` · `ticket_resolved_against`
+`blocked` · `unblocked` · `person_reported` · `ticket_resolved_against` · `media_blocked` · `identity_failed` · `identity_remote_verified`
 
 #### wallet
 `top_up` · `membership_activated`
@@ -58,7 +60,7 @@
 
 - account：`guidelines_ack`
 - activity：`waitlist_*` · `commented` · `reported` · `check_in`
-- booking：`booking_accepted/declined/rescheduled` · `person_hidden`
+- booking：`person_hidden`
 - social：`message_sent` · `request_*` · `friend_*` · `call_missed` · `transfer_refunded`
 - community：发帖互动与举报类
 - org：`circle_*` · `guild_*` · `member_kicked`
@@ -114,10 +116,15 @@ S_t = \alpha S_{t-1} + (1-\alpha)\,f(E_t)
 
 ### 形象认证（防欺诈）
 
-- 入口：「我的信誉」→ 防欺诈认证 / `PhotoVerificationView`
-- 流程：本人头像（资料）↔ 自拍；Apple **Vision** 本机做人脸检测、采集质量与关键点相似度比对
-- 通过后点亮「形象认证」徽章，并写入 `PhotoVerificationStore`（本机，注销清空）
-- **不**引入商业人脸 SDK；影像不上传。正式版可叠加活体（眨眼 / 转头）与服务端复核
+- 入口：「我的信誉」→ 防欺诈认证 / `PhotoVerificationView`；资料页「认证照片」
+- **认证照**：资料上传 1–2 张正脸照（`AppUser.verificationPhotos`），每张可设 `isPublic`（对外展示 / 仅核验）
+- **头像**与认证照解耦，不作为比对基准
+- 流程：前置摄像头采集人脸 ↔ 认证照；Apple **Vision** 本机检测、质量与关键点相似度（多张取最高分）
+- **二次复核**：本机通过后走 `IdentityRemoteReverifyService`（演示代理更严阈值 / 可选远程）；青少年模式不上云特征
+- **冷却**：连续失败 3 次进入 15 分钟冷却；可提交 `identityAppeal` 工单
+- 通过后点亮「形象认证」徽章，写入 `PhotoVerificationStore`（绑定用户 + 认证照基准指纹；注销清空）
+- **IdentityGate**：登录用户未核验则拦截报名 / 预约 / 打招呼 / 发消息（`AppModel.requireIdentityAccess`）
+- **内容安全（P2）**：`MediaModerationService` + `LocalPrivateDetectorProxy`（演示）/ 远程 Private Detector；挂钩头像、认证照、聊天、社区、活动封面；青少年更严阈值；误杀可申诉
 
 ### UI 组件（`Features/Trust/`）
 
@@ -148,7 +155,7 @@ S_t = \alpha S_{t-1} + (1-\alpha)\,f(E_t)
 
 | 路径 | 职责 |
 |---|---|
-| `Docs/TrustBehaviorModel.md` | 本说明（迭代用） |
+| [TrustBehaviorModel.md](TrustBehaviorModel.md) | 本说明（迭代用） |
 | `Services/Trust/TrustModels.swift` | 事件、等级、事实、公私卡片 |
 | `Services/Trust/TrustBehaviorLedger.swift` | 事件持久化 |
 | `Services/Trust/TrustScoring.swift` | 计分与等级 |
@@ -158,8 +165,11 @@ S_t = \alpha S_{t-1} + (1-\alpha)\,f(E_t)
 | `Features/Trust/TrustPublicSections.swift` | 对外档案 |
 | `Features/Trust/TrustPrivateDashboardView.swift` | 私域看板 |
 | `Features/Trust/TrustSafetyCheckInSheet.swift` | 履约后私密确认 |
-| `Features/Trust/PhotoVerificationView.swift` | 形象认证流程 |
-| `Services/PhotoVerification/*` | Vision 比对引擎 + 本机状态 + 自拍相机 |
+| `Features/Trust/PhotoVerificationView.swift` | 形象认证流程（摄像头 ↔ 认证照 + 二次复核 / 冷却 / 申诉） |
+| `Features/Profile/IdentityAccessGate.swift` | 身份门禁 |
+| `Services/PhotoVerification/*` | Vision 比对、内容安全、演示 Private Detector 代理、联网复核 |
+| `CoordinateModels/VerificationPhoto.swift` | 认证照模型 |
+| `Services/API/APIEndpoint+Moderation.swift` | moderation / identity API |
 | 埋点挂接 | 活动/预约/拉黑/建号等状态机旁路 `TrustService.record` |
 
 ## 9. 后续优化清单
@@ -180,3 +190,5 @@ S_t = \alpha S_{t-1} + (1-\alpha)\,f(E_t)
 | 2026-07-31 | Trust UI 对齐设置页：LabeledContent / Label 行，去掉 pill 与装饰大图标 |
 | 2026-07-31 | 形象认证：Vision 本机头像↔自拍比对；修复信用状态 LabeledContent |
 | 2026-08-03 | 文档对齐实现：`note` 字段；事件目录拆「已实现 / 路线图」；补全代码地图 |
+| 2026-09-04 | 认证照 1–2 张（可公开）+ 摄像头比对门禁；头像与核验解耦 |
+| 2026-09-04 | P2/P3：内容安全代理、联网复核、冷却申诉、协议 v2 |

@@ -2,158 +2,126 @@
 //  AppWelcomeGuideView.swift
 //  坐标系
 //
-//  半屏分页 onboarding：SVG 插画 + 价值文案。
-//  Sheet 用系统 `.medium`（PlatformSheet.confirm）。
+//  首启半屏：意图选择（找活动 / 找同好 / 先逛逛）。
 //
 
 import SwiftUI
+import CoordinateModels
 
-enum AppWelcomeGuideCopy {
-    static let storageKey = "app.hasSeenWelcomeGuide"
-    static let skip = "跳过"
-    static let next = "继续"
-    static let start = "立即出发"
-}
-
-private enum AppWelcomeModule: String, CaseIterable, Identifiable {
-    case welcome
-    case activities
-    case buddies
-    case community
+enum AppWelcomeIntent: String, CaseIterable, Identifiable {
+    case findActivity
+    case meetPeople
+    case browse
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .welcome: "欢迎来到坐标系"
-        case .activities: "发现好玩的活动"
-        case .buddies: "找到有趣的人"
-        case .community: "看看大家怎么玩"
+        case .findActivity: "找能参加的活动"
+        case .meetPeople: "认识兴趣相同的人"
+        case .browse: "先随便逛逛"
         }
     }
 
-    var message: String {
+    var systemImage: String {
         switch self {
-        case .welcome: "让一起玩，变得简单、自然、可信。"
-        case .activities: "按兴趣浏览各类活动，喜欢就直接报名参加。"
-        case .buddies: "按兴趣和时间匹配，更快约到合适的搭子和陪玩。"
-        case .community: "在广场里畅所欲言，发表你的高光时刻和你的奇思妙想。"
+        case .findActivity: "calendar.badge.clock"
+        case .meetPeople: "person.2.fill"
+        case .browse: "sparkles"
         }
     }
 
-    var illustrationName: String {
+    var landingTab: AppTab {
         switch self {
-        case .welcome: "WelcomeGuideWelcome"
-        case .activities: "WelcomeGuideActivities"
-        case .buddies: "WelcomeGuideBuddies"
-        case .community: "WelcomeGuideCommunity"
+        case .findActivity, .browse: .activities
+        case .meetPeople: .buddies
         }
+    }
+
+    /// 欢迎意图写入资料兴趣（bootstrap 用）。
+    var profileInterests: [String] {
+        switch self {
+        case .findActivity:
+            ["同城局", "探店", "骑行", "羽毛球"]
+        case .meetPeople:
+            ["认识同好", "搭子", "羽毛球", "桌游"]
+        case .browse:
+            SampleData.currentUserInterests
+        }
+    }
+}
+
+enum AppWelcomeGuideCopy {
+    static let storageKey = "app.hasSeenWelcomeGuide"
+    static let skip = "跳过"
+    static let title = "你想先做点什么？"
+    static let subtitle = "选一个方向，我们会帮你更快开始"
+    static let findActivityConfirmedGeneric = "已为你打开活动推荐"
+    static let browseConfirmed = "已为你打开活动发现"
+    static let meetPeopleConfirmed = "已为你打开同城同好"
+    static func filterConfirmed(_ filterName: String) -> String {
+        "已为你筛选\(filterName)的活动"
     }
 }
 
 struct AppWelcomeGuideView: View {
-    var onContinue: () -> Void
+    var onContinue: (AppWelcomeIntent) -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
-    @State private var pageID = AppWelcomeModule.welcome.id
-
-    private var modules: [AppWelcomeModule] { AppWelcomeModule.allCases }
-
-    private var isLastPage: Bool {
-        pageID == modules.last?.id
-    }
 
     var body: some View {
         NavigationStack {
-            TabView(selection: $pageID) {
-                ForEach(modules) { module in
-                    pageContent(module)
-                        .tag(module.id)
+            VStack(spacing: PlatformMetrics.sectionSpacing) {
+                VStack(spacing: PlatformMetrics.detailMicroSpacing) {
+                    Text(AppWelcomeGuideCopy.title)
+                        .font(.title2.bold())
+                        .multilineTextAlignment(.center)
+                    Text(AppWelcomeGuideCopy.subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
+                .padding(.top, PlatformMetrics.sectionSpacing)
+
+                VStack(spacing: PlatformMetrics.cardFooterSpacing) {
+                    ForEach(AppWelcomeIntent.allCases) { intent in
+                        Button {
+                            finish(with: intent)
+                        } label: {
+                            Label(intent.title, systemImage: intent.systemImage)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
+                                .padding(.horizontal, PlatformMetrics.contentInset)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
+                    }
+                }
+
+                Spacer(minLength: 0)
             }
-            .tabViewStyle(.page(indexDisplayMode: .always))
-            .animation(reduceMotion ? nil : .easeInOut, value: pageID)
-            .safeAreaInset(edge: .bottom) {
-                bottomBar
-            }
+            .padding(.horizontal, PlatformMetrics.contentInset)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(AppWelcomeGuideCopy.skip, action: finish)
+                    Button(AppWelcomeGuideCopy.skip) {
+                        finish(with: .browse)
+                    }
                 }
             }
-            .sensoryFeedback(.selection, trigger: pageID)
         }
         .tint(PlatformAction.brandAccent)
-        .platformSheet(.confirm, interactiveDismissDisabled: true)
+        .platformSheet(.confirm)
     }
 
-    private func pageContent(_ module: AppWelcomeModule) -> some View {
-        VStack {
-            Image(module.illustrationName)
-                .resizable()
-                .scaledToFit()
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal)
-                .accessibilityHidden(true)
-
-            VStack {
-                Text(module.title)
-                    .font(.title2.bold())
-                    .multilineTextAlignment(.center)
-                    .accessibilityAddTraits(.isHeader)
-
-                Text(module.message)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.horizontal)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.top)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var bottomBar: some View {
-        Button {
-            if isLastPage {
-                finish()
-            } else if let index = modules.firstIndex(where: { $0.id == pageID }),
-                      modules.indices.contains(index + 1) {
-                pageID = modules[index + 1].id
-            }
-        } label: {
-            Text(isLastPage ? AppWelcomeGuideCopy.start : AppWelcomeGuideCopy.next)
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .padding(.horizontal)
-        .padding(.bottom)
-        .accessibilityHint(isLastPage ? "进入应用" : "下一页")
-    }
-
-    private func finish() {
-        onContinue()
+    private func finish(with intent: AppWelcomeIntent) {
+        onContinue(intent)
         dismiss()
     }
 }
 
-#Preview("半屏引导 · 插画") {
+#Preview("意图引导") {
     Color.clear
         .sheet(isPresented: .constant(true)) {
-            AppWelcomeGuideView(onContinue: {})
+            AppWelcomeGuideView(onContinue: { _ in })
         }
-}
-
-#Preview("半屏引导 · 暗色") {
-    Color.clear
-        .sheet(isPresented: .constant(true)) {
-            AppWelcomeGuideView(onContinue: {})
-        }
-        .preferredColorScheme(.dark)
 }

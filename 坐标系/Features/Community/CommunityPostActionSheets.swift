@@ -5,6 +5,7 @@
 
 import SwiftUI
 import UIKit
+import CoordinateModels
 
 enum CommunityActionSheet: String, Identifiable {
     case likes
@@ -34,14 +35,7 @@ struct CommunityLikesSheet: View {
                 names.append(author)
             }
         }
-        if names.count < min(post?.likeCount ?? 0, 8) {
-            for nickname in SampleData.circleBuddies.map(\.profile.nickname) {
-                if nickname != app.user.name, !names.contains(nickname) {
-                    names.append(nickname)
-                }
-                if names.count >= max(post?.likeCount ?? 0, 1) { break }
-            }
-        }
+        // 仅展示真实赞 / 评论作者，不拿 SampleData 补人数。
         return Array(names.prefix(max(post?.likeCount ?? names.count, names.count)))
     }
 

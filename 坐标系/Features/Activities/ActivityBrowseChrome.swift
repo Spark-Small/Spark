@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 struct ActivityBrowseCategoryTitleMenu: View {
     @Binding var selection: ActivityCategory

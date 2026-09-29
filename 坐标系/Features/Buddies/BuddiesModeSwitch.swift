@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 /// 与 `ActivityBrowseCategoryTitleMenu` 同形态：大标题菜单切换免费 / 预约。
 struct BuddiesModeTitleMenu: View {

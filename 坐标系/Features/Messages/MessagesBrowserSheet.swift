@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 enum MessagesSheetDismissAction {
     case close

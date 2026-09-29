@@ -15,6 +15,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 fileprivate struct ActivityRecommendationBreakdown: Hashable {
     let interest: Int
@@ -62,6 +63,7 @@ enum ActivityRecommender {
     static var friendNames: Set<String> = []
     static var joinedIDs: Set<UUID> = []
     static var currentUserName: String = SampleData.currentUser.name
+    static var engagementStore: ActivityEngagementStore?
 
     fileprivate static func breakdown(
         for activity: Activity,
@@ -194,10 +196,10 @@ enum ActivityRecommender {
 
     /// 行为学习兴趣：最近真的点开 / 收藏 / 参加过的标签、品类，动态加权
     private static func implicitScore(for activity: Activity) -> Int {
-        ActivityEngagementStore.shared.implicitScore(
+        engagementStore?.implicitScore(
             for: activity,
             cap: ActivityRecommendationWeights.implicitCap
-        )
+        ) ?? 0
     }
 
     private static func distanceScore(for activity: Activity) -> Int {

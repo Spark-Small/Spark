@@ -2,11 +2,12 @@
 //  ActivityCredentialExpandedView.swift
 //  坐标系
 //
-//  「我的」活动凭证 Zoom 展开页：票面头图 + Form 信息 / 安排 / 细则；Wallet 在右上角。
-//  取消参加 / 退款 / 主办取消与活动详情、管理页同一套弹窗与业务闭环。
+//  活动旅程页：登机牌 + 阶段操作 + 进度时间线（原凭证展开入口）。
 //
 
 import SwiftUI
+import CoordinateDomain
+import CoordinateModels
 
 struct ActivityCredentialExpandedView: View {
     let activityID: Activity.ID
@@ -15,16 +16,30 @@ struct ActivityCredentialExpandedView: View {
     @Environment(ActivitiesModel.self) private var activities
     @Environment(WalletPassStore.self) private var passStore
     @Environment(RefundFlowService.self) private var refunds
+    @Environment(CommunityModel.self) private var community
+    @Environment(\.tabNavigationStateRef) private var navigation
     @Environment(\.dismiss) private var dismiss
 
+    @State private var activityContactRoute: PeerContactRoute?
+
     @State private var showAddToWallet = false
+    @State private var showRecapCompose = false
     @State private var showActivityDetail = false
+    @State private var showNavigationPicker = false
+    @State private var showMementoShareSheet = false
+    @State private var mementoShareItems: [Any] = []
+    @State private var showReportSheet = false
+    @State private var showFeedbackSheet = false
+    @State private var calendarMessage: String?
+    @State private var reportMessage: String?
     @State private var cancelRefundActivityID: Activity.ID?
     @State private var cancelUnpaidActivityID: Activity.ID?
     @State private var cancelAndRefundOrder: ActivityOrder?
     @State private var presentedRefundRequestID: UUID?
     @State private var showCancelHostAlert = false
     @State private var actionIssueMessage: String?
+    @State private var cancelFeedbackMessage: String?
+    @State private var checkInMessage: String?
 
     private var activity: Activity? {
         activities.activity(id: activityID)
@@ -35,8 +50,13 @@ struct ActivityCredentialExpandedView: View {
         return passStore.resolvedActivityPass(for: activity)
     }
 
-    private var canOfferWallet: Bool {
-        relatedPass?.voided == false
+    private var canShareMemento: Bool {
+        guard let activity else { return false }
+        let participates = activities.isJoined(activity.id) || isHost
+        return ActivityJourneyCredentialPresentation.canShareMemento(
+            voided: relatedPass?.voided == true,
+            participatesInJourney: participates
+        )
     }
 
     private var isHost: Bool {
@@ -46,31 +66,108 @@ struct ActivityCredentialExpandedView: View {
     var body: some View {
         Group {
             if let activity {
-                credentialForm(activity)
+                journeyContent(activity)
             } else {
                 ContentUnavailableView(
                     "活动不可用",
                     systemImage: "ticket",
-                    description: Text("这张凭证关联的活动已无法加载。")
+                    description: Text("这场活动的旅程已无法加载。")
                 )
             }
         }
-        .navigationTitle("活动凭证")
+        .navigationTitle(ActivityJourneyCopy.pageTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if canOfferWallet {
+                if canShareMemento, let activity {
                     Button {
-                        showAddToWallet = true
+                        presentMementoShare(for: activity)
                     } label: {
-                        Image(systemName: "wallet.bifold")
+                        Image(systemName: "square.and.arrow.up")
                     }
-                    .accessibilityLabel("加入 Apple Wallet")
+                    .accessibilityLabel(ActivityJourneyCopy.shareMementoTicket)
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                if activity != nil {
+                    Menu {
+                        if let activity {
+                            credentialMoreMenu(for: activity)
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .accessibilityLabel("更多")
                 }
             }
         }
+        .sheet(isPresented: $showMementoShareSheet) {
+            PlatformShareSheet(items: mementoShareItems)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .toolbarVisibility(.hidden, for: .tabBar)
+        }
+        .sheet(isPresented: $showReportSheet) {
+            if let activity {
+                ActivityReportSheet(activity: activity, onSubmit: submitReport)
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            }
+        }
+        .alert(
+            ActivityDetailCopy.reportReceivedTitle,
+            isPresented: Binding(
+                get: { reportMessage != nil },
+                set: { if !$0 { reportMessage = nil } }
+            )
+        ) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            Text(reportMessage ?? "")
+        }
+        .alert(
+            ActivityJourneyCopy.alarmReminder,
+            isPresented: Binding(
+                get: { calendarMessage != nil },
+                set: { if !$0 { calendarMessage = nil } }
+            )
+        ) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            Text(calendarMessage ?? "")
+        }
+        .sheet(isPresented: $showFeedbackSheet) {
+            if let activity {
+                ActivityFeedbackSheet(
+                    activity: activity,
+                    onSubmit: { tag in
+                        activities.submitActivityFeedback(activityID, highlight: tag)
+                        activities.flashLight(ActivityFeedbackCopy.feedbackThanks)
+                    },
+                    onSkip: {
+                        activities.skipActivityFeedback(activityID)
+                    }
+                )
+                .toolbarVisibility(.hidden, for: .tabBar)
+            }
+        }
+        .alert(
+            ActivityJourneyCopy.onSiteCheckIn,
+            isPresented: Binding(
+                get: { checkInMessage != nil },
+                set: { if !$0 { checkInMessage = nil } }
+            )
+        ) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            Text(checkInMessage ?? "")
+        }
         .sheet(isPresented: $showAddToWallet) {
             addToWalletSheet
+        }
+        .sheet(isPresented: $showRecapCompose) {
+            CommunityComposeSheet()
+                .toolbarVisibility(.hidden, for: .tabBar)
+                .platformSheet(.form)
         }
         .navigationDestination(isPresented: $showActivityDetail) {
             ActivityDetailView(activityID: activityID)
@@ -87,8 +184,9 @@ struct ActivityCredentialExpandedView: View {
                 cancelRefundActivityID = nil
             }
             Button(ActivityDetailCopy.cancelOnly) {
-                if let id = cancelRefundActivityID {
-                    app.cancelActivityRegistration(id, refundIfPaid: false)
+                if let id = cancelRefundActivityID,
+                   app.cancelActivityRegistration(id, refundIfPaid: false) {
+                    cancelFeedbackMessage = ActivityFeedbackCopy.unjoined
                 }
                 cancelRefundActivityID = nil
             }
@@ -113,8 +211,9 @@ struct ActivityCredentialExpandedView: View {
                 cancelUnpaidActivityID = nil
             }
             Button(ActivityDetailCopy.cancelUnpaidConfirm, role: .destructive) {
-                if let id = cancelUnpaidActivityID {
-                    app.cancelActivityRegistration(id)
+                if let id = cancelUnpaidActivityID,
+                   app.cancelActivityRegistration(id) {
+                    cancelFeedbackMessage = ActivityFeedbackCopy.unjoined
                 }
                 cancelUnpaidActivityID = nil
             }
@@ -124,7 +223,7 @@ struct ActivityCredentialExpandedView: View {
         .sheet(item: $cancelAndRefundOrder) { order in
             let activity = activities.activity(id: order.activityID)
             let notes = activity.map { ActivityDetailBlueprint.make(for: $0).refundNotes } ?? []
-            RefundRequestSheet.activityOrder(order, activity: activity, refundNotes: notes) { reason, detail in
+            RefundRequestSheet.activityOrder(order, activity: activity, refundNotes: notes) { reason, detail, _ in
                 submitCancelAndRefund(order: order, reason: reason, detail: detail)
             }
         }
@@ -160,6 +259,103 @@ struct ActivityCredentialExpandedView: View {
         } message: {
             Text(actionIssueMessage ?? "")
         }
+        .platformFeedbackAlert($cancelFeedbackMessage)
+        .peerContactDestination(route: $activityContactRoute)
+    }
+
+    private func openActivityGroupChatInStack(for activity: Activity) {
+        activities.markActivityGroupOpened(activity.id)
+        guard let route = app.prepareActivityGroupChatRoute(for: activity) else { return }
+        if let navigation {
+            navigation.path.append(route)
+        } else {
+            activityContactRoute = .chat(route)
+        }
+    }
+
+    private func greetCoParticipant(_ name: String, activity: Activity) {
+        let context: ConversationChatContext = name == activity.hostName
+            ? .activityHost(activityID: activity.id)
+            : .activityMember(activityID: activity.id)
+        activityContactRoute = app.openPeerContact(with: name, context: context)
+    }
+
+    private func consumePendingJourneyFollowUp(for activity: Activity) {
+        switch app.pendingActivityJourneyFollowUp {
+        case .none:
+            break
+        case .journeyFeedback:
+            app.pendingActivityJourneyFollowUp = .none
+            showFeedbackSheet = true
+        case .journeyRecap:
+            app.pendingActivityJourneyFollowUp = .none
+            prepareRecapCompose(for: activity)
+        case .openJourney:
+            app.pendingActivityJourneyFollowUp = .none
+        }
+    }
+
+    private func journeySyncIdentity(
+        for activity: Activity,
+        progress: ActivityParticipationProgress?
+    ) -> String {
+        let scheduled = ActivityCalendar.isScheduled(activityID: activity.id)
+        return [
+            activity.id.uuidString,
+            String(activities.calendarSyncRevision),
+            scheduled ? "cal" : "no-cal",
+            progress.map {
+                "\($0.openedActivityGroup)-\($0.feedbackSubmitted)-\($0.recapPublished)-\($0.markedArrived)"
+            } ?? "none"
+        ].joined(separator: "|")
+    }
+
+    @ViewBuilder
+    private func journeyContent(_ activity: Activity) -> some View {
+        let isVoided = relatedPass?.voided == true
+        let participates = activities.isJoined(activity.id) || isHost
+        let progress = activities.participationRecord(for: activity.id)
+        let phase = ActivityJourneyPresentation.phase(
+            for: activity,
+            progress: progress,
+            participatesInJourney: participates
+        )
+
+        let coParticipants = activity.displayParticipants.filter { $0 != app.user.name }
+        let scheduledOnCalendar = ActivityCalendar.isScheduled(activityID: activity.id)
+
+        ActivityJourneyStack(
+            activity: activity,
+            phase: phase,
+            progress: progress,
+            voided: isVoided,
+            isOnCalendar: scheduledOnCalendar,
+            userID: app.user.id,
+            participantName: app.user.name,
+            participantUIDDisplay: app.user.publicUIDDisplay,
+            barcodeMessage: barcodeMessage(for: activity, voided: isVoided),
+            coParticipantNames: coParticipants,
+            onUtilityAction: { action in
+                handleUtilityAction(action, activity: activity)
+            },
+            onPrimaryAction: { action in
+                handlePrimaryAction(action, activity: activity)
+            },
+            onGreetParticipant: { name in
+                greetCoParticipant(name, activity: activity)
+            }
+        )
+        .id(journeySyncIdentity(for: activity, progress: progress))
+        .onAppear {
+            activities.ensureParticipationProgress(for: activity.id)
+            consumePendingJourneyFollowUp(for: activity)
+        }
+        .activityMapNavigationSheet(
+            activity: Binding(
+                get: { showNavigationPicker ? activity : nil },
+                set: { showNavigationPicker = $0 != nil }
+            )
+        )
     }
 
     private var addToWalletSheet: some View {
@@ -193,98 +389,80 @@ struct ActivityCredentialExpandedView: View {
         .platformSheet(.confirm)
     }
 
-    @ViewBuilder
-    private func credentialForm(_ activity: Activity) -> some View {
-        let blueprint = ActivityDetailBlueprint.make(for: activity)
-        let timeline = Array(blueprint.timeline.prefix(6))
-        let notes = WalletPassFaceFactory.detailNotes(from: blueprint, limit: 6)
-        let schedule = WalletPassFaceFactory.scheduleFields(from: activity.date)
-        let isVoided = relatedPass?.voided == true
-        let joined = activities.isJoined(activity.id)
-        let ended = activity.isLifecycleEnded
-
-        Form {
-            Section {
-                ProfileActivityCredentialCard(
-                    activity: activity,
-                    voided: isVoided,
-                    embedsNotes: false,
-                    embedsHeader: false,
-                    onOpenDetail: { showActivityDetail = true }
-                )
-                .frame(maxWidth: .infinity)
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            }
-
-            Section {
-                VStack(alignment: .leading, spacing: PlatformMetrics.sectionSubtitleSpacing) {
-                    Text(activity.title)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Text(WalletPassFaceFactory.attendanceHint(for: activity))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .accessibilityElement(children: .combine)
-
-                LabeledContent("时间", value: schedule.label)
-                LabeledContent("日期", value: schedule.value)
-            }
-
-            if !timeline.isEmpty {
-                Section {
-                    ForEach(timeline) { item in
-                        timelineRow(item)
-                    }
-                } header: {
-                    Text("活动安排")
-                }
-            }
-
-            if !notes.isEmpty {
-                Section {
-                    ForEach(Array(notes.enumerated()), id: \.offset) { _, note in
-                        Text(note)
-                            .font(.body)
-                            .foregroundStyle(.primary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                } header: {
-                    Text("细则注意事项")
-                }
-            }
-
-            if !isVoided, hasPrimaryActions(joined: joined, ended: ended) {
-                Section("活动操作") {
-                    activityActions(activity, joined: joined, ended: ended)
-                }
-            }
-
-            if !isVoided, isHost, !ended {
-                Section {
-                    Button(ActivityDetailCopy.hostManageCancelActivity, role: .destructive) {
-                        showCancelHostAlert = true
-                    }
-                } footer: {
-                    Text(ActivityDetailCopy.hostManageCancelHint)
-                }
-            }
+    private func barcodeMessage(for activity: Activity, voided: Bool) -> String {
+        if let pass = passStore.resolvedActivityPass(for: activity, voided: voided) {
+            let message = pass.barcodeMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !message.isEmpty { return message }
         }
-        .listSectionSpacing(.compact)
-        .contentMargins(.top, 0, for: .scrollContent)
-        .scrollEdgeEffectStyle(.soft, for: .top)
+        return "coordinate:activity:\(activity.id.uuidString)"
     }
 
-    private func hasPrimaryActions(joined: Bool, ended: Bool) -> Bool {
-        if isHost { return true }
-        if joined, !ended { return true }
-        if joined || isHost, shouldOfferReissue { return true }
-        return false
+    private func handleUtilityAction(_ action: ActivityJourneyUtilityAction, activity: Activity) {
+        switch action {
+        case .checkIn:
+            guard relatedPass?.voided != true else { return }
+            let progress = activities.participationRecord(for: activity.id)
+            let phase = ActivityJourneyPresentation.phase(
+                for: activity,
+                progress: progress,
+                participatesInJourney: activities.isJoined(activity.id) || isHost
+            )
+            if progress?.markedArrived == true {
+                return
+            }
+            if ActivityJourneyPresentation.canCheckIn(
+                phase: phase,
+                markedArrived: false,
+                voided: false
+            ) {
+                activities.markActivityArrived(activity.id)
+                checkInMessage = ActivityJourneyCopy.checkInSuccess
+            } else {
+                checkInMessage = ActivityJourneyCopy.checkInNotYet
+            }
+        case .toggleAlarmReminder:
+            guard relatedPass?.voided != true else { return }
+            Task { await toggleCalendar(for: activity) }
+        }
+    }
+
+    private func handlePrimaryAction(_ action: ActivityJourneyPrimaryAction, activity: Activity) {
+        switch action {
+        case .openDetail:
+            showActivityDetail = true
+        case .openGroup:
+            openActivityGroupChatInStack(for: activity)
+        case .navigate:
+            showNavigationPicker = true
+        case .shareFeedback:
+            showFeedbackSheet = true
+        case .writeRecap:
+            prepareRecapCompose(for: activity)
+        case .toggleAlarmReminder:
+            Task { await toggleCalendar(for: activity) }
+        }
+    }
+
+    private func prepareRecapCompose(for activity: Activity) {
+        community.pendingRelatedActivityTitle = activity.title
+        community.pendingRelatedActivityID = activity.id
+        community.pendingComposeBody = "「\(activity.title)」复盘"
+        showRecapCompose = true
+    }
+
+    private func toggleCalendar(for activity: Activity) async {
+        switch await ActivityCalendar.toggle(activity, withReminders: true) {
+        case .added(let withReminders):
+            activities.bumpCalendarSync()
+            calendarMessage = ActivityCalendar.successMessage(withReminders: withReminders)
+        case .removed:
+            activities.bumpCalendarSync()
+            calendarMessage = ActivityCalendar.removedMessage
+        case .accessDenied:
+            calendarMessage = "请在系统设置中允许访问日历。"
+        case .failed:
+            calendarMessage = "暂时无法更新日历，请稍后再试。"
+        }
     }
 
     private var shouldOfferReissue: Bool {
@@ -293,27 +471,34 @@ struct ActivityCredentialExpandedView: View {
     }
 
     @ViewBuilder
-    private func activityActions(
-        _ activity: Activity,
-        joined: Bool,
-        ended: Bool
-    ) -> some View {
-        if isHost {
-            NavigationLink {
-                ActivityHostManageView(activityID: activity.id)
+    private func credentialMoreMenu(for activity: Activity) -> some View {
+        if relatedPass?.voided == false {
+            Button {
+                showAddToWallet = true
             } label: {
-                Label(ActivityDetailCopy.hostManageTitle, systemImage: "slider.horizontal.3")
+                Label(ActivityJourneyCopy.addToWallet, systemImage: "wallet.bifold")
             }
+        }
 
-            Button(ActivityDetailCopy.openGroupChat, systemImage: "bubble.left.and.bubble.right") {
-                app.openActivityGroupChat(for: activity)
-            }
-        } else if joined {
-            Button(ActivityDetailCopy.openGroupChat, systemImage: "bubble.left.and.bubble.right") {
-                app.openActivityGroupChat(for: activity)
-            }
+        Button {
+            presentMementoShare(for: activity)
+        } label: {
+            Label(ActivityJourneyCopy.shareMementoTicket, systemImage: "photo.on.rectangle.angled")
+        }
 
-            if !ended {
+        Button {
+            mementoShareItems = [shareText(for: activity)]
+            showMementoShareSheet = true
+        } label: {
+            Label(ActivityCardStatus.shareActivity, systemImage: "text.quote")
+        }
+
+        if isHost {
+            Button(ActivityDetailCopy.hostManageCancelActivity, systemImage: "xmark.circle", role: .destructive) {
+                showCancelHostAlert = true
+            }
+        } else if activities.isJoined(activity.id) {
+            if !activity.isLifecycleEnded {
                 Button(ActivityDetailCopy.cancelRegistration, systemImage: "xmark.circle", role: .destructive) {
                     requestCancelRegistration(activity)
                 }
@@ -321,32 +506,16 @@ struct ActivityCredentialExpandedView: View {
         }
 
         if shouldOfferReissue {
-            Button("补发活动凭证", systemImage: "ticket") {
+            Button(ActivityDetailCopy.credentialReissueAction, systemImage: "ticket") {
                 reissue(activity)
             }
         }
-    }
 
-    private func timelineRow(_ item: ActivityDetailTimelineItem) -> some View {
-        VStack(alignment: .leading, spacing: PlatformMetrics.sectionSubtitleSpacing) {
-            HStack(alignment: .firstTextBaseline, spacing: PlatformMetrics.sectionSubtitleSpacing) {
-                Text(item.time)
-                    .monospacedDigit()
-                Text(item.title)
-            }
-            .font(.body)
-            .foregroundStyle(.primary)
+        Divider()
 
-            if !item.detail.isEmpty {
-                Text(item.detail)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        Button(ActivityDetailCopy.reportAction, systemImage: "exclamationmark.bubble", role: .destructive) {
+            showReportSheet = true
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(item.time)，\(item.title)。\(item.detail)")
     }
 
     private func requestCancelRegistration(_ activity: Activity) {
@@ -357,8 +526,8 @@ struct ActivityCredentialExpandedView: View {
         }
     }
 
-    /// 与活动详情一致：填退款申请并确认后，进入退款流程 + 完成后取消参加
-    private func submitCancelAndRefund(order: ActivityOrder, reason: String, detail: String) {
+    @discardableResult
+    private func submitCancelAndRefund(order: ActivityOrder, reason: String, detail: String) -> Bool {
         let activity = activities.activity(id: order.activityID)
         let notes = activity.map { ActivityDetailBlueprint.make(for: $0).refundNotes } ?? []
         let result = refunds.submitActivityRefund(
@@ -375,8 +544,10 @@ struct ActivityCredentialExpandedView: View {
         switch result {
         case .success(let record):
             presentedRefundRequestID = record.id
+            return true
         case .failure(let error):
             actionIssueMessage = error.localizedDescription
+            return false
         }
     }
 
@@ -386,5 +557,54 @@ struct ActivityCredentialExpandedView: View {
         } else {
             _ = passStore.issueActivityAttendanceTicket(for: activity)
         }
+    }
+
+    private func presentMementoShare(for activity: Activity) {
+        let isVoided = relatedPass?.voided == true
+        let participates = activities.isJoined(activity.id) || isHost
+        let progress = activities.participationRecord(for: activity.id)
+        let phase = ActivityJourneyPresentation.phase(
+            for: activity,
+            progress: progress,
+            participatesInJourney: participates
+        )
+        let model = ActivityJourneyCredentialPresentation.shareModel(
+            for: activity,
+            phase: phase,
+            voided: isVoided,
+            userID: app.user.id,
+            participantName: app.user.name,
+            participantUIDDisplay: app.user.publicUIDDisplay,
+            barcodeMessage: barcodeMessage(for: activity, voided: isVoided)
+        )
+        let caption = ActivityJourneyCredentialPresentation.shareCaption(for: activity)
+        var items: [Any] = [caption]
+        if let image = ActivityCredentialShareRenderer.renderMementoCard(
+            model: model,
+            shareCaption: caption
+        ) {
+            items.insert(image, at: 0)
+        }
+        mementoShareItems = items
+        showMementoShareSheet = true
+    }
+
+    private func shareText(for activity: Activity) -> String {
+        "\(activity.title)\n\(Formatters.activityEventTime(from: activity.date))\n\(activity.location)"
+    }
+
+    private func submitReport(reason: String, detail: String, evidenceCount: Int) {
+        guard let activity else { return }
+        var parts = [reason, detail]
+        if evidenceCount > 0 {
+            parts.append("附件 \(evidenceCount) 张")
+        }
+        app.addModerationTicket(
+            postID: activity.id,
+            title: activity.title,
+            reason: parts.joined(separator: " · "),
+            targetKind: .activity
+        )
+        reportMessage = ActivityDetailCopy.reportReceivedMessage
     }
 }

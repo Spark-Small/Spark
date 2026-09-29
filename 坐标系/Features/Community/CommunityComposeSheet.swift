@@ -5,10 +5,12 @@
 
 import PhotosUI
 import SwiftUI
+import CoordinateModels
 
 struct CommunityComposeSheet: View {
     @Environment(CommunityModel.self) private var model
     @Environment(ActivitiesModel.self) private var activities
+    @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
 
     @State private var bodyText = ""
@@ -19,6 +21,9 @@ struct CommunityComposeSheet: View {
     @State private var savedPhotoNames: [String] = []
     @State private var isPreparingPhotos = false
     @State private var blockedWord: String?
+    @State private var moderationAlert: String?
+    @State private var photoImportAlert: String?
+    @State private var recapSourceActivityID: UUID?
     @FocusState private var focused: Field?
 
     private enum Field: Hashable {
@@ -53,16 +58,17 @@ struct CommunityComposeSheet: View {
                 }
 
                 Section {
+                    let mediaPickerTitle = PlatformPhotosPickerCopy.mediaCountLabel(
+                        count: previewImages.count,
+                        emptyTitle: "添加照片或视频"
+                    )
                     PhotosPicker(
                         selection: $pickerItems,
                         maxSelectionCount: maxPhotos,
-                        matching: CommunityPhotoStore.photosAndVideos,
+                        matching: LocalMediaLibrary.photosAndVideos,
                         photoLibrary: .shared()
                     ) {
-                        Label(
-                            previewImages.isEmpty ? "添加照片或视频" : "已选 \(previewImages.count) 项，点击更换",
-                            systemImage: "photo.on.rectangle.angled"
-                        )
+                        Label(mediaPickerTitle, systemImage: "photo.on.rectangle.angled")
                     }
                     .onChange(of: pickerItems) { _, items in
                         Task { await loadPhotos(items) }
@@ -79,7 +85,7 @@ struct CommunityComposeSheet: View {
                                         .clipShape(RoundedRectangle(cornerRadius: PlatformMetrics.radiusMedia, style: .continuous))
                                         .overlay {
                                             if savedPhotoNames.indices.contains(index),
-                                               CommunityPhotoStore.isVideo(name: savedPhotoNames[index]) {
+                                               LocalMediaLibrary.isVideo(name: savedPhotoNames[index]) {
                                                 Image(systemName: "play.circle.fill")
                                                     .font(.title3)
                                                     .symbolRenderingMode(.hierarchical)
@@ -147,15 +153,28 @@ struct CommunityComposeSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
                 }
+                if let recapID = recapSourceActivityID {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button(ActivityExperienceFeedbackCopy.skip) {
+                            activities.skipActivityRecap(recapID)
+                            dismiss()
+                        }
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("发布", action: publish)
                         .fontWeight(.semibold)
                         .disabled(!canPublish)
                 }
             }
-            .onAppear(perform: applyInitialValues)
+            .onAppear {
+                applyInitialValues()
+                recapSourceActivityID = model.pendingRelatedActivityID
+            }
         }
         .platformSheet(.form)
+        .platformFeedbackAlert($moderationAlert)
+        .platformFeedbackAlert($photoImportAlert, title: "")
         .alert("内容需要修改", isPresented: Binding(
             get: { blockedWord != nil },
             set: { if !$0 { blockedWord = nil } }
@@ -197,6 +216,9 @@ struct CommunityComposeSheet: View {
             localPhotoNames: savedPhotoNames
         ) {
         case .published:
+            if let activityID = matched?.id {
+                activities.markActivityRecapPublished(activityID)
+            }
             dismiss()
         case .blocked(let word):
             blockedWord = word
@@ -217,7 +239,7 @@ struct CommunityComposeSheet: View {
         guard previewImages.indices.contains(index) else { return }
         previewImages.remove(at: index)
         if savedPhotoNames.indices.contains(index) {
-            CommunityPhotoStore.delete(named: savedPhotoNames[index])
+            LocalMediaLibrary.delete(named: savedPhotoNames[index])
             savedPhotoNames.remove(at: index)
         }
         if pickerItems.indices.contains(index) {
@@ -231,27 +253,49 @@ struct CommunityComposeSheet: View {
         defer { isPreparingPhotos = false }
 
         for name in savedPhotoNames {
-            CommunityPhotoStore.delete(named: name)
+            LocalMediaLibrary.delete(named: name)
         }
         savedPhotoNames = []
         previewImages = []
 
+        var importFailures = 0
         for item in items {
-            guard let name = await CommunityPhotoStore.savePickerItem(item),
-                  let url = CommunityPhotoStore.fileURL(named: name)
-            else { continue }
+            guard let name = await LocalMediaLibrary.savePickerItem(item),
+                  let url = LocalMediaLibrary.fileURL(named: name)
+            else {
+                importFailures += 1
+                continue
+            }
             let preview: UIImage?
-            if CommunityPhotoStore.isVideo(url: url) {
-                preview = await CommunityPhotoStore.posterImage(for: url)
+            if LocalMediaLibrary.isVideo(url: url) {
+                preview = await LocalMediaLibrary.posterImage(for: url)
             } else {
-                preview = UIImage(contentsOfFile: url.path)
+                preview = await PlatformLocalImageCache.loadAsync(atPath: url.path)
             }
             guard let preview else {
-                CommunityPhotoStore.delete(named: name)
+                LocalMediaLibrary.delete(named: name)
+                importFailures += 1
                 continue
+            }
+            if !LocalMediaLibrary.isVideo(url: url) {
+                let decision = await MediaModerationService.moderateImage(
+                    preview,
+                    context: .community,
+                    actorKey: app.user.name
+                )
+                if case .block(let reason) = decision {
+                    LocalMediaLibrary.delete(named: name)
+                    moderationAlert = reason
+                    continue
+                }
             }
             previewImages.append(preview)
             savedPhotoNames.append(name)
+        }
+        if importFailures > 0, previewImages.isEmpty {
+            photoImportAlert = CommunityCopy.photoImportFailed
+        } else if importFailures > 0 {
+            photoImportAlert = "有 \(importFailures) 项未能导入，已保留可加载的媒体。"
         }
     }
 }

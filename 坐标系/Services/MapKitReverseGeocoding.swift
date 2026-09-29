@@ -7,6 +7,7 @@
 //
 
 import MapKit
+import CoordinateModels
 
 enum MapKitReverseGeocoding {
     /// 官方：`MKReverseGeocodingRequest(location:)` → `await mapItems`

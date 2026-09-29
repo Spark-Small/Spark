@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 enum CommunityLibraryDestination: Hashable {
     case bookmarks

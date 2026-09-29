@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 struct StartChatSheet: View {
     @Environment(AppModel.self) private var app
@@ -74,7 +75,7 @@ struct StartChatSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, PlatformMetrics.contentInset)
                     .padding(.vertical, PlatformMetrics.minContentGap)
-                    .background(.bar)
+                    .platformBarMaterialFill()
             }
             .navigationTitle(MessagesCopy.startChatTitle)
             .navigationBarTitleDisplayMode(.inline)

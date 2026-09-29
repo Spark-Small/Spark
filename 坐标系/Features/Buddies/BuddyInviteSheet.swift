@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 private enum BuddyInviteStep: Hashable {
     case select

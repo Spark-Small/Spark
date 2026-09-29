@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 struct CommunityPostActionBar: View {
     let post: CommunityPost

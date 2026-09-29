@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 struct CreatorActivityInsight: Identifiable, Hashable {
     let activity: Activity

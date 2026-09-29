@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum SampleData {
     static let currentUserInterests = ["羽毛球", "骑行", "火锅局", "桌游", "探店"]
@@ -39,6 +40,11 @@ enum SampleData {
         UUID(uuidString: String(format: "C0000000-0000-4000-8000-%012d", n))!
     }
 
+    /// 「剧本杀：情感本」— 我的行程 / Wallet 演示锚点活动。
+    static let demoJourneyActivityID = activityID(13)
+    /// 对应付费订单与 Pass `serialNumber`（稳定，便于签名落盘）。
+    static let demoJourneyOrderID = UUID(uuidString: "D0000000-0000-4000-8000-000000000013")!
+
     private static func uid(_ n: Int) -> UUID {
         activityID(n)
     }
@@ -57,20 +63,21 @@ enum SampleData {
     static let activities: [Activity] = (seedActivities + SampleActivityCatalog.extra).map(attachingRelatedCircle)
 
     /// 活动详情 / 推荐用：显式关联优先，否则按地区 + 主题推断
-    static func relatedCircle(for activity: Activity) -> InterestCircle? {
+    static func relatedCircle(for activity: Activity, userClubs: [InterestCircle] = []) -> InterestCircle? {
+        let catalog = ClubCatalog.allCircles(including: userClubs)
         if let id = activity.relatedCircleID,
-           let circle = interestCircles.first(where: { $0.id == id }) {
+           let circle = catalog.first(where: { $0.id == id }) {
             return circle
         }
-        return suggestedCircle(for: activity)
+        return suggestedCircle(for: activity, catalog: catalog)
     }
 
-    static func circle(id: UUID) -> InterestCircle? {
-        interestCircles.first { $0.id == id }
+    static func circle(id: UUID, userClubs: [InterestCircle] = []) -> InterestCircle? {
+        ClubCatalog.circle(id: id, userClubs: userClubs)
     }
 
-    static func circle(named name: String) -> InterestCircle? {
-        interestCircles.first { $0.name == name }
+    static func circle(named name: String, userClubs: [InterestCircle] = []) -> InterestCircle? {
+        ClubCatalog.circle(named: name, userClubs: userClubs)
     }
 
     private static func attachingRelatedCircle(_ activity: Activity) -> Activity {
@@ -81,14 +88,17 @@ enum SampleData {
         return next
     }
 
-    private static func suggestedCircle(for activity: Activity) -> InterestCircle? {
+    private static func suggestedCircle(
+        for activity: Activity,
+        catalog: [InterestCircle] = interestCircles
+    ) -> InterestCircle? {
         let district = districtToken(from: activity.location)
         let metro = metroToken(from: activity.location)
         let blob = ([activity.title, activity.summary, activity.category.title] + activity.tags)
             .joined(separator: " ")
 
         var best: (InterestCircle, Int)?
-        for circle in interestCircles {
+        for circle in catalog {
             let circleMetro = metroToken(from: circle.city)
             if let metro, let circleMetro, metro != circleMetro { continue }
 
@@ -334,56 +344,89 @@ enum SampleData {
 
     // MARK: - Circles
 
+    private static let seedClubCreatedAt = Date(timeIntervalSince1970: 1_704_067_200)
+
+    private static func seedClub(
+        id: UUID,
+        name: String,
+        topic: String,
+        city: String,
+        memberCount: Int,
+        weeklyActive: Int,
+        tags: [String],
+        summary: String,
+        systemImage: String
+    ) -> InterestCircle {
+        InterestCircle(
+            id: id,
+            name: name,
+            topic: topic,
+            city: city,
+            memberCount: memberCount,
+            weeklyActive: weeklyActive,
+            tags: tags,
+            summary: summary,
+            systemImage: systemImage,
+            creatorName: "平台推荐",
+            createdAt: seedClubCreatedAt
+        )
+    }
+
+    /// 冷启动演示：已加入的种子俱乐部 ID
+    static let joinedSeedCircleIDs: Set<UUID> = [
+        uid(101), uid(102), uid(105), uid(107)
+    ]
+
     static let interestCircles: [InterestCircle] = [
-        InterestCircle(id: uid(101), name: "黄浦夜骑群", topic: "骑行", city: "上海 · 黄浦",
-                       memberCount: 286, weeklyActive: 48, tags: ["夜骑", "滨江", "入门友好"],
-                       summary: "免费兴趣圈。工作日夜骑、周末轻局，分享路线和集合点。",
-                       isJoined: true, systemImage: "bicycle"),
-        InterestCircle(id: uid(102), name: "徐汇桌游群", topic: "娱乐", city: "上海 · 徐汇",
-                       memberCount: 412, weeklyActive: 63, tags: ["桌游", "剧本杀", "KTV"],
-                       summary: "周末桌游、剧本杀、KTV 自由组局，缺人来群里喊。",
-                       isJoined: true, systemImage: "gamecontroller"),
-        InterestCircle(id: uid(103), name: "松江徒步群", topic: "户外", city: "上海 · 松江",
-                       memberCount: 198, weeklyActive: 31, tags: ["爬山", "徒步", "骑行"],
-                       summary: "周末轻松户外，爬山骑行随缘组队。",
-                       isJoined: false, systemImage: "figure.hiking"),
-        InterestCircle(id: uid(104), name: "静安羽球群", topic: "运动", city: "上海 · 静安",
-                       memberCount: 354, weeklyActive: 72, tags: ["羽毛球", "双打", "约场"],
-                       summary: "水平相近自由开黑，群内互约场地。加入免费，场地费 AA。",
-                       isJoined: false, systemImage: "figure.badminton"),
-        InterestCircle(id: uid(105), name: "徐汇吃喝群", topic: "美食", city: "上海 · 徐汇",
-                       memberCount: 521, weeklyActive: 89, tags: ["火锅局", "烧烤", "探店"],
-                       summary: "交换好吃不贵清单，组火锅烧烤拼桌。",
-                       isJoined: true, systemImage: "fork.knife"),
-        InterestCircle(id: uid(106), name: "浦东夜跑群", topic: "运动", city: "上海 · 浦东",
-                       memberCount: 167, weeklyActive: 40, tags: ["夜跑", "骑行"],
-                       summary: "工作日夜跑夜骑，欢迎下班后来。",
-                       isJoined: false, systemImage: "figure.run"),
-        InterestCircle(id: uid(107), name: "黄浦探店群", topic: "玩乐", city: "上海 · 黄浦",
-                       memberCount: 233, weeklyActive: 27, tags: ["逛街", "探店", "夜市"],
-                       summary: "周末逛街吃吃逛逛，不硬性购物。",
-                       isJoined: true, systemImage: "bag"),
+        seedClub(id: uid(101), name: "黄浦夜骑群", topic: "骑行", city: "上海 · 黄浦",
+                 memberCount: 286, weeklyActive: 48, tags: ["夜骑", "滨江", "入门友好"],
+                 summary: "免费兴趣圈。工作日夜骑、周末轻局，分享路线和集合点。",
+                 systemImage: "bicycle"),
+        seedClub(id: uid(102), name: "徐汇桌游群", topic: "娱乐", city: "上海 · 徐汇",
+                 memberCount: 412, weeklyActive: 63, tags: ["桌游", "剧本杀", "KTV"],
+                 summary: "周末桌游、剧本杀、KTV 自由组局，缺人来群里喊。",
+                 systemImage: "gamecontroller"),
+        seedClub(id: uid(103), name: "松江徒步群", topic: "户外", city: "上海 · 松江",
+                 memberCount: 198, weeklyActive: 31, tags: ["爬山", "徒步", "骑行"],
+                 summary: "周末轻松户外，爬山骑行随缘组队。",
+                 systemImage: "figure.hiking"),
+        seedClub(id: uid(104), name: "静安羽球群", topic: "运动", city: "上海 · 静安",
+                 memberCount: 354, weeklyActive: 72, tags: ["羽毛球", "双打", "约场"],
+                 summary: "水平相近自由开黑，群内互约场地。加入免费，场地费 AA。",
+                 systemImage: "figure.badminton"),
+        seedClub(id: uid(105), name: "徐汇吃喝群", topic: "美食", city: "上海 · 徐汇",
+                 memberCount: 521, weeklyActive: 89, tags: ["火锅局", "烧烤", "探店"],
+                 summary: "交换好吃不贵清单，组火锅烧烤拼桌。",
+                 systemImage: "fork.knife"),
+        seedClub(id: uid(106), name: "浦东夜跑群", topic: "运动", city: "上海 · 浦东",
+                 memberCount: 167, weeklyActive: 40, tags: ["夜跑", "骑行"],
+                 summary: "工作日夜跑夜骑，欢迎下班后来。",
+                 systemImage: "figure.run"),
+        seedClub(id: uid(107), name: "黄浦探店群", topic: "玩乐", city: "上海 · 黄浦",
+                 memberCount: 233, weeklyActive: 27, tags: ["逛街", "探店", "夜市"],
+                 summary: "周末逛街吃吃逛逛，不硬性购物。",
+                 systemImage: "bag"),
         // 成都
-        InterestCircle(id: uid(111), name: "锦江夜骑群", topic: "骑行", city: "成都 · 锦江",
-                       memberCount: 312, weeklyActive: 55, tags: ["夜骑", "东湖", "入门友好"],
-                       summary: "东湖 / 锦江夜骑，配速友好，欢迎第一次来的同好。",
-                       isJoined: false, systemImage: "bicycle"),
-        InterestCircle(id: uid(112), name: "武侯火锅群", topic: "美食", city: "成都 · 武侯",
-                       memberCount: 486, weeklyActive: 91, tags: ["火锅", "串串", "探店"],
-                       summary: "控辣、控预算拼桌，店单每周更新。",
-                       isJoined: false, systemImage: "fork.knife"),
-        InterestCircle(id: uid(113), name: "高新羽球群", topic: "运动", city: "成都 · 高新区",
-                       memberCount: 268, weeklyActive: 64, tags: ["羽毛球", "双打", "约场"],
-                       summary: "水平相近开黑，群内互约场馆。",
-                       isJoined: false, systemImage: "figure.badminton"),
-        InterestCircle(id: uid(114), name: "宽窄慢逛群", topic: "玩乐", city: "成都 · 青羊",
-                       memberCount: 194, weeklyActive: 33, tags: ["漫步", "市集", "咖啡"],
-                       summary: "宽窄 / 少城慢逛，拍照喝茶不赶场。",
-                       isJoined: false, systemImage: "cup.and.saucer"),
-        InterestCircle(id: uid(115), name: "龙泉徒步群", topic: "户外", city: "成都 · 龙泉驿",
-                       memberCount: 221, weeklyActive: 38, tags: ["徒步", "看花", "露营"],
-                       summary: "周末轻徒步，节奏慢，重点呼吸和拍照。",
-                       isJoined: false, systemImage: "figure.hiking")
+        seedClub(id: uid(111), name: "锦江夜骑群", topic: "骑行", city: "成都 · 锦江",
+                 memberCount: 312, weeklyActive: 55, tags: ["夜骑", "东湖", "入门友好"],
+                 summary: "东湖 / 锦江夜骑，配速友好，欢迎第一次来的同好。",
+                 systemImage: "bicycle"),
+        seedClub(id: uid(112), name: "武侯火锅群", topic: "美食", city: "成都 · 武侯",
+                 memberCount: 486, weeklyActive: 91, tags: ["火锅", "串串", "探店"],
+                 summary: "控辣、控预算拼桌，店单每周更新。",
+                 systemImage: "fork.knife"),
+        seedClub(id: uid(113), name: "高新羽球群", topic: "运动", city: "成都 · 高新区",
+                 memberCount: 268, weeklyActive: 64, tags: ["羽毛球", "双打", "约场"],
+                 summary: "水平相近开黑，群内互约场馆。",
+                 systemImage: "figure.badminton"),
+        seedClub(id: uid(114), name: "宽窄慢逛群", topic: "玩乐", city: "成都 · 青羊",
+                 memberCount: 194, weeklyActive: 33, tags: ["漫步", "市集", "咖啡"],
+                 summary: "宽窄 / 少城慢逛，拍照喝茶不赶场。",
+                 systemImage: "cup.and.saucer"),
+        seedClub(id: uid(115), name: "龙泉徒步群", topic: "户外", city: "成都 · 龙泉驿",
+                 memberCount: 221, weeklyActive: 38, tags: ["徒步", "看花", "露营"],
+                 summary: "周末轻徒步，节奏慢，重点呼吸和拍照。",
+                 systemImage: "figure.hiking")
     ]
 
     // MARK: - Voice halls（陪玩页第二幕：语音厅，不对用户开放工会入会）
@@ -1399,7 +1442,7 @@ enum SampleData {
             id: chatID(2), title: "Mia", subtitle: "好友",
             lastMessage: "思南那家窗边位我帮你留意一下",
             updatedAt: hours(-1.8), unreadCount: 1, kind: .direct,
-            peerIsActive: true
+            peerIsActive: false
         ),
         ChatConversation(
             id: chatID(3), title: "烧烤撸串夜局", subtitle: "群聊",

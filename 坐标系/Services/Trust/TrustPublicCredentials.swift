@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum TrustPublicCredentials {
     struct Flags: Hashable {
@@ -19,12 +20,17 @@ enum TrustPublicCredentials {
         currentUserName: String,
         buddyItem: DiscoverBuddyItem?,
         membershipActive: Bool,
-        liveHostedCount: Int = 1
+        liveHostedCount: Int = 1,
+        verificationPhotos: [VerificationPhoto] = [],
+        photoVerification: PhotoVerificationStore = AppComposition.photoVerificationStore
     ) -> Flags {
         let isSelf = nickname.caseInsensitiveCompare(currentUserName) == .orderedSame
         if isSelf {
             return Flags(
-                photoVerified: PhotoVerificationStore.shared.isVerified(for: nickname),
+                photoVerified: photoVerification.isVerified(
+                    for: nickname,
+                    photos: verificationPhotos
+                ),
                 isMember: membershipActive
             )
         }

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 /// 搭子第二幕海报卡：封面 + 底文案；整卡可点
 struct BuddyPosterShelfCard: View {
@@ -56,7 +57,7 @@ struct BuddyPosterShelfCard: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilitySummary)
-        .accessibilityHint("打开圈子资料")
+        .accessibilityHint("打开俱乐部资料")
     }
 }
 

@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum DiscoverBuddyItem: Identifiable, Hashable {
     case free(CircleBuddy)
@@ -38,6 +39,7 @@ enum DiscoverBuddyItem: Identifiable, Hashable {
     }
 
     /// 卡面主 meta：同好看爱好重合；陪玩看擅长
+    @MainActor
     var cardHobbyLine: String {
         switch self {
         case .free:
@@ -48,6 +50,7 @@ enum DiscoverBuddyItem: Identifiable, Hashable {
     }
 
     /// 卡面状态行：同好看活跃；陪玩看档期/响应
+    @MainActor
     var cardStatusLine: String {
         switch self {
         case .free(let buddy):
@@ -67,12 +70,14 @@ enum DiscoverBuddyItem: Identifiable, Hashable {
     }
 
     /// 卡面一句状态：优先 lookingFor，否则回退状态行
+    @MainActor
     var cardMoodLine: String {
         let looking = profile.lookingFor.trimmingCharacters(in: .whitespacesAndNewlines)
         if !looking.isEmpty { return looking }
         return cardStatusLine
     }
 
+    @MainActor
     var matchScore: Int {
         BuddyMatchScorer.score(for: profile)
     }

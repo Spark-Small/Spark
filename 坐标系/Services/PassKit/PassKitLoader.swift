@@ -7,7 +7,9 @@
 
 import Foundation
 import PassKit
+import CoordinateModels
 
+@MainActor
 enum PassKitLoader {
     static func canAddPasses() -> Bool {
         PKAddPassesViewController.canAddPasses()

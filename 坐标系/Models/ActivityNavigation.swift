@@ -8,7 +8,9 @@
 import MapKit
 import SwiftUI
 import UIKit
+import CoordinateModels
 
+@MainActor
 enum ActivityNavigation {
     /// 在系统地图中打开驾车路线；无坐标时用地址搜索。
     static func openInAppleMaps(_ activity: Activity) {
@@ -26,7 +28,7 @@ enum ActivityNavigation {
 
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = activity.location
-        Task {
+        Task { @MainActor in
             guard let item = try? await MKLocalSearch(request: request).start().mapItems.first else {
                 openAppleMapsSearchURL(activity.location)
                 return

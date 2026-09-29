@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum PassStyle: String, Codable, Hashable, CaseIterable {
     case eventTicket
@@ -14,7 +15,7 @@ enum PassStyle: String, Codable, Hashable, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .eventTicket: "活动票"
+        case .eventTicket: "活动凭证"
         case .storeCard: "会员卡"
         case .coupon: "优惠券"
         }
@@ -60,6 +61,7 @@ struct PassDraft: Hashable {
     let style: PassStyle
     let serialNumber: String
     let description: String
+    let headerFields: [PassField]
     let primaryFields: [PassField]
     let secondaryFields: [PassField]
     let auxiliaryFields: [PassField]
@@ -68,6 +70,9 @@ struct PassDraft: Hashable {
     let relevantDate: Date?
     let expirationDate: Date?
     let relatedID: UUID?
+    /// 活动分类等，用于 strip / background 配色。
+    let appearanceKey: String?
+    let backgroundColorRGB: String?
 }
 
 /// 已签发通行证记录（权威本地副本；更新保持 serial + authenticationToken）。
@@ -76,6 +81,7 @@ struct PassRecord: Identifiable, Codable, Hashable {
     let style: PassStyle
     let serialNumber: String
     let description: String
+    var headerFields: [PassField]
     var primaryFields: [PassField]
     var secondaryFields: [PassField]
     var auxiliaryFields: [PassField]
@@ -93,6 +99,8 @@ struct PassRecord: Identifiable, Codable, Hashable {
     var voided: Bool
     var distributionState: PassDistributionState
     var addedToSystemWallet: Bool
+    var appearanceKey: String?
+    var backgroundColorRGB: String?
 
     var title: String {
         primaryFields.first?.value ?? description
@@ -100,7 +108,8 @@ struct PassRecord: Identifiable, Codable, Hashable {
 
     /// 按 key 在 primary / secondary / auxiliary 中查找字段。
     func field(key: String) -> PassField? {
-        primaryFields.first(where: { $0.key == key })
+        headerFields.first(where: { $0.key == key })
+            ?? primaryFields.first(where: { $0.key == key })
             ?? secondaryFields.first(where: { $0.key == key })
             ?? auxiliaryFields.first(where: { $0.key == key })
     }
@@ -116,9 +125,10 @@ struct PassRecord: Identifiable, Codable, Hashable {
 
     enum CodingKeys: String, CodingKey {
         case id, style, serialNumber, description
-        case primaryFields, secondaryFields, auxiliaryFields, backFields
+        case headerFields, primaryFields, secondaryFields, auxiliaryFields, backFields
         case barcodeMessage, relevantDate, expirationDate, relatedID, createdAt
         case authenticationToken, lastUpdated, voided, distributionState, addedToSystemWallet
+        case appearanceKey, backgroundColorRGB
     }
 
     init(
@@ -126,6 +136,7 @@ struct PassRecord: Identifiable, Codable, Hashable {
         style: PassStyle,
         serialNumber: String,
         description: String,
+        headerFields: [PassField] = [],
         primaryFields: [PassField],
         secondaryFields: [PassField],
         auxiliaryFields: [PassField],
@@ -139,12 +150,15 @@ struct PassRecord: Identifiable, Codable, Hashable {
         lastUpdated: Date = .now,
         voided: Bool = false,
         distributionState: PassDistributionState = .ready,
-        addedToSystemWallet: Bool = false
+        addedToSystemWallet: Bool = false,
+        appearanceKey: String? = nil,
+        backgroundColorRGB: String? = nil
     ) {
         self.id = id
         self.style = style
         self.serialNumber = serialNumber
         self.description = description
+        self.headerFields = headerFields
         self.primaryFields = primaryFields
         self.secondaryFields = secondaryFields
         self.auxiliaryFields = auxiliaryFields
@@ -159,6 +173,8 @@ struct PassRecord: Identifiable, Codable, Hashable {
         self.voided = voided
         self.distributionState = distributionState
         self.addedToSystemWallet = addedToSystemWallet
+        self.appearanceKey = appearanceKey
+        self.backgroundColorRGB = backgroundColorRGB
     }
 
     init(from decoder: Decoder) throws {
@@ -167,6 +183,7 @@ struct PassRecord: Identifiable, Codable, Hashable {
         style = try c.decode(PassStyle.self, forKey: .style)
         serialNumber = try c.decode(String.self, forKey: .serialNumber)
         description = try c.decode(String.self, forKey: .description)
+        headerFields = try c.decodeIfPresent([PassField].self, forKey: .headerFields) ?? []
         primaryFields = try c.decode([PassField].self, forKey: .primaryFields)
         secondaryFields = try c.decode([PassField].self, forKey: .secondaryFields)
         auxiliaryFields = try c.decode([PassField].self, forKey: .auxiliaryFields)
@@ -185,6 +202,8 @@ struct PassRecord: Identifiable, Codable, Hashable {
                 ? .inSystemWallet
                 : .ready)
         addedToSystemWallet = try c.decodeIfPresent(Bool.self, forKey: .addedToSystemWallet) ?? false
+        appearanceKey = try c.decodeIfPresent(String.self, forKey: .appearanceKey)
+        backgroundColorRGB = try c.decodeIfPresent(String.self, forKey: .backgroundColorRGB)
     }
 
     static func from(draft: PassDraft) -> PassRecord {
@@ -192,6 +211,7 @@ struct PassRecord: Identifiable, Codable, Hashable {
             style: draft.style,
             serialNumber: draft.serialNumber,
             description: draft.description,
+            headerFields: draft.headerFields,
             primaryFields: draft.primaryFields,
             secondaryFields: draft.secondaryFields,
             auxiliaryFields: draft.auxiliaryFields,
@@ -199,7 +219,9 @@ struct PassRecord: Identifiable, Codable, Hashable {
             barcodeMessage: draft.barcodeMessage,
             relevantDate: draft.relevantDate,
             expirationDate: draft.expirationDate,
-            relatedID: draft.relatedID
+            relatedID: draft.relatedID,
+            appearanceKey: draft.appearanceKey,
+            backgroundColorRGB: draft.backgroundColorRGB
         )
     }
 

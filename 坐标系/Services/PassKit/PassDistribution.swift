@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum PassDistributionError: LocalizedError {
     case passNotFound
@@ -33,6 +34,7 @@ enum PassDistribution {
     }
 
     /// 通道：导出未签名包到临时文件（ShareLink）。
+    @MainActor
     static func exportUnsignedTemporary(for pass: PassRecord) throws -> URL {
         let data = try PassPackageBuilder.makeUnsignedPackageData(for: pass)
         let url = FileManager.default.temporaryDirectory
@@ -42,6 +44,7 @@ enum PassDistribution {
     }
 
     /// 通道：写入 Documents/UnsignedWalletPasses 供 Pass Builder。
+    @MainActor
     @discardableResult
     static func writeUnsignedToDocuments(for pass: PassRecord) throws -> URL {
         PassConfiguration.ensureDirectories()
@@ -53,6 +56,7 @@ enum PassDistribution {
     }
 
     /// 通道：多张通行证 → `.pkpasses`（官方 MIME application/vnd.apple.pkpasses）。
+    @MainActor
     static func makePassBundle(passes: [PassRecord], preferSigned: Bool = true) throws -> URL {
         var files: [(name: String, data: Data)] = []
         for pass in passes {

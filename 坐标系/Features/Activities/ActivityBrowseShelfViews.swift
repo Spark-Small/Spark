@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 // MARK: - Section
 
@@ -56,11 +57,12 @@ struct ActivityBrowseShelfRailContent: View {
                     activityID: activity.id,
                     zoomNamespace: zoomNamespace,
                     photo: activity.coverPhoto,
-                    badge: ActivityBrowseShelfCopy.editorialBadge(for: activity, shelfID: shelfID),
+                    badge: ActivityBrowseCopy.ShelfCard.editorialBadge(for: activity, shelfID: shelfID),
                     title: activity.title,
-                    metaLine: ActivityBrowseShelfCopy.editorialMeta(for: activity),
+                    metaLine: ActivityBrowseCopy.ShelfCard.editorialMeta(for: activity),
                     metaSymbol: activity.category.systemImage,
                     isJoined: model.isJoined(activity.id),
+                    isWaitlisted: model.isWaitlisted(activity.id),
                     isFull: activity.isFull,
                     onJoin: { onJoin(activity) }
                 )
@@ -80,6 +82,7 @@ struct ActivityBrowseShelfRailContent: View {
                     timeLine: Formatters.activityEventTime(from: activity.date),
                     metaLine: activity.districtLabel,
                     isJoined: model.isJoined(activity.id),
+                    isWaitlisted: model.isWaitlisted(activity.id),
                     isFull: activity.isFull,
                     onJoin: joinAction(for: activity)
                 )
@@ -95,11 +98,12 @@ struct ActivityBrowseShelfRailContent: View {
                     activityID: activity.id,
                     zoomNamespace: zoomNamespace,
                     photo: activity.coverPhoto,
-                    badge: ActivityBrowseShelfCopy.eventBadge(for: activity, shelfID: shelfID),
+                    badge: ActivityBrowseCopy.ShelfCard.eventBadge(for: activity, shelfID: shelfID),
                     title: activity.title,
                     timeLine: Formatters.activityEventTime(from: activity.date),
-                    metaLine: ActivityBrowseShelfCopy.eventMeta(for: activity, shelfID: shelfID),
+                    metaLine: ActivityBrowseCopy.ShelfCard.eventMeta(for: activity, shelfID: shelfID),
                     isJoined: model.isJoined(activity.id),
+                    isWaitlisted: model.isWaitlisted(activity.id),
                     isFull: activity.isFull,
                     onJoin: joinAction(for: activity)
                 )
@@ -172,40 +176,6 @@ struct ActivityFeaturedHeroAspectModifier: ViewModifier {
             content
         } else {
             content.aspectRatio(PlatformMetrics.featuredCardAspectRatio, contentMode: .fit)
-        }
-    }
-}
-
-// MARK: - Copy
-
-@MainActor
-enum ActivityBrowseShelfCopy {
-    static func editorialBadge(for activity: Activity, shelfID: String) -> String? {
-        shelfID == "new"
-            ? "新"
-            : ActivityCardStatus.captionBadge(for: activity, fallback: "新")
-    }
-
-    static func editorialMeta(for activity: Activity) -> String {
-        let tag = activity.tags.first ?? (activity.isFree ? ActivityCardStatus.free : activity.fee)
-        let time = Formatters.activityEventTime(from: activity.date)
-        return "\(activity.category.title) · \(tag) · \(time)"
-    }
-
-    static func eventBadge(for activity: Activity, shelfID: String) -> String? {
-        switch shelfID {
-        case "free": ActivityCardStatus.free
-        case "nearby": activity.category.shortTitle
-        case "filling": ActivityCardStatus.almostFull
-        default: ActivityCardStatus.hotBadge(for: activity)
-        }
-    }
-
-    static func eventMeta(for activity: Activity, shelfID: String) -> String {
-        switch shelfID {
-        case "nearby": activity.districtLabel
-        case "filling": ActivityCardStatus.spotsText(for: activity)
-        default: ActivityCardStatus.hotMetaLine(for: activity)
         }
     }
 }

@@ -5,40 +5,23 @@
 //  设置：帮助反馈 / 权限 / 合规 / 存储 / 运营公告 / 生命周期条。
 //
 
+import CoordinateModels
 import SwiftUI
+import UIKit
 import UserNotifications
-
-// MARK: - Legal consent (login / create account / PIPL)
-
-enum LegalConsentPreference {
-    static let acceptedKey = "compliance.legalConsentAccepted"
-    static let versionKey = "compliance.legalConsentVersion"
-    /// 协议文案重大变更时递增，已同意用户需重新确认。
-    static let currentVersion = 1
-
-    static var needsConsent: Bool {
-        guard UserDefaults.standard.bool(forKey: acceptedKey) else { return true }
-        return UserDefaults.standard.integer(forKey: versionKey) < currentVersion
-    }
-
-    static var isAccepted: Bool { !needsConsent }
-
-    static func accept() {
-        UserDefaults.standard.set(true, forKey: acceptedKey)
-        UserDefaults.standard.set(currentVersion, forKey: versionKey)
-    }
-
-    static func reset() {
-        UserDefaults.standard.removeObject(forKey: acceptedKey)
-        UserDefaults.standard.removeObject(forKey: versionKey)
-    }
-}
 
 private enum LegalConsentDocument: String, Identifiable {
     case agreement
     case privacy
 
     var id: String { rawValue }
+
+    var hosted: LegalHostedDocument {
+        switch self {
+        case .agreement: .agreement
+        case .privacy: .privacy
+        }
+    }
 
     @ViewBuilder
     var destination: some View {
@@ -63,7 +46,7 @@ private enum LegalConsentCopy {
 
     1. 我们将遵循合法、正当、必要和诚信原则收集、使用信息。例如为完成账号登录与安全保障，可能收集手机号码等。
 
-    2. 基于你的授权，我们可能申请位置、相机、相册、日历与通知等权限；默认不开启。你可拒绝或在系统设置中关闭，拒绝不影响浏览基本内容。
+    2. 基于你的授权，我们可能申请位置、相机、相册、日历与通知等权限；默认不开启。相机与认证照用于形象核验与内容安全，你可拒绝或在系统设置中关闭，拒绝不影响浏览基本内容。
 
     请阅读《用户协议》与《隐私政策》。点击「同意」即表示你已阅读并同意上述内容。
     """
@@ -85,17 +68,25 @@ private enum LegalConsentCopy {
         return text
     }
 
+    /// 优先打开托管 HTTPS 页；无法打开时回退 App 内长文。
+    @MainActor
     static func open(_ url: URL, into document: Binding<LegalConsentDocument?>) -> OpenURLAction.Result {
+        let sheetDocument: LegalConsentDocument
         switch url.absoluteString {
         case "legal://agreement":
-            document.wrappedValue = .agreement
-            return .handled
+            sheetDocument = .agreement
         case "legal://privacy":
-            document.wrappedValue = .privacy
-            return .handled
+            sheetDocument = .privacy
         default:
             return .systemAction
         }
+        let target = sheetDocument.hosted.hostedURL
+        if UIApplication.shared.canOpenURL(target) {
+            UIApplication.shared.open(target)
+            return .handled
+        }
+        document.wrappedValue = sheetDocument
+        return .handled
     }
 }
 
@@ -135,7 +126,7 @@ extension View {
     }
 }
 
-/// 登录 / 创建账号：勾选「同意用户协议和隐私政策」；点选未勾状态时先出协议弹窗。
+/// 登录 / 创建账号：系统 `Toggle` 同意协议；打开时先出协议弹窗。
 struct LegalConsentCheckbox: View {
     @Binding var isChecked: Bool
     @Binding var showAlert: Bool
@@ -143,44 +134,37 @@ struct LegalConsentCheckbox: View {
 
     @State private var document: LegalConsentDocument?
 
-    var body: some View {
-        HStack(alignment: .center, spacing: PlatformMetrics.minContentGap) {
-            Button(action: toggleOrPrompt) {
-                Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
-                    .font(.body)
-                    .foregroundStyle(isChecked ? Color.accentColor : Color(.tertiaryLabel))
-                    .frame(
-                        width: PlatformMetrics.navigationBarButtonSide * 0.6,
-                        height: PlatformMetrics.navigationBarButtonSide * 0.6
-                    )
-                    .contentShape(Rectangle())
+    private var consentBinding: Binding<Bool> {
+        Binding(
+            get: { isChecked },
+            set: { newValue in
+                if newValue {
+                    if !isChecked {
+                        showAlert = true
+                    }
+                } else {
+                    isChecked = false
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isChecked ? "已同意用户协议和隐私政策" : "同意用户协议和隐私政策")
-            .accessibilityValue(isChecked ? "已勾选" : "未勾选")
-            .accessibilityHint(isChecked ? "再次点击可取消勾选" : "打开用户协议与隐私保护说明")
+        )
+    }
 
+    var body: some View {
+        Toggle(isOn: consentBinding) {
             Text(LegalConsentCopy.checkboxLabel)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.leading)
+                .font(.body)
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(centersContent ? .center : .leading)
                 .environment(\.openURL, OpenURLAction { url in
                     LegalConsentCopy.open(url, into: $document)
                 })
                 .fixedSize(horizontal: false, vertical: true)
-                .contentShape(Rectangle())
-                .onTapGesture(perform: toggleOrPrompt)
+                .frame(maxWidth: .infinity, alignment: centersContent ? .center : .leading)
         }
-        .frame(maxWidth: .infinity, alignment: centersContent ? .center : .leading)
+        .accessibilityLabel(isChecked ? "已同意用户协议和隐私政策" : "同意用户协议和隐私政策")
+        .accessibilityValue(isChecked ? "已开启" : "已关闭")
+        .accessibilityHint(isChecked ? "再次点击可取消同意" : "打开用户协议与隐私保护说明")
         .legalDocumentSheet($document)
-    }
-
-    private func toggleOrPrompt() {
-        if isChecked {
-            isChecked = false
-        } else {
-            showAlert = true
-        }
     }
 }
 
@@ -211,47 +195,82 @@ struct LegalConsentGate: View {
     }
 }
 
-// MARK: - Lifecycle banner
+// MARK: - Lifecycle tips (Form-native rows)
 
-struct ProductLifecycleBanner: View {
+struct ProductLifecycleTipSectionContent: View {
     let tip: ProductLifecycleTip
     var onDismiss: () -> Void
     var onOpenSettings: (() -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: PlatformMetrics.sectionHeaderSpacing) {
-            HStack(alignment: .top) {
-                Label(tip.title, systemImage: tip.systemImage)
-                    .font(.subheadline.weight(.semibold))
-                    .platformContentSymbolStyle()
-                Spacer(minLength: 8)
-                Button("关闭", action: onDismiss)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Text(tip.detail)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+        Text(tip.detail)
+            .foregroundStyle(.secondary)
 
-            if tip.id == "privacy", let onOpenSettings {
-                Button("去设置", action: onOpenSettings)
-                    .font(.subheadline.weight(.semibold))
+        if tip.id == "privacy", let onOpenSettings {
+            Button("去设置", action: onOpenSettings)
+                .buttonStyle(.plain)
+                .foregroundStyle(.primary)
+        }
+
+        Button("关闭", role: .cancel, action: onDismiss)
+            .buttonStyle(.plain)
+            .foregroundStyle(.primary)
+    }
+}
+
+struct SettingsProductTipsView: View {
+    @Environment(AppModel.self) private var app
+    @Environment(BuddiesModel.self) private var buddies
+    @Environment(ProductLifecycleStore.self) private var lifecycle
+    @State private var showSettingsFromTip = false
+
+    private var tips: [ProductLifecycleTip] {
+        let hasOrders = !ActivityPaymentStore.allOrders().isEmpty
+            || !buddies.bookingRecords.isEmpty
+        return lifecycle.eligibleTips(
+            isGuest: app.auth.isGuest,
+            profileComplete: ProfileCompletion.ratio(for: app.user) >= 0.8,
+            hasOrders: hasOrders
+        )
+    }
+
+    var body: some View {
+        List {
+            if tips.isEmpty {
+                ContentUnavailableView(
+                    "暂无提示",
+                    systemImage: "lightbulb",
+                    description: Text("产品提示会在合适时机出现；关闭后仍可在此查看未读项。")
+                )
+            } else {
+                ForEach(tips) { tip in
+                    Section {
+                        ProductLifecycleTipSectionContent(
+                            tip: tip,
+                            onDismiss: { lifecycle.dismissTip(tip.id) },
+                            onOpenSettings: tip.id == "privacy" ? { showSettingsFromTip = true } : nil
+                        )
+                    } header: {
+                        Label(tip.title, systemImage: tip.systemImage)
+                            .platformContentSymbolStyle()
+                    }
+                }
             }
         }
-        .padding(PlatformMetrics.contentInset)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: PlatformMetrics.radiusCard, style: .continuous)
-                .fill(PlatformSurface.elevated)
-        )
-        .padding(.horizontal, PlatformMetrics.contentInset)
+        .profileSecondaryListChrome()
+        .navigationTitle("产品提示")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarVisibility(.hidden, for: .tabBar)
+        .navigationDestination(isPresented: $showSettingsFromTip) {
+            ProfileSettingsView()
+        }
     }
 }
 
 // MARK: - Help & feedback
 
 struct SettingsHelpFeedbackView: View {
+    @Environment(OpsContentStore.self) private var opsContent
     @State private var category = "体验建议"
     @State private var content = ""
     @State private var contact = ""
@@ -269,7 +288,7 @@ struct SettingsHelpFeedbackView: View {
                         .foregroundStyle(.secondary)
                 }
                 DisclosureGroup("陪玩预约如何退款？") {
-                    Text("在陪玩凭证页点「申请退款」，填写原因与说明并确认后，金额退回本地钱包。")
+                    Text("在陪玩凭证页点「申请退款」，填写原因与说明并确认；提交后可查看退款进度，到账后金额按原支付方式退回。")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -300,9 +319,9 @@ struct SettingsHelpFeedbackView: View {
                 Text("反馈保存在本机，便于演示运营闭环；正式版将同步客服工单。")
             }
 
-            if !OpsContentStore.shared.feedback.isEmpty {
+            if !opsContent.feedback.isEmpty {
                 Section("我提交过的") {
-                    ForEach(OpsContentStore.shared.feedback.prefix(8)) { item in
+                    ForEach(opsContent.feedback.prefix(8)) { item in
                         VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
                             LabeledContent(item.category, value: item.status)
                             Text(item.content)
@@ -323,7 +342,7 @@ struct SettingsHelpFeedbackView: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("提交") {
-                    if OpsContentStore.shared.submitFeedback(
+                    if opsContent.submitFeedback(
                         category: category,
                         content: content,
                         contact: contact
@@ -354,6 +373,7 @@ struct SettingsHelpFeedbackView: View {
 // MARK: - Permissions
 
 struct SettingsPermissionsView: View {
+    @Environment(LocationService.self) private var location
     @State private var notificationStatus = "读取中…"
     @State private var locationStatus = "—"
     @State private var trackingStatus = "—"
@@ -441,7 +461,7 @@ struct SettingsPermissionsView: View {
         @unknown default: notificationStatus = "未知"
         }
         trackingStatus = PermissionLaunchPrompts.trackingStatusText
-        locationStatus = LocationService.shared.coordinate == nil ? "未定位 / 未授权" : "已授权"
+        locationStatus = location.coordinate == nil ? "未定位 / 未授权" : "已授权"
     }
 }
 
@@ -449,6 +469,8 @@ struct SettingsPermissionsView: View {
 
 struct SettingsStorageView: View {
     @Environment(AppModel.self) private var app
+    @Environment(ProductLifecycleStore.self) private var lifecycle
+    @Environment(OpsContentStore.self) private var opsContent
     @State private var confirmClear = false
     @State private var exportURL: URL?
     @State private var showExporter = false
@@ -457,8 +479,8 @@ struct SettingsStorageView: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent("安装日", value: Formatters.conversationListTime(from: ProductLifecycleStore.shared.installAt))
-                LabeledContent("打开次数", value: "\(ProductLifecycleStore.shared.openCount)")
+                LabeledContent("安装日", value: Formatters.conversationListTime(from: lifecycle.installAt))
+                LabeledContent("打开次数", value: "\(lifecycle.openCount)")
                 LabeledContent("生命周期", value: phaseLabel)
             } header: {
                 Text("本机使用")
@@ -507,7 +529,7 @@ struct SettingsStorageView: View {
     }
 
     private var phaseLabel: String {
-        switch ProductLifecycleStore.shared.phase {
+        switch lifecycle.phase {
         case .new: "新用户"
         case .active: "活跃"
         case .returning: "回流"
@@ -532,11 +554,11 @@ struct SettingsStorageView: View {
             userID: app.user.id.uuidString,
             nickname: app.user.name,
             isGuest: app.auth.isGuest,
-            openCount: ProductLifecycleStore.shared.openCount,
-            version: ProductLifecycleStore.shared.versionLabel,
+            openCount: lifecycle.openCount,
+            version: lifecycle.versionLabel,
             blockedCount: app.blockedUserNames.count,
             ticketCount: app.moderationTickets.count,
-            feedbackCount: OpsContentStore.shared.feedback.count
+            feedbackCount: opsContent.feedback.count
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -561,7 +583,7 @@ struct SettingsStorageView: View {
 // MARK: - Announcements
 
 struct SettingsAnnouncementsView: View {
-    private var store: OpsContentStore { OpsContentStore.shared }
+    @Environment(OpsContentStore.self) private var store
 
     var body: some View {
         List {
@@ -633,16 +655,18 @@ struct SettingsAcknowledgmentsView: View {
 // MARK: - Youth mode
 
 struct SettingsYouthModeView: View {
-    @AppStorage(YouthModePreference.key) private var enabled = false
+    @Environment(YouthModeStore.self) private var youthMode
 
     var body: some View {
+        @Bindable var youthMode = youthMode
+
         Form {
             Section {
-                Toggle("开启青少年模式", isOn: $enabled)
+                Toggle("开启青少年模式", isOn: $youthMode.isEnabled)
             } footer: {
                 Text("开启后将限制会员开通与钱包充值入口（本地演示）。正式版将支持监护人验证与时段限制。")
             }
-            if enabled {
+            if youthMode.isEnabled {
                 Section("当前限制") {
                     Label("不可开通会员", systemImage: "checkmark.seal")
                     Label("不可钱包充值与付费预约", systemImage: "creditcard")
@@ -654,13 +678,5 @@ struct SettingsYouthModeView: View {
         .navigationTitle("青少年模式")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarVisibility(.hidden, for: .tabBar)
-    }
-}
-
-enum YouthModePreference {
-    static let key = "settings.compliance.youthMode"
-
-    static var isEnabled: Bool {
-        UserDefaults.standard.bool(forKey: key)
     }
 }

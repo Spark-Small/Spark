@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 nonisolated enum BuddyMemberCopy {
     static let profileTitle = "成员资料"
@@ -43,7 +44,7 @@ nonisolated enum BuddyMemberCopy {
 
     static func memberCount(_ count: Int) -> String { "共 \(count) 人" }
 
-    static func circleSource(name: String) -> String { "同在圈子「\(name)」" }
+    static func circleSource(name: String) -> String { "同在俱乐部「\(name)」" }
 
     static func guildSource(name: String) -> String { "来自工会「\(name)」" }
 

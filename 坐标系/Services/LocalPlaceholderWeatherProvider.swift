@@ -8,6 +8,7 @@
 
 import CoreLocation
 import Foundation
+import CoordinateModels
 
 struct LocalPlaceholderWeatherProvider: WeatherProviding {
     func fetchCurrent(at location: CLLocation) async throws -> WeatherSnapshot {

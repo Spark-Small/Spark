@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 /// 详情共用的发起人管理页（Push 呈现）
 struct ActivityHostManageView: View {
@@ -145,7 +146,7 @@ struct ActivityHostManageView: View {
                         app.openActivityGroupChat(for: live)
                     }
                 } label: {
-                    Label("进入活动群", systemImage: "bubble.left.and.bubble.right")
+                    Label("打开活动群", systemImage: "bubble.left.and.bubble.right")
                 }
 
                 if !live.isFree, !orders.isEmpty {

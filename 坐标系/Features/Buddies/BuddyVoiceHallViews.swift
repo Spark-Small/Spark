@@ -6,6 +6,7 @@
 //  发现页频道卡见 BuddyBrowseShelves.BuddyVoiceChannelCard。
 //
 
+import CoordinateModels
 import SwiftUI
 
 struct BuddyVoiceHallRoomView: View {
@@ -102,7 +103,7 @@ struct BuddyVoiceHallRoomView: View {
             .frame(maxWidth: .infinity)
             .padding(.horizontal, PlatformMetrics.contentInset)
             .padding(.vertical, PlatformMetrics.formRowVerticalPadding * 2)
-            .background(PlatformSurface.bar)
+            .platformBarMaterialFill()
         }
         .alert(BuddyMemberCopy.takeMic, isPresented: $confirmTakeMic) {
             Button(BuddyMemberCopy.takeMic) {
@@ -169,7 +170,7 @@ struct BuddyVoiceHallRoomView: View {
                 Image(systemName: "mic.fill")
                     .font(.caption2.weight(.bold))
                     .padding(PlatformMetrics.avatarBadgeOffset)
-                    .background(.ultraThinMaterial, in: Circle())
+                    .platformUltraThinMaterialBackground(in: Circle())
             }
             Text(isSelf ? BuddyMemberCopy.roleSelf : name)
                 .font(.caption.weight(.semibold))

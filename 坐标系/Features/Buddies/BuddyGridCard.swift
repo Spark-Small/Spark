@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 /// 双列发现人物卡：点封面进详情；底栏左信息 / 右聊天或选档期
 struct BuddyGridCard: View {

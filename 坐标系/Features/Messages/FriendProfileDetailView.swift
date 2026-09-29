@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 struct FriendProfileDetailView: View {
     let nickname: String
@@ -342,7 +343,10 @@ struct FriendProfileDetailView: View {
             nickname: nickname,
             currentUserName: app.user.name,
             buddyItem: buddyItem,
-            membershipActive: false
+            membershipActive: false,
+            verificationPhotos: nickname.caseInsensitiveCompare(app.user.name) == .orderedSame
+                ? app.user.verificationPhotos
+                : []
         )
         return Label {
             VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {

@@ -5,16 +5,19 @@
 
 import SwiftUI
 import TipKit
+import CoordinateModels
+import CoordinateFeatureFlags
 
 /// 活动发现：今日焦点 + App Store 式货架混排；详情 Zoom 打开。
 struct ActivitiesView: View {
     @Environment(ActivitiesModel.self) private var model
     @Environment(BuddiesModel.self) private var buddies
+    @Environment(MessagesModel.self) private var messages
     @Environment(AppModel.self) private var app
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @AppStorage(AppWelcomeGuideCopy.storageKey) private var hasSeenAppWelcomeGuide = false
-    @State private var didBootstrapLocation = false
+    @Environment(LocationService.self) private var location
     @State private var showWelcomeGuide = false
+    @State private var navigateActivity: Activity?
+    @State private var discoverBrowseScrollRequest = 0
     @State private var navigation = TabNavigationState()
     @Namespace private var zoomNamespace
 
@@ -23,17 +26,35 @@ struct ActivitiesView: View {
         @Bindable var model = model
 
         NavigationStack(path: $navigation.path) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    if model.filtered.isEmpty {
-                        emptyState
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        if model.filtered.isEmpty {
+                            emptyState
+                        } else {
+                            browseContent
+                        }
+                    }
+                    .discoverBrowsePageColumn()
+                }
+                .discoverBrowseScrollChrome()
+                .searchable(text: $model.searchText, prompt: ActivityBrowseCopy.searchPrompt)
+                .refreshable {
+                    if FeatureFlags.useRemoteCatalog {
+                        await app.resyncRemoteReadPath()
                     } else {
-                        browseContent
+                        await model.reloadFromRepository()
                     }
                 }
-                .discoverBrowsePageColumn()
+                .onChange(of: discoverBrowseScrollRequest) { _, _ in
+                    PlatformMotion.withAnimation(.snappy) {
+                        proxy.scrollTo(
+                            ActivityBrowseCopy.ScrollAnchor.discoverBrowse,
+                            anchor: .top
+                        )
+                    }
+                }
             }
-            .discoverBrowseScrollChrome()
             .platformTabRootScrollChrome(title: model.selectedCategory.title)
             .platformTabRootTitleMenu {
                 ActivityBrowseCategoryTitleMenu(selection: $model.selectedCategory)
@@ -45,7 +66,9 @@ struct ActivitiesView: View {
             .circleBrowseStackChrome(
                 buddies: buddies,
                 openCircle: { navigation.openCircle($0) },
-                openConversation: { app.openMessages(conversationID: $0) }
+                openConversation: { conversationID in
+                    openClubConversation(conversationID)
+                }
             )
             .onAppear {
                 consumePendingActivityOpen()
@@ -75,8 +98,8 @@ struct ActivitiesView: View {
                 isPresented: $showWelcomeGuide,
                 onDismiss: finishWelcomeGuideIfNeeded
             ) {
-                AppWelcomeGuideView {
-                    finishWelcomeGuideIfNeeded()
+                AppWelcomeGuideView { intent in
+                    finishWelcomeGuide(with: intent)
                 }
                 .toolbarVisibility(.hidden, for: .tabBar)
             }
@@ -85,8 +108,7 @@ struct ActivitiesView: View {
                     ActivityJoinSuccessSheet(
                         activity: activity,
                         context: .joined,
-                        onOpenGroup: { openGroup(for: activity) },
-                        onWriteRecap: { openCommunityRecap(for: activity) }
+                        onOpenJourney: { openJourney(activity) }
                     )
                     .toolbarVisibility(.hidden, for: .tabBar)
                 }
@@ -101,8 +123,21 @@ struct ActivitiesView: View {
                     .toolbarVisibility(.hidden, for: .tabBar)
                 }
             }
+            .platformLightFeedback($model.lightFeedbackMessage)
             .platformFeedbackAlert($model.toastMessage)
-            .task { await bootstrapLocationIfNeeded() }
+            .activityMapNavigationSheet(activity: $navigateActivity)
+            .onChange(of: app.mapNavigationActivity?.id, initial: true) { _, _ in
+                guard let activity = app.mapNavigationActivity else { return }
+                navigateActivity = activity
+                app.mapNavigationActivity = nil
+            }
+            .onChange(of: showsJourneyNowPlayingBar, initial: true) { _, visible in
+                app.activitiesTabNowPlayingBarVisible = visible
+            }
+            .onDisappear {
+                app.activitiesTabNowPlayingBarVisible = false
+            }
+            .task(id: model.quickFilters.contains(.nearby)) { await bootstrapLocationIfNeeded() }
         }
         .tabNavigationState(navigation)
     }
@@ -111,6 +146,8 @@ struct ActivitiesView: View {
 
     @ViewBuilder
     private var browseContent: some View {
+        browsePromoHeader
+
         if let spotlight = model.spotlightActivity {
             ActivityFeaturedSpotlightSection(
                 activity: spotlight,
@@ -118,8 +155,11 @@ struct ActivitiesView: View {
                 onJoin: join
             )
             .activityZoomSlot("spotlight")
-            .padding(.bottom, PlatformMetrics.sectionSpacing)
+            .padding(.bottom, PlatformMetrics.sectionHeaderSpacing)
         }
+
+        ActivityBrowseQuickFilterBar()
+            .id(ActivityBrowseCopy.ScrollAnchor.discoverBrowse)
 
         LazyVStack(alignment: .leading, spacing: PlatformMetrics.sectionSpacing) {
             ForEach(model.recommendationShelves) { shelf in
@@ -130,7 +170,84 @@ struct ActivitiesView: View {
                 )
                 .activityZoomSlot("shelf-\(shelf.id)")
             }
+
+            if app.productLifecycleStore.shouldMergeCommunityIntoActivitiesTab {
+                communityFeedEntry
+            }
         }
+    }
+
+    @ViewBuilder
+    private var browsePromoHeader: some View {
+        switch browsePromoKind {
+        case .nextUp(let summary):
+            ActivityNextUpBanner(
+                summary: summary,
+                onOpenJourney: { openJourney(summary.activity) },
+                onNavigate: { navigateActivity = summary.activity }
+            )
+            .id(summary.promoIdentity(calendarSyncRevision: model.calendarSyncRevision))
+        case .discover:
+            ActivityDiscoverPromoBanner(onDiscover: focusDiscoverBrowse)
+        case nil:
+            EmptyView()
+        }
+    }
+
+    private var browsePromoKind: ActivityNextUpPresentation.BrowsePromoHeader? {
+        ActivityNextUpPresentation.BrowsePromoHeader.resolve(
+            hasSeenWelcomeGuide: app.welcomeGuide.hasSeenGuide,
+            from: model
+        )
+    }
+
+    private var communityFeedEntry: some View {
+        DiscoverBrowseSection {
+            DiscoverSectionTitleRow(
+                title: CommunityCopy.embeddedEntryTitle,
+                subtitle: CommunityCopy.embeddedEntrySubtitle,
+                showsHorizontalInset: false
+            )
+        } content: {
+            NavigationLink {
+                CommunityFeedEmbeddedDestination()
+            } label: {
+                HStack(alignment: .center, spacing: PlatformMetrics.cardInfoSpacing) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(PlatformAction.brandAccent)
+                        .frame(width: 32)
+
+                    VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
+                        Text(CommunityCopy.embeddedEntryTitle)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text(communityPreviewSubtitle)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(PlatformMetrics.contentInset)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .platformThinMaterialBackground(in: PlatformMetrics.cardShape)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var communityPreviewSubtitle: String {
+        let count = app.community.items.count
+        if count == 0 {
+            return "看看大家分享的复盘与路线"
+        }
+        return "共 \(count) 条分享，点进看看最新复盘"
     }
 
     // MARK: - Toolbar
@@ -153,24 +270,38 @@ struct ActivitiesView: View {
     }
 
     private var hasActiveFilters: Bool {
-        !model.quickFilters.isEmpty || model.dayFilter != nil
+        !model.quickFilters.isEmpty
+            || model.dayFilter != nil
+            || !model.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var emptyState: some View {
         let filtered = hasActiveFilters || model.selectedCategory != .forYou
+        let searching = !model.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return ContentUnavailableView {
             Label(
-                filtered ? ActivityBrowseCopy.Empty.filteredTitle : ActivityBrowseCopy.Empty.title,
-                systemImage: filtered ? "line.3.horizontal.decrease" : "calendar.badge.plus"
+                searching
+                    ? ActivityBrowseCopy.Empty.searchTitle
+                    : (filtered ? ActivityBrowseCopy.Empty.filteredTitle : ActivityBrowseCopy.Empty.title),
+                systemImage: searching
+                    ? "magnifyingglass"
+                    : (filtered ? "line.3.horizontal.decrease" : "calendar.badge.plus")
             )
         } description: {
             Text(
-                filtered
-                    ? ActivityBrowseCopy.Empty.filteredDescription
-                    : ActivityBrowseCopy.Empty.description
+                searching
+                    ? ActivityBrowseCopy.Empty.searchDescription
+                    : (filtered
+                        ? ActivityBrowseCopy.Empty.filteredDescription
+                        : ActivityBrowseCopy.Empty.description)
             )
         } actions: {
-            if filtered {
+            if searching {
+                Button(ActivityBrowseCopy.Empty.clearSearchAction) {
+                    model.searchText = ""
+                }
+                .activityPrimaryCTA(controlSize: .large)
+            } else if filtered {
                 Button(ActivityBrowseCopy.Empty.filteredAction) {
                     model.showFilters = true
                 }
@@ -205,20 +336,43 @@ struct ActivitiesView: View {
         model.isComposing = true
     }
 
-    /// 首次进入：等活动页内容出来后再盖半屏欢迎，让背后是真实活动界面。
     private func presentWelcomeGuideIfNeeded() {
-        guard !hasSeenAppWelcomeGuide, !showWelcomeGuide else { return }
+        guard !app.welcomeGuide.hasSeenGuide, !showWelcomeGuide else { return }
         showWelcomeGuide = true
     }
 
     private func finishWelcomeGuideIfNeeded() {
-        guard !hasSeenAppWelcomeGuide else { return }
-        hasSeenAppWelcomeGuide = true
-        guard !app.hasCompletedOnboarding else { return }
-        let interests = app.user.interests.isEmpty
-            ? SampleData.currentUserInterests
-            : app.user.interests
-        app.completeOnboarding(interests: interests)
+        guard !app.welcomeGuide.hasSeenGuide else { return }
+        app.welcomeGuide.finish(app: app)
+    }
+
+    private func finishWelcomeGuide(with intent: AppWelcomeIntent) {
+        app.welcomeGuide.finish(app: app, intent: intent)
+    }
+
+    private func focusDiscoverBrowse() {
+        if let message = model.applyDiscoverPromoLanding() {
+            model.flashLight(message)
+        }
+        discoverBrowseScrollRequest += 1
+    }
+
+    private var showsJourneyNowPlayingBar: Bool {
+        guard app.welcomeGuide.hasSeenGuide else { return false }
+        guard navigation.isEmpty else { return false }
+        guard !showWelcomeGuide, !model.isComposing, !model.showFilters else { return false }
+        guard model.joinSuccessActivityID == nil, model.publishSuccessActivityID == nil else { return false }
+        return true
+    }
+
+    private func openJourney(_ activity: Activity) {
+        navigation.path.append(
+            ActivityZoomSource(
+                activityID: activity.id,
+                slot: "journey-todo",
+                intent: .participantPass
+            )
+        )
     }
 
     private func open(_ activity: Activity) {
@@ -227,20 +381,57 @@ struct ActivitiesView: View {
 
     private func consumePendingActivityOpen() {
         guard let id = app.pendingActivityID else { return }
+        let followUp = app.pendingActivityFollowUp
         app.pendingActivityID = nil
+        app.pendingActivityFollowUp = .none
         navigation.reset()
-        navigation.path.append(ActivityZoomSource(activityID: id, slot: "notification"))
+
+        switch followUp {
+        case .none:
+            navigation.path.append(ActivityZoomSource(activityID: id, slot: "notification"))
+        case .openJourney:
+            navigation.path.append(
+                ActivityZoomSource(
+                    activityID: id,
+                    slot: "notification-journey",
+                    intent: .participantPass
+                )
+            )
+        case .journeyFeedback, .journeyRecap:
+            app.pendingActivityJourneyFollowUp = followUp
+            navigation.path.append(
+                ActivityZoomSource(
+                    activityID: id,
+                    slot: "notification-journey",
+                    intent: .participantPass
+                )
+            )
+        }
     }
 
     private func join(_ activity: Activity) {
-        withAnimation(reduceMotion ? nil : .snappy) {
+        PlatformMotion.withAnimation(.snappy) {
             _ = app.quickJoinActivity(activity) { open(activity) }
         }
     }
 
     private func openGroup(for activity: Activity) {
+        app.activities.markActivityGroupOpened(activity.id)
         guard let route = app.prepareActivityGroupChatRoute(for: activity) else { return }
         navigation.openActivityGroupChat(for: activity, route: route)
+    }
+
+    private func openClubConversation(_ conversationID: UUID) {
+        guard let conversation = messages.conversations.first(where: { $0.id == conversationID }),
+              conversation.kind == .circle,
+              let circleID = conversation.relatedCircleID,
+              let circle = buddies.circle(id: circleID)
+        else {
+            app.openMessages(conversationID: conversationID)
+            return
+        }
+        guard let route = app.prepareClubGroupChatRoute(for: circle) else { return }
+        navigation.openClubGroupChat(for: circle, route: route)
     }
 
     private func handlePublish(
@@ -306,18 +497,13 @@ struct ActivitiesView: View {
         )
     }
 
-    private func openCommunityRecap(for activity: Activity) {
-        app.beginCommunityRecap(for: activity)
-    }
-
     private func bootstrapLocationIfNeeded() async {
-        guard !didBootstrapLocation else { return }
-        didBootstrapLocation = true
-        LocationService.shared.promptWhenInUseIfNeeded()
+        guard model.quickFilters.contains(.nearby) else { return }
+        location.promptWhenInUseIfNeeded()
         for _ in 0..<12 {
-            if LocationService.shared.coordinate != nil { break }
-            if !LocationService.shared.canPromptWhenInUse,
-               !LocationService.shared.isAuthorized {
+            if location.coordinate != nil { break }
+            if !location.canPromptWhenInUse,
+               !location.isAuthorized {
                 break
             }
             try? await Task.sleep(for: .milliseconds(250))
@@ -327,7 +513,7 @@ struct ActivitiesView: View {
 }
 
 #Preview {
-    let app = AppModel()
+    let app = AppModel.preview
     return ActivitiesView()
         .environment(app)
         .environment(app.activities)

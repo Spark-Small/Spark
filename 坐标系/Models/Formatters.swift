@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateModels
 
 enum Formatters {
     static let activityDate: DateFormatter = {

@@ -5,6 +5,7 @@
 //  通过对外数字 UID 添加好友（MessagesFormSheet + 系统 Form）。
 //
 
+import CoordinateModels
 import SwiftUI
 
 struct AddFriendByUIDSheet: View {
@@ -83,14 +84,18 @@ struct AddFriendByUIDSheet: View {
 
     private func submit() {
         switch model.addFriendByPublicUID(uidText, myUser: app.user) {
-        case .added(let nickname, _):
-            pendingOpenNickname = nickname
-            alertTitle = "已添加"
+        case .requestSent(let nickname, _):
+            pendingOpenNickname = nil
+            alertTitle = "申请已发送"
             alertMessage = MessagesCopy.addFriendByUIDSuccess(nickname)
         case .alreadyFriend(let nickname):
             pendingOpenNickname = nil
             alertTitle = "无法添加"
             alertMessage = MessagesCopy.addFriendByUIDAlreadyFriend(nickname)
+        case .alreadyPending(let nickname):
+            pendingOpenNickname = nil
+            alertTitle = "申请处理中"
+            alertMessage = MessagesCopy.addFriendByUIDPending(nickname)
         case .isSelf:
             pendingOpenNickname = nil
             alertTitle = "无法添加"

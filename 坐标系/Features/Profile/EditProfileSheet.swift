@@ -8,6 +8,7 @@
 import PhotosUI
 import SwiftUI
 import UIKit
+import CoordinateModels
 
 struct ProfileAvatarView: View {
     let user: AppUser
@@ -95,6 +96,8 @@ struct EditProfileSheet: View {
     @Binding var user: AppUser
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(AppModel.self) private var app
+    @Environment(PhotoVerificationStore.self) private var photoVerification
 
     @State private var name = ""
     @State private var handle = ""
@@ -109,6 +112,11 @@ struct EditProfileSheet: View {
     @State private var showVoiceIntroRecorder = false
     @State private var voiceIntroDuration: Double?
     @State private var voiceIntroCaption = ""
+    @State private var draftVerificationPhotos: [VerificationPhoto] = []
+    @State private var verificationPickerItem: PhotosPickerItem?
+    @State private var isPreparingVerificationPhoto = false
+    @State private var baselineFingerprintAtLoad = ""
+    @State private var moderationAlert: String?
 
     private var completion: Double {
         ProfileCompletion.ratio(
@@ -125,13 +133,19 @@ struct EditProfileSheet: View {
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !isPreparingAvatar
+            && !isPreparingVerificationPhoto
             && InterestSelectionLimits.meetsMinimum(selectedInterests.count)
+    }
+
+    private var canAddVerificationPhoto: Bool {
+        draftVerificationPhotos.count < VerificationPhotoLimits.maxCount
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 identitySection
+                verificationPhotosSection
                 personalInfoSection
                 locationSection
                 favoritesSection
@@ -170,22 +184,25 @@ struct EditProfileSheet: View {
             }
         }
         .platformSheet(.browser)
+        .platformFeedbackAlert($moderationAlert)
     }
 
     private var identitySection: some View {
         // Apple 账号头区：单行内 VStack（默认 spacing），勿拆成多行以免变成 List 行距。
         Section {
             VStack {
+                ProfileCompletionAvatar(
+                    name: name,
+                    photo: avatarPreview,
+                    side: dynamicTypeSize.accountHeaderAvatarSide,
+                    completion: completion
+                )
+
+                let avatarActionTitle = avatarLocalName == nil ? "添加照片" : "更改照片"
                 PhotosPicker(selection: $pickerItem, matching: .images) {
-                    ProfileCompletionAvatar(
-                        name: name,
-                        photo: avatarPreview,
-                        side: dynamicTypeSize.accountHeaderAvatarSide,
-                        completion: completion
-                    )
+                    Label(avatarActionTitle, systemImage: "photo.on.rectangle")
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(avatarLocalName == nil ? "添加照片" : "更改照片")
 
                 Text(name.isEmpty ? "坐标系用户" : name)
                     .font(.title2.bold())
@@ -205,6 +222,55 @@ struct EditProfileSheet: View {
             .onChange(of: pickerItem) { _, item in
                 Task { await loadAvatar(item) }
             }
+        }
+    }
+
+    private var verificationPhotosSection: some View {
+        Section {
+            ForEach(Array(draftVerificationPhotos.enumerated()), id: \.element.id) { index, photo in
+                HStack(spacing: PlatformMetrics.cardInfoSpacing) {
+                    if let image = verificationPreview(named: photo.localName) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 52, height: 52)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .accessibilityHidden(true)
+                    }
+
+                    VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
+                        Text("认证照 \(index + 1)")
+                            .font(.subheadline.weight(.semibold))
+                        Toggle("对外展示", isOn: bindingIsPublic(at: index))
+                    }
+
+                    Spacer(minLength: 0)
+
+                    Button("删除", role: .destructive) {
+                        removeVerificationPhoto(at: index)
+                    }
+                    .font(.footnote)
+                }
+            }
+
+            if canAddVerificationPhoto {
+                let verificationActionTitle = draftVerificationPhotos.isEmpty ? "添加认证照" : "再加一张"
+                PhotosPicker(selection: $verificationPickerItem, matching: .images) {
+                    Label(verificationActionTitle, systemImage: "plus.circle")
+                }
+                .disabled(isPreparingVerificationPhoto)
+                .onChange(of: verificationPickerItem) { _, item in
+                    Task { await loadVerificationPhoto(item) }
+                }
+            }
+
+            if isPreparingVerificationPhoto {
+                ProgressView()
+            }
+        } header: {
+            Text("认证照片")
+        } footer: {
+            Text("上传 1–2 张本人正脸照，用于摄像头人脸核验。关闭「对外展示」后其他人看不到，但仍用于安全核验。头像可另行设置，不参与比对。")
         }
     }
 
@@ -317,9 +383,45 @@ struct EditProfileSheet: View {
         avatarPreview = user.localAvatarImage
         voiceIntroDuration = user.voiceIntroDuration
         voiceIntroCaption = user.voiceIntroCaption ?? ""
+        draftVerificationPhotos = user.verificationPhotos
+        baselineFingerprintAtLoad = user.verificationBaselineFingerprint
+    }
+
+    private func bindingIsPublic(at index: Int) -> Binding<Bool> {
+        Binding(
+            get: {
+                guard draftVerificationPhotos.indices.contains(index) else { return false }
+                return draftVerificationPhotos[index].isPublic
+            },
+            set: { newValue in
+                guard draftVerificationPhotos.indices.contains(index) else { return }
+                draftVerificationPhotos[index].isPublic = newValue
+            }
+        )
+    }
+
+    private func verificationPreview(named: String) -> UIImage? {
+        guard let url = LocalMediaLibrary.fileURL(named: named),
+              let data = try? Data(contentsOf: url)
+        else { return nil }
+        return UIImage(data: data)
+    }
+
+    private func removeVerificationPhoto(at index: Int) {
+        guard draftVerificationPhotos.indices.contains(index) else { return }
+        let removed = draftVerificationPhotos.remove(at: index)
+        let existedOnUser = user.verificationPhotos.contains { $0.id == removed.id }
+        if !existedOnUser {
+            LocalMediaLibrary.delete(named: removed.localName)
+        }
     }
 
     private func save() {
+        let combined = [name, handle, bio, lookingFor, voiceIntroCaption].joined(separator: "\n")
+        if case .block(let reason) = ContentModeration.scanText(combined) {
+            moderationAlert = reason
+            return
+        }
         user.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         user.handle = handle.trimmingCharacters(in: .whitespacesAndNewlines)
         user.city = city.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -331,13 +433,29 @@ struct EditProfileSheet: View {
         user.voiceIntroCaption = trimmedCaption.isEmpty ? nil : trimmedCaption
         if let avatarLocalName {
             if let old = user.avatarLocalName, old != avatarLocalName {
-                CommunityPhotoStore.delete(named: old)
-                PhotoVerificationStore.shared.clear()
-            } else if user.avatarLocalName == nil {
-                PhotoVerificationStore.shared.clear()
+                LocalMediaLibrary.delete(named: old)
             }
             user.avatarLocalName = avatarLocalName
         }
+
+        let previousNames = Set(user.verificationPhotos.map(\.localName))
+        let nextPhotos = Array(draftVerificationPhotos.prefix(VerificationPhotoLimits.maxCount))
+        let nextNames = Set(nextPhotos.map(\.localName))
+        for name in previousNames where !nextNames.contains(name) {
+            LocalMediaLibrary.delete(named: name)
+        }
+        user.verificationPhotos = nextPhotos
+
+        let nextFingerprint = VerificationPhotoLimits.baselineFingerprint(for: nextPhotos)
+        if nextFingerprint != baselineFingerprintAtLoad {
+            photoVerification.invalidateIfBaselineChanged(photos: nextPhotos)
+            if nextPhotos.isEmpty {
+                photoVerification.clear()
+            } else if !photoVerification.isVerified(for: user.name, photos: nextPhotos) {
+                app.pendingIdentityVerification = true
+            }
+        }
+
         dismiss()
     }
 
@@ -347,10 +465,46 @@ struct EditProfileSheet: View {
         isPreparingAvatar = true
         defer { isPreparingAvatar = false }
         guard let data = try? await item.loadTransferable(type: Data.self),
-              let image = UIImage(data: data),
-              let saved = CommunityPhotoStore.saveJPEG(data)
+              let image = UIImage(data: data)
         else { return }
+        let decision = await MediaModerationService.moderateImageData(
+            data,
+            context: .avatar,
+            actorKey: user.name
+        )
+        if case .block(let reason) = decision {
+            moderationAlert = reason
+            return
+        }
+        guard let saved = LocalMediaLibrary.saveJPEG(data) else { return }
         avatarPreview = image
         avatarLocalName = saved
+    }
+
+    @MainActor
+    private func loadVerificationPhoto(_ item: PhotosPickerItem?) async {
+        guard let item else { return }
+        guard canAddVerificationPhoto else { return }
+        isPreparingVerificationPhoto = true
+        defer {
+            isPreparingVerificationPhoto = false
+            verificationPickerItem = nil
+        }
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              UIImage(data: data) != nil
+        else { return }
+        let decision = await MediaModerationService.moderateImageData(
+            data,
+            context: .verificationPhoto,
+            actorKey: user.name
+        )
+        if case .block(let reason) = decision {
+            moderationAlert = reason
+            return
+        }
+        guard let saved = LocalMediaLibrary.saveJPEG(data) else { return }
+        draftVerificationPhotos.append(
+            VerificationPhoto(localName: saved, isPublic: false)
+        )
     }
 }

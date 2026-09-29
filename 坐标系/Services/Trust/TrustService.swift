@@ -7,16 +7,19 @@
 
 import Foundation
 import Observation
+import CoordinateModels
 
 @MainActor
 @Observable
 final class TrustService {
-    static let shared = TrustService()
+    static var shared: TrustService { AppComposition.trustService }
 
-    private let ledger = TrustBehaviorLedger.shared
+    private let ledger: TrustBehaviorLedger
     private(set) var revision: Int = 0
 
-    private init() {}
+    init(ledger: TrustBehaviorLedger) {
+        self.ledger = ledger
+    }
 
     // MARK: - Record
 
@@ -147,6 +150,30 @@ final class TrustService {
             guard event.note == token else { return false }
             return event.name == .safetyCheckinOK || event.name == .safetyCheckinIssue
         }
+    }
+
+    func hasActivitySafetyCheckIn(activityID: UUID) -> Bool {
+        let token = activityID.uuidString
+        return ledger.allEvents.contains { event in
+            guard event.domain == .activity, event.note == token else { return false }
+            return event.name == .safetyCheckinOK || event.name == .safetyCheckinIssue
+        }
+    }
+
+    func submitActivitySafetyCheckIn(
+        actorKey: String,
+        activityID: UUID,
+        activityTitle: String,
+        wentWell: Bool
+    ) {
+        let name: TrustEventName = wentWell ? .safetyCheckinOK : .safetyCheckinIssue
+        record(
+            name,
+            domain: .activity,
+            actorKey: actorKey,
+            subjectKey: activityTitle,
+            note: activityID.uuidString
+        )
     }
 
     func resetAll() {

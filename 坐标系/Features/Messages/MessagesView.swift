@@ -6,10 +6,29 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 private enum MessagesInboxRoute: Hashable {
     case friends
     case conversation(ChatConversation)
+}
+
+private enum MessagesInboxFilter: String, CaseIterable, Identifiable {
+    case all
+    case friends
+    case activityGroups
+    case clubs
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: MessagesCopy.filterAll
+        case .friends: MessagesCopy.filterFriends
+        case .activityGroups: MessagesCopy.filterActivityGroups
+        case .clubs: MessagesCopy.filterClubGroups
+        }
+    }
 }
 
 struct MessagesView: View {
@@ -18,6 +37,7 @@ struct MessagesView: View {
     @Environment(AppModel.self) private var app
     @State private var navigation = TabNavigationState()
     @State private var focusMessageID: ChatMessage.ID?
+    @State private var inboxFilter: MessagesInboxFilter = .all
 
     private var blockedNames: [String] { Array(app.blockedUserNames) }
 
@@ -30,11 +50,24 @@ struct MessagesView: View {
 
     /// 拉黑用户的好友会话不展示
     private var visibleItems: [ChatConversation] {
-        model.items.filter { conversation in
+        filteredItems(model.items.filter { conversation in
             guard conversation.isFriendChat else { return true }
             return !blockedNames.contains {
                 $0.caseInsensitiveCompare(conversation.title) == .orderedSame
             }
+        })
+    }
+
+    private func filteredItems(_ items: [ChatConversation]) -> [ChatConversation] {
+        switch inboxFilter {
+        case .all:
+            return items
+        case .friends:
+            return items.filter(\.isFriendChat)
+        case .activityGroups:
+            return items.filter(\.isActivityGroup)
+        case .clubs:
+            return items.filter(\.isCircleGroup)
         }
     }
 
@@ -44,6 +77,17 @@ struct MessagesView: View {
 
     private var searchHistoryMatches: [ChatHistoryHit] {
         model.searchHistory(query: model.searchText)
+    }
+
+    private var hasActivityGroupConversations: Bool {
+        model.items.contains(where: \.isActivityGroup)
+    }
+
+    private var showsActivityGroupInboxHint: Bool {
+        !model.isSearching
+            && hasActivityGroupConversations
+            && inboxFilter == .all
+            && !showsEmptyOverlay
     }
 
     var body: some View {
@@ -127,6 +171,35 @@ struct MessagesView: View {
 
     @ViewBuilder
     private var inboxList: some View {
+        if showsActivityGroupInboxHint {
+            Section {
+                HStack(alignment: .center, spacing: PlatformMetrics.cardInfoSpacing) {
+                    Label(MessagesCopy.activityGroupInboxHint, systemImage: "person.3")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: PlatformMetrics.minContentGap)
+                    Button(MessagesCopy.activityGroupInboxFilterAction) {
+                        inboxFilter = .activityGroups
+                    }
+                    .font(.footnote.weight(.semibold))
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
+
+        if !model.isSearching {
+            Section {
+                Picker("筛选", selection: $inboxFilter) {
+                    ForEach(MessagesInboxFilter.allCases) { filter in
+                        Text(filter.title).tag(filter)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
+        }
+
         ForEach(visibleItems) { conversation in
             conversationLink(conversation)
         }
@@ -173,7 +246,7 @@ struct MessagesView: View {
         NavigationLink(value: MessagesInboxRoute.conversation(conversation)) {
             PlatformConversationRow(
                 title: conversation.title,
-                subtitle: conversation.inboxPreview,
+                subtitle: conversation.inboxListSecondary,
                 time: conversation.updatedAt,
                 isUnread: conversation.unreadCount > 0,
                 isPinned: conversation.isPinned,
@@ -198,10 +271,23 @@ struct MessagesView: View {
             } description: {
                 Text(MessagesCopy.emptyInboxDescription)
             } actions: {
-                Button(MessagesCopy.friendsListTitle) {
-                    navigation.path.append(MessagesInboxRoute.friends)
+                Button(MessagesCopy.emptyInboxBrowseActivities) {
+                    app.selectedTab = .activities
                 }
                 .activityPrimaryCTA(controlSize: .large)
+
+                Button(MessagesCopy.emptyInboxMeetBuddies) {
+                    app.selectedTab = .buddies
+                    app.buddies.showSocialPage()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+
+                Button(MessagesCopy.emptyInboxJoinClubs) {
+                    app.openClubDiscover()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
@@ -287,6 +373,7 @@ private extension View {
 }
 
 #Preview("消息") {
+    let app = AppModel.preview
     MessagesView()
-        .environment(MessagesModel())
+        .environment(app.messages)
 }

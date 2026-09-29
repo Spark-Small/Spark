@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import CoordinateModels
 
 enum MessagesInviteFriends {
     @MainActor
@@ -16,8 +17,7 @@ enum MessagesInviteFriends {
             applicationActivities: nil
         )
         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              var top = scene.windows.first(where: \.isKeyWindow)?.rootViewController
-                ?? scene.windows.first?.rootViewController
+              var top = keyRootViewController(in: scene)
         else { return }
         while let presented = top.presentedViewController {
             top = presented
@@ -33,5 +33,13 @@ enum MessagesInviteFriends {
             popover.permittedArrowDirections = []
         }
         top.present(activityVC, animated: true)
+    }
+
+    @MainActor
+    private static func keyRootViewController(in scene: UIWindowScene) -> UIViewController? {
+        if let key = scene.windows.first(where: { $0.isKeyWindow }) {
+            return key.rootViewController
+        }
+        return scene.windows.first?.rootViewController
     }
 }

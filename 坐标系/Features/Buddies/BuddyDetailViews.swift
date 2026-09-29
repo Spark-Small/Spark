@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 struct BuddyDetailRouteView: View {
     let item: DiscoverBuddyItem

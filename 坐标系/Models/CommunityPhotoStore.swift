@@ -7,8 +7,10 @@ import AVFoundation
 import Foundation
 import UniformTypeIdentifiers
 import UIKit
+import CoordinateModels
 
-/// 社区本地媒体：写入 Application Support，随帖子 / 相册持久化引用文件名
+/// 社区本地媒体：写入 Application Support，随帖子 / 相册持久化引用文件名。
+/// Feature / View 请经 `LocalMediaLibrary`（或 Feature Model）访问，勿直接调用本枚举。
 enum CommunityPhotoStore {
     private static let folderName = "CommunityPhotos"
 
@@ -44,9 +46,14 @@ enum CommunityPhotoStore {
 
     @discardableResult
     static func saveJPEG(_ data: Data, quality: CGFloat = 0.82) -> String? {
-        guard let image = UIImage(data: data),
-              let jpeg = image.jpegData(compressionQuality: quality)
-        else { return nil }
+        guard let image = UIImage(data: data) else { return nil }
+        return saveJPEG(image, quality: quality)
+    }
+
+    /// 已有 UIImage 时避免二次解码；宜在后台线程调用。
+    @discardableResult
+    static func saveJPEG(_ image: UIImage, quality: CGFloat = 0.82) -> String? {
+        guard let jpeg = image.jpegData(compressionQuality: quality) else { return nil }
 
         let name = "\(UUID().uuidString).jpg"
         let url = directory.appendingPathComponent(name)

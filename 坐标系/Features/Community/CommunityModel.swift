@@ -3,6 +3,7 @@
 //  坐标系
 //
 
+import CoordinateDomain
 import Foundation
 import Observation
 
@@ -31,14 +32,19 @@ final class CommunityModel {
     var blockedUserNames: Set<String> = []
     /// 评论库变更时递增，驱动依赖 PlatformReviewsStore 的界面刷新
     private(set) var commentRevision = 0
-    private let repository: CommunityRepository
-    @ObservationIgnored private var persistenceGeneration: Int
-    @ObservationIgnored private var persistTask: Task<Void, Never>?
+    /// 广场加载失败文案；成功或尚未尝试时为 `nil`。
+    private(set) var loadErrorMessage: String?
+    private(set) var isRefreshing = false
+    let repository: any CommunityRepository
+    @ObservationIgnored var persistenceGeneration: Int
+    @ObservationIgnored var persistTask: Task<Void, Never>?
 
-    init(currentUserName: String? = nil, repository: CommunityRepository? = nil) {
-        let resolvedRepository = repository ?? LocalCommunityRepository()
-        self.repository = resolvedRepository
-        let snapshot = resolvedRepository.load()
+    init(
+        currentUserName: String? = nil,
+        repository: any CommunityRepository
+    ) {
+        self.repository = repository
+        let snapshot = repository.load()
         posts = snapshot.posts
         likedIDs = Set(snapshot.likedIDs)
         repostedIDs = Set(snapshot.repostedIDs)
@@ -53,7 +59,7 @@ final class CommunityModel {
         }
         bookmarkCollections = collections
         self.currentUserName = currentUserName ?? SampleData.currentUser.name
-        persistenceGeneration = resolvedRepository.currentPersistenceGeneration()
+        persistenceGeneration = repository.currentPersistenceGeneration()
         if CommunityCommentsStore.bootstrap(posts: &posts, likedCommentIDs: likedCommentIDs) {
             likedCommentIDs = []
             persist()
@@ -117,186 +123,32 @@ final class CommunityModel {
         }
         return names
     }
-
-    func toggleLike(_ id: CommunityPost.ID) {
-        guard let index = posts.firstIndex(where: { $0.id == id }) else { return }
-        if likedIDs.contains(id) {
-            likedIDs.remove(id)
-            posts[index].likeCount = max(posts[index].likeCount - 1, 0)
-            posts[index].likerNames.removeAll { $0 == currentUserName }
-        } else {
-            likedIDs.insert(id)
-            posts[index].likeCount += 1
-            if !posts[index].likerNames.contains(currentUserName) {
-                posts[index].likerNames.insert(currentUserName, at: 0)
-            }
-        }
-        persist()
-    }
-
-    func toggleRepost(_ id: CommunityPost.ID) {
-        guard let index = posts.firstIndex(where: { $0.id == id }) else { return }
-        if repostedIDs.contains(id) {
-            repostedIDs.remove(id)
-            posts[index].repostCount = max(posts[index].repostCount - 1, 0)
-            posts.removeAll { $0.repostedFromID == id && $0.author == currentUserName }
-            persist()
-        } else {
-            createRepost(of: id, quote: nil)
-        }
-    }
-
-    func createRepost(of id: CommunityPost.ID, quote: String?) {
-        guard let original = post(id: id) else { return }
-        if !repostedIDs.contains(id), let index = posts.firstIndex(where: { $0.id == id }) {
-            repostedIDs.insert(id)
-            posts[index].repostCount += 1
-        }
-        let quoteTrimmed = quote?.trimmingCharacters(in: .whitespacesAndNewlines)
-        posts.insert(
-            CommunityPost(
-                id: UUID(),
-                author: currentUserName,
-                title: "",
-                body: quoteTrimmed?.isEmpty == false
-                    ? (quoteTrimmed ?? "")
-                    : original.body,
-                tags: original.tags,
-                likeCount: 0,
-                commentCount: 0,
-                repostCount: 0,
-                shareCount: 0,
-                postedAt: .now,
-                isPinned: false,
-                photoSeeds: [],
-                photoHue: original.photoHue,
-                localPhotoNames: [],
-                relatedActivityTitle: original.relatedActivityTitle,
-                relatedActivityID: original.relatedActivityID,
-                comments: [],
-                likerNames: [],
-                repostedFromID: original.id,
-                quoteText: quoteTrimmed?.isEmpty == false ? quoteTrimmed : nil
-            ),
-            at: 0
-        )
-        persist()
-    }
-
-    func saveBookmark(_ id: CommunityPost.ID, collection: String) {
-        bookmarkedIDs.insert(id)
-        bookmarkCollections[id] = collection
-        persist()
-    }
-
-    func removeBookmark(_ id: CommunityPost.ID) {
-        bookmarkedIDs.remove(id)
-        bookmarkCollections[id] = nil
-        persist()
-    }
-
-    func recordShare(_ id: CommunityPost.ID) {
-        guard let index = posts.firstIndex(where: { $0.id == id }) else { return }
-        posts[index].shareCount += 1
-        persist()
-    }
-
-    func publish(
-        body: String,
-        tags: [String],
-        relatedActivityTitle: String?,
-        relatedActivityID: UUID? = nil,
-        localPhotoNames: [String]
-    ) -> CommunityPublishResult {
-        let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedBody.isEmpty else { return .invalid }
-        if let word = ContentModeration.containsSensitive(trimmedBody) {
-            return .blocked(word)
-        }
-
-        let seedBase = Int.random(in: 1000...9000)
-        let postID = UUID()
-        posts.insert(
-            CommunityPost(
-                id: postID,
-                author: currentUserName,
-                title: "",
-                body: trimmedBody,
-                tags: tags,
-                likeCount: 0,
-                commentCount: 0,
-                repostCount: 0,
-                shareCount: 0,
-                postedAt: .now,
-                isPinned: false,
-                photoSeeds: localPhotoNames.isEmpty ? [seedBase] : [],
-                photoHue: Double.random(in: 0...1),
-                localPhotoNames: localPhotoNames,
-                relatedActivityTitle: relatedActivityTitle,
-                relatedActivityID: relatedActivityID,
-                comments: [],
-                likerNames: []
-            ),
-            at: 0
-        )
-        isComposing = false
-        pendingComposeBody = nil
-        pendingRelatedActivityTitle = nil
-        pendingRelatedActivityID = nil
-        persist()
-        return .published(postID)
-    }
-
-    func syncComments(for postID: CommunityPost.ID) {
-        CommunityCommentsStore.syncCommentCount(for: postID, in: &posts)
-        bumpComments()
-        persist()
-    }
-
-    func deletePost(_ id: CommunityPost.ID) -> Bool {
-        guard let index = posts.firstIndex(where: { $0.id == id }),
-              isOwnPost(posts[index]) else { return false }
-        for name in posts[index].localPhotoNames {
-            CommunityPhotoStore.delete(named: name)
-        }
-        CommunityCommentsStore.removeAll(for: id)
-        likedIDs.remove(id)
-        repostedIDs.remove(id)
-        bookmarkedIDs.remove(id)
-        bookmarkCollections[id] = nil
-        reportedIDs.remove(id)
-        posts.remove(at: index)
-        persist()
-        return true
-    }
-
-    func reportPost(_ id: CommunityPost.ID, reason: String) -> Bool {
-        guard let index = posts.firstIndex(where: { $0.id == id }) else { return false }
-        posts[index].reportCount += 1
-        reportedIDs.insert(id)
-        persist()
-        return true
-    }
-
     func reloadFromRepository() async {
-        guard let snapshot = try? await repository.loadAsync() else { return }
-        persistenceGeneration = repository.currentPersistenceGeneration()
-        posts = snapshot.posts
-        likedIDs = Set(snapshot.likedIDs)
-        repostedIDs = Set(snapshot.repostedIDs)
-        bookmarkedIDs = Set(snapshot.bookmarkedIDs)
-        reportedIDs = Set(snapshot.reportedIDs)
-        likedCommentIDs = Set(snapshot.likedCommentIDs)
-        bookmarkCollections = Dictionary(
-            uniqueKeysWithValues: snapshot.bookmarkCollections.compactMap { key, value in
-                guard let id = UUID(uuidString: key) else { return nil }
-                return (id, value)
+        isRefreshing = true
+        defer { isRefreshing = false }
+        do {
+            let snapshot = try await repository.loadAsync()
+            persistenceGeneration = repository.currentPersistenceGeneration()
+            posts = snapshot.posts
+            likedIDs = Set(snapshot.likedIDs)
+            repostedIDs = Set(snapshot.repostedIDs)
+            bookmarkedIDs = Set(snapshot.bookmarkedIDs)
+            reportedIDs = Set(snapshot.reportedIDs)
+            likedCommentIDs = Set(snapshot.likedCommentIDs)
+            bookmarkCollections = Dictionary(
+                uniqueKeysWithValues: snapshot.bookmarkCollections.compactMap { key, value in
+                    guard let id = UUID(uuidString: key) else { return nil }
+                    return (id, value)
+                }
+            )
+            loadErrorMessage = nil
+            if CommunityCommentsStore.bootstrap(posts: &posts, likedCommentIDs: likedCommentIDs) {
+                likedCommentIDs = []
+                bumpComments()
+                persist()
             }
-        )
-        if CommunityCommentsStore.bootstrap(posts: &posts, likedCommentIDs: likedCommentIDs) {
-            likedCommentIDs = []
-            bumpComments()
-            persist()
+        } catch {
+            loadErrorMessage = CommunityCopy.loadFailedMessage
         }
     }
 
@@ -308,7 +160,8 @@ final class CommunityModel {
         persistenceGeneration = repository.currentPersistenceGeneration()
     }
 
-    private func persist() {
+
+    func persist() {
         let snapshot = CommunitySnapshot(
             posts: posts,
             likedIDs: Array(likedIDs),
@@ -322,14 +175,17 @@ final class CommunityModel {
         )
         let previousTask = persistTask
         let generation = persistenceGeneration
-        persistTask = Task {
-            _ = await previousTask?.result
-            guard !Task.isCancelled else { return }
-            try? await repository.replaceAsync(with: snapshot, generation: generation)
+        persistTask = MainActorPersistence.chained(after: previousTask) {
+            do {
+                try await self.repository.replaceAsync(with: snapshot, generation: generation)
+            } catch {
+                assertionFailure("Community persist failed: \(error)")
+                PersistenceWriteFailureReporter.record(domainKey: "community", error: error)
+            }
         }
     }
 
-    private func bumpComments() {
+    func bumpComments() {
         commentRevision += 1
     }
 

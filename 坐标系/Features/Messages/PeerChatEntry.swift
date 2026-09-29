@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateModels
 
 /// 从业务页进入私聊时的上下文（快捷模版 + 冷启动发送上限）。
 enum ConversationChatContext: Hashable {
@@ -13,6 +14,8 @@ enum ConversationChatContext: Hashable {
     case activityMember(activityID: Activity.ID)
     /// 活动群聊（从详情 / 参加成功进群，不切消息 Tab）
     case activityGroup(activityID: Activity.ID)
+    /// 俱乐部群聊（从俱乐部资料进群，不切消息 Tab）
+    case clubGroup(circleID: InterestCircle.ID)
     case buddyFree(lookingFor: String, sharedHobbies: [String])
     case buddyPaid(specialty: String)
     case circleMember(circleName: String)
@@ -27,7 +30,7 @@ enum ConversationChatContext: Hashable {
     /// 已建立业务关系、可跳过好友门槛的场景。
     var bypassesFriendGate: Bool {
         switch self {
-        case .bookingCompanion, .activityGroup, .activityHost, .activityMember:
+        case .bookingCompanion, .activityGroup, .activityHost, .activityMember, .clubGroup:
             true
         default:
             false
@@ -42,7 +45,7 @@ enum ConversationChatContext: Hashable {
             PeerChatCopy.greetingSectionTitle
         case .bookingCompanion:
             PeerChatCopy.bookingSectionTitle
-        case .activityGroup:
+        case .activityGroup, .clubGroup:
             PeerChatCopy.greetingSectionTitle
         }
     }
@@ -61,6 +64,8 @@ enum ConversationChatContext: Hashable {
             guard let activity = activities.activity(id: activityID) else { return [] }
             return ActivityDetailCopy.askMemberQuickReplies(for: activity)
         case .activityGroup:
+            return []
+        case .clubGroup:
             return []
         case .buddyFree(let lookingFor, let sharedHobbies):
             return PeerChatCopy.buddyFreeReplies(lookingFor: lookingFor, sharedHobbies: sharedHobbies)
@@ -81,6 +86,7 @@ enum ConversationChatContext: Hashable {
         }
     }
 
+    @MainActor
     static func forBuddyItem(_ item: DiscoverBuddyItem) -> ConversationChatContext {
         switch item {
         case .free(let buddy):
@@ -94,6 +100,7 @@ enum ConversationChatContext: Hashable {
         }
     }
 
+    @MainActor
     static func forMemberTarget(_ target: BuddyMemberProfileTarget) -> ConversationChatContext {
         switch target.source {
         case .discover:
@@ -174,7 +181,7 @@ enum PeerChatCopy {
     static func circleMemberReplies(circleName: String) -> [(label: String, text: String)] {
         [
             ("打个招呼", "你好，我在「\(circleName)」看到你，想认识一下。"),
-            ("活动交流", "你好，请问你平时会参加圈子里的哪些活动？"),
+            ("活动交流", "你好，请问你平时会参加俱乐部里的哪些活动？"),
             ("同行邀约", "最近有想一起玩的安排吗？"),
         ]
     }
@@ -246,6 +253,7 @@ extension AppModel {
     /// 已是好友（或场景允许）→ 进私聊；否则 → 加好友申请。
     @discardableResult
     func openPeerContact(with nickname: String, context: ConversationChatContext) -> PeerContactRoute? {
+        guard requireIdentityAccess() else { return nil }
         let name = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return nil }
         if blockedUserNames.contains(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) {
@@ -411,6 +419,11 @@ extension TabNavigationState {
         case .addFriend:
             addFriend(route)
         }
+    }
+
+    /// 俱乐部栈内打开俱乐部群聊
+    func openClubGroupChat(for circle: InterestCircle, route: PeerChatRoute) {
+        path.append(route)
     }
 
     /// 活动栈内打开群聊；栈空时先 Zoom 进详情，转场结束后再 push 群聊。
