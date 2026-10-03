@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import CoordinateModels
 
 // MARK: - Content blocks
 
@@ -71,14 +70,14 @@ struct ActivityDetailFeeCard: View {
     var body: some View {
         VStack(alignment: .leading) {
             if !included.isEmpty {
-                checklistGroup(title: "费用包含", items: included)
+                checklistGroup(title: ActivityDetailCopy.feeIncludedTitle, items: included)
             }
             if !excluded.isEmpty {
-                checklistGroup(title: "费用不含", items: excluded)
+                checklistGroup(title: ActivityDetailCopy.feeExcludedTitle, items: excluded)
             }
             if !refundNotes.isEmpty {
                 VStack(alignment: .leading) {
-                    Text("变更与退款")
+                    Text(ActivityDetailCopy.feeRefundPolicyTitle)
                         .font(.body)
                         .foregroundStyle(.primary)
                     ForEach(Array(refundNotes.enumerated()), id: \.offset) { _, note in
@@ -170,6 +169,37 @@ struct ActivityDetailNumberedNotes: View {
     }
 }
 
+/// 发布预览：发起人未填写的详情分区诚实空态。
+struct ActivityDetailPendingFillBlock: View {
+    let categoryTitle: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: PlatformMetrics.cardInfoSpacing) {
+            Text(ActivityComposeCopy.pendingFillTitle)
+                .font(.body.weight(.medium))
+                .foregroundStyle(.secondary)
+            Text(ActivityComposeCopy.pendingFillHint(categoryTitle: categoryTitle))
+                .font(.subheadline)
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// 对外详情：类别模板内容的诚实归因（非发起人已填）。
+struct ActivityDetailTemplateAttribution: View {
+    var body: some View {
+        Text(ActivityDetailCopy.templateRailAttribution)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel(ActivityDetailCopy.templateRailAttribution)
+    }
+}
+
 /// 活动详情可折叠蓝图分区（默认收起，摘要先行）
 struct ActivityDetailCollapsibleSection<Content: View>: View {
     let title: String
@@ -180,9 +210,8 @@ struct ActivityDetailCollapsibleSection<Content: View>: View {
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
             content()
-                .padding(.top, PlatformMetrics.cardInfoSpacing)
         } label: {
-            VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
+            VStack(alignment: .leading, spacing: PlatformMetrics.sectionSubtitleSpacing) {
                 Text(title)
                     .font(.headline)
                 Text(summary)
@@ -191,7 +220,6 @@ struct ActivityDetailCollapsibleSection<Content: View>: View {
                     .lineLimit(2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, PlatformMetrics.hairlineSpacing)
         }
     }
 }

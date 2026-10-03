@@ -39,8 +39,8 @@ enum BuddyPaidQuickEntry: String, Identifiable {
 
     var tint: Color {
         switch self {
-        case .quickMatch: .indigo
-        case .voiceParty: .purple
+        case .quickMatch: Color.accentColor
+        case .voiceParty: PlatformAction.brandAccent
         }
     }
 }
@@ -91,7 +91,7 @@ struct BuddyPaidQuickEntryBar: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(entry.title)，\(entry.subtitle)")
-        .accessibilityHint("打开\(entry.title)")
+        .accessibilityHint(BuddyBrowseCopy.ShelfA11y.openEntryHint(entry.title))
     }
 }
 

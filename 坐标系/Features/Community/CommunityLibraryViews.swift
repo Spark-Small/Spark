@@ -2,7 +2,8 @@
 //  CommunityLibraryViews.swift
 //  坐标系
 //
-//  社区「更多」入口与「我的内容库」共用：收藏 / 赞过 / 我的分享 / 转发 / 公约。
+//  广场内容库：收藏 / 赞过 / 我的分享 / 转发 / 公约。
+//  入口：「我的」→「广场内容」Hub；根栈仍注册目的地便于深链。
 //
 
 import SwiftUI
@@ -71,7 +72,6 @@ struct CommunityPostLibraryList: View {
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        // 分享详情目的地由外层 NavigationStack 注册
     }
 
     private func librarySecondary(for post: CommunityPost) -> String {
@@ -90,10 +90,10 @@ struct CommunityBookmarksView: View {
 
     var body: some View {
         CommunityPostLibraryList(
-            title: "收藏的分享",
-            emptyTitle: "还没有收藏分享",
+            title: CommunityLibraryCopy.bookmarksTitle,
+            emptyTitle: CommunityLibraryCopy.bookmarksEmpty,
             emptySystemImage: "bookmark",
-            emptyDescription: "在社区分享里点收藏，种草与复盘会出现在这里；也可在「我的内容库」统一查看。",
+            emptyDescription: CommunityLibraryCopy.bookmarksEmptyHint,
             posts: model.bookmarkedPosts,
             footnote: { model.bookmarkCollection(for: $0.id) }
         )
@@ -105,10 +105,10 @@ struct CommunityLikedPostsView: View {
 
     var body: some View {
         CommunityPostLibraryList(
-            title: "赞过的",
-            emptyTitle: "还没有赞过分享",
+            title: CommunityLibraryCopy.likedTitle,
+            emptyTitle: CommunityLibraryCopy.likedEmpty,
             emptySystemImage: "heart",
-            emptyDescription: "点赞过的分享会出现在这里；也可在「我的内容库」统一查看。",
+            emptyDescription: CommunityLibraryCopy.likedEmptyHint,
             posts: model.likedPosts
         )
     }
@@ -119,10 +119,10 @@ struct CommunityMyPostsView: View {
 
     var body: some View {
         CommunityPostLibraryList(
-            title: "我的分享",
-            emptyTitle: "还没有发布分享",
+            title: CommunityLibraryCopy.myPostsTitle,
+            emptyTitle: CommunityLibraryCopy.myPostsEmpty,
             emptySystemImage: "square.and.pencil",
-            emptyDescription: "发布的活动图文会出现在这里；完整创作凭证见「我的内容库」。",
+            emptyDescription: CommunityLibraryCopy.myPostsEmptyHint,
             posts: model.myPosts
         )
     }
@@ -133,10 +133,10 @@ struct CommunityMyRepostsView: View {
 
     var body: some View {
         CommunityPostLibraryList(
-            title: "我的转发",
-            emptyTitle: "还没有转发",
+            title: CommunityLibraryCopy.repostsTitle,
+            emptyTitle: CommunityLibraryCopy.repostsEmpty,
             emptySystemImage: "arrow.2.squarepath",
-            emptyDescription: "转发到社区的分享会出现在这里；也可在「我的内容库」统一查看。",
+            emptyDescription: CommunityLibraryCopy.repostsEmptyHint,
             posts: model.myReposts
         )
     }
@@ -146,36 +146,36 @@ struct CommunityGuidelinesView: View {
     var body: some View {
         List {
             Section {
-                Text("坐标系社区用于分享活动种草、路线与复盘。一起把真实体验留给后来的人。")
-                    .font(.body)
+                Text(CommunityLibraryCopy.guidelinesIntro)
+                    .font(PlatformListTypography.body)
                     .foregroundStyle(.secondary)
             }
 
-            Section("请这样发") {
-                Label("分享真实到场体验，配上清楚的地点与时间", systemImage: "checkmark.circle")
+            Section(CommunityLibraryCopy.guidelinesDoHeader) {
+                Label(CommunityLibraryCopy.guidelineDoExperience, systemImage: "checkmark.circle")
                     .platformContentSymbolStyle()
-                Label("尊重他人，讨论聚焦活动本身", systemImage: "hand.raised")
+                Label(CommunityLibraryCopy.guidelineDoRespect, systemImage: "hand.raised")
                     .platformContentSymbolStyle()
-                Label("转载请注明来源，不冒用他人照片", systemImage: "person.crop.rectangle")
+                Label(CommunityLibraryCopy.guidelineDoAttribution, systemImage: "person.crop.rectangle")
                     .platformContentSymbolStyle()
             }
 
-            Section("请避免") {
-                Label("骚扰、人身攻击与恶意举报", systemImage: "xmark.circle")
+            Section(CommunityLibraryCopy.guidelinesDontHeader) {
+                Label(CommunityLibraryCopy.guidelineDontHarassment, systemImage: "xmark.circle")
                     .platformContentSymbolStyle()
-                Label("广告灌水、虚假活动信息", systemImage: "megaphone")
+                Label(CommunityLibraryCopy.guidelineDontSpam, systemImage: "megaphone")
                     .platformContentSymbolStyle()
-                Label("色情低俗、违法违规内容", systemImage: "exclamationmark.triangle")
+                Label(CommunityLibraryCopy.guidelineDontIllegal, systemImage: "exclamationmark.triangle")
                     .platformContentSymbolStyle()
             }
 
             Section {
-                Text("违规内容可在分享详情中举报。我们会尽快处理；恶意举报也可能影响账号权限。")
-                    .font(.footnote)
+                Text(CommunityLibraryCopy.guidelinesFooter)
+                    .font(PlatformListTypography.footnote)
                     .foregroundStyle(.secondary)
             }
         }
-        .navigationTitle("社区公约")
+        .navigationTitle(CommunityLibraryCopy.guidelinesTitle)
         .navigationBarTitleDisplayMode(.inline)
     }
 }

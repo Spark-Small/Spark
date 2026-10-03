@@ -1,7 +1,7 @@
 # 坐标系 · 愿景（V1）
 
 > 参考苹果「为人做体验」、谷歌「一句话说清组织什么、为何有用」的写法。  
-> 本文件为**第一版正式愿景**；产品结构见 [AppArchitecture.md](AppArchitecture.md)。
+> 本文件为**愿景原文**；产品结构与现行规范见 [`../Project/`](../Project/README.md)（`00`/`01`）。历史结构长图附录：[AppArchitecture.md](AppArchitecture.md)。
 
 ---
 

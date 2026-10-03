@@ -1,51 +1,31 @@
-# 坐标系 · 产品需求文档（PRD · V1）
+# 坐标系 · 产品需求文档（PRD · V1）（附录）
 
-> **版本**：V1.1 · 2026-09-01  
-> **读者**：产品、设计、工程、测试  
-> **定位**：把 [Vision.md](Vision.md) 的愿景落成可验收的功能需求。  
-> **平台基准**：以 [Apple Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines/)、[SwiftUI](https://developer.apple.com/documentation/swiftui/)、[SwiftData](https://developer.apple.com/documentation/swiftdata/) 官方推荐为默认约束；UI 细则见 [DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md)，工程落点见 [AppArchitecture.md](AppArchitecture.md)。
+> **裁决**：V1 范围与验收口径以 [`../Project/01_PRODUCT_SPEC.md`](../Project/01_PRODUCT_SPEC.md) 为准；流程 `02`、上线 `16`。  
+> **本文角色**：历史 FR 长表与技控对照的**附录**；新行为先改 Project/01，再视需要回写本文。  
+> **版本**：正文内 V1.1 · 2026-09-01 为历史标注；**降级同步 2026-09-30**。  
+> 愿景原文：[Vision.md](Vision.md)。视觉附录：[DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md)（裁决 Project/05+12）。
 
 ---
 
 ## 1. 文档关系（读哪份）
 
 ```
-Vision（为什么做）
-  └─ PRD（做什么、做到什么算完成）← 本文
-       ├─ UserJourneyTechControl（用户 0→1 旅程与技控节点）
-       ├─ BuddiesProductPlan（搭子域 IA 细则）
-       ├─ TrustBehaviorModel（信任域事件与展示）
-       ├─ DESIGN_SYSTEM（HIG 落地的组件与反模式）
-       └─ AppArchitecture（怎么在代码里长出来）
-            └─ DevelopmentGuide（工程规范与开发流程）
+Project/00–21（现行规范唯一入口）
+  ├─ 01 产品 · 02 流程 · 16 上线 …
+  └─ 本文与 Vision / 域计划 = 附录深读
 ```
 
 | 我要… | 打开 |
 |--------|------|
-| 判断功能是否该做 | 本文 §2.4 + §3 FR 表 |
-| 技控节点落地 | 本文 §5 + UserJourney |
-| 对齐 Apple 官方模式 | 本文 §2.5–§2.6 + DESIGN_SYSTEM |
-| 写验收标准 | 本文 §5 技控对照 + §7 模板 + [UserJourneyTechControl.md](UserJourneyTechControl.md) |
-| 搭子 Tab 信息架构 | [BuddiesProductPlan.md](BuddiesProductPlan.md) |
-| 信任 / 信用展示 | [TrustBehaviorModel.md](TrustBehaviorModel.md) |
-| 改导航 / 深链 / 代码落点 | [AppArchitecture.md](AppArchitecture.md) |
-| 写 Swift / 提 PR | [DevelopmentGuide.md](DevelopmentGuide.md) |
+| 判断功能是否该做（现行） | [Project/01](../Project/01_PRODUCT_SPEC.md) |
+| 历史 FR 长表 | 本文 §3（冲突以 Project/01 为准） |
+| 技控 / 旅程心理 | [UserJourneyTechControl.md](UserJourneyTechControl.md)（≠实现清单） |
+| 搭子 IA 细则 | [BuddiesProductPlan.md](BuddiesProductPlan.md) |
+| 信任事件细则 | [TrustBehaviorModel.md](TrustBehaviorModel.md) |
+| 导航 / 分层 / 工程 | [Project/07](../Project/07_ARCHITECTURE.md) · [11](../Project/11_NAVIGATION_SPEC.md) · [21](../Project/21_ENGINEERING_WORKFLOW.md) |
+| 写 Swift / 提 PR | [Project/15](../Project/15_TEST_SPEC.md) · [21](../Project/21_ENGINEERING_WORKFLOW.md) |
 
-### 1.1 官方文档索引（实现时查阅）
-
-| 领域 | Apple 官方入口 | 本项目落点 |
-|------|----------------|------------|
-| 设计原则 | [HIG](https://developer.apple.com/design/human-interface-guidelines/) | DESIGN_SYSTEM §1 |
-| 导航与模态 | [HIG · Navigation](https://developer.apple.com/design/human-interface-guidelines/navigation) / [Modality](https://developer.apple.com/design/human-interface-guidelines/modality) | AppArchitecture §2、DevelopmentGuide §5 |
-| 无障碍 | [Accessibility](https://developer.apple.com/accessibility/) | 本文 NFR-A11Y |
-| SwiftUI 结构 | [SwiftUI App organization](https://developer.apple.com/documentation/swiftui/managing-model-data-in-your-app) | `@Observable` + `@Environment` |
-| 数据持久化 | [SwiftData](https://developer.apple.com/documentation/swiftdata/) · [VersionedSchema](https://developer.apple.com/documentation/swiftdata/versionedschema) | `AppSwiftDataSchema` |
-| 钱包凭证 | [PassKit](https://developer.apple.com/documentation/passkit/) · [AddPassToWalletButton](https://developer.apple.com/documentation/passkit/addpasstowalletbutton) | `Services/PassKit/` |
-| 订阅 / IAP | [StoreKit 2](https://developer.apple.com/documentation/storekit/) | `MembershipStore` |
-| 通知与深链 | [UserNotifications](https://developer.apple.com/documentation/usernotifications/) | `AppNotificationRouter` |
-| 隐私与权限 | [HIG · Privacy](https://developer.apple.com/design/human-interface-guidelines/privacy) | 权限链、Preference Store |
-| 并发 | [Swift Concurrency](https://developer.apple.com/documentation/swift/swift-standard-library/concurrency) | `@MainActor`（UI）/ `@ModelActor`（SwiftData 写） |
-| UI 控件尺寸 | SwiftUI Layout + PreferenceKey | `PlatformChromeMeasurements`（禁止静态 UIKit 探测） |
+> 下文若仍写「以本文 / AppArchitecture / DevelopmentGuide 为总规范」→ 作废，以 Project 为准。
 
 ---
 
@@ -83,7 +63,7 @@ flowchart LR
 | 角色 | 诉求 | 主路径 |
 |------|------|--------|
 | **参加者** | 周末有具体局可跟，少组局成本 | 活动发现 → 详情 → 参加 → 群聊 / 凭证 |
-| **发起人** | 快速发局、管名额、取消有兜底 | 发起活动 → 管理 → 群聊同步 |
+| **发起人** | 快速发局、管名额、取消有兜底 | 发起活动（草稿 → 预览 → 发布）→ 管理 → 群聊同步 |
 | **同好** | 不花钱找人玩、邀约去某场 | 搭子免费 → 打招呼 / 邀约 |
 | **预约用户** | 花钱买到可预期陪伴 / 技能服务 | 搭子预约 → 选档 → 支付 → 履约凭证 |
 | **内容消费者** | 看复盘 / 种草，关联活动 | 广场浏览 → 互动 → 可选跳转活动 |
@@ -125,13 +105,13 @@ flowchart LR
 |------------|------------|-------------------|
 | 活动 / 搭子发现 | **App Store Today** + **Photos** | 分区货架、Hero、横滑轨；Zoom 进详情（`matchedTransitionSource`） |
 | 活动 / 搭子详情 | **Settings · Form** | `Form` + `LabeledContent` 决策行；长文下沉 Section |
-| 五 Tab 根 | **系统 TabView** | `inlineLarge` 标题；Tab 折叠交给系统 |
+| 五 Tab 根 | **系统 TabView** | `inlineLarge` + `platformTabRoot*`；活动另加分类 `toolbarTitleMenu`；Tab 折叠交给系统 |
 | 消息收件箱 | **Messages** | 统一列表；左通讯录、右加号；无品牌气泡皮 |
 | 广场 Feed | **News / 系统 List** | 标准列表密度；非电商货架 |
 | 我的 / 设置 | **Settings** | `List`/`Form` 分组；destructive 用 `.destructive` role |
 | 活动 / 陪玩凭证 | **Wallet / PassKit** | `AddPassToWalletButton`；夹 → 展开票面 → 系统 Wallet |
 | 会员 | **StoreKit 订阅页** | 产品信息 + 恢复购买；无网演示走钱包兜底 |
-| 欢迎引导 | **半屏 Sheet**（非全屏 onboarding） | 可跳过；与资料 bootstrap 状态分离 |
+| 欢迎引导 | **半屏 Sheet**（非全屏 onboarding） | 可跳过；**兴趣标签**在登录后独立页采集，与意图引导分离 |
 | 空态 | **ContentUnavailableView** | 系统图标 + 标题 + 可选主操作 |
 
 ---
@@ -212,7 +192,7 @@ flowchart LR
 | ID | 需求 | 验收要点 | Apple 参照 | 无障碍 | 状态 |
 |----|------|----------|------------|--------|------|
 | FR-PRO-01 | 编辑资料与兴趣 | `InterestTaxonomyFormEditor` | Settings 账号页 | Form 字段均有 label | ✅ |
-| FR-PRO-02 | 访客/登录/协议分离 | 协议勾选独立于登录按钮 | HIG 同意流程 | — | ✅ |
+| FR-PRO-02 | 硬登录墙 + 协议分离 | 未登录仅 Login；协议勾选独立；已登录协议升级走 LegalConsentGate | HIG 同意流程 | — | ✅ |
 | FR-PRO-03 | 会员（StoreKit + 兜底） | 恢复购买；演示钱包开通 | StoreKit 订阅 | 价格与条款可读 | ✅ 🔄 |
 | FR-PRO-04 | 钱包充值/支付 | 余额与流水 Form 展示 | Wallet 余额页 | — | ✅ 🔄 |
 | FR-PRO-05 | 订单与退款 | `RefundFlowService` | 订单详情 + 申请 | destructive 确认 | ✅ 🔄 |
@@ -342,9 +322,9 @@ flowchart LR
 
 | 字段 | 语义 | 勿用于 |
 |------|------|--------|
-| `welcomeGuide.hasSeenGuide` | 欢迎半屏**已看过** | 资料/bootstrap |
-| `hasCompletedWelcomeBootstrap` | 默认兴趣**已写入** | UI 是否弹引导 |
-| `ProfileSnapshot.hasCompletedOnboarding` | 同上（JSON 历史键名） | — |
+| `welcomeGuide.hasSeenGuide` | 欢迎半屏**已看过** | 意图落地 |
+| `hasCompletedInterestSelection`（持久化键 `hasCompletedOnboarding`） | **兴趣标签**已由兴趣选择页写入 | 是否拦截在 InterestOnboardingView |
+| `hasCompletedWelcomeBootstrap` | 旧别名 → `hasCompletedInterestSelection` | 新代码勿用 |
 | `AppRouter.pending*`（如 `pendingActivityID`） | 跨 Tab **待消费**深链 | 持久业务状态 |
 | `joinedIDs` / `waitlistIDs` | 活动参加/候补 | 搭子预约 |
 | `bookingRecords` | 陪玩预约履约快照 | 活动订单 |

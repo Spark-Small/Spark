@@ -38,6 +38,11 @@ struct PlatformToolbarPrincipalCaption: View {
 }
 
 extension View {
+    /// 导航栏图标：系统语义色（`.primary`），隔离页面品牌 `.tint`。
+    func platformNavigationBarItemChrome() -> some View {
+        tint(.primary)
+    }
+
     /// 处理中遮罩：Metrics 只在 Design 消费；降低透明度时用不透明底。
     func platformProcessingOverlayChrome() -> some View {
         self
@@ -52,6 +57,19 @@ extension View {
         safeAreaBar(edge: .bottom, spacing: 0, content: bar)
     }
 
+    /// 分类 chip 顶条（可选）：与导航栏 / soft scroll edge 材质联动。
+    /// Tab 根若叠 `searchable`，`safeAreaBar(.top)` 易被吃掉高度；改用 `safeAreaInset`。
+    /// 广场 Feed 已改为 List 首 Section 挂载 chip（对齐通知中心），一般不再使用本 API。
+    func platformCategoryChipTopBar<Bar: View>(
+        @ViewBuilder bar: () -> Bar
+    ) -> some View {
+        safeAreaInset(edge: .top, spacing: 0) {
+            bar()
+                .frame(maxWidth: .infinity)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     /// 详情底栏悬浮 CTA 水平边距（Features 不手写 token）
     func activityDetailBottomBarChrome() -> some View {
         self.padding(.horizontal, PlatformMetrics.contentInset)
@@ -59,7 +77,7 @@ extension View {
 
     /// 媒体角上控件 inset（头图 chip / 相册编辑钮）
     func platformMediaChromeInset() -> some View {
-        self.padding(PlatformMetrics.contentInset)
+        self.padding(PlatformMetrics.mediaChromeInset)
     }
 
     /// 相关活动缩略图

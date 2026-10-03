@@ -201,14 +201,15 @@ enum ProfileSocialStats {
         if name.caseInsensitiveCompare(app.user.name) == .orderedSame {
             return app.followedUserNames.count
         }
-        return SampleData.author(named: name).hostedCount
+        // 无他人关注图：不注 Sample 假数。
+        return 0
     }
 
     static func fansCount(for name: String, app: AppModel) -> Int {
-        var fans = SampleData.author(named: name).joinedCount
-        if name.caseInsensitiveCompare(app.user.name) != .orderedSame, app.isFollowing(name) {
-            fans += 1
+        if name.caseInsensitiveCompare(app.user.name) == .orderedSame {
+            // 无反向粉丝图：仅本机可知边，Release 不注 Sample。
+            return 0
         }
-        return fans
+        return app.isFollowing(name) ? 1 : 0
     }
 }

@@ -17,6 +17,8 @@ struct BuddyInviteSheet: View {
     let nickname: String
     let activities: [Activity]
     var onSent: ((Activity, String?) -> Void)?
+    /// 无可邀约活动时：切到活动 Tab（由宿主关闭 Sheet）
+    var onBrowseActivities: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
 
@@ -76,12 +78,22 @@ struct BuddyInviteSheet: View {
                 Label(BuddyBookingFlowCopy.inviteEmptyTitle, systemImage: "calendar.badge.plus")
             } description: {
                 Text(BuddyBookingFlowCopy.inviteEmptyBody)
+            } actions: {
+                Button(BuddyBookingFlowCopy.inviteEmptyBrowseActivities) {
+                    dismiss()
+                    onBrowseActivities?()
+                }
+                .activityPrimaryCTA(controlSize: .large)
+                Button(BuddyBookingFlowCopy.inviteEmptyDismiss) {
+                    dismiss()
+                }
+                .activitySecondaryCTA(controlSize: .large)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List {
                 Section {
-                    Text("邀请 \(nickname) 一起参加")
+                    Text(BuddyBookingFlowCopy.inviteSelectPrompt(nickname: nickname))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -96,7 +108,7 @@ struct BuddyInviteSheet: View {
                         .buttonStyle(.plain)
                     }
                 } header: {
-                    Text("选择活动")
+                    Text(BuddyBookingFlowCopy.invitePickActivity)
                 } footer: {
                     Text(BuddyBookingFlowCopy.inviteConfirmHint)
                 }
@@ -110,24 +122,24 @@ struct BuddyInviteSheet: View {
     private func confirmContent(_ activity: Activity) -> some View {
         Form {
             Section {
-                LabeledContent("邀请对象", value: nickname)
-                LabeledContent("活动") {
+                LabeledContent(BuddyBookingFlowCopy.inviteTarget, value: nickname)
+                LabeledContent(BuddyBookingFlowCopy.inviteActivity) {
                     Text(activity.title)
                         .multilineTextAlignment(.trailing)
                 }
-                LabeledContent("时间") {
+                LabeledContent(BuddyBookingFlowCopy.inviteTime) {
                     Text(Formatters.activityEventTime(from: activity.date))
                 }
-                LabeledContent("地点") {
+                LabeledContent(BuddyBookingFlowCopy.invitePlace) {
                     Text(activity.location)
                         .multilineTextAlignment(.trailing)
                 }
-                LabeledContent("费用", value: activity.fee)
+                LabeledContent(BuddyBookingFlowCopy.inviteFee, value: activity.fee)
             } footer: {
                 Text(BuddyBookingFlowCopy.inviteConfirmHint)
             }
 
-            Section("留言") {
+            Section(BuddyBookingFlowCopy.inviteNoteSection) {
                 TextField(
                     BuddyBookingFlowCopy.inviteNotePlaceholder,
                     text: $note,

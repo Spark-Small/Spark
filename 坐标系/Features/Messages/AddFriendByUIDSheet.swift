@@ -44,7 +44,7 @@ struct AddFriendByUIDSheet: View {
                 } header: {
                     Text(MessagesCopy.addFriendByUIDField)
                 } footer: {
-                    VStack(alignment: .leading, spacing: PlatformMetrics.sectionSubtitleSpacing) {
+                    VStack(alignment: .leading, spacing: PlatformMessagesChrome.stackSpacing) {
                         Text(MessagesCopy.addFriendByUIDFooter)
                         Text("我的 UID：\(app.user.publicUIDDisplay)")
                     }

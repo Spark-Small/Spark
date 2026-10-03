@@ -3,6 +3,7 @@
 //  坐标系
 //
 //  兴趣圈子加入链路 Sheet（确认 → 成功）；同一 NavigationStack 只注册一份。
+//  不在 Sheet 上 `.environment(AppModel)`，避免与 Tab 根 Observation 叠加重绘卡死。
 //
 
 import CoordinateModels
@@ -12,12 +13,20 @@ extension View {
     /// 兴趣圈子加入链路 Sheet（确认 → 成功；成功后可进群聊）
     func buddyOrgJoinChrome(
         buddies: BuddiesModel,
+        messages: MessagesModel,
+        memberName: String,
+        blockedUserNames: Set<String>,
+        onBrowseBuddies: (() -> Void)? = nil,
         openCircle: ((InterestCircle) -> Void)? = nil,
         openConversation: ((UUID) -> Void)? = nil
     ) -> some View {
         modifier(
             BuddyOrgJoinChromeModifier(
                 buddies: buddies,
+                messages: messages,
+                memberName: memberName,
+                blockedUserNames: blockedUserNames,
+                onBrowseBuddies: onBrowseBuddies,
                 openCircle: openCircle,
                 openConversation: openConversation
             )
@@ -38,12 +47,14 @@ extension EnvironmentValues {
 
 private struct BuddyOrgJoinChromeModifier: ViewModifier {
     @Bindable var buddies: BuddiesModel
+    var messages: MessagesModel
+    var memberName: String
+    var blockedUserNames: Set<String>
+    var onBrowseBuddies: (() -> Void)?
     var openCircle: ((InterestCircle) -> Void)?
     var openConversation: ((UUID) -> Void)?
 
     @Environment(\.hasBuddyOrgJoinChrome) private var registered
-    @Environment(MessagesModel.self) private var messages
-    @Environment(AppModel.self) private var app
 
     func body(content: Content) -> some View {
         if registered {
@@ -51,7 +62,7 @@ private struct BuddyOrgJoinChromeModifier: ViewModifier {
         } else {
             content
                 .environment(\.hasBuddyOrgJoinChrome, true)
-                .sheet(item: $buddies.pendingOrgJoin) { target in
+                .sheet(item: $buddies.presentation.pendingOrgJoin) { target in
                     BuddyOrgJoinConfirmSheet(
                         target: target,
                         onConfirm: { confirmJoin(target) },
@@ -59,7 +70,7 @@ private struct BuddyOrgJoinChromeModifier: ViewModifier {
                     )
                     .toolbarVisibility(.hidden, for: .tabBar)
                 }
-                .sheet(item: $buddies.pendingOrgJoinSuccess) { success in
+                .sheet(item: $buddies.presentation.pendingOrgJoinSuccess) { success in
                     BuddyOrgJoinSuccessSheet(
                         success: success,
                         hasConversation: buddies.pendingOpenConversationID != nil,
@@ -77,10 +88,18 @@ private struct BuddyOrgJoinChromeModifier: ViewModifier {
                     )
                     .toolbarVisibility(.hidden, for: .tabBar)
                 }
-                .sheet(item: $buddies.pendingOrgInvite) { target in
-                    BuddyOrgInviteMembersSheet(target: target) { names in
-                        buddies.sendOrgInvites(nicknames: names)
-                    }
+                .sheet(item: $buddies.presentation.pendingOrgInvite) { target in
+                    BuddyOrgInviteMembersSheet(
+                        target: target,
+                        viewerName: memberName,
+                        blockedUserNames: blockedUserNames,
+                        onSend: { names in
+                            buddies.sendOrgInvites(nicknames: names)
+                        },
+                        onBrowseBuddies: onBrowseBuddies
+                    )
+                    .environment(buddies)
+                    .environment(messages)
                     .toolbarVisibility(.hidden, for: .tabBar)
                 }
         }
@@ -89,7 +108,7 @@ private struct BuddyOrgJoinChromeModifier: ViewModifier {
     private func confirmJoin(_ target: BuddyOrgJoinTarget) {
         guard buddies.confirmJoin() != nil else { return }
         if case .circle(let circle) = target {
-            if let convo = messages.startCircleChat(for: circle, memberName: app.user.name) {
+            if let convo = messages.startCircleChat(for: circle, memberName: memberName) {
                 buddies.attachJoinConversation(convo.id)
             }
         }

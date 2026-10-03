@@ -31,6 +31,15 @@ extension AppModel {
         mapNavigationActivity = activity
     }
 
+    /// 无行程空态 / 发现引导：切到活动 Tab、套用发现落地筛选，并滚到货架顶部。
+    func focusActivitiesDiscoverBrowse() {
+        selectedTab = .activities
+        activitiesDiscoverBrowseFocusToken += 1
+        if let message = activities.applyDiscoverPromoLanding() {
+            activities.flashLight(message)
+        }
+    }
+
     /// 通知 / 深链：切到活动 Tab 并打开详情
     func openActivity(_ id: Activity.ID) {
         router.apply(.activity(id), selectedTab: &selectedTab)
@@ -46,7 +55,31 @@ extension AppModel {
     }
 
     func handleNotificationDeepLink(_ link: NotificationDeepLink) {
+        if case .communityPost(let id) = link {
+            openCommunityPost(id)
+            return
+        }
         guard let deepLink = AppDeepLink(notification: link) else { return }
         router.apply(deepLink, selectedTab: &selectedTab)
+    }
+
+    /// 广场帖深链：独立 Tab 或软启动活动栈（单层栈，无嵌套 NavigationStack）。
+    func openCommunityPost(_ id: CommunityPost.ID) {
+        pendingCommunityPostID = id
+        if productLifecycleStore.shouldMergeCommunityIntoActivitiesTab {
+            selectedTab = .activities
+        } else {
+            selectedTab = .community
+        }
+    }
+
+    /// 软启动：打开活动 Tab 内嵌广场 Feed（浏览入口，非单帖深链）。
+    func openEmbeddedCommunityFeed() {
+        guard productLifecycleStore.shouldMergeCommunityIntoActivitiesTab else {
+            selectedTab = .community
+            return
+        }
+        pendingOpenEmbeddedCommunityFeed = true
+        selectedTab = .activities
     }
 }

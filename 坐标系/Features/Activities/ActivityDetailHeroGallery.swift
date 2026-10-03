@@ -2,7 +2,7 @@
 //  ActivityDetailHeroGallery.swift
 //  坐标系
 //
-//  活动详情 Hero 相册。
+//  活动详情 Hero 相册：多图分页滑动；无点按 / 计数芯片全屏预览。
 //
 
 import SwiftUI
@@ -13,64 +13,58 @@ import CoordinateModels
 struct ActivityDetailHeroGallery: View {
     let activity: Activity
     var onEditGallery: (() -> Void)?
-
-    @State private var preview: CommunityPhotoDestination?
+    /// 发起预览：覆盖 store 中的配图文件名（不含封面）。
+    var galleryExtraNames: [String]? = nil
 
     private var photos: [CommunityPhotoRef] {
-        ActivityDetailContentStore.galleryPhotos(for: activity)
+        ActivityDetailContentStore.galleryPhotos(
+            for: activity,
+            galleryExtraNames: galleryExtraNames
+        )
     }
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            Button {
-                openPreview(at: 0)
-            } label: {
-                photoLayer
-                    .clipShape(PlatformMetrics.cardShape)
-                    .contentShape(PlatformMetrics.cardShape)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("查看活动相册")
+            photoLayer
+                .clipShape(PlatformMetrics.cardShape)
+                .contentShape(PlatformMetrics.cardShape)
+                .accessibilityLabel(ActivityDetailCopy.heroGalleryA11y)
 
-            // 控件单独一层，避免被头图点击抢走
-            HStack() {
-                if photos.count > 1 {
-                    Button {
-                        openPreview(at: 0)
-                    } label: {
-                        Label(CommunityMediaCopy.countChip(photos), systemImage: "photo.on.rectangle.angled")
-                    }
-                    .labelStyle(.titleAndIcon)
-                    .activityGlassChip()
+            if let onEditGallery {
+                Button(action: onEditGallery) {
+                    Label("编辑相册", systemImage: "square.and.pencil")
                 }
-
-                if let onEditGallery {
-                    Button(action: onEditGallery) {
-                        Label("编辑相册", systemImage: "square.and.pencil")
-                    }
-                    .labelStyle(.titleAndIcon)
-                    .activityGlassChip()
-                }
+                .labelStyle(.titleAndIcon)
+                .activityGlassChip()
+                .platformMediaChromeInset()
             }
-            .platformMediaChromeInset()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .communityPhotoCover($preview)
     }
 
-    private func openPreview(at index: Int) {
-        guard !photos.isEmpty else { return }
-        preview = CommunityPhotoDestination(photos: photos, startIndex: index)
-    }
-
-    /// 与发现卡同源单帧封面；多图进全屏查看器翻页
     @ViewBuilder
     private var photoLayer: some View {
-        if let first = photos.first {
+        if photos.count > 1 {
+            TabView {
+                ForEach(Array(photos.enumerated()), id: \.offset) { index, ref in
+                    CommunityRemotePhoto(ref: ref)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
+                        .accessibilityLabel(
+                            ActivityDetailCopy.heroGalleryPageA11y(
+                                index: index + 1,
+                                total: photos.count
+                            )
+                        )
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .automatic))
+            .accessibilityElement(children: .contain)
+            .accessibilityHint(ActivityDetailCopy.heroGallerySwipeHint)
+        } else if let first = photos.first {
             CommunityRemotePhoto(ref: first)
         } else {
             CommunityRemotePhoto(ref: .seeded(seed: activity.coverSeed, symbol: activity.coverSymbol))
         }
     }
 }
-

@@ -1,21 +1,23 @@
-# 坐标系 · 开发规范与工作流程
+# 坐标系 · 开发规范与工作流程（附录）
 
-> **版本**：2026-09-02（§6.4 活动行程凭证与 CredentialArt；§2 目录增补 Credential 路径）  
-> **读者**：iOS 工程师、Reviewer、AI Agent  
-> **配套**：[AppArchitecture.md](AppArchitecture.md)（结构地图）、[PRD.md](PRD.md)（做什么）、[DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md)（怎么做 UI）
+> **裁决**：现行工程规范在 [`../Project/`](../Project/README.md)（架构 `07`、测试 `15`、流程 `21`、平台 `06`）。  
+> **本文角色**：历史工程长文（并发、拆分笔记等）**附录**；「开发前必读 / PR 流程 / 分层」以 Project 为准，冲突时改 Project 或删本文过时句，**禁止**把本文当现行总规范。  
+> **版本标注**：正文内旧日期仅作历史；**同步降级 2026-09-30**。  
+> 配套附录：[AppArchitecture.md](AppArchitecture.md) · 视觉 [DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md)（裁决见 Project/05+12）
 
 ---
 
-## 1. 开发前必读
+## 1. 开发前必读（现行）
 
 | 顺序 | 文档 | 目的 |
 |------|------|------|
-| 1 | [PRD.md](PRD.md) | 功能是否在 V1 范围、验收标准、**Apple HIG 参照（§2.6）** |
-| 2 | [AppArchitecture.md](AppArchitecture.md) | 代码落点、导航、持久化、DI |
-| 3 | [DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md) | 组件、CTA、反模式 |
-| 4 | 域细则 | 搭子 → [BuddiesProductPlan.md](BuddiesProductPlan.md)；信任 → [TrustBehaviorModel.md](TrustBehaviorModel.md) |
+| 1 | [Project/00](../Project/00_PROJECT_CHARTER.md) → [01](../Project/01_PRODUCT_SPEC.md) | 是否在 V1、验收口径 |
+| 2 | [Project/07](../Project/07_ARCHITECTURE.md) · [11](../Project/11_NAVIGATION_SPEC.md) | 分层、导航 |
+| 3 | [Project/05](../Project/05_UI_SPEC.md) · [12](../Project/12_COMPONENT_SPEC.md) | UI / 组件；像素附录 DESIGN_SYSTEM |
+| 4 | [Project/15](../Project/15_TEST_SPEC.md) · [21](../Project/21_ENGINEERING_WORKFLOW.md) | 测试与 PR / AI 纪律 |
+| 5 | 域附录（可选） | 搭子 [BuddiesProductPlan.md](BuddiesProductPlan.md)；信任 [TrustBehaviorModel.md](TrustBehaviorModel.md) |
 
-**原则**：先对齐需求与架构，再写代码；UI 改动必须过设计系统自检；**所有 UI / UIKit 操作在 MainActor**（见 §7）。
+以下原 §1 表格与「Docs 为产品+工程文档中心」表述已作废，仅保留后文技术笔记供检索。
 
 ---
 
@@ -35,7 +37,8 @@
 ├── Packages/CoordinateKit/    # SPM：Models / Domain / Data / Networking / Flags
 ├── 坐标系Tests/               # App 集成测试
 ├── Scripts/check-imports.sh   # 模块边界 CI
-└── Docs/                      # 产品 + 工程文档（本目录）
+├── Project/                   # 现行开发规范 00–21
+└── Docs/                      # 附录 / 归档（见 Docs/README.md）
 ```
 
 ### 2.1 分层职责
@@ -209,9 +212,9 @@ NavigationStack(path: $navigation.path) {
 | Model 多职责 | 按 `+Browse` / `+Participation` 拆 |
 | View 含动作+内容 | 拆具名子 View（编排器持 `@State`）+ 可选 `*View+Actions` |
 
-巨型文件拆分批次、验收与进度见 **[GiantFileSplitPlan.md](GiantFileSplitPlan.md)**（对齐 Swift API Design Guidelines：一文件一主类型）。
+巨型文件：一文件一主类型、单文件目标 ≤ ~400 行（Swift API Design Guidelines）。拆分时纯结构搬家，不改产品逻辑。
 
-诚实门控收口后的剩余客户端 Wave（隐私 URL、Gateway 写串行、CI、reduceMotion、文本过滤）见 **[RemainingReleaseClientPlan.md](RemainingReleaseClientPlan.md)**。
+诚实门控与软启动边界见 **[Project/16](../Project/16_RELEASE_CHECKLIST.md)** · **[Project/06](../Project/06_PLATFORM_SPEC.md)**（短桩 SoftLaunchConventions 仅跳转）；登录 / 活动代码地图见 **[AuthModule.md](AuthModule.md)** · **[ActivitiesModule.md](ActivitiesModule.md)**（附录）。
 
 ### 6.3 Observation
 
@@ -439,7 +442,7 @@ PhotosPicker(...) {
 
 | 场景 | 参考实现 |
 |------|----------|
-| 活动封面 | `ActivityComposeSheet` |
+| 活动封面 | `ActivityComposeSheet`（单页 Form + `ActivityComposeDraft` / 可选封面） |
 | 资料头像 | `EditProfileSheet` |
 | 举报 / 投诉证据 | `ActivityReportSheet`、`BuddyOrgReportSheet` |
 | 社区发帖媒体 | `CommunityComposeSheet` |

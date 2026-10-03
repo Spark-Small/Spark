@@ -220,7 +220,7 @@ struct ProfileSettingsView: View {
         let hasOrders = !ActivityPaymentStore.allOrders().isEmpty
             || !buddies.bookingRecords.isEmpty
         return lifecycle.eligibleTips(
-            isGuest: app.auth.isGuest,
+            isGuest: false,
             profileComplete: ProfileCompletion.ratio(for: app.user) >= 0.8,
             hasOrders: hasOrders
         )

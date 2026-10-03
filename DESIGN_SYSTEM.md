@@ -1,9 +1,10 @@
-# 坐标系 Design System
+# 坐标系 Design System（视觉附录）
 
-> 基于活动版块实现沉淀的产品级设计规范。  
+> **裁决**：原则与组件职责以 [`Project/05_UI_SPEC.md`](Project/05_UI_SPEC.md) + [`Project/12_COMPONENT_SPEC.md`](Project/12_COMPONENT_SPEC.md) 为准；冲突时改代码与这两份，再回写本文。  
+> **本文角色**：像素级 token / 组件长文的**实现附录**，不是现行总规范。  
 > 原则：**Apple 原生 · SwiftUI First · HIG · App Store Today 编排 · Apple TV 沉浸 · Apple Music 留白**。  
 > 系统级：**业务少决策、多交给系统容器**；命名间距留给 Design 与系统读不到的几何，不是追求零 Metrics。  
-> 实现源码锚点：`Design/PlatformSemantics.swift`（语义色）、`Design/PlatformMetrics.swift`、`Design/PlatformChromeMeasurements.swift`（运行时控件边长）、`Design/PlatformListAvatar.swift`、`Design/PlatformToolbarChrome.swift`、`Design/PlatformConversationListChrome.swift`、`Design/PlatformActivityChrome.swift`、`Design/PlatformMessagesChrome.swift`、`Design/PlatformCatalogCards.swift`、`Design/ActivityZoomNavigation.swift`、`Design/WalletPassFace.swift`、`Design/WalletPassStack.swift`、`Design/CredentialArt/**`、`Features/Activities/**`、`Features/Profile/Credential/**`、`Features/Profile/ProfileCredentialCards.swift`、`Features/Profile/ProfileCredentialFolderViews.swift`、`Features/Profile/ActivityCredentialExpandedView.swift`、`Services/PassKit/**`。
+> 实现源码锚点：`Design/PlatformSemantics.swift`（语义色）、`Design/PlatformMetrics.swift`、`Design/PlatformChromeMeasurements.swift`（运行时控件边长）、`Design/PlatformListAvatar.swift`、`Design/PlatformToolbarChrome.swift`、`Design/PlatformConversationListChrome.swift`、`Design/PlatformActivityChrome.swift`、`Design/PlatformMessagesChrome.swift`、`Design/PlatformCatalogCardChrome.swift` / `ContinueCards` / `PosterCard` / `EditorialCard`、`Design/PlatformMediaLegibility.swift`、`Design/ActivityZoomNavigation.swift`、`Design/WalletPassFace.swift`、`Design/WalletPassStack.swift`、`Design/CredentialArt/**`、`Features/Activities/**`、`Features/Profile/Credential/**`、`Features/Profile/ProfileCredentialCards.swift`、`Features/Profile/ProfileCredentialFolderViews.swift`、`Features/Profile/ActivityCredentialExpandedView.swift`、`Services/PassKit/**`。
 
 ---
 
@@ -19,7 +20,7 @@
 
 | 灵感来源 | 在坐标系中的落点 |
 |---------|------------------|
-| **App Store Today** | 发现页分区货架、精选 Hero、横滑轨、榜单海报、焦点大卡 |
+| **App Store Today** | 发现页分区货架、横滑轨、榜单海报、焦点大卡 |
 | **Apple TV** | 精选全宽沉浸、媒体穿顶、玻璃顶栏浮在内容上 |
 | **Apple Music** | 大留白、少装饰、分区节奏疏朗、转化区信息克制 |
 | **Photos** | 两侧圆形 glass + 中间双行胶囊顶栏；Zoom 进详情 |
@@ -30,7 +31,7 @@
 
 1. **SwiftUI First**：布局、导航、材质、动效优先系统 API。  
 2. **官方组件优先**：`NavigationStack`、`TabView`、`Form`/`List`、`Label`、`ButtonStyle.glass`、`ContentUnavailableView`、SF Symbols。  
-3. **单一品牌强调色**：`PlatformAction.brandAccent`（App Icon 四叶草紫瓣）；Tab tint、主 CTA、引导页强调。其余只用系统语义色（`primary` / `secondary` / `tint` / `Color(.system…)`）。  
+3. **系统强调色**：`Color.accentColor`（`PlatformAction.brandAccent` 仅为别名）。Tab / 主 CTA / 选中态跟随系统 tint，**不**挂自定义四叶草紫。其余用系统语义色（`primary` / `secondary` / `PlatformStatus`）。  
 4. **不自算沉浸**：顶栏显隐、scroll edge、Tab 折叠交给系统。  
 5. **转化优先**：详情首屏只保留决策信息；长说明下沉；禁止冗杂脚注干扰参加。  
 6. **一套节奏两套页面**：发现 = 媒体货架；详情 = Form 副标题行。  
@@ -38,7 +39,7 @@
 
 ## 1.4 反模式（禁止）
 
-- 自定义 HSB 色板（**除** `PlatformAction.brandAccent` 外）/ 奶油纸质风 / 报纸排版风  
+- 自定义 HSB 色板挂 `.tint` / 奶油纸质风 / 报纸排版风  
 - 手写 toast 浮层（用系统 `.alert` / `.confirmationDialog`）
 - 详情页穿状态栏的全幅沉浸（精选发现页除外）  
 - 固定 pt 字号、忽略 Dynamic Type  
@@ -79,7 +80,7 @@
 
 | Token | API | 用途 |
 |-------|-----|------|
-| `brandAccent` | `PlatformAction.brandAccent`（= `cloverPurple`） | **品牌色**：App Icon 四叶草紫瓣；五 Tab `.tint`、活动主 CTA、欢迎引导 |
+| `brandAccent` | `PlatformAction.brandAccent`（= `Color.accentColor`） | **系统强调色**别名；主 CTA / 选中态跟随环境 tint |
 | `groupedPage` | `Color(.systemGroupedBackground)` | 发现页、列表底 |
 | `canvas` | `Color(.systemBackground)` | 内容流、部分详情正文场景 |
 | `elevated` | `Color(.secondarySystemGroupedBackground)` | 分组上的卡片面 |
@@ -89,7 +90,7 @@
 | `success` / `warning` / `danger` | `.green` / `.orange` / `.red` | 名额、状态、破坏性操作 |
 | Fill 占位 | `tertiarySystemFill` → `secondarySystemFill` | 无图封面渐变 |
 
-**深色模式**：不另建色板。语义色与 Material 自动适配；媒体上的叠字使用 `.colorScheme(.dark)` 局部强制可读性。
+**深色模式**：不另建色板。语义色与 Material 自动适配。媒体信息栏：`platformMediaInfoBarChrome(_ style:)`（`PlatformMediaInfoBarStyle`：hero / standard / compact → ultraThin / thin / bar）；统一 `mediaChromeInset`；**不**强制 dark；文案 `.primary` / `.secondary`；CTA glass。大字号切图下堆叠，不叠字。
 
 ## 2.2 圆角（Continuous，由 grid 推导）
 
@@ -99,7 +100,7 @@
 | `radiusPoster` | ≈ 1.75×grid | `posterShape` | 跟进/热场横卡、榜单海报 |
 | `radiusCard` | ≈ 2.5×grid | `cardShape` | 发现大卡、处理遮罩 |
 | `radiusEditorial` | ≈ 3×grid | `editorialShape` | 焦点大卡 |
-| `fullBleed` | 0 | `fullBleedShape` | 精选 Hero 贴边 |
+| `fullBleed` | 0 | `fullBleedShape` | 全宽贴边媒体 |
 
 一律 `RoundedRectangle(..., style: .continuous)`。
 
@@ -249,44 +250,55 @@
 
 ## 5.2 Title 模式
 
-| 页面 | `navigationBarTitleDisplayMode` |
-|------|----------------------------------|
-| 活动发现 | `.inline`（Photos 式中间胶囊，不用 Large Title 抢 Hero） |
-| 搭子选人 | `.inline`（「筛选」· 中间「免费 \| 预约」·「我的预约」） |
-| 消息收件箱 | `.inline`（左通讯录 · 右加号；好友与群聊同列表） |
-| 广场 Feed | `.inline`（左更多：收藏 / 赞过 / 我的分享 / 转发 / 公约 · 右发分享） |
+| 页面 | 标题方案 |
+|------|----------|
+| Tab 根（五 Tab） | `platformTabRootScrollChrome` / `ListChrome`：`navigationTitle` + `.inlineLarge` + soft 顶边 + 栏材质联动；`platformTabRootToolbar`；Trailing 分组 + Badge；**无** `navigationSubtitle` / 回顶 / 空 principal / scroll-away |
+| 活动分类 / 搭子模式 | 另加 `platformTabRootTitleMenu`；`.inlineLarge` 下标题多为 leading（系统） |
 | 活动详情 | `.inline`（滚动后顶栏显示活动名；工具栏 glass 操作） |
 | Sheet / 二级列表 | `.inline` |
-| 需要层级列表且无 Hero 时 | 可用 `.large`（非活动发现默认） |
 
 ## 5.3 Toolbar
 
-**发现顶栏（Photos）**
+**五 Tab 根顶栏（统一契约）**
 
-- Leading：圆形 glass（分类菜单）  
-- Principal：无（不展示地点/温度）  
-- Trailing：圆形 glass（筛选等）  
-- `controlSize: .regular`  
+- 标题：系统 `navigationTitle` + `.inlineLarge`
+- 材质 / 边缘：`toolbarBackground(.automatic)` + `scrollEdgeEffectStyle(.soft, for: .top)`
+- Trailing：各 Tab 自有，经 `platformTabRootToolbar`；`ToolbarItemGroup` + `ToolbarSpacer` 分组；筛选生效换顶栏 SF Symbol；**生效时角标 = 当前筛选下列表会话条数**（与下方 List 同源）；全部时筛选钮无角标；陌生人计数挂在 Menu「陌生人信箱」行；好友申请角标在通讯录钮；图标 `.platformNavigationBarItemChrome()`（系统原色）
+- 强调色：系统 AccentColor；**禁止**挂自定义 clover `.tint`
+- 下拉刷新：发现 / 搭子 / 广场 / 消息 / 我的根页 `.refreshable`
+- 标题菜单：仅活动分类、搭子模式（`toolbarTitleMenu`）
+- **禁止**：手绘 NavigationBar；临时导航栏预览入口；空 principal；scroll-away；`navigationSubtitle`；回顶令牌；导航栏品牌紫 tint
 
-实现：`platformToolbarCircleStyle()`。
+实现：`platformTabRootScrollChrome` +（可选）`platformTabRootTitleMenu` + `platformTabRootToolbar` + `platformNavigationBarItemChrome`。
 
-**搭子选人顶栏**
+**五 Tab 间距骨架（摘要；细则见 `Project/05` §4.1）**
 
-- Leading：圆形 glass 筛选（`platformToolbarCircleStyle`）  
-- Principal：系统 **segmented**「免费 \| 预约」  
-- Trailing：圆形 glass「我的预约」+ 系统 `.badge`  
-- **预约**：「搭子·陪玩」品牌头 + 意图四入口 + Hero 匹配 + 热门轨 + 快捷三卡 + 擅长分类 + 排行榜 + 更多服务者；语音厅殿后
-- 搜索：系统 `.searchable`；排序：`PlatformFilterChipBar`
-- **免费**：「搭子·同好」头 +「为你精选」横滑 ≤4 +「更多附近」双列墙；附近/活跃平铺
-- 陪玩详情：分段「服务 / 资料 / 评价」；底栏私信 + 快速下单
+| Tab | 骨架 |
+|-----|------|
+| 活动 / 搭子 | 发现货架：`contentInset` 单 gutter；外层 `VStack(spacing: 0)` 放锚点 + 内层 `LazyVStack(sectionSpacing)`（与活动同构，避免大标题下双间距） |
+| 消息 / 广场 | plain List：subtitleCell 行距 + 系统 `listSectionSpacing`；广场内容页一律经 `CommunityLayout` helpers（`communityFeedChrome` / `communityRowToContentSpacing` / `communityInlineSpacing`），禁止 Features 手写 EdgeInsets / 默认栈 spacing / `.lineSpacing` |
+| 我的 | insetGrouped 系统页边与**默认**分节距；会员入口在服务区列表行；最近浏览不在此页（活动/搭子标题菜单） |
 
-**我的顶栏与身份区**
+**活动发现（统一顶栏 + 分类菜单）**
 
-- 顶栏 Leading：账号 `Menu`；访客显示「创建账号」，登录后显示「账号」
-- 顶栏 Trailing：系统设置入口
-- 身份区：头像 + 昵称 + `@账号`，整行进入编辑资料
-- 身份区下方：两个等宽大号系统按钮；左「开通会员」，右「我的钱包」
-- **钱包**：顶部银行卡面主卡；下方 Form 为支付设置与交易流水。活动票 / 陪玩凭证在「我的」内容库以凭证卡展示，不堆在钱包里。
+- `toolbarTitleMenu` 切换分类；Trailing：筛选 Menu + 发起
+- 首页无 Chip 条；分类切换后滚动回顶
+
+**搭子发现（统一顶栏 + 模式菜单）**
+
+- `toolbarTitleMenu` 切换找搭子 / 约陪玩 / 俱乐部（**不是** segmented principal）
+- Trailing：三模式 L1 筛选 + 深筛选 Sheet（找搭子 / 约陪玩 / 俱乐部条件分流）；**无** Tab 根 `.searchable`
+- 货架：单模式单 Hero；辅轨 ≤1；陪玩榜 Top3+查看全部
+
+**我的（统一顶栏）**
+
+- Trailing：通知 + 设置
+- 身份区：头像 + 昵称 + `@账号` → 编辑资料；认证徽章点进「我的认证」；社交三列
+- 待办（条件）：下一场 / 待处理订单
+- 服务：开通会员 / 会员中心 · 钱包 · 我的订单（无顶栏促销条）
+- 我的内容（≤4 行）：活动与行程 / 陪玩预约 / 俱乐部 / 广场内容 → 二级 Hub；创建俱乐部在俱乐部列表 trailing
+- 成为陪玩：设置 → 账号与安全
+- **钱包**：顶部银行卡面主卡；下方 Form 为支付设置与交易流水。活动票 / 陪玩凭证在内容库以凭证卡展示，不堆在钱包里。
 - **我的内容库**：活动 / 陪玩凭证均为 **长条凭证** 纵向叠放；Zoom 推入展开页用 **Form**：`ActivityJourneyCredentialFace` 票面（CredentialArt 头图 + 字段区）+ 安排/细则 `LabeledContent`；活动履约态含条码，结束后切换 **memento**（无条码）。主 CTA **分享纪念票**；**加入 Apple Wallet** 在「更多」菜单。陪玩页内含联系 / 订单操作 / 补发等。无中间履约预览页。已作废票不出现在预览。
 
 ### PassKit 凭证链路（可选导出 · 本机闭环）
@@ -315,8 +327,8 @@ Source(PassSourceFactory)
 
 签名证书与 Pass Builder **不进 App**；真机加入需开发者签名后放入 Signed 目录。
 
-- 一级内容库：我的活动 / 我的发布 / 我的俱乐部 / 我的陪玩预约卡片轨；**不含收藏聚合**
-- 收藏分域：广场分享 → 广场左上角 Menu「收藏的分享」；活动 → 活动页「更多」→「收藏的活动」
+- 一级内容库：活动与行程 / 陪玩预约 / 俱乐部 / 广场内容（各一行进二级）；**不含收藏聚合**
+- 收藏分域：广场分享 →「我的」→ 广场内容 →「收藏的分享」；活动 → **详情右上「更多」**（收藏活动；举报下方分隔 →「我的收藏」库）；发现主页不挂收藏入口
 - 栈内 push 目的地用 `.toolbarVisibility(.hidden, for: .tabBar)`。根页不写显隐。Sheet 不要改 Tab 显隐
 - Accessibility Dynamic Type：圈子海报卡可切图下堆叠；活动 / 陪玩 / 发布凭证以票面叠字为主（`ProfileCredentialCards`）
 
@@ -354,7 +366,7 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
 
 | 类型 | 用途 | 比例 | 圆角 | 布局要点 |
 |------|------|------|------|----------|
-| **Featured Hero** | 发现顶栏精选 | 3:4 | 0 全宽 | 穿顶；底栏信息 + 参加；Zoom source |
+| **Featured Hero** | 发现顶栏精选 | 4:5 | card | 底栏 Material 信息 + 参加；Zoom source |
 | **Discover 竖大卡** | 兴趣/品类流 | 16:9 | 20 | 封面叠字或 a11y 图下堆叠 |
 | **Continue / Hot 横卡** | 跟进、热场轨 | 16:9 | 14 | 轨宽 ~0.86；底栏同 Hero 结构 |
 | **Poster 榜单** | 排名轨 | 3:4 | 14 | 轨宽 ~0.36；序号角标 |
@@ -362,15 +374,15 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
 | **Activity Journey Credential** | 活动行程展开票面 | 3:4 头图区 | poster | `ActivityJourneyCredentialFace` + CredentialArt；fulfillment / memento 双模式 |
 | **Wallet Pass Face** | 夹内长条预览卡 | 条带比例 | strip | `WalletPassRecordFace`；非展开页主票面 |
 | **Profile Circle Poster** | 「我的俱乐部」预览 | 2:3 竖海报 | poster | `ProfileLibraryShelfCard`；俱乐部卡不显示「已加入」 |
-| **Editorial 焦点** | 焦点大卡 | 4:5 | 24 | 轨宽 ~0.88 |
-| **Person 找人** | 双列照片卡 + 精选轨 | 3:4 | people | 精选 ≤4 横滑；`BuddyPickRail` / `BuddyGridCard` |
-| **Booking 预约** | 市场货架 + 排行 | 轨 / 榜行 | service | `BuddyPaidMarketViews`、`BuddyPosterShelfCard` |
-| **Browse 顶栏** | 大标题菜单 + 搜索 + 筛选 | — | browse | `platformTabRootTitleMenu` + `BuddyBrowseSearchSheet` + `BuddyFilterSheet`；**首页无 chip** |
+| **Editorial 焦点** | 精选轨焦点大卡 | 16:9 | 24 | 一屏 1 卡全宽；与 Continue / Hot 同高 |
+| **Person 找人** | 双列照片卡 + 精选 Hero | 3:4 / 4:5 | people | `BuddyGridCard` / `BuddyPickCard` / `BuddyFeaturedCard`；图下文案 |
+| **Booking 预约** | 市场货架 + 排行 | 轨 / Top3 | service | `BuddyPaidLeaderboard`、`BuddyPosterShelfCard` |
+| **Browse 顶栏** | 五 Tab 同套 `platformTabRoot*`；搭子另加模式 title menu + 找人筛选 | — | browse | 无 searchable；无 segmented principal；无导航栏预览入口 |
 | **Circle 俱乐部** | 免费末幕 | 3:4 | poster | 次于选人 |
 | **Voice 语音厅** | 预约列表后 | 横卡 | continue | 试水再预约 |
-| **Detail Hero** | 详情头图 | 3:4 | card（圆角卡） | 安全区下；天气胶囊；相册控件 |
+| **Detail Hero** | 详情头图 | 4:5 | card（圆角卡） | 安全区下；天气胶囊；相册控件 |
 | **Detail Related** | 相关活动推荐 | 16:9 横卡 | rail | Form header + 横滑轨；`PlatformEventCard`；footer 说明推荐逻辑 |
-| **Compose Cover** | 发布封面 | 高 160 | media | Sheet 表单内 |
+| **Compose Cover** | 发起活动媒体 | `galleryEditorThumb` | media | 单页 Form：最多 6 张照片/视频，首张为封面 |
 
 活动紧凑横卡统一使用 `PlatformEventCard`（发现页「快被约满」同构）：16:9 媒体、状态角标、标题/时间/meta 与右下角参加 CTA；导航、Zoom 和轨宽由调用层负责。详情相关活动见 `DetailRelatedActivitiesRail` + 调用方 Section header。
 
@@ -382,9 +394,20 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
   └─ 底栏：左 Title/Time/Meta · 右 参加 CTA
 ```
 
-- 常规字阶：叠字在媒体上（`onMedia` → 局部 dark）  
-- Accessibility 大字：`prefersStackedCardChrome` → 图下信息区  
-- Padding：水平/底 `contentInset`；信息行距 `cardInfoSpacing`；底栏间距 `cardFooterSpacing`
+- 常规字阶：叠字在媒体上（`platformMediaInfoBarChrome(.hero|.standard|.compact)`；CTA glass）
+- Accessibility 大字：`prefersStackedCardChrome` → 图下信息区（无 Material 底栏）
+- Increase Contrast / Reduce Transparency：Material 退 `secondarySystemBackground`
+- Padding：底栏内边距由 style 的 `mediaChromeInset` 统一；信息行距 `cardInfoSpacing`；底栏图文距 `cardFooterSpacing`
+
+#### 6.2.1 Material 底栏角色表（`PlatformMediaInfoBarStyle`）
+
+| Style | Material | 卡片场景 |
+|-------|----------|----------|
+| `.hero` | `.ultraThinMaterial` | 精选 Featured、焦点 Editorial |
+| `.standard` | `.thinMaterial` | 发现流 `HeroMediaCard`、跟进 / 热场 / 赛事横卡 |
+| `.compact` | `.bar` | 榜单竖海报 |
+
+禁止 Features 旁路手写 `.ultraThinMaterial` / `.thinMaterial` / `.bar` 铺封面底栏。
 
 ## 6.3 阴影与边框
 
@@ -403,7 +426,7 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
 | **ScrollView + LazyVStack** | 发现货架、混合 Hero + 多分区、横滑轨外层 |
 | **Form** | 详情主结构、支付/确认/发布类设置流、发起人管理 |
 | **List** | 纯列表 Sheet（成员、订单、导航 App）、系统 inset 列表体验 |
-| **LazyVGrid / Grid** | 搭子人墙等；兴趣维护用 Form Toggle（`InterestTaxonomyFormEditor`） |
+| **LazyVGrid / Grid** | 搭子人墙等；兴趣标签用原生 glass 胶囊（`InterestGlassCapsuleChip`） |
 | **横滑 ScrollView** | `scrollTargetLayout` + `viewAligned` + `contentMargins`（`DiscoverBrowseLayout`） |
 
 ## 7.1 Form 细则（详情）
@@ -426,13 +449,17 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
 
 ### 外圈：页边（一个系统指数）
 
-**真源：** `PlatformMetrics.contentInset` = 系统 Layout Margins（≥16pt）
+**真源：** `PlatformConversationListRow.horizontalInset`（= `PlatformMetrics.contentInset` / 系统 Layout Margins）
 
 | 场景 | API |
 |------|-----|
-| 收件箱 / 好友 / 消息二级 List | `platformConversationListChrome()` → plain + `canvas` + `contentMargins` = `contentInset`；行 `platformConversationListRowChrome()` 仅垂直；分区头 `PlatformMessagesSectionHeader` |
-| 会话线程 ScrollView | `platformMessageThreadScrollMargins()` → `platformMessagePageMargins()` |
-| 输入栏 / @ 条 | `platformMessagePagePadding()` |
+| 收件箱 / 好友 / 消息二级 List | `platformConversationListChrome()` → plain + `canvas` + `contentMargins`；行 `platformConversationListRowChrome()` **仅垂直**；勿再叠行水平 insets |
+| 会话线程 ScrollView | `platformMessageThreadScrollMargins()` |
+| 输入栏 / @ 条 / 通话页边 | `platformMessagePagePadding()` 或 `PlatformMessagesChrome.pageHorizontalInset` |
+| 行内栈间距 | `PlatformMessagesChrome.stackSpacing` / `bubbleAvatarSpacing`（subtitleCell 探针） |
+| List / Form 空态 | 交给系统；**勿**再叠 `emptyStateVerticalPadding`（仅线程 `PlatformChatEmptyThread` 可用 `emptyVerticalPadding`） |
+
+**禁止：** Features 用发现 `railCardSpacing` / Form `formRowVerticalPadding` / 手写 `EdgeInsets(…, contentInset, …)` 叠在已 chrome 的 List 上。
 
 ### 内圈：控件间距
 
@@ -442,7 +469,7 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
 
 - 己方 `.tint` + 对方 `secondarySystemFill`；大圆角 continuous
 - **单聊**：无侧栏头像；**群聊**：仅对方左侧头像（聚类末条显示）
-- 输入栏：「+」/ 发送 = `.glass` + `.large`；单行胶囊高度对齐同屏实测「+」（UIButton large glass 仅首帧回退）；工具间距 = 系统 `imageToTextPadding`；无底条
+- 输入栏：「+」/ 发送 = `.glass` + `.large`；单行胶囊高度对齐同屏实测「+」（UIButton large glass 仅首帧回退）；工具间距 = 系统 `imageToTextPadding`；底栏用 `safeAreaInset(edge: .bottom, spacing: 0)` + `.background(.bar)`，控件上下 = `composerBarVerticalPadding`（subtitleCell 行垂直 margin），形成 Messages 式距键盘间隔
 - 系统 Text Style；勿用活动页 glass CTA
 
 ## 7.3 空状态
@@ -494,7 +521,7 @@ Sheet 档位：
 
 ## 9.2 Chip / Filter
 
-`PlatformFilterChip`：系统选中态；背景 `groupedPage`。用于筛选条，不堆装饰胶囊。
+`PlatformFilterChip`：系统 `.glass` / `.glassProminent` + `.controlSize(.regular)` + `.capsule` + **多色** SF Symbol（同档 `.body` / `.medium`）；`GlassEffectContainer` 横滑条；降低透明度回退 bordered。图文距：`labelReservedIconWidth` **按符号逐枚测量** + `labelIconToTitleSpacing`（glass `imagePadding`，为 0 则 `footnote.leading`）。广场挂载：List **首 Section**（随内容滚动，对齐通知中心）；可选 `platformCategoryChipTopBar`（`safeAreaInset(.top)`）仅非 searchable 场景。禁止整条共用过大预留宽、手写 `.shadow` / Metrics 芯片 padding。
 
 ## 9.3 Badge
 
@@ -521,11 +548,12 @@ Sheet 档位：
 
 ## 9.6 Search
 
-系统 `.searchable` / `ContentUnavailableView.search`（消息等）；活动发现以分类 + 筛选 Sheet 为主。
+系统 `.searchable` / `ContentUnavailableView.search`（消息等）；活动发现以分类 title menu + 顶栏筛选 Menu 为主。
 
 ## 9.7 Segment / Picker
 
-分类用 `Picker` / `Menu` + `Label`（顶栏），不自绘 segmented 皮肤。
+- 顶栏分类：`Picker` / `Menu` + `Label`（`toolbarTitleMenu`），不自绘 segmented 皮肤。
+- 页内分段（Form / List）：系统 `Picker` + `.pickerStyle(.segmented)`；用 `platformSegmentedPickerChrome()`（清底、贴边）。选项优先 `Label(title, systemImage:)`，由系统决定文案 / 符号展示。
 
 ## 9.8 反馈（Alert / Confirmation Dialog）
 
@@ -565,7 +593,7 @@ Sheet 档位：
 3. **勿强制彩色**：Tab Bar、Toolbar Menu、Navigation chevron、破坏性 `role`、系统选中 tint。  
 4. 与文字并排：优先 `Label`；列表行主操作除外。  
 5. 权重跟随正文 Dynamic Type，不写死 pointSize（列表标准头像位图除外）。  
-6. 镜像与本地化：使用系统可本地化符号名；颜色用系统语义色、`PlatformStatus` 与 **`PlatformAction.brandAccent`**（品牌强调）。
+6. 镜像与本地化：使用系统可本地化符号名；颜色用系统语义色、`PlatformStatus` 与系统 **`AccentColor`**（`PlatformAction.brandAccent` 别名）。
 
 ## 10.2 活动常用
 
@@ -601,7 +629,7 @@ Sheet 档位：
 
 ## 11.3 Contrast
 
-- 媒体叠字：局部 `.colorScheme(.dark)`。  
+- 媒体叠字：`platformMediaInfoBarChrome(_ style:)`（hero / standard / compact）；文案系统语义色；CTA glass。  
 - 语义色状态（warning/success）仅用于短标签，不用于大段正文。  
 
 ## 11.4 Reduce Motion
@@ -623,22 +651,16 @@ Sheet 档位：
 ```
 NavigationStack
 └─ ScrollView
-   ├─ [可选] 「下一场」摘要 Banner（`ActivityNextUpBanner`）
-   │     · 两行 + 单 CTA；无 checklist
-   │     · 条件：见过欢迎引导 + 下一场 ≤7 天（或结束 ≤7 天且未复盘）
-   ├─ 快捷筛选 chip 条（本周末 / 今天 / 免费）
-   ├─ [可选] Featured Hero（全宽 3:4，穿顶）
+   ├─ [可选] Featured Hero（仅默认浏览态；筛选时隐藏；精选转化唯一入口）
    └─ LazyVStack(spacing: sectionSpacing)
-      ├─ Section Header（双行）
-      ├─ 横滑轨 / 竖卡流 / 榜单 / 焦点…
-      └─ [可选] 活动分享入口（广场 Tab 合并时）
-Toolbar: Photos 圆形 + 胶囊；Trailing「更多」含发起 / 收藏的活动 / 筛选
+      ├─ 转化优先货架（快满 / 今晚 / 免费 / 热场 / 附近…，≤6 轨；无独立「精选」轨）
+      └─ [可选] 活动分享入口（`ActivitiesBrowseRoute.communityFeed`）
+Toolbar：`platformTabRoot*`（inlineLarge + 分类 title menu + Trailing 筛选 Menu / 发起）
 Background: groupedPage
-ScrollEdge: soft top
 Zoom destination + slot 源；详情相关活动不参与同 namespace Zoom。`ActivityEngagementStore` 非观察对象，避免浏览埋点拆掉列表 Zoom 源。货架结果按输入指纹缓存；种子封面不用 GeometryReader，避免 Lazy 预取掉帧。
 ```
 
-**一屏原则**：精选即品牌+主视觉；下方货架单一职责分区；不把筛选结果做成仪表盘。
+**一屏原则**：Hero 抢参加；货架跟进；筛选走顶栏 Menu 即时生效；促销头在「我的」。
 
 ## 12.2 活动详情 `ActivityDetailView`
 
@@ -660,7 +682,7 @@ Form
 + listSectionSpacing(.compact)
 ```
 
-**转化漏斗**：Hero → 标题/pitch → 费用与名额 → 时间地点 → 发起人信任 → 参加。  
+**转化漏斗**：货架 → 标题/pitch → 费用与名额 → 时间地点 → 发起人信任 → 参加。  
 长文（行程/费用/准备/须知/讨论/相关）全部在折叠视口之下。
 
 ## 12.3 Sheet 族
@@ -668,7 +690,8 @@ Form
 | 流程 | Kind | 内容 |
 |------|------|------|
 | 发布/编辑 | `.form` | Form |
-| 筛选 | `.filter` | Form |
+| 筛选（搭子等 Form） | `.filter` | Form |
+| 活动发现筛选 | 顶栏 `Menu` | inline Picker / Toggle，即时生效 |
 | 成员/订单/支付 | `.browser` | List/Form；成员轻量卡与「全部成员」同档 |
 | 参加成功 | `.confirm` | 短栈 |
 | 举报活动 | `.form` | 原因 + 情况说明 + 证明材料；提交后 Alert 收尾确认 |
@@ -708,7 +731,7 @@ Form
 | 间距 / 圆角 / 形状 | `Design/PlatformMetrics.swift` |
 | 运行时控件边长（顶栏圆钮、输入栏） | `Design/PlatformChromeMeasurements.swift` |
 | 列表头像 / 顶栏 / 消息与活动 chrome | `PlatformListAvatar.swift`、`PlatformToolbarChrome.swift`、`PlatformConversationListChrome.swift`、`PlatformActivityChrome.swift`、`PlatformMessagesChrome.swift` |
-| 货架卡 | `Design/PlatformCatalogCards.swift`、`Features/Activities/ActivityCards.swift` |
+| 货架卡 | `Design/PlatformCatalog*.swift`、`Features/Activities/ActivityCards.swift` |
 | 横滑布局 | `Design/DiscoverBrowseLayout.swift` |
 | Zoom | `Design/ActivityZoomNavigation.swift`、`Features/Buddies/BuddyZoomNavigation.swift` |
 | Sheet | `Design/PlatformSheet.swift` |
@@ -721,7 +744,7 @@ Form
 
 # Appendix B — 设计评审清单
 
-- [ ] 品牌强调是否只用 `PlatformAction.brandAccent`？  
+- [ ] 强调色是否只用系统 `AccentColor` / 环境 tint（无自定义 clover `.tint`）？  
 - [ ] 是否只用系统色与 Material？  
 - [ ] 字号是否全部系统 Text Style（无项目字阶枚举）？  
 - [ ] Form/List 页是否把间距交给系统容器，而非 Features 手调 Metrics？  
@@ -733,6 +756,7 @@ Form
 - [ ] 详情是否 Form + compact section spacing？  
 - [ ] 头像行是否垂直居中且无错误折行？  
 - [ ] 进详情是否 Zoom 而非纯 push（发现卡）？  
+- [ ] 浏览卡：活动/搭子 Zoom 进详情；广场媒体可分页滑动，双击点赞，单点不进大图？  
 - [ ] 反馈是否无自定义 Toast（用 `platformFeedbackAlert` / `.confirmationDialog`）？  
 - [ ] Dynamic Type / 大字叠字是否已切 stacked？  
 - [ ] 是否引入了禁止的装饰阴影或品牌渐变？  

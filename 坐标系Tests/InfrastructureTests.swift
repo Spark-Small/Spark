@@ -184,12 +184,13 @@ final class InfrastructureTests: XCTestCase {
         )
         let app = AppDependencies.inMemoryForTests(repositories: repos).makeAppModel()
 
+        app.completeInterestSelection(interests: ["徒步", "探店", "桌游"])
         app.welcomeGuide.finish(app: app)
         XCTAssertTrue(app.welcomeGuide.hasSeenGuide)
-        XCTAssertTrue(app.hasCompletedWelcomeBootstrap)
+        XCTAssertTrue(app.hasCompletedInterestSelection)
 
         app.welcomeGuide.finish(app: app)
-        XCTAssertTrue(app.hasCompletedWelcomeBootstrap)
+        XCTAssertTrue(app.hasCompletedInterestSelection)
     }
 
     func testWelcomeLandingPrefersTodayWhenAvailable() {
@@ -285,7 +286,10 @@ final class InfrastructureTests: XCTestCase {
 
     func testCredentialArtStripRendererProducesImage() {
         let size = PassTemplateResources.pixelSize(kind: .eventStrip, scale: .x1)
-        let image = CredentialArtStripRenderer.walletStripImage(for: .entertainment, pixelSize: size)
+        let image = CredentialArtStripRenderer.walletStripImage(
+            for: .forActivityCategory(.entertainment),
+            pixelSize: size
+        )
         XCTAssertNotNil(image)
         XCTAssertGreaterThan(image?.size.width ?? 0, 0)
     }
@@ -293,7 +297,10 @@ final class InfrastructureTests: XCTestCase {
     func testEventStripPNGWithCredentialArtCover() {
         let stripSurface = PassTemplateResources.uiStripSurfaceColor(for: ActivityCategory.entertainment.rawValue)
         let size = PassTemplateResources.pixelSize(kind: .eventStrip, scale: .x1)
-        let cover = CredentialArtStripRenderer.walletStripImage(for: .entertainment, pixelSize: size)
+        let cover = CredentialArtStripRenderer.walletStripImage(
+            for: .forActivityCategory(.entertainment),
+            pixelSize: size
+        )
         let files = PassTemplateResources.eventStripPNG(
             stripColor: stripSurface,
             cover: cover,

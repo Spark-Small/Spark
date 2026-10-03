@@ -58,7 +58,8 @@ struct DetailRelatedActivitiesRail: View {
                     photo: activity.coverPhoto,
                     title: activity.title,
                     timeLine: Formatters.activityEventTime(from: activity.date),
-                    metaLine: activity.districtLabel,
+                    metaLine: ActivityRecommender.matchReason(for: activity)
+                        ?? activity.districtLabel,
                     isJoined: model.isJoined(activity.id),
                     isFull: activity.isFull
                 )
@@ -90,7 +91,7 @@ struct ActivityDetailRelatedCircleRow: View {
                         width: dynamicTypeSize.listAvatarSide,
                         height: dynamicTypeSize.listAvatarSide
                     )
-                    .background(Color.accentColor.opacity(0.14), in: Circle())
+                    .background(PlatformSurface.accentSoftFill, in: Circle())
                     .accessibilityHidden(true)
             }
         }

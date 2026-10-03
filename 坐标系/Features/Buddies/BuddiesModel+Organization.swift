@@ -18,7 +18,8 @@ extension BuddiesModel {
     }
 
     var joinedGuilds: [CompanionGuild] {
-        SampleData.companionGuilds.filter { joinedGuildNames.contains($0.name) }
+        guard BuddiesSupplyPolicy.allowsSampleDiscoverCatalog else { return [] }
+        return SampleData.companionGuilds.filter { joinedGuildNames.contains($0.name) }
     }
 
     func isJoined(_ circle: InterestCircle) -> Bool {
@@ -36,44 +37,56 @@ extension BuddiesModel {
         case .guild(let guild) where isJoined(guild):
             return
         default:
-            pendingOrgJoin = target
+            presentation.pendingOrgJoin = target
         }
     }
 
     @discardableResult
     func confirmJoin() -> BuddyOrgJoinSuccess? {
-        guard let pending = pendingOrgJoin else { return nil }
+        guard let pending = presentation.pendingOrgJoin else { return nil }
         switch pending {
         case .circle(let circle):
             joinedCircleIDs.insert(circle.id)
             joinedCircleNames.insert(circle.name)
             ensurePrefs(kind: .circle, name: circle.name)
-            pendingOrgJoin = nil
+            presentation.pendingOrgJoin = nil
             let success = BuddyOrgJoinSuccess(kind: .circle, name: circle.name, systemImage: circle.systemImage)
-            pendingOrgJoinSuccess = success
+            presentation.pendingOrgJoinSuccess = success
             persist()
             onMembershipChanged?()
-            flash("已加入「\(circle.name)」")
+            flash(BuddyOrgJoinCopy.joinedClub(circle.name))
+            if remoteClubSync.isEnabled {
+                Task { await submitClubJoinToRemote(circle.id) }
+            }
             return success
         case .guild(let guild):
             joinedGuildNames.insert(guild.name)
             ensurePrefs(kind: .guild, name: guild.name)
-            pendingOrgJoin = nil
+            presentation.pendingOrgJoin = nil
             let success = BuddyOrgJoinSuccess(kind: .guild, name: guild.name, systemImage: guild.systemImage)
-            pendingOrgJoinSuccess = success
+            presentation.pendingOrgJoinSuccess = success
             persist()
             onMembershipChanged?()
-            flash("已关注「\(guild.name)」")
+            flash(BuddyOrgJoinCopy.followedGuild(guild.name))
             return success
         }
     }
 
+    func submitClubJoinToRemote(_ circleID: UUID) async {
+        guard remoteClubSync.isEnabled else { return }
+        do {
+            try await remoteClubSync.join(circleID: circleID)
+        } catch {
+            flash(BuddyFeedbackCopy.remoteClubSyncFailed)
+        }
+    }
+
     func cancelJoin() {
-        pendingOrgJoin = nil
+        presentation.pendingOrgJoin = nil
     }
 
     func dismissJoinSuccess() {
-        pendingOrgJoinSuccess = nil
+        presentation.pendingOrgJoinSuccess = nil
         pendingOpenConversationID = nil
     }
 
@@ -87,7 +100,19 @@ extension BuddiesModel {
         membershipPrefs.removeValue(forKey: OrgMembershipKind.circle.prefsKey(name: circle.name))
         persist()
         onMembershipChanged?()
-        flash("已退出「\(circle.name)」")
+        flash(BuddyOrgJoinCopy.leftClub(circle.name))
+        if remoteClubSync.isEnabled {
+            Task { await submitClubLeaveToRemote(circle.id) }
+        }
+    }
+
+    func submitClubLeaveToRemote(_ circleID: UUID) async {
+        guard remoteClubSync.isEnabled else { return }
+        do {
+            try await remoteClubSync.leave(circleID: circleID)
+        } catch {
+            flash(BuddyFeedbackCopy.remoteClubSyncFailed)
+        }
     }
 
     func leaveGuild(_ guild: CompanionGuild) {
@@ -95,7 +120,7 @@ extension BuddiesModel {
         membershipPrefs.removeValue(forKey: OrgMembershipKind.guild.prefsKey(name: guild.name))
         persist()
         onMembershipChanged?()
-        flash("已取消关注「\(guild.name)」")
+        flash(BuddyOrgJoinCopy.unfollowedGuild(guild.name))
     }
 
     func prefs(kind: OrgMembershipKind, name: String) -> OrgMembershipPrefs {
@@ -111,21 +136,21 @@ extension BuddiesModel {
     }
 
     func beginInvite(to target: BuddyOrgInviteTarget) {
-        pendingOrgInvite = target
+        presentation.pendingOrgInvite = target
     }
 
     func sendOrgInvites(nicknames: [String]) {
-        guard let target = pendingOrgInvite, !nicknames.isEmpty else {
-            pendingOrgInvite = nil
+        guard let target = presentation.pendingOrgInvite, !nicknames.isEmpty else {
+            presentation.pendingOrgInvite = nil
             return
         }
-        pendingOrgInvite = nil
+        presentation.pendingOrgInvite = nil
         let label: String
         switch target {
         case .circle(let circle): label = circle.name
         case .guild(let guild): label = guild.name
         }
-        flash("已邀请 \(nicknames.count) 人加入「\(label)」")
+        flash(BuddyOrgJoinCopy.invitedCount(nicknames.count, label: label))
     }
 
     func ensurePrefs(kind: OrgMembershipKind, name: String) {

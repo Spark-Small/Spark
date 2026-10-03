@@ -90,6 +90,26 @@ enum ActivityRecommender {
         breakdown(for: activity, catalogIndex: catalogIndex, referenceDate: referenceDate).total
     }
 
+    /// 可解释推荐：取最高分因子的一句人话（详情相关轨 / 货架副文）。
+    static func matchReason(
+        for activity: Activity,
+        catalogIndex: Int? = nil,
+        referenceDate: Date = .now
+    ) -> String? {
+        let parts = breakdown(for: activity, catalogIndex: catalogIndex, referenceDate: referenceDate)
+        var ranked: [(score: Int, reason: String)] = []
+        if parts.friends > 0 { ranked.append((parts.friends, "有朋友也报名了")) }
+        if parts.interest > 0 { ranked.append((parts.interest, "符合你的兴趣")) }
+        if parts.implicit > 0 { ranked.append((parts.implicit, "根据你最近浏览")) }
+        if parts.urgency > 0 { ranked.append((parts.urgency, "名额或开场较紧")) }
+        if parts.distance >= 12 { ranked.append((parts.distance, "离你较近")) }
+        if parts.time >= 14 { ranked.append((parts.time, "时间合适")) }
+        guard let best = ranked.max(by: { $0.score < $1.score }), best.score > 0 else {
+            return nil
+        }
+        return best.reason
+    }
+
     /// 相近分数（同一「档位」）内按天打散，让每天打开的顺序有细微不同——
     /// 避免同一批人天天看到一模一样的头几张卡而失去打开欲（利好复访）
     private static let sameTierBand = 4
@@ -277,7 +297,8 @@ enum ActivityRecommender {
         var value = 0
 
         let trust = ActivityHostTrust.make(hostName: activity.hostName, liveHostedCount: 1)
-        value += min(trust.completionRate - 80, 10)
+        // 可核验场次，不用演示完成率冒充质量分
+        value += min(max(trust.hostedCount - 3, 0), 10)
 
         let fill = activity.fillProgress
         if fill >= 0.2, fill <= 0.75 {

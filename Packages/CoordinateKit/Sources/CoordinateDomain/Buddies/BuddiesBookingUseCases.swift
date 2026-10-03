@@ -12,6 +12,7 @@ public struct BuddiesBookingUseCases: Sendable {
     public let expireOverduePayments: ExpireOverdueBookingPaymentsUseCase
     public let expireOverdueConfirmations: ExpireOverdueBookingConfirmationsUseCase
     public let reconcileRemote: ReconcileRemoteBookingRecordUseCase
+    public let mergeRemoteSnapshot: MergeRemoteBuddiesSnapshotUseCase
 
     public init(
         scheduleConflict: DetectBookingScheduleConflictUseCase = DetectBookingScheduleConflictUseCase(),
@@ -19,7 +20,8 @@ public struct BuddiesBookingUseCases: Sendable {
         applyTransition: ApplyBookingStatusTransitionUseCase = ApplyBookingStatusTransitionUseCase(),
         expireOverduePayments: ExpireOverdueBookingPaymentsUseCase = ExpireOverdueBookingPaymentsUseCase(),
         expireOverdueConfirmations: ExpireOverdueBookingConfirmationsUseCase = ExpireOverdueBookingConfirmationsUseCase(),
-        reconcileRemote: ReconcileRemoteBookingRecordUseCase = ReconcileRemoteBookingRecordUseCase()
+        reconcileRemote: ReconcileRemoteBookingRecordUseCase = ReconcileRemoteBookingRecordUseCase(),
+        mergeRemoteSnapshot: MergeRemoteBuddiesSnapshotUseCase = MergeRemoteBuddiesSnapshotUseCase()
     ) {
         self.scheduleConflict = scheduleConflict
         self.statusTransition = statusTransition
@@ -27,5 +29,6 @@ public struct BuddiesBookingUseCases: Sendable {
         self.expireOverduePayments = expireOverduePayments
         self.expireOverdueConfirmations = expireOverdueConfirmations
         self.reconcileRemote = reconcileRemote
+        self.mergeRemoteSnapshot = mergeRemoteSnapshot
     }
 }

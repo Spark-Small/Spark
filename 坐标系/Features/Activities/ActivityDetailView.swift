@@ -46,8 +46,6 @@ struct ActivityDetailView: View {
     @State var expandedDetailSections: Set<ActivityDetailSectionID> = []
     @State var showRecapCompose = false
     @State var showFeedbackSheet = false
-    @State var favoriteFeedbackPulse = 0
-    @State private var showJourneyAfterJoin = false
 
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Environment(CommunityModel.self) var community
@@ -80,14 +78,10 @@ struct ActivityDetailView: View {
             publishSuccessSheet
                 .toolbarVisibility(.hidden, for: .tabBar)
         }
-        .navigationDestination(isPresented: $showJourneyAfterJoin) {
-            ActivityCredentialExpandedView(activityID: activityID)
-        }
         .sheet(isPresented: $showShareSheet) {
             if let activity {
                 PlatformShareSheet(items: [shareText(for: activity)])
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
+                    .platformSheet(.browser)
                     .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
@@ -134,14 +128,14 @@ struct ActivityDetailView: View {
         .platformFeedbackAlert($cancelFeedbackMessage)
         .platformLightFeedback(
             Binding(
-                get: { model.lightFeedbackMessage },
-                set: { model.lightFeedbackMessage = $0 }
+                get: { model.presentation.lightFeedbackMessage },
+                set: { model.presentation.lightFeedbackMessage = $0 }
             )
         )
         .platformFeedbackAlert(
             Binding(
-                get: { model.toastMessage },
-                set: { model.toastMessage = $0 }
+                get: { model.presentation.toastMessage },
+                set: { model.presentation.toastMessage = $0 }
             )
         )
         .sheet(isPresented: $showRecapCompose) {
@@ -173,14 +167,14 @@ struct ActivityDetailView: View {
 
     private var joinSuccessPresented: Binding<Bool> {
         Binding(
-            get: { model.joinSuccessActivityID == activityID },
+            get: { model.presentation.joinSuccessActivityID == activityID },
             set: { if !$0 { model.dismissJoinSuccess() } }
         )
     }
 
     private var publishSuccessPresented: Binding<Bool> {
         Binding(
-            get: { model.publishSuccessActivityID == activityID },
+            get: { model.presentation.publishSuccessActivityID == activityID },
             set: { if !$0 { model.dismissPublishSuccess() } }
         )
     }
@@ -193,7 +187,13 @@ struct ActivityDetailView: View {
                 context: .joined,
                 onOpenJourney: {
                     model.dismissJoinSuccess()
-                    showJourneyAfterJoin = true
+                    navigation?.path.append(
+                        ActivityZoomSource(
+                            activityID: activityID,
+                            slot: "join-success-journey",
+                            intent: .participantPass
+                        )
+                    )
                 }
             )
         }
@@ -254,12 +254,12 @@ struct ActivityDetailSideInspector: View {
 
 #Preview("户外") {
     let app = AppModel.preview
+    let activity = SampleData.activities.first { $0.category == .outdoorSports }
+        ?? SampleData.activities[0]
     return NavigationStack {
-        ActivityDetailView(
-            activity: SampleData.activities.first { $0.category == .outdoorSports }!
-        )
-        .environment(app)
-        .environment(app.activities)
-        .environment(app.messages)
+        ActivityDetailView(activity: activity)
+            .environment(app)
+            .environment(app.activities)
+            .environment(app.messages)
     }
 }

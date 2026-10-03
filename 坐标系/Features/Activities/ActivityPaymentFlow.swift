@@ -274,54 +274,6 @@ enum ActivityPaymentStore {
     }
 }
 
-struct ActivityPaymentSheet: View {
-    let activity: Activity
-    var onPaid: () -> Void
-
-    @Environment(WalletPassStore.self) private var walletPassStore
-    @State private var order: ActivityOrder?
-
-    private var payable: (display: String, cents: Int)? {
-        ActivityFeeParser.payableAmount(for: activity)
-    }
-
-    var body: some View {
-        CoordinatePaymentSheet(
-            navigationTitle: ActivityDetailCopy.paymentTitle,
-            summary: [
-                ("活动", activity.title),
-                ("费用说明", payable?.display ?? activity.fee)
-            ],
-            amountCents: payable?.cents ?? order?.amountCents ?? 0,
-            footer: ActivityDetailCopy.paymentMockHint,
-            preferredMethod: .wallet,
-                    onConfirm: { method in
-                        let ensured = order ?? ActivityPaymentStore.createPendingOrder(for: activity)
-                        guard let ensured else { return .failed("无法创建订单") }
-                        order = ensured
-                        let outcome = ActivityPaymentStore.markPaid(orderID: ensured.id, method: method)
-                        if outcome == .success {
-                            if let paid = ActivityPaymentStore.order(id: ensured.id) {
-                                walletPassStore.issueActivityTicket(order: paid, activity: activity)
-                            }
-                            onPaid()
-                        }
-                        return outcome
-                    },
-            onCancel: {
-                if let order {
-                    ActivityPaymentStore.cancelPending(orderID: order.id)
-                }
-            }
-        )
-        .onAppear {
-            if order == nil {
-                order = ActivityPaymentStore.createPendingOrder(for: activity)
-            }
-        }
-    }
-}
-
 // MARK: - 订单 / 退款
 
 struct ActivityOrdersSheet: View {
@@ -330,6 +282,7 @@ struct ActivityOrdersSheet: View {
 
     @Environment(RefundFlowService.self) private var refunds
     @Environment(ActivitiesModel.self) private var activities
+    @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var orders: [ActivityOrder] = []
     @State private var refundError: String?
@@ -340,11 +293,17 @@ struct ActivityOrdersSheet: View {
         NavigationStack {
             List {
                 if orders.isEmpty {
-                    ContentUnavailableView(
-                        ActivityDetailCopy.ordersEmptyTitle,
-                        systemImage: "doc.text",
-                        description: Text(ActivityDetailCopy.ordersEmptySubtitle)
-                    )
+                    ContentUnavailableView {
+                        Label(ActivityDetailCopy.ordersEmptyTitle, systemImage: "doc.text")
+                    } description: {
+                        Text(ActivityDetailCopy.ordersEmptySubtitle)
+                    } actions: {
+                        Button(ActivityDetailCopy.ordersEmptyAction) {
+                            dismiss()
+                            app.selectedTab = .activities
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                     .listRowBackground(Color.clear)
                 } else {
                     ForEach(orders) { order in
@@ -442,7 +401,9 @@ struct ActivityOrderRow: View {
                 Text(ActivityPaymentStore.statusLabel(for: order.status))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(statusColor)
-                    .background(statusColor.opacity(0.12), in: Capsule())
+                    .padding(.horizontal, PlatformMetrics.chipPaddingHorizontalMini)
+                    .padding(.vertical, PlatformMetrics.chipPaddingVerticalMini)
+                    .background(PlatformSurface.tertiaryFill, in: Capsule())
             }
 
             HStack {
@@ -493,7 +454,7 @@ struct ActivityDetailOrderBanner: View {
         Button(action: onTap) {
             HStack {
                 Image(systemName: "doc.text.fill")
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(PlatformStatus.accent)
                 VStack(alignment: .leading) {
                     Text(ActivityDetailCopy.orderBannerTitle)
                         .font(.subheadline.weight(.semibold))

@@ -100,6 +100,22 @@ extension View {
             }
     }
 
+    /// 详情 / 底栏：打开「我的行程」票面（typed Zoom，勿再包裸 `ActivityCredentialExpandedView`）。
+    func activityJourneyNavigationLink(
+        activityID: Activity.ID,
+        slot: String = "detail-journey"
+    ) -> some View {
+        NavigationLink(
+            value: ActivityZoomSource(
+                activityID: activityID,
+                slot: slot,
+                intent: .participantPass
+            )
+        ) {
+            Label(ActivityDetailCopy.credentialViewAction, systemImage: "ticket.fill")
+        }
+    }
+
     /// 仅当外层尚未注册时再挂（如「我的」凭证夹）。自有 NavigationStack 的 Sheet 应直接用上方 API。
     func activityZoomNavigationDestinationIfNeeded(
         fallback namespace: Namespace.ID
@@ -266,6 +282,7 @@ private struct ActivityPeerChatDestinationModifier: ViewModifier {
 // MARK: - Browser sheet
 
 /// 模态活动详情：独立栈 + Zoom 目的地（入口无 matched source，栈内导航与发现 Tab 一致）。
+/// Sheet chrome：左关闭、右「更多」（详情自带）；勿叠 confirmation「完成」。
 struct ActivityBrowserSheet: View {
     let activity: Activity
 
@@ -278,7 +295,7 @@ struct ActivityBrowserSheet: View {
         NavigationStack(path: $navigation.path) {
             ActivityDetailView(activity: activity)
                 .toolbarVisibility(.hidden, for: .tabBar)
-                .platformSheetConfirmationToolbar()
+                .platformSheetCancellationToolbar(ActivityDetailCopy.closeSheet)
         }
         .tabNavigationState(navigation)
         .activityPeerChatNavigationDestination()

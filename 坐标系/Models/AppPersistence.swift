@@ -5,6 +5,7 @@
 
 import CoordinateData
 import CoordinateDomain
+import CoordinateFeatureFlags
 import Foundation
 import CoordinateModels
 
@@ -36,6 +37,7 @@ enum AppPersistence {
         AppComposition.youthModeStore.reset()
         AppComposition.legalConsentStore.reset()
         AppComposition.membershipAdImpressionStore.reset()
+        AppComposition.inAppNotificationStore.resetAll()
         UserDefaults.standard.removeObject(forKey: "profile.wallet.balanceCents")
         UserDefaults.standard.removeObject(forKey: "profile.membership.active")
         UserDefaults.standard.removeObject(forKey: PrivacyPreferenceKey.showDistance)
@@ -53,6 +55,9 @@ enum AppPersistence {
         UserDefaults.standard.removeObject(forKey: NotificationService.PreferenceKey.buddy)
         UserDefaults.standard.removeObject(forKey: NotificationService.PreferenceKey.message)
         UserDefaults.standard.removeObject(forKey: NotificationService.PreferenceKey.community)
+        UserDefaults.standard.removeObject(forKey: "community.feed.recommendation.bias")
+        UserDefaults.standard.removeObject(forKey: "community.feed.notifyBanner.dismissed")
+        UserDefaults.standard.removeObject(forKey: "community.feed.recentSearches")
     }
 
     @MainActor
@@ -92,6 +97,7 @@ enum AppPersistence {
 
     @MainActor
     private static func mergeActivitiesCatalog() {
+        guard FeatureFlags.useLocalCatalogBootstrap else { return }
         let repository = AppComposition.resolvedLocalActivitiesRepository()
         let repaired = ActivitiesSnapshotCatalog.repair(from: repository.load())
         repository.save(repaired)

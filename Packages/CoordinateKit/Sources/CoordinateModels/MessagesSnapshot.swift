@@ -10,6 +10,8 @@ public struct MessagesSnapshot: Codable, Sendable {
     public var friendRemarks: [String: String]
     /// 昵称（小写）→ 好友分组
     public var friendGroups: [String: String]
+    /// 用户自建好友分组名（保序；与预设合并展示）
+    public var friendGroupCatalog: [String]
     /// conversationID.uuidString → 群成员（含角色）
     public var groupMembers: [String: [GroupMemberRecord]]
     /// 转账流水（消息气泡引用实体）
@@ -24,6 +26,7 @@ public struct MessagesSnapshot: Codable, Sendable {
         outgoingFriendRequests: [OutgoingFriendRequest] = [],
         friendRemarks: [String: String] = [:],
         friendGroups: [String: String] = [:],
+        friendGroupCatalog: [String] = [],
         groupMembers: [String: [GroupMemberRecord]] = [:],
         transferRecords: [TransferRecord] = [],
         callRecords: [CallSessionRecord] = []
@@ -34,6 +37,7 @@ public struct MessagesSnapshot: Codable, Sendable {
         self.outgoingFriendRequests = outgoingFriendRequests
         self.friendRemarks = friendRemarks
         self.friendGroups = friendGroups
+        self.friendGroupCatalog = friendGroupCatalog
         self.groupMembers = groupMembers
         self.transferRecords = transferRecords
         self.callRecords = callRecords
@@ -50,6 +54,7 @@ public struct MessagesSnapshot: Codable, Sendable {
         ) ?? []
         friendRemarks = try container.decodeIfPresent([String: String].self, forKey: .friendRemarks) ?? [:]
         friendGroups = try container.decodeIfPresent([String: String].self, forKey: .friendGroups) ?? [:]
+        friendGroupCatalog = try container.decodeIfPresent([String].self, forKey: .friendGroupCatalog) ?? []
         groupMembers = try container.decodeIfPresent([String: [GroupMemberRecord]].self, forKey: .groupMembers) ?? [:]
         transferRecords = try container.decodeIfPresent([TransferRecord].self, forKey: .transferRecords) ?? []
         callRecords = try container.decodeIfPresent([CallSessionRecord].self, forKey: .callRecords) ?? []

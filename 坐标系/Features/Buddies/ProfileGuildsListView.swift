@@ -8,15 +8,21 @@ import CoordinateModels
 
 struct ProfileGuildsListView: View {
     @Environment(BuddiesModel.self) private var buddies
+    @Environment(AppModel.self) private var app
 
     var body: some View {
         List {
             if buddies.joinedGuilds.isEmpty {
-                ContentUnavailableView(
-                    "还没有关注工会",
-                    systemImage: "building.2",
-                    description: Text("在搭子 · 陪玩页关注工会后，会出现在这里。")
-                )
+                ContentUnavailableView {
+                    Label(BuddyBrowseCopy.Guilds.emptyTitle, systemImage: "building.2")
+                } description: {
+                    Text(BuddyBrowseCopy.Guilds.emptyBody)
+                } actions: {
+                    Button(BuddyBrowseCopy.Guilds.browseCTA) {
+                        app.selectedTab = .buddies
+                    }
+                    .activityPrimaryCTA(controlSize: .regular)
+                }
                 .listRowBackground(Color.clear)
             } else {
                 ForEach(buddies.joinedGuilds) { guild in
@@ -45,7 +51,7 @@ struct ProfileGuildsListView: View {
                 }
             }
         }
-        .navigationTitle("我的工会")
+        .navigationTitle(BuddyBrowseCopy.Guilds.listTitle)
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: CompanionGuild.self) { guild in
             BuddyGuildDetailView(guild: guild)

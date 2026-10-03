@@ -62,9 +62,9 @@ enum AuthTokenStore {
         !(accessToken ?? "").isEmpty
     }
 
-    static var isAccessTokenExpired: Bool {
-        guard let expiresAt = accessTokenExpiresAt else { return false }
-        return Date() >= expiresAt.addingTimeInterval(-30)
+    /// 远程账号会话是否仍可用于 API（有 access，或可 refresh）。
+    static var hasUsableRemoteSession: Bool {
+        hasTokens || !(refreshToken ?? "").isEmpty
     }
 
     static func save(access: String, refresh: String, expiresIn: Int? = nil) {
@@ -120,6 +120,8 @@ struct StoredAPITokenProvider: APITokenProviding {
 struct AuthTokenRefresher: APITokenRefreshing {
     func refreshedAccessToken() async throws -> String? {
         guard let refresh = AuthTokenStore.refreshToken, !refresh.isEmpty else {
+            AuthTokenStore.clear()
+            AuthSessionEvents.postRemoteSessionInvalidated()
             return nil
         }
         // 避免刷新请求再走带过期 Bearer 的 shared client 递归刷新。
@@ -138,6 +140,7 @@ struct AuthTokenRefresher: APITokenRefreshing {
             return tokens.accessToken
         } catch {
             AuthTokenStore.clear()
+            AuthSessionEvents.postRemoteSessionInvalidated()
             throw error
         }
     }

@@ -27,8 +27,7 @@ extension AppModel {
 
     func beginComposeActivity() {
         selectedTab = .activities
-        activities.editingActivityID = nil
-        activities.isComposing = true
+        activities.presentation.beginCompose()
     }
 
     @discardableResult
@@ -65,7 +64,7 @@ extension AppModel {
 
     @discardableResult
     func quickJoinActivity(_ activity: Activity, openDetail: @escaping () -> Void) -> Bool {
-        guard requireIdentityAccess() else { return false }
+        guard requireIdentityAccess(source: .activityJoin) else { return false }
         if activities.isWaitlisted(activity.id), !activity.isFull, !activity.isLifecycleEnded {
             if activity.requiresInAppPayment {
                 if ActivityPaymentStore.hasPaid(for: activity.id) {

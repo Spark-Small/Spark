@@ -28,7 +28,8 @@ extension BuddiesModel {
             let remote = try await remoteBookingSync.submit(record)
             applyRemoteBookingReconciliation(remote)
         } catch {
-            // 本地优先：已落盘，轮询会继续拉取陪玩回执
+            // 本地优先：已落盘，轮询会继续拉取陪玩回执；向用户诚实披露同步失败
+            flash(BuddyFeedbackCopy.remoteBookingSubmitFailed)
         }
     }
 

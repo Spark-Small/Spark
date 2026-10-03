@@ -97,9 +97,14 @@ struct PhotoVerificationView: View {
     @ViewBuilder
     private var unverifiedSections: some View {
         Section {
-            Text("调起摄像头采集人脸，与个人资料中的认证照比对。通过后解锁报名、预约与消息等能力。")
+            Text(IdentityAccessGate.needCaptureReason(for: app.pendingIdentityGateSource))
                 .font(.subheadline)
+                .foregroundStyle(.primary)
+            Text(IdentityAccessGate.captureMissingNextStep(for: app.pendingIdentityGateSource))
+                .font(.footnote)
                 .foregroundStyle(.secondary)
+        } header: {
+            Text(IdentityAccessGate.captureSectionHeader(for: app.pendingIdentityGateSource))
         }
 
         if store.isInCooldown {
@@ -173,7 +178,7 @@ struct PhotoVerificationView: View {
                 )
                 .platformContentSymbolStyle()
             }
-            .disabled(!photosReady || isAnalyzing || app.auth.isGuest || store.isInCooldown)
+            .disabled(!photosReady || isAnalyzing || store.isInCooldown)
         } header: {
             Text("摄像头采集")
         } footer: {
@@ -223,14 +228,11 @@ struct PhotoVerificationView: View {
                 capture == nil
                     || !photosReady
                     || isAnalyzing
-                    || app.auth.isGuest
                     || store.isInCooldown
             )
         } footer: {
-            if app.auth.isGuest {
-                Text(GuestAccessGate.identityReason)
-            } else if !photosReady {
-                Text(IdentityAccessGate.needPhotosReason)
+            if !photosReady {
+                Text(IdentityAccessGate.needPhotosReason(for: app.pendingIdentityGateSource))
             } else {
                 Text("本机 Vision 比对通过后，将进行二次复核（演示代理或远程服务）。")
             }

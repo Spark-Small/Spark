@@ -354,6 +354,7 @@ final class CorePersistenceTests: XCTestCase {
             ],
             friendRemarks: ["  AChuan  ": "  老搭子  ", "   ": "ignored"],
             friendGroups: [" AChuan ": "  骑行  ", "empty": "   "],
+            friendGroupCatalog: [" 骑友 ", "骑行", "未分组", ""],
             groupMembers: [
                 groupID.uuidString: [],
                 orphanID.uuidString: []
@@ -379,6 +380,7 @@ final class CorePersistenceTests: XCTestCase {
         XCTAssertEqual(repaired.friendRemarks["achuan"], "老搭子")
         XCTAssertNil(repaired.friendRemarks["  AChuan  "])
         XCTAssertEqual(repaired.friendGroups["achuan"], "骑行")
+        XCTAssertEqual(repaired.friendGroupCatalog, ["骑友", "骑行"])
         XCTAssertEqual(Set(repaired.groupMembers.keys), [groupID.uuidString])
         XCTAssertEqual(repaired.transferRecords.map(\.conversationID), [directID])
         XCTAssertEqual(repaired.callRecords.map(\.conversationID), [groupID])

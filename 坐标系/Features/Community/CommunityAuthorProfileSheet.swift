@@ -17,25 +17,58 @@ struct CommunityAuthorProfileView: View {
     @Environment(AppModel.self) private var app
     @Environment(BuddiesModel.self) private var buddies
     @Environment(CommunityModel.self) private var community
+    @Environment(ActivitiesModel.self) private var activities
     @Environment(\.dismiss) private var dismiss
     @State private var showReport = false
     @State private var confirmBlock = false
     @State private var peerContactRoute: PeerContactRoute?
 
-    private var profile: AuthorDirectoryProfile { SampleData.author(named: name) }
-
-    private var hostedActivities: [Activity] {
-        SampleData.activities.filter { $0.hostName == name }.prefix(3).map { $0 }
-    }
-
-    private var recentPosts: [CommunityPost] {
-        SampleData.posts.filter { $0.author == name }.prefix(3).map { $0 }
-    }
-
+    /// 仅本机 / 目录匹配；不直读 Sample 名单灌假卡。
     private var buddyMatch: DiscoverBuddyItem? {
         buddies.item(for: name)
-            ?? SampleData.paidCompanions.first { $0.profile.nickname == name }.map(DiscoverBuddyItem.paid)
-            ?? SampleData.circleBuddies.first { $0.profile.nickname == name }.map(DiscoverBuddyItem.free)
+    }
+
+    private var hostedActivities: [Activity] {
+        activities.activities
+            .filter { $0.hostName.caseInsensitiveCompare(name) == .orderedSame }
+            .sorted { $0.date > $1.date }
+            .prefix(3)
+            .map { $0 }
+    }
+
+    private var hasRecentPosts: Bool {
+        community.items.contains {
+            $0.author.caseInsensitiveCompare(name) == .orderedSame
+        }
+    }
+
+    private var displayCity: String {
+        buddyMatch?.profile.city.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    private var displayBio: String {
+        buddyMatch?.profile.bio.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    private var displayTags: [String] {
+        buddyMatch?.profile.tags ?? []
+    }
+
+    private var roleLabel: String {
+        switch buddyMatch {
+        case .paid:
+            CommunityAuthorCopy.roleCompanion
+        case .free:
+            CommunityAuthorCopy.roleBuddy
+        case nil:
+            if !hostedActivities.isEmpty {
+                CommunityAuthorCopy.roleHost
+            } else if hasRecentPosts {
+                CommunityAuthorCopy.roleAuthor
+            } else {
+                CommunityAuthorCopy.roleUser
+            }
+        }
     }
 
     var body: some View {
@@ -53,15 +86,17 @@ struct CommunityAuthorProfileView: View {
                 VStack {
                     HStack(alignment: .center, spacing: PlatformConversationListRow.imageToTextPadding) {
                         Label {
-                            VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
-                                Text(profile.name)
-                                    .font(.title3.bold())
-                                Text(profile.roleLabel)
-                                    .font(.caption.weight(.medium))
+                            VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
+                                Text(name)
+                                    .font(PlatformListTypography.title3Emphasized)
+                                Text(roleLabel)
+                                    .font(PlatformListTypography.captionEmphasized)
                                     .foregroundStyle(.secondary)
-                                Text(profile.city)
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
+                                if !displayCity.isEmpty {
+                                    Text(displayCity)
+                                        .font(PlatformListTypography.caption)
+                                        .foregroundStyle(.tertiary)
+                                }
                                 TrustCredentialBadgeStrip(
                                     photoVerified: flags.photoVerified,
                                     isMember: false,
@@ -83,12 +118,14 @@ struct CommunityAuthorProfileView: View {
                     )
                 }
 
-                Text(profile.bio)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                if !displayBio.isEmpty {
+                    Text(displayBio)
+                        .font(PlatformListTypography.secondary)
+                        .foregroundStyle(.secondary)
+                }
 
-                if !profile.tags.isEmpty {
-                    CommunityTagsLine(tags: profile.tags)
+                if !displayTags.isEmpty {
+                    CommunityTagsLine(tags: displayTags)
                 }
             }
 
@@ -100,36 +137,20 @@ struct CommunityAuthorProfileView: View {
             )
 
             if !hostedActivities.isEmpty {
-                Section("TA 发起的活动") {
+                Section(CommunityAuthorCopy.hostedSection) {
                     ForEach(hostedActivities) { activity in
-                        VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
-                            Text(activity.title)
-                                .font(.subheadline.weight(.semibold))
-                            Text("\(activity.location) · \(activity.fee)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                        CommunityHostedActivityLinkRow(activity: activity)
                     }
                 }
             }
 
-            if !recentPosts.isEmpty {
-                Section("最近分享") {
-                    ForEach(recentPosts) { post in
-                        VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
-                            Text(post.messageText)
-                                .font(.subheadline.weight(.semibold))
-                                .lineLimit(3)
-                        }
-                    }
-                }
-            }
+            CommunityAuthorRecentPostsSection(authorName: name)
 
             Section {
-                Button("举报", role: .destructive) {
+                Button(CommunityAuthorCopy.report, role: .destructive) {
                     showReport = true
                 }
-                Button("拉黑", role: .destructive) {
+                Button(CommunityAuthorCopy.block, role: .destructive) {
                     confirmBlock = true
                 }
             }
@@ -142,10 +163,10 @@ struct CommunityAuthorProfileView: View {
         }
         .peerContactDestination(route: $peerContactRoute)
         .alert(
-            "举报 \(name)",
+            CommunityAuthorCopy.reportTitle(name),
             isPresented: $showReport
         ) {
-            ForEach(MessagesCopy.reportReasons, id: \.self) { reason in
+            ForEach(CommunityBrowseCopy.reportReasons, id: \.self) { reason in
                 Button(reason, role: .destructive) {
                     app.addModerationTicket(
                         postID: UUID(),
@@ -156,21 +177,21 @@ struct CommunityAuthorProfileView: View {
                     dismiss()
                 }
             }
-            Button("取消", role: .cancel) {}
+            Button(CommunityAuthorCopy.cancel, role: .cancel) {}
         } message: {
-            Text(MessagesCopy.reportFooter)
+            Text(CommunityBrowseCopy.reportFooter)
         }
         .alert(
-            "拉黑 \(name)？",
+            CommunityAuthorCopy.blockConfirmTitle(name),
             isPresented: $confirmBlock
         ) {
-            Button("拉黑", role: .destructive) {
+            Button(CommunityAuthorCopy.block, role: .destructive) {
                 app.blockUser(name)
                 dismiss()
             }
-            Button("取消", role: .cancel) {}
+            Button(CommunityAuthorCopy.cancel, role: .cancel) {}
         } message: {
-            Text("拉黑后将不再收到对方的互动与消息。")
+            Text(CommunityAuthorCopy.blockConfirmMessage)
         }
     }
 
@@ -191,7 +212,7 @@ struct CommunityAuthorProfileView: View {
                 NavigationLink {
                     BuddyDetailRouteView(item: item)
                 } label: {
-                    Text(CommunityCopy.openBuddyProfile)
+                    Text(CommunityBrowseCopy.openBuddyProfile)
                 }
                 .activityDetailBottomSecondaryCTA()
 
@@ -221,24 +242,15 @@ struct CommunityAuthorProfileView: View {
         return Button {
             app.toggleFollow(name)
         } label: {
-            Text(following ? "已关注" : "关注")
+            Text(following ? CommunityDynamicsCopy.following : CommunityDynamicsCopy.follow)
         }
-        .modifier(FollowButtonChrome(following: following))
+        .modifier(CommunityFollowButtonChrome(following: following))
         .sensoryFeedback(.selection, trigger: following)
-    }
-}
-
-private struct FollowButtonChrome: ViewModifier {
-    var following: Bool
-
-    func body(content: Content) -> some View {
-        if following {
-            content
-                .activitySecondaryCTA(controlSize: .small)
-        } else {
-            content
-                .activityPrimaryCTA(controlSize: .small)
-        }
+        .accessibilityLabel(
+            following
+                ? "\(CommunityDynamicsCopy.following)，\(name)"
+                : "\(CommunityDynamicsCopy.follow)，\(name)"
+        )
     }
 }
 

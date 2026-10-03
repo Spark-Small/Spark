@@ -205,7 +205,7 @@ struct BuddyCompanionServiceSKURow: View {
                 Text(sku.priceText)
                     .font(sku.isNegotiable ? .caption.weight(.semibold) : .subheadline.weight(.semibold))
                     .foregroundStyle(sku.isNegotiable ? .secondary : PlatformStatus.warning)
-                Button(sku.isNegotiable ? "约聊议价" : "下单", action: onBook)
+                Button(sku.isNegotiable ? BuddyBrowseCopy.PaidShelf.negotiateCTA : BuddyBrowseCopy.PaidShelf.bookCTA, action: onBook)
                     .activityPrimaryCTA(controlSize: .regular)
                     .disabled(!bookEnabled)
             }
@@ -215,9 +215,17 @@ struct BuddyCompanionServiceSKURow: View {
 }
 
 enum PaidCompanionDetailTab: String, CaseIterable, Identifiable {
-    case profile = "资料"
-    case service = "服务"
-    case reviews = "评价"
+    case profile
+    case service
+    case reviews
 
     var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .profile: BuddyBrowseCopy.PaidShelf.tabProfile
+        case .service: BuddyBrowseCopy.PaidShelf.tabService
+        case .reviews: BuddyBrowseCopy.PaidShelf.tabReviews
+        }
+    }
 }

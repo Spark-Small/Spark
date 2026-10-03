@@ -57,7 +57,7 @@ struct BuddyPosterShelfCard: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilitySummary)
-        .accessibilityHint("打开俱乐部资料")
+        .accessibilityHint(BuddyBrowseCopy.ShelfA11y.openCircleHint)
     }
 }
 
@@ -68,9 +68,9 @@ extension BuddyPosterShelfCard {
     ) -> BuddyPosterShelfCard {
         BuddyPosterShelfCard(
             title: circle.name,
-            subtitle: "\(circle.topic) · \(circle.memberCount) 人",
+            subtitle: "\(circle.topic) · \(BuddyBrowseCopy.OrgPoster.memberCount(circle.memberCount))",
             systemImage: circle.systemImage,
-            accessibilitySummary: "\(circle.name)，\(circle.topic)，\(circle.memberCount) 成员",
+            accessibilitySummary: "\(circle.name)，\(circle.topic)，\(BuddyBrowseCopy.OrgPoster.membersA11y(circle.memberCount))",
             onOpen: onOpen
         )
     }
@@ -79,7 +79,6 @@ extension BuddyPosterShelfCard {
 struct BuddyGuildDetailView: View {
     let guild: CompanionGuild
     @Environment(BuddiesModel.self) private var buddies
-    @Environment(AppModel.self) private var app
 
     private var isJoined: Bool { buddies.isJoined(guild) }
     private var roster: [PaidCompanion] { buddies.companions(in: guild) }
@@ -90,16 +89,16 @@ struct BuddyGuildDetailView: View {
 
     var body: some View {
         BuddyOrgInfoScaffold(
-            infoTitle: "工会信息",
-            nameLabel: "工会名称",
+            infoTitle: BuddyBrowseCopy.OrgPoster.guildInfo,
+            nameLabel: BuddyBrowseCopy.OrgPoster.guildName,
             displayName: guild.name,
             memberCountLabel: roster.count + (isJoined ? 1 : 0),
             announcement: guild.summary,
             cityLine: guild.city,
             metaRows: [
-                ("擅长", guild.specialty),
-                ("起步", guild.priceFromText),
-                ("本周单量", "\(guild.weeklyOrders)"),
+                (BuddyBrowseCopy.OrgPoster.specialty, guild.specialty),
+                (BuddyBrowseCopy.OrgPoster.priceFrom, guild.priceFromText),
+                (BuddyBrowseCopy.OrgPoster.weeklyOrders, "\(guild.weeklyOrders)"),
             ],
             members: roster,
             memberName: { $0.profile.nickname },
@@ -113,10 +112,10 @@ struct BuddyGuildDetailView: View {
                 )
             },
             isJoined: isJoined,
-            joinTitle: "关注工会",
-            leaveTitle: "取消关注",
-            pinTitle: "置顶该工会",
-            nicknameFieldTitle: "我在本工会的昵称",
+            joinTitle: BuddyBrowseCopy.OrgPoster.followGuild,
+            leaveTitle: BuddyBrowseCopy.OrgPoster.unfollowGuild,
+            pinTitle: BuddyBrowseCopy.OrgPoster.pinGuild,
+            nicknameFieldTitle: BuddyBrowseCopy.OrgPoster.guildNickname,
             kind: .guild,
             reportTargetID: guild.id,
             onRequestJoin: { buddies.beginJoin(.guild(guild)) },

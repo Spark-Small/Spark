@@ -5,6 +5,7 @@
 
 import PhotosUI
 import SwiftUI
+import CoordinateDomain
 import CoordinateModels
 
 struct CommunityComposeSheet: View {
@@ -22,9 +23,15 @@ struct CommunityComposeSheet: View {
     @State private var isPreparingPhotos = false
     @State private var blockedWord: String?
     @State private var moderationAlert: String?
-    @State private var photoImportAlert: String?
+    @State private var photoImportFailure: PhotoImportFailure?
     @State private var recapSourceActivityID: UUID?
     @FocusState private var focused: Field?
+
+    private struct PhotoImportFailure: Identifiable {
+        let id = UUID()
+        let message: String
+        let retryItems: [PhotosPickerItem]
+    }
 
     private enum Field: Hashable {
         case body, tags
@@ -34,9 +41,20 @@ struct CommunityComposeSheet: View {
     private let maxPhotos = 9
 
     private var linkableActivities: [Activity] {
-        let prioritized = activities.inviteableActivities
-        if !prioritized.isEmpty { return prioritized }
-        return activities.activities.filter { !$0.isPast }.sorted { $0.date < $1.date }
+        // 仅「我参加 / 我主办」未结束场次，避免全目录噪音（方案 P6）。
+        var seen = Set<UUID>()
+        var result: [Activity] = []
+        for activity in activities.inviteableActivities {
+            if seen.insert(activity.id).inserted {
+                result.append(activity)
+            }
+        }
+        for activity in activities.favoriteActivities where !activity.isLifecycleEnded {
+            if seen.insert(activity.id).inserted {
+                result.append(activity)
+            }
+        }
+        return result
     }
 
     private var canPublish: Bool {
@@ -48,19 +66,19 @@ struct CommunityComposeSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("写下路线、体验或避坑…", text: $bodyText, axis: .vertical)
+                    TextField(CommunityComposeCopy.bodyPlaceholder, text: $bodyText, axis: .vertical)
                         .lineLimit(4...10)
                         .focused($focused, equals: .body)
                 } header: {
-                    Text("内容")
+                    Text(CommunityComposeCopy.bodySection)
                 } footer: {
-                    Text("适合活动复盘、探店笔记和路线攻略")
+                    Text(CommunityComposeCopy.bodyFooter)
                 }
 
                 Section {
                     let mediaPickerTitle = PlatformPhotosPickerCopy.mediaCountLabel(
                         count: previewImages.count,
-                        emptyTitle: "添加照片或视频"
+                        emptyTitle: CommunityComposeCopy.mediaEmptyTitle
                     )
                     PhotosPicker(
                         selection: $pickerItems,
@@ -87,7 +105,7 @@ struct CommunityComposeSheet: View {
                                             if savedPhotoNames.indices.contains(index),
                                                LocalMediaLibrary.isVideo(name: savedPhotoNames[index]) {
                                                 Image(systemName: "play.circle.fill")
-                                                    .font(.title3)
+                                                    .font(PlatformListTypography.title3)
                                                     .symbolRenderingMode(.hierarchical)
                                                     .foregroundStyle(.white)
                                             }
@@ -101,6 +119,7 @@ struct CommunityComposeSheet: View {
                                                         .badge(primary: .white, secondary: .black.opacity(0.55))
                                                     )
                                             }
+                                            .accessibilityLabel(CommunityComposeCopy.removePhotoAccessibility)
                                         }
                                 }
                             }
@@ -108,16 +127,16 @@ struct CommunityComposeSheet: View {
                     }
 
                     if isPreparingPhotos {
-                        ProgressView("正在处理媒体…")
+                        ProgressView(CommunityComposeCopy.mediaProcessing)
                     }
                 } header: {
-                    Text("照片与视频")
+                    Text(CommunityComposeCopy.mediaSection)
                 } footer: {
-                    Text("最多 \(maxPhotos) 项，发布后保存在本机")
+                    Text(CommunityComposeCopy.mediaFooter(maxPhotos: maxPhotos))
                 }
 
-                Section("标签") {
-                    TextField("用空格分隔，如 夜骑 新手", text: $tagText)
+                Section(CommunityComposeCopy.tagsSection) {
+                    TextField(CommunityComposeCopy.tagsPlaceholder, text: $tagText)
                         .focused($focused, equals: .tags)
 
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -138,20 +157,28 @@ struct CommunityComposeSheet: View {
                     }
                 }
 
-                Section("关联活动（可选）") {
-                    Picker("活动", selection: $relatedActivityID) {
-                        Text("不关联").tag(UUID?.none)
-                        ForEach(linkableActivities) { activity in
-                            Text(activity.title).tag(Optional(activity.id))
+                Section {
+                    if linkableActivities.isEmpty {
+                        Text(CommunityBrowseCopy.relateActivityEmptyHint)
+                            .font(PlatformListTypography.footnote)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Picker(CommunityBrowseCopy.relateActivitySection, selection: $relatedActivityID) {
+                            Text(CommunityBrowseCopy.relateActivityNone).tag(UUID?.none)
+                            ForEach(linkableActivities) { activity in
+                                Text(activity.title).tag(Optional(activity.id))
+                            }
                         }
                     }
+                } header: {
+                    Text(CommunityBrowseCopy.relateActivitySection)
                 }
             }
-            .navigationTitle("发分享")
+            .navigationTitle(CommunityComposeCopy.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button(CommunityComposeCopy.cancel) { dismiss() }
                 }
                 if let recapID = recapSourceActivityID {
                     ToolbarItem(placement: .topBarLeading) {
@@ -162,7 +189,7 @@ struct CommunityComposeSheet: View {
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("发布", action: publish)
+                    Button(CommunityComposeCopy.publish, action: publish)
                         .fontWeight(.semibold)
                         .disabled(!canPublish)
                 }
@@ -174,14 +201,34 @@ struct CommunityComposeSheet: View {
         }
         .platformSheet(.form)
         .platformFeedbackAlert($moderationAlert)
-        .platformFeedbackAlert($photoImportAlert, title: "")
-        .alert("内容需要修改", isPresented: Binding(
+        .alert(
+            CommunityComposeCopy.mediaSection,
+            isPresented: Binding(
+                get: { photoImportFailure != nil },
+                set: { if !$0 { photoImportFailure = nil } }
+            ),
+            presenting: photoImportFailure
+        ) { failure in
+            if !failure.retryItems.isEmpty {
+                Button(CommunityComposeCopy.photoImportRetry) {
+                    let items = failure.retryItems
+                    photoImportFailure = nil
+                    Task { await loadPhotos(items) }
+                }
+            }
+            Button(CommunityComposeCopy.photoImportDismiss, role: .cancel) {
+                photoImportFailure = nil
+            }
+        } message: { failure in
+            Text(failure.message)
+        }
+        .alert(CommunityComposeCopy.sensitiveTitle, isPresented: Binding(
             get: { blockedWord != nil },
             set: { if !$0 { blockedWord = nil } }
         )) {
-            Button("知道了", role: .cancel) {}
+            Button(CommunityComposeCopy.sensitiveDismiss, role: .cancel) {}
         } message: {
-            Text("检测到敏感词「\(blockedWord ?? "")」，请修改后再发布。")
+            Text(CommunityComposeCopy.sensitiveMessage(blockedWord ?? ""))
         }
     }
 
@@ -293,9 +340,15 @@ struct CommunityComposeSheet: View {
             savedPhotoNames.append(name)
         }
         if importFailures > 0, previewImages.isEmpty {
-            photoImportAlert = CommunityCopy.photoImportFailed
+            photoImportFailure = PhotoImportFailure(
+                message: CommunityComposeCopy.photoImportFailed,
+                retryItems: items
+            )
         } else if importFailures > 0 {
-            photoImportAlert = "有 \(importFailures) 项未能导入，已保留可加载的媒体。"
+            photoImportFailure = PhotoImportFailure(
+                message: CommunityComposeCopy.photoImportPartialCount(importFailures),
+                retryItems: items
+            )
         }
     }
 }

@@ -2,7 +2,7 @@
 //  BuddyPaidLeaderboard.swift
 //  坐标系
 //
-//  陪玩发现：推荐榜宿主。
+//  陪玩发现：推荐榜 = Top3 + 查看全部；不与下方榜行重复同池。
 //
 
 import SwiftUI
@@ -14,22 +14,36 @@ struct BuddyPaidLeaderboard: View {
     let items: [DiscoverBuddyItem]
     @Binding var period: BuddyPaidBoardPeriod
     var zoomNamespace: Namespace.ID
-    var onBook: (DiscoverBuddyItem) -> Void
+    var contactTitle: (DiscoverBuddyItem) -> String = { _ in BuddyBrowseCopy.chatAction }
+    var onChat: (DiscoverBuddyItem) -> Void = { _ in }
+    var onBook: (DiscoverBuddyItem) -> Void = { _ in }
     var onQuickEntry: (BuddyPaidQuickEntry) -> Void
+    var onSeeAll: (() -> Void)? = nil
 
     private var topThree: [DiscoverBuddyItem] { Array(items.prefix(3)) }
-    private var feedItems: [BuddyPaidLeaderboardFeedItem] {
-        BuddyPaidLeaderboardFeedPlanner.buildFeed(from: items)
+
+    private var promoEntries: [BuddyPaidQuickEntry] {
+        var result: [BuddyPaidQuickEntry] = []
+        if items.count >= 2 { result.append(.voiceParty) }
+        if items.count >= 3 { result.append(.quickMatch) }
+        return result
     }
 
     var body: some View {
         DiscoverBrowseSection(
-            title: "推荐陪玩",
-            subtitle: "示例榜 · 按成单与评价排序"
+            title: BuddyBrowseCopy.PaidShelf.leaderboardTitle,
+            subtitle: BuddyBrowseCopy.PaidShelf.leaderboardSubtitle,
+            showsChevron: onSeeAll != nil,
+            onSeeAll: onSeeAll
         ) {
             VStack(spacing: PlatformMetrics.discoverCardSpacing) {
+                HStack {
+                    Spacer(minLength: 0)
+                    periodMenu
+                }
+                .discoverBrowseContentInset()
+
                 if !topThree.isEmpty {
-                    // 轨自带 contentInset，勿再外包一层水平边距
                     DiscoverHorizontalRail {
                         ForEach(Array(topThree.enumerated()), id: \.element.id) { index, item in
                             if case .paid(let companion) = item {
@@ -38,7 +52,7 @@ struct BuddyPaidLeaderboard: View {
                                     companion: companion,
                                     badge: .forCompanion(companion, rank: index),
                                     zoomNamespace: zoomNamespace,
-                                    onBook: { onBook(item) }
+                                    contextActions: contextActions(for: item)
                                 )
                                 .platformPosterRailFrame()
                             }
@@ -46,52 +60,50 @@ struct BuddyPaidLeaderboard: View {
                     }
                 }
 
-                VStack(spacing: PlatformMetrics.cardInfoSpacing) {
-                    DiscoverSectionTitleRow(
-                        title: BuddyBrowseCopy.leaderboardRankTitle,
-                        showsHorizontalInset: false
-                    ) {
-                        Menu {
-                            ForEach(BuddyPaidBoardPeriod.allCases) { option in
-                                Button {
-                                    period = option
-                                } label: {
-                                    Label(option.rawValue, systemImage: period == option ? "checkmark" : "")
-                                }
-                            }
-                        } label: {
-                            HStack(spacing: PlatformMetrics.hairlineSpacing) {
-                                Text(period.rawValue)
-                                    .font(.caption.weight(.medium))
-                                Image(systemName: "chevron.up.chevron.down")
-                                    .font(.caption2)
-                            }
-                            .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    ForEach(feedItems) { feedItem in
-                        switch feedItem {
-                        case .companion(let item, let rank):
-                            if case .paid(let companion) = item {
-                                BuddyPaidLeaderboardRow(
-                                    rank: rank,
-                                    companion: companion,
-                                    zoomNamespace: zoomNamespace,
-                                    onBook: { onBook(item) }
-                                )
-                            }
-                        case .promo(let entry):
+                if !promoEntries.isEmpty {
+                    VStack(spacing: PlatformMetrics.cardInfoSpacing) {
+                        ForEach(promoEntries) { entry in
                             BuddyPaidQuickEntryBar(entry: entry) {
                                 onQuickEntry(entry)
                             }
                         }
                     }
+                    .discoverBrowseContentInset()
                 }
-                .padding(.horizontal, PlatformMetrics.contentInset)
             }
         }
     }
+
+    private var periodMenu: some View {
+        Menu {
+            ForEach(BuddyPaidBoardPeriod.allCases) { option in
+                Button {
+                    period = option
+                } label: {
+                    Label(option.rawValue, systemImage: period == option ? "checkmark" : "")
+                }
+            }
+        } label: {
+            HStack(spacing: PlatformMetrics.hairlineSpacing) {
+                Text(period.rawValue)
+                    .font(.caption.weight(.medium))
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2)
+            }
+            .foregroundStyle(.secondary)
+        }
+        .accessibilityLabel(BuddyBrowseCopy.leaderboardRankTitle)
+        .accessibilityValue(period.rawValue)
+    }
+
+    private func contextActions(for item: DiscoverBuddyItem) -> BuddyPersonBrowseContextActions {
+        .make(
+            item: item,
+            contactTitle: contactTitle(item),
+            onContact: { onChat(item) },
+            onBook: { onBook(item) }
+        )
+    }
 }
 
-/// Top 3 奖牌竖卡：封面叠字 + 卡内下单，信息不与按钮重叠
+/// Top 3 + 查看全部；无同池榜行重复。预约在详情或 Context Menu。

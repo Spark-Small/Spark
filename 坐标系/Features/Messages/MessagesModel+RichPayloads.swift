@@ -2,13 +2,15 @@
 //  MessagesModel+RichPayloads.swift
 //  坐标系
 //
+//  富消息：图片 / 语音 / 定位 / 活动卡 / 表情回应。
+//
 
 import CoordinateDomain
 import Foundation
 import Observation
 
 extension MessagesModel {
-    // MARK: - Rich payloads / group / social
+    // MARK: - Rich payloads
 
     /// View 经 Model 落盘聊天图，再发消息（勿在 View 直连磁盘）。
     @discardableResult
@@ -54,26 +56,6 @@ extension MessagesModel {
                 messageKind: .activity,
                 linkSubtitle: "\(Formatters.activityEventTime(from: activity.date)) · \(activity.location)",
                 cardActivityID: activity.id
-            ),
-            to: id
-        )
-    }
-
-    func sendTransfer(amount: Double, to id: ChatConversation.ID) -> ChatMessage? {
-        sendPayload(
-            ChatMessage(
-                id: UUID(), sender: "我", text: MessagesCopy.transferTitle, sentAt: .now, isMe: true,
-                messageKind: .transfer, transferAmount: amount
-            ),
-            to: id
-        )
-    }
-
-    func sendSticker(_ emoji: String, to id: ChatConversation.ID) -> ChatMessage? {
-        sendPayload(
-            ChatMessage(
-                id: UUID(), sender: "我", text: emoji, sentAt: .now, isMe: true,
-                messageKind: .sticker
             ),
             to: id
         )

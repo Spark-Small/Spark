@@ -388,7 +388,7 @@ struct WalletPassAddToWalletControl: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .addPassToWalletButtonStyle(.blackOutline)
-                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowInsets(PlatformFormControlListRow.insets)
             } else {
                 Button {
                     showSetupHelp = true

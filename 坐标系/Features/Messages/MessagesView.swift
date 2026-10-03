@@ -2,7 +2,7 @@
 //  MessagesView.swift
 //  坐标系
 //
-//  消息收件箱：会话列表为主转化；通讯录管关系与好友请求（角标）。
+//  消息收件箱：会话列表为主转化；顶栏筛选 / 新聊天 / 通讯录分组。
 //
 
 import SwiftUI
@@ -13,24 +13,6 @@ private enum MessagesInboxRoute: Hashable {
     case conversation(ChatConversation)
 }
 
-private enum MessagesInboxFilter: String, CaseIterable, Identifiable {
-    case all
-    case friends
-    case activityGroups
-    case clubs
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .all: MessagesCopy.filterAll
-        case .friends: MessagesCopy.filterFriends
-        case .activityGroups: MessagesCopy.filterActivityGroups
-        case .clubs: MessagesCopy.filterClubGroups
-        }
-    }
-}
-
 struct MessagesView: View {
     @Environment(MessagesModel.self) private var model
     @Environment(BuddiesModel.self) private var buddies
@@ -38,6 +20,7 @@ struct MessagesView: View {
     @State private var navigation = TabNavigationState()
     @State private var focusMessageID: ChatMessage.ID?
     @State private var inboxFilter: MessagesInboxFilter = .all
+    @State private var showStrangerMailbox = false
 
     private var blockedNames: [String] { Array(app.blockedUserNames) }
 
@@ -48,27 +31,26 @@ struct MessagesView: View {
         return visibleItems.isEmpty
     }
 
-    /// 拉黑用户的好友会话不展示
-    private var visibleItems: [ChatConversation] {
-        filteredItems(model.items.filter { conversation in
-            guard conversation.isFriendChat else { return true }
-            return !blockedNames.contains {
-                $0.caseInsensitiveCompare(conversation.title) == .orderedSame
-            }
-        })
+    private var inboxFilterCounts: MessagesInboxFilterCounts {
+        model.inboxFilterCounts(blockedNames: blockedNames)
     }
 
-    private func filteredItems(_ items: [ChatConversation]) -> [ChatConversation] {
-        switch inboxFilter {
-        case .all:
-            return items
-        case .friends:
-            return items.filter(\.isFriendChat)
-        case .activityGroups:
-            return items.filter(\.isActivityGroup)
-        case .clubs:
-            return items.filter(\.isCircleGroup)
-        }
+    /// 与筛选 Menu 角标同源（`inboxItems`）。
+    private var visibleItems: [ChatConversation] {
+        model.inboxItems(filter: inboxFilter, blockedNames: blockedNames)
+    }
+
+    private var pinnedItems: [ChatConversation] {
+        visibleItems.filter(\.isPinned)
+    }
+
+    private var unpinnedItems: [ChatConversation] {
+        visibleItems.filter { !$0.isPinned }
+    }
+
+    /// 置顶靠前，仍用同一套 plain 行 chrome（勿拆 Section，避免分节「框感」）。
+    private var inboxSortedItems: [ChatConversation] {
+        pinnedItems + unpinnedItems
     }
 
     private var searchConversationMatches: [ChatConversation] {
@@ -79,15 +61,11 @@ struct MessagesView: View {
         model.searchHistory(query: model.searchText)
     }
 
-    private var hasActivityGroupConversations: Bool {
-        model.items.contains(where: \.isActivityGroup)
-    }
-
-    private var showsActivityGroupInboxHint: Bool {
+    private var isFilterEmptyOnly: Bool {
         !model.isSearching
-            && hasActivityGroupConversations
-            && inboxFilter == .all
-            && !showsEmptyOverlay
+            && !model.isEmptyInbox
+            && visibleItems.isEmpty
+            && inboxFilter != .all
     }
 
     var body: some View {
@@ -96,10 +74,12 @@ struct MessagesView: View {
 
         NavigationStack(path: $navigation.path) {
             List {
-                if model.isSearching {
-                    searchResultsList
-                } else {
-                    inboxList
+                Group {
+                    if model.isSearching {
+                        searchResultsList
+                    } else {
+                        inboxList
+                    }
                 }
             }
             .platformConversationListChrome()
@@ -113,7 +93,7 @@ struct MessagesView: View {
                 prompt: MessagesCopy.searchPrompt
             )
             .platformTabRootToolbar { tabToolbar }
-            .tint(PlatformAction.cloverPurple)
+            .refreshable { await model.reloadFromRepository() }
             .navigationDestination(for: MessagesInboxRoute.self) { route in
                 switch route {
                 case .friends:
@@ -144,6 +124,10 @@ struct MessagesView: View {
             }
             .circleBrowseStackChrome(
                 buddies: buddies,
+                messages: model,
+                memberName: app.user.name,
+                blockedUserNames: app.blockedUserNames,
+                onBrowseBuddies: { app.selectedTab = .buddies },
                 openCircle: { navigation.openCircle($0) },
                 openConversation: { app.openMessages(conversationID: $0) }
             )
@@ -154,8 +138,12 @@ struct MessagesView: View {
                     set: { if !$0 { model.cancelDelete() } }
                 )
             ) {
-                Button(MessagesCopy.deleteDialogConfirm, role: .destructive, action: model.confirmDelete)
-                Button(MessagesCopy.deleteDialogCancel, role: .cancel, action: model.cancelDelete)
+                Button(MessagesCopy.deleteDialogConfirm, role: .destructive) {
+                    model.confirmDelete()
+                }
+                Button(MessagesCopy.deleteDialogCancel, role: .cancel) {
+                    model.cancelDelete()
+                }
             } message: {
                 if let title = model.conversationPendingDelete?.title {
                     Text(MessagesCopy.deleteDialogMessage(title: title))
@@ -165,42 +153,19 @@ struct MessagesView: View {
             .onChange(of: app.pendingConversationID) { _, _ in
                 consumePendingConversationOpen()
             }
+            .sheet(isPresented: $showStrangerMailbox) {
+                StrangerMailboxSheet { conversation in
+                    openConversation(conversation)
+                }
+                .platformHiddenTabBar()
+            }
         }
         .tabNavigationState(navigation)
     }
 
     @ViewBuilder
     private var inboxList: some View {
-        if showsActivityGroupInboxHint {
-            Section {
-                HStack(alignment: .center, spacing: PlatformMetrics.cardInfoSpacing) {
-                    Label(MessagesCopy.activityGroupInboxHint, systemImage: "person.3")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    Spacer(minLength: PlatformMetrics.minContentGap)
-                    Button(MessagesCopy.activityGroupInboxFilterAction) {
-                        inboxFilter = .activityGroups
-                    }
-                    .font(.footnote.weight(.semibold))
-                }
-                .accessibilityElement(children: .combine)
-            }
-        }
-
-        if !model.isSearching {
-            Section {
-                Picker("筛选", selection: $inboxFilter) {
-                    ForEach(MessagesInboxFilter.allCases) { filter in
-                        Text(filter.title).tag(filter)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-            }
-        }
-
-        ForEach(visibleItems) { conversation in
+        ForEach(inboxSortedItems) { conversation in
             conversationLink(conversation)
         }
     }
@@ -264,17 +229,34 @@ struct MessagesView: View {
         if model.isSearching {
             ContentUnavailableView.search(text: model.searchText)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
+        } else if isFilterEmptyOnly {
+            ContentUnavailableView {
+                Label(MessagesCopy.filterEmptyTitle, systemImage: "line.3.horizontal.decrease.circle")
+            } description: {
+                Text(MessagesCopy.filterEmptyDescription)
+            } actions: {
+                Button(MessagesCopy.filterEmptyShowAll) {
+                    inboxFilter = .all
+                }
+                .activityPrimaryCTA(controlSize: .large)
+            }
+            .frame(maxWidth: .infinity)
         } else if model.isEmptyInbox || visibleItems.isEmpty {
             ContentUnavailableView {
                 Label(MessagesCopy.emptyInboxTitle, systemImage: "message")
             } description: {
                 Text(MessagesCopy.emptyInboxDescription)
             } actions: {
+                Button(MessagesCopy.friendsListTitle) {
+                    navigation.path.append(MessagesInboxRoute.friends)
+                }
+                .activityPrimaryCTA(controlSize: .large)
+
                 Button(MessagesCopy.emptyInboxBrowseActivities) {
                     app.selectedTab = .activities
                 }
-                .activityPrimaryCTA(controlSize: .large)
+                .buttonStyle(.bordered)
+                .controlSize(.large)
 
                 Button(MessagesCopy.emptyInboxMeetBuddies) {
                     app.selectedTab = .buddies
@@ -282,27 +264,31 @@ struct MessagesView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
-
-                Button(MessagesCopy.emptyInboxJoinClubs) {
-                    app.openClubDiscover()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
         }
     }
 
-    // MARK: - Toolbar
-
     @ToolbarContentBuilder
     private var tabToolbar: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            MessagesInboxFilterMenu(
+                filter: $inboxFilter,
+                counts: inboxFilterCounts,
+                onOpenStrangerMailbox: { showStrangerMailbox = true },
+                onMarkAllRead: { model.markAllRead() }
+            )
+        }
+
+        ToolbarSpacer(.fixed, placement: .topBarTrailing)
+
+        ToolbarItemGroup(placement: .topBarTrailing) {
             Button(MessagesCopy.friendsListTitle, systemImage: "person.crop.circle") {
                 navigation.path.append(MessagesInboxRoute.friends)
             }
             .badge(model.requestBadgeCount)
+            .platformNavigationBarItemChrome()
+            .accessibilityHint(MessagesCopy.friendsListHint)
         }
     }
 
@@ -326,49 +312,6 @@ struct MessagesView: View {
             model.conversations.first { $0.id == id },
             focusMessageID: focus
         )
-    }
-}
-
-// MARK: - Swipe
-
-private extension View {
-    func conversationSwipeActions(_ conversation: ChatConversation, model: MessagesModel) -> some View {
-        self
-            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                Button {
-                    model.togglePin(conversation.id)
-                } label: {
-                    Label(
-                        conversation.isPinned ? MessagesCopy.unpin : MessagesCopy.pin,
-                        systemImage: conversation.isPinned ? "pin.slash" : "pin"
-                    )
-                }
-                .tint(.orange)
-
-                Button {
-                    model.toggleUnread(conversation.id)
-                } label: {
-                    Label(
-                        conversation.unreadCount > 0 ? MessagesCopy.markRead : MessagesCopy.markUnread,
-                        systemImage: conversation.unreadCount > 0 ? "envelope.open" : "envelope.badge"
-                    )
-                }
-                .tint(.accentColor)
-            }
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                Button(MessagesCopy.delete, systemImage: "trash", role: .destructive) {
-                    model.requestDelete(conversation)
-                }
-                Button {
-                    model.toggleMute(conversation.id)
-                } label: {
-                    Label(
-                        conversation.isMuted ? MessagesCopy.unmute : MessagesCopy.mute,
-                        systemImage: conversation.isMuted ? "bell" : "bell.slash"
-                    )
-                }
-                .tint(.secondary)
-            }
     }
 }
 

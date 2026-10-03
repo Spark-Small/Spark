@@ -2,8 +2,8 @@
 //  ActivityBrowseShelf.swift
 //  坐标系
 //
-//  活动发现页长列表分区：App Store / Apple TV 式货架混排。
-//  信息密度由 layout 决定；各轨由 ActivityRecommender 排序并跨轨去重。
+//  活动发现页长列表分区：转化轨优先，浏览轨收紧。
+//  各轨由 ActivityRecommender 排序并跨轨去重。
 //
 
 import Foundation
@@ -35,39 +35,27 @@ struct ActivityBrowseShelf: Identifiable, Hashable {
 
 // MARK: - Home catalog
 
-/// 活动 Tab 主列表编排：精选、接着逛、Top 10、热场、列表等。
+/// 活动 Tab 主列表：转化轨前置，默认最多约 6 条有内容的轨。
 @MainActor
 enum ActivityBrowseHomeCatalog {
     static let minimumCount = 2
-    static let editorialCap = 5
     static let railCap = 10
-    static let listCap = 6
+    /// 首页默认轨数上限，避免长尾稀释参加意图。
+    static let maxShelves = 6
 
     static func shelves(
         activities: [Activity],
         joined: [Activity],
         catalogIndex: [UUID: Int],
-        excluding spotlightIDs: Set<UUID> = []
+        excluding excludedIDs: Set<UUID> = []
     ) -> [ActivityBrowseShelf] {
         let open = activities.filter { !$0.isPast && $0.hasAvailableSpots }
-        var used = spotlightIDs
+        var used = excludedIDs
         var shelves: [ActivityBrowseShelf] = []
 
-        let featuredItems = ranked(from: open, catalogIndex: catalogIndex, excluding: used, limit: editorialCap)
-        if append(
-            &shelves,
-            id: "featured",
-            title: ActivityBrowseCopy.Shelf.featuredTitle,
-            layout: .editorial,
-            items: featuredItems
-        ) {
-            used.formUnion(featuredItems.map(\.id))
-        }
-
-        let followingItems = following(
+        // 1. 接着逛：仅真实已报名场次，不做开放池兜底
+        let followingItems = followingJoined(
             from: joined,
-            open: open,
-            catalogIndex: catalogIndex,
             excluding: used
         )
         if append(
@@ -80,87 +68,7 @@ enum ActivityBrowseHomeCatalog {
             used.formUnion(followingItems.map(\.id))
         }
 
-        let topCharts = ranked(from: open, catalogIndex: catalogIndex, excluding: used, limit: railCap)
-        if append(
-            &shelves,
-            id: "topcharts",
-            title: ActivityBrowseCopy.Shelf.topChartsTitle,
-            layout: .ranked,
-            items: topCharts
-        ) {
-            used.formUnion(topCharts.map(\.id))
-        }
-
-        let hotCandidates = ranked(
-            from: open,
-            catalogIndex: catalogIndex,
-            excluding: used,
-            limit: railCap + 4
-        )
-        let hotItems = Array(ActivityRecommender.diversify(hotCandidates).prefix(railCap))
-        if append(
-            &shelves,
-            id: "hot",
-            title: ActivityBrowseCopy.Shelf.hotTitle,
-            layout: .hot,
-            items: hotItems
-        ) {
-            used.formUnion(hotItems.map(\.id))
-        }
-
-        let freeItems = takeRanked(
-            from: open,
-            catalogIndex: catalogIndex,
-            excluding: used,
-            limit: railCap,
-            where: \.isFree
-        )
-        if append(
-            &shelves,
-            id: "free",
-            title: ActivityBrowseCopy.Shelf.freeTitle,
-            layout: .hot,
-            items: freeItems
-        ) {
-            used.formUnion(freeItems.map(\.id))
-        }
-
-        let newlyListed = open.sorted {
-            (catalogIndex[$0.id] ?? Int.max) < (catalogIndex[$1.id] ?? Int.max)
-        }
-        let newItems = ranked(
-            from: newlyListed,
-            catalogIndex: catalogIndex,
-            excluding: used,
-            limit: editorialCap
-        )
-        if append(
-            &shelves,
-            id: "new",
-            title: ActivityBrowseCopy.Shelf.newTitle,
-            layout: .editorial,
-            items: newItems
-        ) {
-            used.formUnion(newItems.map(\.id))
-        }
-
-        let nearbyItems = takeRanked(
-            from: open,
-            catalogIndex: catalogIndex,
-            excluding: used,
-            limit: railCap,
-            where: \.isNearby
-        )
-        if append(
-            &shelves,
-            id: "nearby",
-            title: ActivityBrowseCopy.Shelf.nearbyTitle,
-            layout: .hot,
-            items: nearbyItems
-        ) {
-            used.formUnion(nearbyItems.map(\.id))
-        }
-
+        // 2–4. 高转化：稀缺 → 今晚 → 免费
         let fillingItems = takeRanked(
             from: open,
             catalogIndex: catalogIndex,
@@ -194,27 +102,62 @@ enum ActivityBrowseHomeCatalog {
             used.formUnion(tonightItems.map(\.id))
         }
 
-        let editorItems = ranked(from: open, catalogIndex: catalogIndex, excluding: used, limit: editorialCap)
+        let freeItems = takeRanked(
+            from: open,
+            catalogIndex: catalogIndex,
+            excluding: used,
+            limit: railCap,
+            where: \.isFree
+        )
         if append(
             &shelves,
-            id: "editors",
-            title: ActivityBrowseCopy.Shelf.editorsTitle,
-            layout: .editorial,
-            items: editorItems
+            id: "free",
+            title: ActivityBrowseCopy.Shelf.freeTitle,
+            layout: .hot,
+            items: freeItems
         ) {
-            used.formUnion(editorItems.map(\.id))
+            used.formUnion(freeItems.map(\.id))
         }
 
-        let listItems = ranked(from: open, catalogIndex: catalogIndex, excluding: used, limit: listCap)
-        append(
-            &shelves,
-            id: "list",
-            title: ActivityBrowseCopy.Shelf.listTitle,
-            layout: .list,
-            items: listItems
+        // 5. 热场（精选转化交给顶部 Hero，避免与 editorial 轨重复）
+        let hotCandidates = ranked(
+            from: open,
+            catalogIndex: catalogIndex,
+            excluding: used,
+            limit: railCap + 4
         )
+        let hotItems = Array(ActivityRecommender.diversify(hotCandidates).prefix(railCap))
+        if append(
+            &shelves,
+            id: "hot",
+            title: ActivityBrowseCopy.Shelf.hotTitle,
+            layout: .hot,
+            items: hotItems
+        ) {
+            used.formUnion(hotItems.map(\.id))
+        }
 
-        return shelves
+        // 出门就能到：仅有距离信号时出现，且不突破轨数上限
+        if shelves.count < maxShelves {
+            let nearbyItems = takeRanked(
+                from: open,
+                catalogIndex: catalogIndex,
+                excluding: used,
+                limit: railCap,
+                where: \.isNearby
+            )
+            if append(
+                &shelves,
+                id: "nearby",
+                title: ActivityBrowseCopy.Shelf.nearbyTitle,
+                layout: .hot,
+                items: nearbyItems
+            ) {
+                used.formUnion(nearbyItems.map(\.id))
+            }
+        }
+
+        return Array(shelves.prefix(maxShelves))
     }
 
     // MARK: - Helpers
@@ -283,17 +226,14 @@ enum ActivityBrowseHomeCatalog {
         )
     }
 
-    private static func following(
+    /// 仅用户真实已报名且未结束的场次；不足 `minimumCount` 则不展示该轨。
+    private static func followingJoined(
         from joined: [Activity],
-        open: [Activity],
-        catalogIndex: [UUID: Int],
         excluding used: Set<UUID>
     ) -> [Activity] {
         let active = joined.filter { !$0.isPast && !used.contains($0.id) }
-        if active.count >= minimumCount {
-            return Array(active.prefix(8))
-        }
-        return ranked(from: open, catalogIndex: catalogIndex, excluding: used, limit: 8)
+        guard active.count >= minimumCount else { return [] }
+        return Array(active.prefix(8))
     }
 
     private static func isTonight(_ activity: Activity) -> Bool {

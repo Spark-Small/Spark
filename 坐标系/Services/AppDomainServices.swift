@@ -128,6 +128,7 @@ struct AppProfileSyncService {
         app.activities.currentUserName = next.name
         app.community.currentUserName = next.name
         app.buddies.currentUserName = next.name
+        app.buddies.currentUserID = LocalUserIdentity.current
         if previousName != next.name {
             app.activities.migrateUserName(from: previousName, to: next.name)
         }
@@ -146,20 +147,22 @@ struct AppProfileSyncService {
         app.activities.currentUserName = app.user.name
         app.community.currentUserName = app.user.name
         app.buddies.currentUserName = app.user.name
+        app.buddies.currentUserID = LocalUserIdentity.current
         app.refreshInterestContext(interests)
-        app.hasCompletedWelcomeBootstrap = true
+        app.hasCompletedInterestSelection = true
     }
 
     func apply(snapshot: ProfileSnapshot, app: AppModel) {
         var nextUser = snapshot.user
         nextUser.id = LocalUserIdentity.current
         app.user = nextUser
-        app.hasCompletedWelcomeBootstrap = snapshot.hasCompletedOnboarding
+        app.hasCompletedInterestSelection = snapshot.hasCompletedOnboarding
         app.blockedUserNames = Set(snapshot.blockedUserNames)
         app.moderationTickets = snapshot.moderationTickets.sorted { $0.createdAt > $1.createdAt }
         app.activities.currentUserName = nextUser.name
         app.community.currentUserName = nextUser.name
         app.buddies.currentUserName = nextUser.name
+        app.buddies.currentUserID = LocalUserIdentity.current
         app.buddies.blockedUserNames = app.blockedUserNames
         app.community.blockedUserNames = app.blockedUserNames
         app.refreshInterestContext(nextUser.interests)
@@ -223,6 +226,7 @@ struct AppSafetySyncService {
         app.community.blockedUserNames = app.blockedUserNames
         app.messages.deleteDirectChat(with: name)
         app.buddies.purgeSocialLinks(with: name)
+        app.inAppNotificationStore.removeItemsMentioning(displayName: name)
     }
 
     func unblockUser(_ name: String, app: AppModel) {

@@ -12,6 +12,7 @@ import Foundation
 
 enum AppComposition {
     static let activitiesParticipation = ActivitiesParticipationUseCases()
+    static let activitiesHosting = ActivitiesHostingUseCases()
     static let activitiesBrowse = ActivitiesBrowseUseCases()
     static let buddiesBooking = BuddiesBookingUseCases()
 
@@ -36,6 +37,7 @@ enum AppComposition {
 
     @MainActor static let membershipStore = MembershipStore()
     @MainActor static let notificationPreferencesStore = NotificationPreferencesStore()
+    @MainActor static let inAppNotificationStore = InAppNotificationStore()
     @MainActor static let privacyPreferencesStore = PrivacyPreferencesStore()
     @MainActor static let youthModeStore = YouthModeStore()
     @MainActor static let legalConsentStore = LegalConsentStore()
@@ -132,11 +134,8 @@ enum AppComposition {
 
     @MainActor
     static func makeBuddiesRepository() -> any BuddiesRepository {
-        let local = resolvedLocalBuddiesRepository()
-        if FeatureFlags.useRemoteBuddies {
-            return RemoteBuddiesRepository(local: local)
-        }
-        return local
+        // 始终包一层 Remote：开关只控制 sync，DEBUG 联调改旗标后无需重建 AppModel。
+        RemoteBuddiesRepository(local: resolvedLocalBuddiesRepository())
     }
 
     /// bootstrap 阶段：按开关拉取远程快照，失败保留本地。

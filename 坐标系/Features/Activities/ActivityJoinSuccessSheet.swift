@@ -22,9 +22,9 @@ enum ActivitySuccessContext {
     var subtitle: String {
         switch self {
         case .joined:
-            "开场前可在「我的行程」完成准备"
+            "下一步：打开我的行程，完成准备并关注活动群"
         case .published:
-            "活动群已创建，可在消息里通知已参加成员"
+            "建议在管理页完善行程与费用说明；活动群已创建"
         }
     }
 
@@ -54,7 +54,6 @@ struct ActivityJoinSuccessSheet: View {
     var onOpenJourney: (() -> Void)?
     var onOpenGroup: (() -> Void)?
 
-    @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var calendarMessage: String?
     @State private var showCalendarAccessAlert = false
@@ -80,7 +79,7 @@ struct ActivityJoinSuccessSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }
+                    Button(ActivityDetailCopy.peopleSheetDone) { dismiss() }
                         .fontWeight(.semibold)
                 }
             }
@@ -102,8 +101,11 @@ struct ActivityJoinSuccessSheet: View {
             Image(context.illustrationName)
                 .resizable()
                 .scaledToFit()
-                .frame(maxWidth: 280)
-                .frame(height: 120)
+                .frame(
+                    maxWidth: PlatformMetrics.journeyContentMaxWidth
+                        * PlatformMetrics.successIllustrationMaxWidthFactor
+                )
+                .aspectRatio(PlatformMetrics.successIllustrationAspectRatio, contentMode: .fit)
                 .accessibilityHidden(true)
 
             VStack(spacing: PlatformMetrics.detailMicroSpacing) {
@@ -143,11 +145,16 @@ struct ActivityJoinSuccessSheet: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Text(ActivityCardStatus.joinSuccessGroupHint)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.top, PlatformMetrics.hairlineSpacing)
+
+            VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
+                Label("打开我的行程，完成准备清单", systemImage: "checklist")
+                Label(ActivityCardStatus.joinSuccessGroupHint, systemImage: "bubble.left.and.bubble.right")
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, PlatformMetrics.hairlineSpacing)
+            .accessibilityElement(children: .combine)
         }
         .padding(.top, PlatformMetrics.detailMicroSpacing)
     }
@@ -157,13 +164,20 @@ struct ActivityJoinSuccessSheet: View {
             Text(activity.title)
                 .font(.headline)
                 .multilineTextAlignment(.center)
-            Text(Formatters.activityEventTime(from: activity.date))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Text(activity.location)
+            Text("\(Formatters.activityEventTime(from: activity.date)) · \(activity.location)")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+
+            VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
+                Label("在管理页完善行程、费用与须知", systemImage: "square.and.pencil")
+                Label("打开活动群，同步集合与变更", systemImage: "bubble.left.and.bubble.right")
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, PlatformMetrics.hairlineSpacing)
+            .accessibilityElement(children: .combine)
         }
         .padding(.top, PlatformMetrics.detailMicroSpacing)
     }
@@ -188,22 +202,22 @@ struct ActivityJoinSuccessSheet: View {
                 )
                 .frame(maxWidth: .infinity)
             }
-            .modifier(ActivitySuccessCalendarButtonStyle(isOnCalendar: isOnCalendar))
+            .buttonStyle(.bordered)
             .controlSize(.large)
-            .disabled(isOnCalendar)
-
-            Button("还没找到同行？找个搭子") {
-                dismissThen { app.selectedTab = .buddies }
-            }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.top, PlatformMetrics.hairlineSpacing)
         }
     }
 
     private var publishedActions: some View {
         VStack(spacing: PlatformMetrics.cardFooterSpacing) {
+            Button {
+                dismissThen { onOpenGroup?() }
+            } label: {
+                Label(context.openGroupLabel, systemImage: "bubble.left.and.bubble.right")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+
             Button {
                 Task { await toggleCalendarReminder() }
             } label: {
@@ -212,15 +226,6 @@ struct ActivityJoinSuccessSheet: View {
                     systemImage: ActivityCalendar.Symbol.systemName(isScheduled: isOnCalendar)
                 )
                 .frame(maxWidth: .infinity)
-            }
-            .modifier(ActivitySuccessCalendarButtonStyle(isOnCalendar: isOnCalendar))
-            .controlSize(.large)
-
-            Button {
-                dismissThen { onOpenGroup?() }
-            } label: {
-                Label(context.openGroupLabel, systemImage: "bubble.left.and.bubble.right")
-                    .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
@@ -249,18 +254,6 @@ struct ActivityJoinSuccessSheet: View {
             calendarMessage = isOnCalendar
                 ? ActivityDetailCopy.calendarRemoveFailedMessage
                 : ActivityDetailCopy.calendarFailedMessage
-        }
-    }
-}
-
-private struct ActivitySuccessCalendarButtonStyle: ViewModifier {
-    let isOnCalendar: Bool
-
-    func body(content: Content) -> some View {
-        if isOnCalendar {
-            content.buttonStyle(.bordered)
-        } else {
-            content.buttonStyle(.bordered)
         }
     }
 }

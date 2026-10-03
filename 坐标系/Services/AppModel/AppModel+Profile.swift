@@ -24,13 +24,20 @@ extension AppModel {
         derivedStateService.refreshProfileStats(app: self)
     }
 
-    func bootstrapProfileAfterWelcomeGuide(interests: [String]) {
+    /// 兴趣选择完成：写入资料兴趣并解除 `InterestOnboardingView` 拦截。
+    func completeInterestSelection(interests: [String]) {
+        InterestSelectionDraftStore.clear()
         syncOrchestrator.handle(.onboardingCompleted(interests: interests))
     }
 
-    /// 保留旧名，指向欢迎引导 bootstrap。
+    /// 兼容旧名；请改用 `completeInterestSelection`。
+    func bootstrapProfileAfterWelcomeGuide(interests: [String]) {
+        completeInterestSelection(interests: interests)
+    }
+
+    /// 兼容旧名；请改用 `completeInterestSelection`。
     func completeOnboarding(interests: [String]) {
-        bootstrapProfileAfterWelcomeGuide(interests: interests)
+        completeInterestSelection(interests: interests)
     }
 
     func isFollowing(_ name: String) -> Bool {
@@ -59,8 +66,9 @@ extension AppModel {
         auth.signOut()
         // 与删号对齐：清掉钱包 / 凭证 / 订单等旁路商业态，避免下一账号看到上一账号余额。
         clearCommerceSideStateOnSignOut()
+        InterestSelectionDraftStore.clear()
         if clearOnboarding {
-            hasCompletedWelcomeBootstrap = false
+            hasCompletedInterestSelection = false
             welcomeGuide.reset()
         }
         persistProfile()
@@ -86,6 +94,7 @@ extension AppModel {
 
     func resetLocalDemoData() async {
         await quiesceAllPersistence()
+        InterestSelectionDraftStore.clear()
         await AppPersistence.resetLocalDemoData()
         activityEngagementStore.reloadFromDisk()
         try? await profileRecentBrowseStore.clearSynchronously()
@@ -94,6 +103,7 @@ extension AppModel {
 
     func deleteLocalAccount() async {
         await quiesceAllPersistence()
+        InterestSelectionDraftStore.clear()
         await AppPersistence.resetLocalDemoData()
         activityEngagementStore.reloadFromDisk()
         try? await profileRecentBrowseStore.clearSynchronously()

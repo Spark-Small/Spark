@@ -2,6 +2,8 @@
 //  ActivitiesModel.swift
 //  坐标系
 //
+//  活动目录 / 报名快照门面。Sheet / toast 在 `presentation`。
+//
 
 import CoordinateDomain
 import Foundation
@@ -11,38 +13,33 @@ import Observation
 @Observable
 final class ActivitiesModel {
     var selectedCategory: ActivityCategory = .forYou
+    /// `true` 时发现区展示「最近看过」（不改 `selectedCategory`，以便返回分类）。
+    var isBrowsingRecents = false
     var quickFilters: Set<ActivityQuickFilter> = []
-    /// 按自然日筛选；`nil` 表示不限日期（替代筛选里的今天 / 明天分段）
-    var dayFilter: Date? = nil
-    /// 活动文字搜索（标题 / 地点 / 主办 / 标签）
-    var searchText = ""
+    /// 浏览会话「附近」半径（km）。仅与 `.nearby` 联用；不写入全局 RecommendationConfig。
+    var nearbyFilterRadiusKM: Double? = nil
     var activities: [Activity]
     var favoriteIDs: Set<UUID>
     var joinedIDs: Set<UUID>
     var waitlistIDs: Set<UUID>
     var currentUserName: String
-    var isComposing = false
-    var editingActivityID: Activity.ID?
-    var showFilters = false
-    var joinSuccessActivityID: Activity.ID?
-    /// 发起人发布成功（与参加成功区分）
-    var publishSuccessActivityID: Activity.ID?
-    var toastMessage: String?
-    var lightFeedbackMessage: String?
+    var currentUserID: UUID
     var waitlistSpotNotifiedIDs: Set<UUID>
     var participationProgress: [ActivityParticipationProgress]
     /// 日历写入不经过本 Model，用 revision 驱动待办 / 行程 UI 同步。
     var calendarSyncRevision = 0
-    /// 欢迎引导等程序触发的 chip 高亮脉冲
-    var quickFilterHighlightToken = 0
-    var lastHighlightedQuickFilter: ActivityQuickFilter?
     var feedbackTagCounts: [String: [String: Int]]
+
+    /// 表现态（compose / 成功 Sheet / toast）
+    var presentation = ActivitiesPresentationStore()
+
     let repository: any ActivitiesRepository
     @ObservationIgnored let engagementStore: ActivityEngagementStore
     @ObservationIgnored let recentBrowseStore: ProfileRecentBrowseStore
     @ObservationIgnored let walletPassStore: WalletPassStore
     @ObservationIgnored let locationService: LocationService
     @ObservationIgnored let participation: ActivitiesParticipationUseCases
+    @ObservationIgnored let hosting: ActivitiesHostingUseCases
     @ObservationIgnored let browse: ActivitiesBrowseUseCases
     @ObservationIgnored var persistenceGeneration: Int
     @ObservationIgnored var persistTask: Task<Void, Never>?
@@ -54,15 +51,18 @@ final class ActivitiesModel {
         repository: any ActivitiesRepository,
         engagementStore: ActivityEngagementStore,
         participation: ActivitiesParticipationUseCases,
+        hosting: ActivitiesHostingUseCases,
         browse: ActivitiesBrowseUseCases,
         recentBrowseStore: ProfileRecentBrowseStore,
         walletPassStore: WalletPassStore,
         locationService: LocationService,
-        currentUserName: String? = nil
+        currentUserName: String? = nil,
+        currentUserID: UUID? = nil
     ) {
         self.repository = repository
         self.engagementStore = engagementStore
         self.participation = participation
+        self.hosting = hosting
         self.browse = browse
         self.recentBrowseStore = recentBrowseStore
         self.walletPassStore = walletPassStore
@@ -76,10 +76,25 @@ final class ActivitiesModel {
         participationProgress = snapshot.participationProgress
         feedbackTagCounts = snapshot.feedbackTagCounts
         self.currentUserName = currentUserName ?? SampleData.currentUser.name
+        self.currentUserID = currentUserID ?? LocalUserIdentity.current
         persistenceGeneration = repository.currentPersistenceGeneration()
         refreshDistancesFromLocation()
     }
 
+    var browseSurface: ActivitiesBrowseSurface {
+        isBrowsingRecents ? .recents : .category(selectedCategory)
+    }
+
+    var browseNavigationTitle: String { browseSurface.title }
+
+    func selectBrowseCategory(_ category: ActivityCategory) {
+        isBrowsingRecents = false
+        selectedCategory = category
+    }
+
+    func selectBrowseRecents() {
+        isBrowsingRecents = true
+    }
 
     var joinedActivities: [Activity] {
         activities.filter { joinedIDs.contains($0.id) }.sorted { $0.date < $1.date }
@@ -87,7 +102,7 @@ final class ActivitiesModel {
 
     var hostedActivities: [Activity] {
         activities
-            .filter { $0.hostName == currentUserName }
+            .filter { isHost($0) }
             .sorted { $0.date < $1.date }
     }
 
@@ -96,7 +111,7 @@ final class ActivitiesModel {
         activities
             .filter {
                 !$0.isLifecycleEnded
-                    && (joinedIDs.contains($0.id) || $0.hostName == currentUserName)
+                    && (joinedIDs.contains($0.id) || isHost($0))
             }
             .sorted { $0.date < $1.date }
     }
@@ -106,7 +121,7 @@ final class ActivitiesModel {
     }
 
     var joinSuccessActivity: Activity? {
-        guard let id = joinSuccessActivityID else { return nil }
+        guard let id = presentation.joinSuccessActivityID else { return nil }
         return activity(id: id)
     }
 
@@ -119,14 +134,18 @@ final class ActivitiesModel {
         activities
             .filter {
                 !$0.isLifecycleEnded
-                    && (joinedIDs.contains($0.id) || $0.hostName == currentUserName)
+                    && (joinedIDs.contains($0.id) || isHost($0))
                     && candidate.scheduleOverlaps($0)
             }
             .sorted { $0.date < $1.date }
     }
 
     func isHost(_ activity: Activity) -> Bool {
-        activity.hostName == currentUserName
+        ActivityHostAuthorization.isHost(
+            activity,
+            hostName: currentUserName,
+            hostUserID: currentUserID
+        )
     }
 
     func isHost(id: Activity.ID) -> Bool {
@@ -151,6 +170,9 @@ final class ActivitiesModel {
                 activities[index].participantNames[participantIndex] = newName
                 changed = true
             }
+        }
+        if currentUserName == oldName {
+            currentUserName = newName
         }
         if changed { persist() }
     }
@@ -178,6 +200,7 @@ final class ActivitiesModel {
         recommendationShelvesCacheKey = nil
         cachedRecommendationShelves = []
     }
+
     func activity(id: Activity.ID) -> Activity? {
         activities.first { $0.id == id }
     }
@@ -201,11 +224,11 @@ final class ActivitiesModel {
     }
 
     func flash(_ message: String) {
-        toastMessage = message
+        presentation.flash(message)
     }
 
     func flashLight(_ message: String) {
-        lightFeedbackMessage = message
+        presentation.flashLight(message)
     }
 
     func bumpCalendarSync() {
@@ -236,15 +259,19 @@ final class ActivitiesModel {
     }
 
     func reloadFromRepository() async {
-        guard let snapshot = try? await repository.loadAsync() else { return }
-        persistenceGeneration = repository.currentPersistenceGeneration()
-        activities = snapshot.activities
-        joinedIDs = Set(snapshot.joinedIDs)
-        favoriteIDs = Set(snapshot.favoriteIDs)
-        waitlistIDs = Set(snapshot.waitlistIDs)
-        waitlistSpotNotifiedIDs = Set(snapshot.waitlistSpotNotifiedIDs)
-        participationProgress = snapshot.participationProgress
-        feedbackTagCounts = snapshot.feedbackTagCounts
+        do {
+            let snapshot = try await repository.loadAsync()
+            persistenceGeneration = repository.currentPersistenceGeneration()
+            activities = snapshot.activities
+            joinedIDs = Set(snapshot.joinedIDs)
+            favoriteIDs = Set(snapshot.favoriteIDs)
+            waitlistIDs = Set(snapshot.waitlistIDs)
+            waitlistSpotNotifiedIDs = Set(snapshot.waitlistSpotNotifiedIDs)
+            participationProgress = snapshot.participationProgress
+            feedbackTagCounts = snapshot.feedbackTagCounts
+        } catch {
+            flash(ActivityBrowseCopy.reloadFailed)
+        }
     }
 
     func discardPendingPersistence() async {
@@ -281,4 +308,3 @@ final class ActivitiesModel {
         NotificationService.cancelWaitlistSpotNotification(activityID: activityID)
     }
 }
-

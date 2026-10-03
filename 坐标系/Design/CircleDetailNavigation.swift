@@ -93,6 +93,10 @@ extension View {
 
     func circleBrowseStackChrome(
         buddies: BuddiesModel,
+        messages: MessagesModel,
+        memberName: String,
+        blockedUserNames: Set<String>,
+        onBrowseBuddies: (() -> Void)? = nil,
         openCircle: @escaping (InterestCircle) -> Void,
         openConversation: @escaping (UUID) -> Void
     ) -> some View {
@@ -100,6 +104,10 @@ extension View {
             .circlePeerChatNavigationDestination()
             .buddyOrgJoinChrome(
                 buddies: buddies,
+                messages: messages,
+                memberName: memberName,
+                blockedUserNames: blockedUserNames,
+                onBrowseBuddies: onBrowseBuddies,
                 openCircle: openCircle,
                 openConversation: openConversation
             )

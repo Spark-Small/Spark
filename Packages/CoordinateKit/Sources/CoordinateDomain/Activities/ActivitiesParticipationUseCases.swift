@@ -12,6 +12,8 @@ public struct ActivitiesParticipationUseCases: Sendable {
     public let promoteFromWaitlist: PromoteFromWaitlistUseCase
     public let evaluateWaitlistSpot: EvaluateWaitlistSpotUseCase
     public let repairSnapshot: RepairActivitiesSnapshotUseCase
+    public let toggleFavorite: ToggleFavoriteActivityUseCase
+    public let mergeRemoteCatalog: MergeRemoteActivitiesCatalogUseCase
 
     public init(
         join: JoinActivityUseCase = JoinActivityUseCase(),
@@ -19,7 +21,9 @@ public struct ActivitiesParticipationUseCases: Sendable {
         toggleWaitlist: ToggleWaitlistUseCase = ToggleWaitlistUseCase(),
         promoteFromWaitlist: PromoteFromWaitlistUseCase = PromoteFromWaitlistUseCase(),
         evaluateWaitlistSpot: EvaluateWaitlistSpotUseCase = EvaluateWaitlistSpotUseCase(),
-        repairSnapshot: RepairActivitiesSnapshotUseCase = RepairActivitiesSnapshotUseCase()
+        repairSnapshot: RepairActivitiesSnapshotUseCase = RepairActivitiesSnapshotUseCase(),
+        toggleFavorite: ToggleFavoriteActivityUseCase = ToggleFavoriteActivityUseCase(),
+        mergeRemoteCatalog: MergeRemoteActivitiesCatalogUseCase = MergeRemoteActivitiesCatalogUseCase()
     ) {
         self.join = join
         self.leave = leave
@@ -27,5 +31,7 @@ public struct ActivitiesParticipationUseCases: Sendable {
         self.promoteFromWaitlist = promoteFromWaitlist
         self.evaluateWaitlistSpot = evaluateWaitlistSpot
         self.repairSnapshot = repairSnapshot
+        self.toggleFavorite = toggleFavorite
+        self.mergeRemoteCatalog = mergeRemoteCatalog
     }
 }

@@ -2,7 +2,7 @@
 //  BuddyScheduleSlot.swift
 //  坐标系
 //
-//  把种子档期文案解析为可下单的开始时间（本地演示）。
+//  把档期文案解析为可下单的开始时间。
 //
 
 import Foundation

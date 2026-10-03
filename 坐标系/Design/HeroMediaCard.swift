@@ -25,17 +25,6 @@ enum HeroMediaCardLayout: Equatable {
         PlatformMetrics.cardShape
     }
 
-    var contentPadding: CGFloat {
-        PlatformMetrics.contentInset
-    }
-
-    var overlayPadding: CGFloat {
-        PlatformMetrics.contentInset
-    }
-
-    /// 双按钮场景（如打招呼 + 邀约）
-    var dualActionTrailingReserve: CGFloat { PlatformMetrics.heroDualActionTrailingReserve }
-
     var titleFont: Font {
         .title3.weight(.bold)
     }
@@ -51,7 +40,7 @@ enum HeroMediaCardLayout: Equatable {
     var stackSpacing: CGFloat { PlatformMetrics.cardInfoSpacing }
 }
 
-/// 人物封面：远程 / 本地文件走真实图，种子走人像占位（可多图滑动）
+/// 人物封面：远程 / 本地文件走真实图，种子走人像占位（可多图滑动，对齐广场 `CommunityMediaPager`）
 struct HeroPersonCover: View {
     let name: String
     var photos: [CommunityPhotoRef] = []
@@ -64,17 +53,28 @@ struct HeroPersonCover: View {
         return photos
     }
 
+    private var showsPager: Bool {
+        allowsPaging && resolvedPhotos.count > 1
+    }
+
     var body: some View {
         Group {
-            if allowsPaging, resolvedPhotos.count > 1 {
+            if showsPager {
                 TabView {
-                    ForEach(Array(resolvedPhotos.enumerated()), id: \.offset) { _, ref in
+                    ForEach(Array(resolvedPhotos.enumerated()), id: \.offset) { index, ref in
                         frame(for: ref)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .clipped()
+                            .accessibilityLabel(
+                                "\(name)，第 \(index + 1) 张，共 \(resolvedPhotos.count) 张"
+                            )
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .automatic))
+                .accessibilityElement(children: .contain)
             } else {
                 frame(for: resolvedPhotos[0])
+                    .accessibilityLabel(name)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -121,11 +121,10 @@ struct HeroCardCapsuleButton: View {
     }
 }
 
-/// 封面叠字壳：封面 + 遮罩 + 标题文案 + 角标 / 操作 overlay
+/// 封面叠字壳：封面 + App Store Today 式 Material 信息栏（文案 / CTA）+ 角标
 struct HeroMediaCard<Cover: View, Meta: View, Status: View, Actions: View>: View {
     var layout: HeroMediaCardLayout
     var title: String
-    var titleTrailingReserve: CGFloat?
     /// false 时由外层负责打开，避免嵌套 Button 打断 zoom
     var enablesOpenTap = true
     var accessibilityLabel: String
@@ -136,11 +135,6 @@ struct HeroMediaCard<Cover: View, Meta: View, Status: View, Actions: View>: View
     @ViewBuilder var actions: () -> Actions
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @ScaledMetric(relativeTo: .body) private var scaledTitleReserve: CGFloat = 96
-
-    private var trailingReserve: CGFloat {
-        titleTrailingReserve ?? scaledTitleReserve
-    }
 
     private var prefersStacked: Bool {
         DiscoverAccessibility.prefersStackedCardChrome(for: dynamicTypeSize)
@@ -201,51 +195,49 @@ struct HeroMediaCard<Cover: View, Meta: View, Status: View, Actions: View>: View
     }
 
     private var overlayBody: some View {
-        cover()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipped()
-            .overlay(alignment: .bottomLeading) {
+        ZStack(alignment: .bottom) {
+            cover()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+
+            HStack(alignment: .center, spacing: PlatformMetrics.cardFooterSpacing) {
                 VStack(alignment: .leading, spacing: layout.stackSpacing) {
                     Text(title)
                         .font(layout.titleFont)
                         .foregroundStyle(.primary)
                         .multilineTextAlignment(.leading)
-                        .lineLimit(DiscoverAccessibility.titleLineLimit(for: dynamicTypeSize))
+                        .lineLimit(1)
 
                     meta()
                 }
-                .foregroundStyle(.primary)
-                .colorScheme(.dark)
-                .padding(layout.contentPadding)
-                .padding(.trailing, trailingReserve)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
-            }
-            .modifier(
-                HeroOpenTapModifier(
-                    enabled: enablesOpenTap,
-                    appliesAccessibility: enablesOpenTap,
-                    accessibilityLabel: accessibilityLabel,
-                    action: onOpen
-                )
-            )
-            .overlay(alignment: .topLeading) {
-                status()
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
-            .overlay(alignment: .bottomTrailing) {
+
                 actions()
-                    .padding(layout.overlayPadding)
             }
-            .aspectRatio(layout.aspectRatio, contentMode: .fit)
-            .clipShape(layout.shape)
-            .contentShape(layout.shape)
+            .platformMediaInfoBarChrome(.standard)
+        }
+        .modifier(
+            HeroOpenTapModifier(
+                enabled: enablesOpenTap,
+                appliesAccessibility: enablesOpenTap,
+                accessibilityLabel: accessibilityLabel,
+                action: onOpen
+            )
+        )
+        .overlay(alignment: .topLeading) {
+            status()
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+        .aspectRatio(layout.aspectRatio, contentMode: .fit)
+        .clipShape(layout.shape)
+        .contentShape(layout.shape)
     }
 }
 
-/// 封面卡次要文案行：叠字用语义色 + dark scheme；大字号图下文用 secondary
+/// 封面卡次要文案行：叠字与图下文均用系统 `.secondary`（大字号图下不叠 Material）。
 struct HeroMediaMetaLine: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 

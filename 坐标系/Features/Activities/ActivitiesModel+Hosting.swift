@@ -2,9 +2,11 @@
 //  ActivitiesModel+Hosting.swift
 //  坐标系
 //
+//  发起人写路径：Domain Hosting UC + 本机副作用。
+//
 
+import CoordinateDomain
 import Foundation
-import Observation
 import CoordinateModels
 
 extension ActivitiesModel {
@@ -23,52 +25,53 @@ extension ActivitiesModel {
         latitude: Double? = nil,
         longitude: Double? = nil
     ) -> Activity.ID? {
-        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedLocation = location.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedSummary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedTitle.isEmpty, !trimmedLocation.isEmpty, !trimmedSummary.isEmpty else { return nil }
-        guard !category.isBrowseAggregate else { return nil }
-
         var resolvedDistance = distanceKM
         if let latitude, let longitude,
            let km = locationService.distanceKM(to: latitude, longitude: longitude) {
             resolvedDistance = km
         }
 
-        let id = UUID()
-        activities.insert(
-            Activity(
-                id: id,
-                title: trimmedTitle,
-                category: category,
-                location: trimmedLocation,
-                date: date,
-                capacity: max(capacity, 2),
-                joined: 1,
-                hostName: currentUserName,
-                summary: trimmedSummary,
-                fee: fee.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "免费" : fee,
-                tags: tags,
-                distanceKM: resolvedDistance,
-                localCoverName: localCoverName,
-                participantNames: [currentUserName],
-                latitude: latitude,
-                longitude: longitude
-            ),
-            at: 0
+        let draft = PublishActivityDraft(
+            title: title,
+            category: category,
+            location: location,
+            date: date,
+            capacity: capacity,
+            fee: fee,
+            freeFeeLabel: ActivityCardStatus.free,
+            summary: summary,
+            tags: tags,
+            localCoverName: localCoverName,
+            distanceKM: resolvedDistance,
+            latitude: latitude,
+            longitude: longitude,
+            hostName: currentUserName,
+            hostUserID: currentUserID
         )
-        joinedIDs.insert(id)
-        isComposing = false
-        editingActivityID = nil
-        publishSuccessActivityID = id
-        NotificationService.scheduleActivityReminder(activityID: id, title: trimmedTitle, at: date)
-        persist()
-        return id
+
+        switch hosting.publish.execute(
+            draft: draft,
+            activities: &activities,
+            joinedIDs: &joinedIDs
+        ) {
+        case .success(let id):
+            presentation.endCompose()
+            presentation.publishSuccessActivityID = id
+            NotificationService.scheduleActivityReminder(
+                activityID: id,
+                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                at: date
+            )
+            invalidateRecommendationShelvesCache()
+            persist()
+            return id
+        case .failure:
+            return nil
+        }
     }
 
     func beginEdit(_ id: Activity.ID) {
-        editingActivityID = id
-        isComposing = true
+        presentation.beginCompose(editing: id)
     }
 
     func update(
@@ -85,106 +88,139 @@ extension ActivitiesModel {
         latitude: Double? = nil,
         longitude: Double? = nil
     ) {
-        guard let index = activities.firstIndex(where: { $0.id == id }) else { return }
-        guard activities[index].hostName == currentUserName else { return }
-        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedLocation = location.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedSummary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedTitle.isEmpty, !trimmedLocation.isEmpty, !trimmedSummary.isEmpty else { return }
-        guard !category.isBrowseAggregate else { return }
+        var distanceKM: Double?
+        if let latitude, let longitude,
+           let km = locationService.distanceKM(to: latitude, longitude: longitude) {
+            distanceKM = km
+        } else if let existing = activity(id: id),
+                  let lat = latitude ?? existing.latitude,
+                  let lon = longitude ?? existing.longitude,
+                  let km = locationService.distanceKM(to: lat, longitude: lon) {
+            distanceKM = km
+        }
 
-        let joinedCount = activities[index].joined
-        activities[index].title = trimmedTitle
-        activities[index].category = category
-        activities[index].location = trimmedLocation
-        activities[index].date = date
-        activities[index].capacity = max(capacity, max(joinedCount, 2))
-        activities[index].summary = trimmedSummary
-        activities[index].fee = fee.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "免费" : fee
-        activities[index].tags = tags
-        if let localCoverName {
-            activities[index].localCoverName = localCoverName
+        let draft = UpdateActivityDraft(
+            id: id,
+            title: title,
+            category: category,
+            location: location,
+            date: date,
+            capacity: capacity,
+            fee: fee,
+            freeFeeLabel: ActivityCardStatus.free,
+            summary: summary,
+            tags: tags,
+            localCoverName: localCoverName,
+            latitude: latitude,
+            longitude: longitude,
+            distanceKM: distanceKM
+        )
+
+        switch hosting.update.execute(
+            draft: draft,
+            activities: &activities,
+            hostName: currentUserName,
+            hostUserID: currentUserID
+        ) {
+        case .success:
+            presentation.endCompose()
+            if joinedIDs.contains(id) {
+                NotificationService.scheduleActivityReminder(
+                    activityID: id,
+                    title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                    at: date
+                )
+            }
+            invalidateRecommendationShelvesCache()
+            flash(ActivityFeedbackCopy.activityUpdated)
+            persist()
+        case .failure:
+            break
         }
-        if latitude != nil { activities[index].latitude = latitude }
-        if longitude != nil { activities[index].longitude = longitude }
-        if let lat = activities[index].latitude,
-           let lon = activities[index].longitude,
-           let km = locationService.distanceKM(to: lat, longitude: lon) {
-            activities[index].distanceKM = km
-        }
-        isComposing = false
-        editingActivityID = nil
-        if joinedIDs.contains(id) {
-            NotificationService.scheduleActivityReminder(activityID: id, title: trimmedTitle, at: date)
-        }
-        flash(ActivityFeedbackCopy.activityUpdated)
-        persist()
     }
 
     func cancelActivity(_ id: Activity.ID) {
-        guard let index = activities.firstIndex(where: { $0.id == id }) else { return }
-        guard activities[index].hostName == currentUserName else { return }
-        if let cover = activities[index].localCoverName {
-            LocalMediaLibrary.delete(named: cover)
+        switch hosting.cancel.execute(
+            activityID: id,
+            activities: &activities,
+            joinedIDs: &joinedIDs,
+            favoriteIDs: &favoriteIDs,
+            waitlistIDs: &waitlistIDs,
+            hostName: currentUserName,
+            hostUserID: currentUserID
+        ) {
+        case .success(let result):
+            if let cover = result.coverName {
+                LocalMediaLibrary.delete(named: cover)
+            }
+            ActivityDetailContentStore.delete(for: id)
+            NotificationService.cancelActivityReminder(activityID: id)
+            if presentation.joinSuccessActivityID == id {
+                presentation.joinSuccessActivityID = nil
+            }
+            if presentation.publishSuccessActivityID == id {
+                presentation.publishSuccessActivityID = nil
+            }
+            invalidateRecommendationShelvesCache()
+            flash(ActivityFeedbackCopy.activityCancelled)
+            persist()
+        case .failure:
+            break
         }
-        ActivityDetailContentStore.delete(for: id)
-        joinedIDs.remove(id)
-        favoriteIDs.remove(id)
-        waitlistIDs.remove(id)
-        NotificationService.cancelActivityReminder(activityID: id)
-        activities.remove(at: index)
-        if joinSuccessActivityID == id {
-            joinSuccessActivityID = nil
-        }
-        if publishSuccessActivityID == id {
-            publishSuccessActivityID = nil
-        }
-        flash(ActivityFeedbackCopy.activityCancelled)
-        persist()
     }
 
     func updateCapacity(_ id: Activity.ID, capacity: Int) {
-        guard let index = activities.firstIndex(where: { $0.id == id }) else { return }
-        guard activities[index].hostName == currentUserName else { return }
-        let floor = max(activities[index].joined, 2)
-        let next = max(capacity, floor)
-        guard activities[index].capacity != next else { return }
-        let wasFull = activities[index].isFull
-        activities[index].capacity = next
-        flash(ActivityFeedbackCopy.capacityUpdated(to: next))
-        persist()
-        if wasFull, !activities[index].isFull {
-            processWaitlistSpotAvailability(for: id)
+        switch hosting.updateCapacity.execute(
+            activityID: id,
+            capacity: capacity,
+            activities: &activities,
+            hostName: currentUserName,
+            hostUserID: currentUserID
+        ) {
+        case .success(let result):
+            flash(ActivityFeedbackCopy.capacityUpdated(to: result.capacity))
+            persist()
+            if result.openedSpotFromFull {
+                processWaitlistSpotAvailability(for: id)
+            }
+        case .failure(.unchanged), .failure(.activityNotFound), .failure(.notHost):
+            break
         }
     }
 
     func reschedule(_ id: Activity.ID, to date: Date, notifyNote: String?) {
-        guard let index = activities.firstIndex(where: { $0.id == id }) else { return }
-        guard activities[index].hostName == currentUserName else { return }
-        guard date > .now else {
-            flash(ActivityFeedbackCopy.scheduleNeedsFuture)
-            return
-        }
-        activities[index].date = date
-        if joinedIDs.contains(id) {
-            NotificationService.scheduleActivityReminder(
-                activityID: id,
-                title: activities[index].title,
-                at: date
-            )
-        }
-        if let notifyNote = notifyNote?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !notifyNote.isEmpty {
-            var override = ActivityDetailContentStore.override(for: id) ?? ActivityDetailContentOverride()
-            let line = "【改期通知】\(Formatters.activityEventTime(from: date)) · \(notifyNote)"
-            if let existing = override.hostNote, !existing.isEmpty {
-                override.hostNote = existing + "\n" + line
-            } else {
-                override.hostNote = line
+        switch hosting.reschedule.execute(
+            activityID: id,
+            date: date,
+            activities: &activities,
+            hostName: currentUserName,
+            hostUserID: currentUserID
+        ) {
+        case .success:
+            if joinedIDs.contains(id), let title = activity(id: id)?.title {
+                NotificationService.scheduleActivityReminder(
+                    activityID: id,
+                    title: title,
+                    at: date
+                )
             }
-            ActivityDetailContentStore.save(override, for: id)
+            if let notifyNote = notifyNote?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !notifyNote.isEmpty {
+                var override = ActivityDetailContentStore.override(for: id) ?? ActivityDetailContentOverride()
+                let line = "【改期通知】\(Formatters.activityEventTime(from: date)) · \(notifyNote)"
+                if let existing = override.hostNote, !existing.isEmpty {
+                    override.hostNote = existing + "\n" + line
+                } else {
+                    override.hostNote = line
+                }
+                ActivityDetailContentStore.save(override, for: id)
+            }
+            flash(ActivityFeedbackCopy.scheduleUpdated)
+            persist()
+        case .failure(.dateNotInFuture):
+            flash(ActivityFeedbackCopy.scheduleNeedsFuture)
+        case .failure:
+            break
         }
-        flash(ActivityFeedbackCopy.scheduleUpdated)
-        persist()
     }
 }

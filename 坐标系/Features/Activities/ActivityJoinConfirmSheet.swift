@@ -5,9 +5,7 @@
 //  参加前确认、支付前确认。
 //
 
-import PhotosUI
 import SwiftUI
-import UIKit
 import CoordinateModels
 
 enum ActivityJoinPromotionMode: Equatable {
@@ -65,11 +63,26 @@ struct ActivityJoinConfirmSheet: View {
                     if needsPayment, let payable {
                         joinConfirmField("应付金额", systemImage: "yensign.circle.fill") {
                             Text(WalletMoney.formatted(cents: payable.cents))
-                                .foregroundStyle(Color.accentColor)
+                                .foregroundStyle(PlatformStatus.accent)
                         }
                     }
                 } footer: {
                     Text(confirmFooterMessage)
+                }
+
+                if !joinNoticePreview.isEmpty {
+                    Section {
+                        ForEach(Array(joinNoticePreview.enumerated()), id: \.offset) { _, line in
+                            Text(line)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    } header: {
+                        Text(ActivityDetailCopy.joinNoticesHeader)
+                    } footer: {
+                        Text(ActivityDetailCopy.joinNoticesFooter)
+                    }
                 }
 
                 if !conflicts.isEmpty {
@@ -104,6 +117,12 @@ struct ActivityJoinConfirmSheet: View {
 
                 if needsPayment {
                     Section {
+                        Text(CommercePaymentPolicy.checkoutDisclosure)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityLabel(CommercePaymentPolicy.checkoutDisclosure)
+
                         Picker("支付方式", selection: $selectedMethod) {
                             ForEach(CommercePaymentPolicy.checkoutMethods) { method in
                                 Label {
@@ -122,10 +141,10 @@ struct ActivityJoinConfirmSheet: View {
                         .disabled(isProcessing)
                     } header: {
                         Label {
-                            Text("支付方式")
+                            Text(ActivityDetailCopy.paymentBoundaryTitle)
                         } icon: {
-                            Image(systemName: "creditcard.fill")
-                                .symbolRenderingMode(.multicolor)
+                            Image(systemName: "info.circle")
+                                .symbolRenderingMode(.hierarchical)
                         }
                     } footer: {
                         Text(CommercePaymentPolicy.checkoutFooterSupplement)
@@ -152,14 +171,13 @@ struct ActivityJoinConfirmSheet: View {
                     Button("取消") { cancelFlow() }
                         .disabled(isProcessing)
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(confirmActionTitle) {
-                        confirm()
-                    }
-                    .fontWeight(.semibold)
-                    .disabled(isProcessing)
-                }
             }
+            .platformSheetConfirmationToolbar(
+                confirmActionTitle,
+                isEnabled: !isProcessing,
+                emphasizesWhenEnabled: true,
+                action: confirm
+            )
             .overlay {
                 if isProcessing {
                     ProgressView(ActivityDetailCopy.paymentProcessing)
@@ -219,6 +237,12 @@ struct ActivityJoinConfirmSheet: View {
         }
     }
 
+    /// 确认页一瞥：须知前几条（完整内容仍在详情）。
+    private var joinNoticePreview: [String] {
+        let notes = ActivityDetailBlueprint.make(for: activity).registrationNotes
+        return Array(notes.prefix(3))
+    }
+
     private var confirmActionTitle: String {
         if promotionMode == .waitlist {
             if needsPayment {
@@ -250,7 +274,7 @@ struct ActivityJoinConfirmSheet: View {
     }
 
     private func confirm() {
-        guard app.requireIdentityAccess() else { return }
+        guard app.requireIdentityAccess(source: .activityJoin) else { return }
         if needsPayment {
             processPaymentThenJoin()
         } else {
@@ -262,11 +286,7 @@ struct ActivityJoinConfirmSheet: View {
 
     private func processPaymentThenJoin() {
         guard !isProcessing else { return }
-        if app.auth.isGuest {
-            errorMessage = GuestAccessGate.commerceReason
-            return
-        }
-        guard app.requireIdentityAccess() else { return }
+        guard app.requireIdentityAccess(source: .activityJoin) else { return }
         if selectedMethod != .wallet, !CommercePaymentPolicy.allowsSimulatedExternalCheckout {
             errorMessage = CommercePaymentPolicy.externalCheckoutUnavailableMessage
             return
@@ -279,15 +299,12 @@ struct ActivityJoinConfirmSheet: View {
         isProcessing = true
         paymentTask?.cancel()
         paymentTask = Task { @MainActor in
-            #if DEBUG
-            try? await Task.sleep(for: .milliseconds(400))
-            #endif
             guard !Task.isCancelled else { return }
             let ensured = pendingOrder ?? ActivityPaymentStore.createPendingOrder(for: activity)
             guard let ensured else {
                 isProcessing = false
                 paymentTask = nil
-                errorMessage = "无法创建订单"
+                errorMessage = ActivityDetailCopy.orderCreateFailed
                 return
             }
             pendingOrder = ensured

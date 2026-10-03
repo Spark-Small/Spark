@@ -2,7 +2,7 @@
 //  ConversationComposerSection.swift
 //  坐标系
 //
-//  会话详情底栏：提及条、冷启动限制、快捷回复、系统 Composer。
+//  会话详情底栏：提及条、冷启动限制、系统 Composer（本机语音入口已接，真录音待 B5）。
 //
 
 import PhotosUI
@@ -18,13 +18,10 @@ struct ConversationComposerSection<AttachMenu: View>: View {
     let isOutboundBlocked: Bool
     let composerEnabled: Bool
     let canSend: Bool
-    let quickReplySectionTitle: String
-    let quickReplyTemplates: [(label: String, text: String)]
     let memberNamesExcludingSelf: [String]
     var onCancelReply: () -> Void
-    var onVoice: () -> Void
     var onSend: () -> Void
-    var onQuickReply: (String) -> Void
+    var onVoice: (() -> Void)? = nil
     @ViewBuilder var attachMenu: () -> AttachMenu
 
     var body: some View {
@@ -44,7 +41,7 @@ struct ConversationComposerSection<AttachMenu: View>: View {
                         }
                     }
                     .platformMessagePagePadding()
-                    .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
+                    .padding(.vertical, PlatformMessagesChrome.composerBarVerticalPadding)
                 }
             }
             if isOutboundBlocked {
@@ -54,10 +51,8 @@ struct ConversationComposerSection<AttachMenu: View>: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
                     .platformMessagePagePadding()
-                    .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
+                    .padding(.vertical, PlatformMessagesChrome.composerBarVerticalPadding)
                     .background(PlatformSurface.canvas)
-            } else if !quickReplyTemplates.isEmpty {
-                quickReplyBar
             }
             PlatformMessageComposerBar(
                 draft: $draft,
@@ -76,31 +71,5 @@ struct ConversationComposerSection<AttachMenu: View>: View {
                 onSend: onSend
             )
         }
-    }
-
-    private var quickReplyBar: some View {
-        VStack(alignment: .leading, spacing: PlatformMetrics.formRowVerticalPadding) {
-            Text(quickReplySectionTitle)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .platformMessagePagePadding()
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
-                    ForEach(quickReplyTemplates, id: \.label) { template in
-                        Button(template.label) {
-                            onQuickReply(template.text)
-                        }
-                        .font(.caption)
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .accessibilityLabel("\(MessagesCopy.quickReplySectionTitle)：\(template.text)")
-                    }
-                }
-                .platformMessagePagePadding()
-            }
-        }
-        .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
-        .background(PlatformSurface.canvas)
     }
 }

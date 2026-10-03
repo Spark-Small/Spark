@@ -25,7 +25,11 @@ public struct RepairActivitiesSnapshotUseCase: Sendable {
             favoriteIDs: previous.favoriteIDs.filter(validIDs.contains),
             waitlistIDs: previous.waitlistIDs.filter(validIDs.contains),
             waitlistSpotNotifiedIDs: previous.waitlistSpotNotifiedIDs.filter(validIDs.contains),
-            participationProgress: previous.participationProgress.filter { validIDs.contains($0.activityID) }
+            participationProgress: previous.participationProgress.filter { validIDs.contains($0.activityID) },
+            feedbackTagCounts: previous.feedbackTagCounts.filter { key, _ in
+                guard let id = UUID(uuidString: key) else { return false }
+                return validIDs.contains(id)
+            }
         )
     }
 }

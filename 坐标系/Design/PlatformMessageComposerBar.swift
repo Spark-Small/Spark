@@ -97,6 +97,8 @@ struct PlatformMessageComposerBar<AttachMenu: View>: View {
         }
         .padding(.top, replyPreview == nil ? PlatformMessagesChrome.composerBarVerticalPadding : 0)
         .padding(.bottom, PlatformMessagesChrome.composerBarVerticalPadding)
+        // Messages：连续 `.bar` 材质铺满控件下方内边距，形成距键盘的可见间隔（勿裸贴建议条）
+        .background(.bar)
         .opacity(isEnabled ? 1 : 0.9)
     }
 

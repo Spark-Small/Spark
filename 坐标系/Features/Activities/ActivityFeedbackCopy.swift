@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import CoordinateModels
 
 enum ActivityFeedbackCopy {
     static let favorited = "已收藏活动"
@@ -33,4 +32,15 @@ enum ActivityFeedbackCopy {
     static func capacityUpdated(to count: Int) -> String {
         "名额已更新为 \(count) 人"
     }
+}
+
+/// 活动结束后体验反馈 Sheet 文案（社区复盘跳过等复用）。
+enum ActivityExperienceFeedbackCopy {
+    static let sheetTitle = "这场活动体验如何？"
+    static let sheetSubtitle = "选一个最符合的感受，帮助其他人做决定"
+    static let skip = "跳过"
+    static let submit = "提交反馈"
+    static let selectTagHint = "请先选择一个感受后再提交"
+
+    static let tags = ["组织很好", "准时顺畅", "氛围有趣", "想再约一次", "一般般"]
 }

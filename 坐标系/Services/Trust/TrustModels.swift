@@ -177,6 +177,23 @@ enum TrustBadgeKind: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// 奖章格短标题（对外战士墙；比 chip 略完整）
+    var showcaseTitle: String {
+        switch self {
+        case .photoVerified: "形象认证"
+        case .phoneVerified: "手机"
+        case .identityVerified: "实名"
+        case .activeMember: "会员"
+        case .reliableHost: "靠谱发起"
+        case .trustedNeighbor: "可信伙伴"
+        }
+    }
+
+    /// 信任档案对外可展示的种类（不含会员，会员不进信任档案）
+    static var publicArchiveCases: [TrustBadgeKind] {
+        [.photoVerified, .phoneVerified, .identityVerified, .reliableHost, .trustedNeighbor]
+    }
+
     var systemImage: String {
         switch self {
         case .photoVerified: "checkmark.seal.fill"

@@ -12,6 +12,8 @@ public struct BuddiesSnapshot: Codable, Sendable {
     public var joinedGuildNames: [String]
     /// 俱乐部 / 工会成员偏好（免打扰、置顶、备注等），key 如 `circle:黄浦夜骑群`
     public var membershipPrefs: [String: OrgMembershipPrefs]
+    /// 远程发现目录（可选）；缺省表示服务端未下发，客户端不得用 Sample 冒充
+    public var discoverCatalog: BuddiesDiscoverCatalog?
 
     public init(
         inviteRecords: [BuddyInviteRecord],
@@ -20,7 +22,8 @@ public struct BuddiesSnapshot: Codable, Sendable {
         joinedCircleIDs: [UUID] = [],
         joinedCircleNames: [String] = [],
         joinedGuildNames: [String] = [],
-        membershipPrefs: [String: OrgMembershipPrefs] = [:]
+        membershipPrefs: [String: OrgMembershipPrefs] = [:],
+        discoverCatalog: BuddiesDiscoverCatalog? = nil
     ) {
         self.inviteRecords = inviteRecords
         self.bookingRecords = bookingRecords
@@ -29,6 +32,7 @@ public struct BuddiesSnapshot: Codable, Sendable {
         self.joinedCircleNames = joinedCircleNames
         self.joinedGuildNames = joinedGuildNames
         self.membershipPrefs = membershipPrefs
+        self.discoverCatalog = discoverCatalog
     }
 
     public init(from decoder: Decoder) throws {
@@ -43,5 +47,6 @@ public struct BuddiesSnapshot: Codable, Sendable {
             ?? []
         membershipPrefs = try container.decodeIfPresent([String: OrgMembershipPrefs].self, forKey: .membershipPrefs)
             ?? [:]
+        discoverCatalog = try container.decodeIfPresent(BuddiesDiscoverCatalog.self, forKey: .discoverCatalog)
     }
 }

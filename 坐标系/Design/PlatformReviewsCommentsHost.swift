@@ -29,20 +29,23 @@ struct PlatformReviewsCommentsHost: View {
     var externalDraft: Binding<String>? = nil
     var externalReplyTarget: Binding<PlatformReview?>? = nil
     var contentOwnerName: String? = nil
-    var ownerBadgeTitle = "作者"
+    var ownerBadgeTitle = PlatformReviewsCopy.ownerBadgeDefault
     var emptyTitle: String = ActivityDetailCopy.commentsEmpty
     var emptyHint: String = ActivityDetailCopy.commentsEmptyHint
     var placeholder: String = ActivityDetailCopy.commentsPlaceholder
-    var showsTranslate = false
     var companionFilter: Binding<PlatformReviewFilter>? = nil
     var companionStats: PlatformReviewStats? = nil
-    var onTranslate: ((PlatformReview) -> Void)? = nil
     var onChanged: () -> Void = {}
+    /// 外部驱动刷新（社区详情 commentRevision），避免整页 `.id` 重置展开态。
+    var refreshToken: Int = 0
+    /// 与外部 Composer 共享展开态；nil 时用内部 State。
+    var expandedThreadIDs: Binding<Set<UUID>>? = nil
 
     @State private var internalDraft = ""
     @State private var internalReplyTarget: PlatformReview?
     @State private var reviews: [PlatformReview] = []
-    @State private var expandedThreadIDs: Set<UUID> = []
+    @State private var internalExpandedThreadIDs: Set<UUID> = []
+    @State private var didApplyDefaultExpansion = false
     @State private var blockedWord: String?
     @FocusState private var focused: Bool
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -55,6 +58,10 @@ struct PlatformReviewsCommentsHost: View {
         externalReplyTarget ?? $internalReplyTarget
     }
 
+    private var expandedIDsBinding: Binding<Set<UUID>> {
+        expandedThreadIDs ?? $internalExpandedThreadIDs
+    }
+
     private var draft: String {
         get { draftBinding.wrappedValue }
         nonmutating set { draftBinding.wrappedValue = newValue }
@@ -63,6 +70,11 @@ struct PlatformReviewsCommentsHost: View {
     private var replyTarget: PlatformReview? {
         get { replyTargetBinding.wrappedValue }
         nonmutating set { replyTargetBinding.wrappedValue = newValue }
+    }
+
+    private var expandedIDs: Set<UUID> {
+        get { expandedIDsBinding.wrappedValue }
+        nonmutating set { expandedIDsBinding.wrappedValue = newValue }
     }
 
     private var displayedRoots: [PlatformReview] {
@@ -127,11 +139,14 @@ struct PlatformReviewsCommentsHost: View {
             }
         }
         .onAppear(perform: reload)
-        .alert("评论需要修改", isPresented: Binding(
+        .onChange(of: refreshToken) { _, _ in
+            reload()
+        }
+        .alert(PlatformReviewsCopy.needsEditTitle, isPresented: Binding(
             get: { blockedWord != nil },
             set: { if !$0 { blockedWord = nil } }
         )) {
-            Button("知道了", role: .cancel) {}
+            Button(PlatformReviewsCopy.needsEditDismiss, role: .cancel) {}
         } message: {
             Text(blockedWord ?? "")
         }
@@ -163,8 +178,10 @@ struct PlatformReviewsCommentsHost: View {
 
     @ViewBuilder
     private func threadBlock(_ root: PlatformReview) -> some View {
-        let replies = reviews.filter { $0.parentID == root.id }
-        let isExpanded = expandedThreadIDs.contains(root.id)
+        let replies = reviews
+            .filter { $0.parentID == root.id }
+            .sorted { $0.postedAt < $1.postedAt }
+        let isExpanded = expandedIDs.contains(root.id)
 
         VStack(alignment: .leading) {
             reviewContent(root, isReply: false)
@@ -174,14 +191,14 @@ struct PlatformReviewsCommentsHost: View {
                     ForEach(replies) { reply in
                         reviewContent(reply, isReply: true)
                     }
-                    threadToggleButton(title: "收起回复") {
-                        expandedThreadIDs.remove(root.id)
+                    threadToggleButton(title: PlatformReviewsCopy.collapseReplies) {
+                        expandedIDs.remove(root.id)
                     }
                 } else {
                     threadToggleButton(
-                        title: replies.count == 1 ? "展开 1 条回复" : "展开 \(replies.count) 条回复"
+                        title: PlatformReviewsCopy.expandReplies(count: replies.count)
                     ) {
-                        expandedThreadIDs.insert(root.id)
+                        expandedIDs.insert(root.id)
                     }
                 }
             }
@@ -193,7 +210,7 @@ struct PlatformReviewsCommentsHost: View {
             onDelete: { delete(root) }
         ))
         .modifier(PlatformReviewsListRowModifier(enabled: usesListStyling))
-        .padding(.horizontal, usesListStyling ? 0 : PlatformMetrics.contentInset)
+        .padding(.horizontal, usesListStyling || layout == .embedded ? 0 : PlatformMetrics.contentInset)
         .padding(.vertical, usesListStyling ? 0 : PlatformConversationListRow.verticalInset)
     }
 
@@ -205,6 +222,7 @@ struct PlatformReviewsCommentsHost: View {
             .buttonStyle(.borderless)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.leading, threadToggleLeadingInset)
+            .accessibilityHint(PlatformReviewsCopy.expandCollapseHint)
     }
 
     private var threadToggleLeadingInset: CGFloat {
@@ -228,11 +246,11 @@ struct PlatformReviewsCommentsHost: View {
                 onReply: { beginReply(to: review) }
             )
             .contextMenu {
-                Button("回复", systemImage: "arrowshape.turn.up.left") {
+                Button(PlatformReviewsCopy.reply, systemImage: "arrowshape.turn.up.left") {
                     beginReply(to: review)
                 }
                 if review.isOwned(by: currentUserName) {
-                    Button("删除", systemImage: "trash", role: .destructive) {
+                    Button(PlatformReviewsCopy.delete, systemImage: "trash", role: .destructive) {
                         delete(review)
                     }
                 }
@@ -245,20 +263,18 @@ struct PlatformReviewsCommentsHost: View {
                 showsLike: true,
                 isLiked: review.isLiked,
                 isDisliked: review.isDisliked,
-                showsTranslate: showsTranslate,
                 contentOwnerName: contentOwnerName,
                 ownerBadgeTitle: ownerBadgeTitle,
                 onLike: { toggleLike(review) },
                 onDislike: { toggleDislike(review) },
-                onReply: { beginReply(to: review) },
-                onTranslate: { onTranslate?(review) }
+                onReply: { beginReply(to: review) }
             )
             .contextMenu {
-                Button("回复", systemImage: "arrowshape.turn.up.left") {
+                Button(PlatformReviewsCopy.reply, systemImage: "arrowshape.turn.up.left") {
                     beginReply(to: review)
                 }
                 if review.isOwned(by: currentUserName) {
-                    Button("删除", systemImage: "trash", role: .destructive) {
+                    Button(PlatformReviewsCopy.delete, systemImage: "trash", role: .destructive) {
                         delete(review)
                     }
                 }
@@ -271,7 +287,7 @@ struct PlatformReviewsCommentsHost: View {
             draft: draftBinding,
             placeholder: replyTarget == nil
                 ? placeholder
-                : "回复 \(replyTarget?.author ?? "")…",
+                : PlatformReviewsCopy.replyPlaceholder(author: replyTarget?.author ?? ""),
             isEnabled: true,
             canSend: canSend,
             isFocused: $focused,
@@ -295,10 +311,25 @@ struct PlatformReviewsCommentsHost: View {
 
     private func reload() {
         reviews = PlatformReviewsStore.reviews(for: target)
+        autoExpandCompactThreads()
+    }
+
+    /// ≤2 条回复默认展开一次，避免每次 reload 把用户收起的楼又拉开。
+    private func autoExpandCompactThreads() {
+        guard !didApplyDefaultExpansion else { return }
+        didApplyDefaultExpansion = true
+        for root in PlatformReviewCatalog.sortedRoots(reviews) {
+            let replyCount = reviews.filter { $0.parentID == root.id }.count
+            if replyCount > 0, replyCount <= 2 {
+                expandedIDs.insert(root.id)
+            }
+        }
     }
 
     private func beginReply(to review: PlatformReview) {
         replyTarget = review
+        let rootID = review.parentID ?? review.id
+        expandedIDs.insert(rootID)
         focused = true
     }
 
@@ -326,7 +357,7 @@ struct PlatformReviewsCommentsHost: View {
             return
         }
         if let parentID = outcome.expandedParentID {
-            expandedThreadIDs.insert(parentID)
+            expandedIDs.insert(parentID)
         }
         draft = ""
         replyTarget = nil

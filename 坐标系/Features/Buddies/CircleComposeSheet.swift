@@ -10,6 +10,7 @@ import CoordinateModels
 
 enum CircleComposeCopy {
     static let title = "创建俱乐部"
+    static let cancel = "取消"
     static let nameSection = "俱乐部名称"
     static let namePlaceholder = "起一个好记的名字"
     static let nameFooter = "2–20 字，同城内不可与已有俱乐部重名。"
@@ -106,7 +107,7 @@ struct CircleComposeSheet: View {
                 }
 
                 Section(CircleComposeCopy.topicSection) {
-                    Picker("主题", selection: $topic) {
+                    Picker(CircleComposeCopy.topicSection, selection: $topic) {
                         ForEach(ClubTopicOption.allCases) { option in
                             Label(option.rawValue, systemImage: option.systemImage)
                                 .platformContentSymbolStyle()
@@ -116,7 +117,7 @@ struct CircleComposeSheet: View {
                 }
 
                 Section(CircleComposeCopy.citySection) {
-                    Picker("城市", selection: $cityID) {
+                    Picker(CircleComposeCopy.citySection, selection: $cityID) {
                         ForEach(BuddyCityCatalog.all) { city in
                             Text(city.menuTitle).tag(city.id)
                         }
@@ -140,7 +141,7 @@ struct CircleComposeSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button(CircleComposeCopy.cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(CircleComposeCopy.publish) {
@@ -150,6 +151,7 @@ struct CircleComposeSheet: View {
                 }
             }
         }
+        .platformSheet(.form)
     }
 
     private func publish() {

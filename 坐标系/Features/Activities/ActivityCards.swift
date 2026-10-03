@@ -8,7 +8,7 @@
 import SwiftUI
 import CoordinateModels
 
-/// 精选 Hero：3:4 卡片；水平页边与发现货架一致（`PlatformMetrics.contentInset`）。
+/// 精选 Hero：4:5 卡片；水平页边与发现货架一致（`PlatformMetrics.contentInset`）。
 struct ActivityFeaturedCard: View {
     @Environment(ActivitiesModel.self) private var activities
     @Environment(LocationService.self) private var location
@@ -34,8 +34,7 @@ struct ActivityFeaturedCard: View {
         ActivityCardStatus.openAccessibilityLabel(
             status: statusCaption,
             title: live.title,
-            parts: Formatters.activityEventTime(from: live.date),
-            metaLine
+            parts: secondaryLine
         )
     }
 
@@ -50,8 +49,11 @@ struct ActivityFeaturedCard: View {
                     cover
                         .aspectRatio(PlatformMetrics.featuredCardAspectRatio, contentMode: .fit)
                         .clipped()
-                    heroFooter(onMedia: false)
-                        .padding(.horizontal, PlatformMetrics.contentInset)
+                        .clipShape(PlatformMetrics.cardShape)
+                        .contentShape(PlatformMetrics.cardShape)
+                    heroFooter
+                        // 卡内近缘 inset；页边由 Spotlight 的 discoverBrowseContentInset 负责，避免双重对齐线。
+                        .padding(.horizontal, PlatformMetrics.heroStackedTextInset)
                 }
             } else {
                 ZStack(alignment: .bottom) {
@@ -59,23 +61,21 @@ struct ActivityFeaturedCard: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipped()
 
-                    heroFooter(onMedia: true)
-                        .padding(.horizontal, PlatformMetrics.contentInset)
-                        .padding(.bottom, PlatformMetrics.contentInset)
-                        .frame(maxWidth: .infinity)
+                    heroFooter
+                        .platformMediaInfoBarChrome(.hero)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
+                .clipShape(PlatformMetrics.cardShape)
+                .contentShape(PlatformMetrics.cardShape)
             }
         }
-        .clipShape(PlatformMetrics.cardShape)
-        .contentShape(PlatformMetrics.cardShape)
         .accessibilityElement(children: .contain)
     }
 
     @ViewBuilder
     private var cover: some View {
-        let media = CommunityRemotePhoto(ref: live.coverPhoto)
+        let photo = CommunityRemotePhoto(ref: live.coverPhoto)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
 
@@ -84,70 +84,67 @@ struct ActivityFeaturedCard: View {
                 activityID: live.id,
                 namespace: zoomNamespace
             ) {
-                media
+                photo
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityLabel(openAccessibilityLabel)
             .accessibilityHint(ActivityCardStatus.openHint)
             .accessibilityAddTraits(.isImage)
         } else {
-            media
+            photo
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
     }
 
-    private func heroFooter(onMedia: Bool) -> some View {
-        HStack(alignment: .bottom, spacing: PlatformMetrics.cardFooterSpacing) {
-            copy(onMedia: onMedia)
-            joinCTA(onMedia: onMedia)
+    private var heroFooter: some View {
+        HStack(alignment: .center, spacing: PlatformMetrics.cardFooterSpacing) {
+            copy
+            joinCTA
         }
     }
 
-    private func copy(onMedia: Bool) -> some View {
+    private var copy: some View {
         VStack(alignment: .leading, spacing: PlatformMetrics.cardInfoSpacing) {
             Text(live.title)
-                .font(.title2.weight(.bold))
+                .font(.headline.weight(.semibold))
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.leading)
-                .lineLimit(DiscoverAccessibility.titleLineLimit(for: dynamicTypeSize))
-            Text(Formatters.activityEventTime(from: live.date))
-                .font(.body)
-                .foregroundStyle(.secondary)
-            Text(metaLine)
+                .lineLimit(1)
+            Text(secondaryLine)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.leading)
-                .lineLimit(DiscoverAccessibility.metaLineLimit(for: dynamicTypeSize))
+                .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .colorScheme(onMedia ? .dark : .light)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 
     @ViewBuilder
-    private func joinCTA(onMedia: Bool) -> some View {
+    private var joinCTA: some View {
         ActivityPrimaryAction(
             isJoined: isJoined,
             isWaitlisted: isWaitlisted,
             isFull: live.isFull,
             controlSize: .large,
-            onMedia: onMedia,
             onJoin: onJoin
         )
         .layoutPriority(1)
     }
 
-    private var metaLine: String {
+    /// Material 栏第二行：时间 · 地点/距离 · 费用（App Store Today 双行信息）
+    private var secondaryLine: String {
+        let time = Formatters.activityEventTime(from: live.date)
         let fee = live.isFull ? ActivityCardStatus.full : (live.isFree ? ActivityCardStatus.free : live.fee)
         if let friend = ActivityRecommender.matchedFriends(for: live).first {
-            return "\(live.location) · \(ActivityCardStatus.friendAlsoGoing(friend)) · \(fee)"
+            return "\(time) · \(ActivityCardStatus.friendAlsoGoing(friend)) · \(fee)"
         }
         guard hasUserLocation else {
-            return "\(live.location) · \(live.hostName) · \(fee)"
+            return "\(time) · \(live.location) · \(fee)"
         }
-        return "\(live.location) · \(live.distanceLabel(hasUserLocation: true)) · \(fee)"
+        return "\(time) · \(live.distanceLabel(hasUserLocation: true)) · \(fee)"
     }
 }
 
@@ -161,10 +158,6 @@ struct ActivityDiscoverCard: View {
     var onOpen: () -> Void = {}
     var onJoin: (() -> Void)?
 
-    private var hasUserLocation: Bool { location.coordinate != nil }
-
-    @Environment(LocationService.self) private var location
-
     var body: some View {
         ActivityHeroCard(
             activity: activity,
@@ -177,13 +170,10 @@ struct ActivityDiscoverCard: View {
             onJoin: onJoin
         ) {
             HeroMediaMetaLine(
-                text: Formatters.activityEventTime(from: activity.date),
-                font: HeroMediaCardLayout.discover.timeFont
-            )
-            HeroMediaMetaLine(
-                text: "\(activity.location) · \(activity.distanceLabel(hasUserLocation: hasUserLocation)) · \(ActivityCardStatus.spotsText(for: activity))",
+                text: "\(Formatters.activityEventTime(from: activity.date)) · \(activity.location) · \(ActivityCardStatus.spotsText(for: activity))",
                 font: HeroMediaCardLayout.discover.metaFont,
-                opacity: 0.88
+                opacity: 0.88,
+                lineLimit: 1
             )
         }
     }
@@ -200,7 +190,7 @@ struct ActivityParticipantAvatars: View {
     }
 
     var body: some View {
-        HStack(spacing: -size * 0.28) {
+        HStack(spacing: PlatformMetrics.avatarStackSpacing(avatarSide: size)) {
             ForEach(Array(names.prefix(maxVisible).enumerated()), id: \.offset) { _, name in
                 PlatformListAvatarView(name: name)
                     .overlay {

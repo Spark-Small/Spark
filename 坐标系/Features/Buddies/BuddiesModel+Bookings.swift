@@ -2,7 +2,7 @@
 //  BuddiesModel+Bookings.swift
 //  坐标系
 //
-//  预约记录编排：下单、支付、履约、退款与演示接单模拟。
+//  预约记录编排：下单、支付、履约、退款与接单推进。
 //
 
 import CoordinateDomain
@@ -17,10 +17,10 @@ extension BuddiesModel {
         serviceSKU: BuddyCompanionServiceSKU? = nil
     ) {
         if YouthModePreference.isEnabled {
-            flash(GuestAccessGate.youthCommerceReason)
+            flash(CommerceAccessCopy.youthCommerceReason)
             return
         }
-        bookingPresentation = BuddyBookingPresentation(
+        presentation.bookingPresentation = BuddyBookingPresentation(
             companion: companion,
             initialDay: initialDay,
             serviceSKU: serviceSKU,
@@ -29,7 +29,7 @@ extension BuddiesModel {
     }
 
     func dismissBookingPresentation() {
-        bookingPresentation = nil
+        presentation.bookingPresentation = nil
     }
 
     @discardableResult
@@ -50,8 +50,8 @@ extension BuddiesModel {
             return nil
         }
         bookingRecords.insert(candidate, at: 0)
-        bookingPresentation = nil
-        pendingBookingAcknowledgementID = candidate.id
+        presentation.bookingPresentation = nil
+        presentation.pendingBookingAcknowledgementID = candidate.id
         trustService.record(
             .bookingCreated,
             domain: .booking,
@@ -71,16 +71,16 @@ extension BuddiesModel {
     }
 
     var pendingBookingAcknowledgement: BuddyBookingRecord? {
-        guard let id = pendingBookingAcknowledgementID else { return nil }
+        guard let id = presentation.pendingBookingAcknowledgementID else { return nil }
         return bookingRecords.first { $0.id == id }
     }
 
     func dismissBookingAcknowledgement() {
-        pendingBookingAcknowledgementID = nil
+        presentation.pendingBookingAcknowledgementID = nil
     }
 
     func dismissBookingSuccess() {
-        pendingBookingSuccessID = nil
+        presentation.pendingBookingSuccessID = nil
     }
 
     func simulateCompanionAcceptsIfNeeded() {
@@ -108,11 +108,11 @@ extension BuddiesModel {
             bookingRecords.first(where: { $0.id == id }),
             transition: .beginPayment
         ) else {
-            flash("订单尚未可支付")
+            flash(BuddyBookingFlowCopy.orderNotPayableYet)
             return
         }
-        pendingAwaitingPaymentReviewID = nil
-        pendingPaymentBookingID = id
+        presentation.pendingAwaitingPaymentReviewID = nil
+        presentation.pendingPaymentBookingID = id
     }
 
     @discardableResult
@@ -121,13 +121,13 @@ extension BuddiesModel {
         method: PaymentMethod = .wallet
     ) -> PaymentOutcome {
         guard let index = bookingRecords.firstIndex(where: { $0.id == id }) else {
-            return .failed("订单不存在")
+            return .failed(BuddyBookingFlowCopy.orderNotFound)
         }
         guard case .success(let record) = booking.statusTransition.validate(
             bookingRecords[index],
             transition: .confirmPayment
         ) else {
-            return .failed("订单尚未可支付")
+            return .failed(BuddyBookingFlowCopy.orderNotPayableYet)
         }
         if method != .wallet, !CommercePaymentPolicy.allowsSimulatedExternalCheckout {
             return .failed(CommercePaymentPolicy.externalCheckoutUnavailableMessage)
@@ -138,7 +138,7 @@ extension BuddiesModel {
             amountCents: amountCents,
             method: method,
             kind: .bookingPayment,
-            title: "陪玩 · \(record.companionNickname)",
+            title: "\(BuddyBrowseCopy.ModelCopy.bookingThreadTitlePrefix) · \(record.companionNickname)",
             subtitle: record.priceText,
             relatedID: record.id
         )
@@ -149,11 +149,11 @@ extension BuddiesModel {
             transition: .confirmPayment,
             paymentMethod: method.displayName
         ) else {
-            return .failed("订单尚未可支付")
+            return .failed(BuddyBookingFlowCopy.orderNotPayableYet)
         }
         cancelPaymentExpiry(for: id)
-        pendingPaymentBookingID = nil
-        pendingBookingSuccessID = id
+        presentation.pendingPaymentBookingID = nil
+        presentation.pendingBookingSuccessID = id
         trustService.record(
             .bookingPaid,
             domain: .booking,
@@ -172,7 +172,7 @@ extension BuddiesModel {
     }
 
     func cancelPendingPayment() {
-        pendingPaymentBookingID = nil
+        presentation.pendingPaymentBookingID = nil
     }
 
     func withdrawPendingBooking(_ id: BuddyBookingRecord.ID) {
@@ -182,7 +182,7 @@ extension BuddiesModel {
         recordBookingTrustEvent(.withdraw, bookingID: id)
         persist()
         onRecordsChanged?()
-        flash("已取消预约")
+        flash(BuddyBookingFlowCopy.bookingCancelled)
     }
 
     func markInProgress(_ id: BuddyBookingRecord.ID) {
@@ -190,7 +190,7 @@ extension BuddiesModel {
         _ = walletPassStore.issueBookingTicket(for: record)
         persist()
         onRecordsChanged?()
-        flash("预约已开始")
+        flash(BuddyBookingFlowCopy.bookingStarted)
     }
 
     func completeBooking(_ id: BuddyBookingRecord.ID) {
@@ -206,19 +206,19 @@ extension BuddiesModel {
         persist()
         onRecordsChanged?()
         if !trustService.hasCheckedIn(bookingID: id) {
-            pendingSafetyCheckInBookingID = id
-            flash("订单已完成，可确认履约情况")
+            presentation.pendingSafetyCheckInBookingID = id
+            flash(BuddyBookingFlowCopy.bookingCompletedWithCheckIn)
         } else {
-            flash("订单已完成")
+            flash(BuddyBookingFlowCopy.bookingCompleted)
         }
     }
 
     func cancelPendingSafetyCheckIn() {
-        pendingSafetyCheckInBookingID = nil
+        presentation.pendingSafetyCheckInBookingID = nil
     }
 
     var pendingSafetyCheckInBooking: BuddyBookingRecord? {
-        guard let id = pendingSafetyCheckInBookingID else { return nil }
+        guard let id = presentation.pendingSafetyCheckInBookingID else { return nil }
         return bookingRecords.first { $0.id == id }
     }
 
@@ -259,7 +259,7 @@ extension BuddiesModel {
             cancelBookingLifecycleNotifications(bookingID: id)
             persist()
             onRecordsChanged?()
-            flash("退款申请已提交")
+            flash(BuddyBookingFlowCopy.refundSubmitted)
             return .success(refundRecord.id)
         case .failure(let error):
             return .failure(error)
@@ -270,7 +270,7 @@ extension BuddiesModel {
         guard commitBookingTransition(id, transition: .completeRefund) != nil else { return }
         persist()
         onRecordsChanged?()
-        flash("退款已完成")
+        flash(BuddyBookingFlowCopy.refundCompleted)
     }
 
     func rejectBookingRefund(_ id: BuddyBookingRecord.ID) {
@@ -278,7 +278,7 @@ extension BuddiesModel {
         _ = walletPassStore.issueBookingTicket(for: record)
         persist()
         onRecordsChanged?()
-        flash("退款未通过，预约已恢复")
+        flash(BuddyBookingFlowCopy.refundRejectedRestored)
     }
 
     func cancelBooking(_ id: BuddyBookingRecord.ID) {
@@ -297,7 +297,7 @@ extension BuddiesModel {
         )
         persist()
         onRecordsChanged?()
-        flash("已取消预约")
+        flash(BuddyBookingFlowCopy.bookingCancelled)
     }
 
     func deleteBooking(_ id: BuddyBookingRecord.ID) {
@@ -313,13 +313,27 @@ extension BuddiesModel {
         guard let index = bookingRecords.firstIndex(where: { $0.id == id }) else { return }
         guard bookingRecords[index].canReschedule else {
             if bookingRecords[index].status == .refunding {
-                flash("退款处理中，暂不可改期")
+                flash(BuddyBookingFlowCopy.refundInProgressCannotReschedule)
             }
             return
         }
-        let hourlyPrice = SampleData.paidCompanions.first(where: {
-            $0.profile.nickname == bookingRecords[index].companionNickname
-        })?.hourlyPrice
+        let hourlyPrice: Int?
+        let record = bookingRecords[index]
+        if let companion = item(for: record.companionNickname, userID: record.companionUserID),
+           case .paid(let paid) = companion {
+            hourlyPrice = paid.hourlyPrice
+        } else if BuddiesSupplyPolicy.allowsSampleDiscoverCatalog {
+            hourlyPrice = SampleData.paidCompanions.first(where: {
+                BuddyIdentityMatching.matches(
+                    nickname: $0.profile.nickname,
+                    userID: $0.profile.userID,
+                    otherNickname: record.companionNickname,
+                    otherUserID: record.companionUserID
+                )
+            })?.hourlyPrice
+        } else {
+            hourlyPrice = nil
+        }
         let draft = bookingService.rescheduleBooking(
             bookingRecords[index],
             scheduledAt: scheduledAt,
@@ -331,7 +345,7 @@ extension BuddiesModel {
             existing: bookingRecords,
             excluding: id
         ) {
-            flash("改期时间与其他预约冲突")
+            flash(BuddyBookingFlowCopy.rescheduleConflict)
             return
         }
         bookingRecords[index] = draft

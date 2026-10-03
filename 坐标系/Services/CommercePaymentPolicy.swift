@@ -44,11 +44,16 @@ enum CommercePaymentPolicy {
         "退款申请已提交，到账结果以支付服务商与运营审核为准。"
     }
 
-    static var checkoutFooterSupplement: String {
+    /// 结账主路径首屏披露（比 footer 更醒目，对齐审核诚实披露）。
+    static var checkoutDisclosure: String {
         #if DEBUG
-        "DEBUG：外部支付为本地模拟到账，非真实扣款。"
+        "当前为本地演示扣款：钱包为设备账本；外部支付方式为模拟到账，不会真实扣款。"
         #else
-        "数字内容请走 App Store；线下服务费用当前支持钱包余额。"
+        "钱包余额为设备本地账本。线下活动费用当前仅支持余额；Apple Pay / 微信 / 支付宝将在正式通道就绪后开放。"
         #endif
+    }
+
+    static var checkoutFooterSupplement: String {
+        checkoutDisclosure
     }
 }

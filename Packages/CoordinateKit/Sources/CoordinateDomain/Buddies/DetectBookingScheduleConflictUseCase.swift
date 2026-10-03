@@ -17,7 +17,12 @@ public struct DetectBookingScheduleConflictUseCase: Sendable {
         let range = candidate.scheduledAt..<candidate.endAt
         return existing.contains { other in
             guard other.id != excluding,
-                  other.companionNickname == candidate.companionNickname,
+                  BuddyIdentityMatching.matches(
+                    nickname: other.companionNickname,
+                    userID: other.companionUserID,
+                    otherNickname: candidate.companionNickname,
+                    otherUserID: candidate.companionUserID
+                  ),
                   ![BookingOrderStatus.cancelled, .refunded, .refunding].contains(other.status)
             else { return false }
             let otherRange = other.scheduledAt..<other.endAt

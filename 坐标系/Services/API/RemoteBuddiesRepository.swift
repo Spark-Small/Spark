@@ -2,7 +2,8 @@
 //  RemoteBuddiesRepository.swift
 //  坐标系
 //
-//  本地优先搭子仓库：读写在本地；预留远程同步入口。
+//  本地优先搭子仓库：读写在本地；远程成功经 Merge UC 落盘，禁止整包覆盖。
+//  始终由 AppComposition 包装；`useRemoteBuddies` 仅控制 sync。
 //
 
 import CoordinateData
@@ -16,13 +17,16 @@ final class RemoteBuddiesRepository: BuddiesRepository {
     let persistenceKey: LocalPersistenceKey = .buddies
     private let local: any BuddiesRepository
     private let client: APIClient
+    private let mergeRemoteSnapshot: MergeRemoteBuddiesSnapshotUseCase
 
     init(
         local: any BuddiesRepository,
-        client: APIClient = .shared
+        client: APIClient = .shared,
+        mergeRemoteSnapshot: MergeRemoteBuddiesSnapshotUseCase = MergeRemoteBuddiesSnapshotUseCase()
     ) {
         self.local = local
         self.client = client
+        self.mergeRemoteSnapshot = mergeRemoteSnapshot
     }
 
     func load() -> BuddiesSnapshot {
@@ -33,15 +37,26 @@ final class RemoteBuddiesRepository: BuddiesRepository {
         local.save(snapshot)
     }
 
-    /// bootstrap 阶段调用：远程成功则落盘，失败保留本地。
+    /// bootstrap 阶段调用：远程成功则 Merge 落盘，失败保留本地。
     /// 预约接单回执另见 `RemoteBookingSyncService`（`buddies/bookings`）。
     func syncRemoteBuddiesIfEnabled() async {
-        guard FeatureFlags.useRemoteBuddies else { return }
+        guard FeatureFlags.useRemoteBuddies else {
+            RemoteSyncStatus.recordSkipped("buddies")
+            return
+        }
         do {
             let remote = try await client.send(.buddiesSnapshot)
-            local.save(remote)
+            let previous = local.load()
+            let merged = mergeRemoteSnapshot.execute(remote: remote, previous: previous)
+            local.save(merged)
+            let catalogCount = (merged.discoverCatalog?.freeBuddies.count ?? 0)
+                + (merged.discoverCatalog?.paidCompanions.count ?? 0)
+            RemoteSyncStatus.recordSuccess(
+                "buddies",
+                detail: "bookings=\(merged.bookingRecords.count) invites=\(merged.inviteRecords.count) catalog=\(catalogCount)"
+            )
         } catch {
-            // 本地优先
+            RemoteSyncStatus.recordFailure("buddies", error: error)
         }
     }
 }

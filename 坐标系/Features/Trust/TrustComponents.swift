@@ -222,10 +222,11 @@ struct TrustBadgeRow: View {
     var limit: Int = 8
 
     var body: some View {
-        ForEach(Array(badges.prefix(limit))) { badge in
-            Label(badge.title, systemImage: badge.systemImage)
-                .platformContentSymbolStyle()
-        }
+        // 兼容旧调用：改为奖章墙（仅已点亮）
+        TrustBadgeShowcase(
+            earned: Array(badges.prefix(limit)),
+            mode: .publicEarned
+        )
     }
 }
 

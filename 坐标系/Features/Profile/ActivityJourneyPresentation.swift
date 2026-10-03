@@ -442,6 +442,16 @@ enum ActivityJourneyPresentation {
                 primary: .openDetail
             )
         case .arrived:
+            if showsNavigate {
+                return ActivityJourneyBannerContent(
+                    face: ActivityJourneyGlassCardFace(
+                        title: ActivityJourneyCopy.navigate,
+                        subtitle: activity.location,
+                        systemImage: "map.fill"
+                    ),
+                    primary: .navigate
+                )
+            }
             return ActivityJourneyBannerContent(
                 face: ActivityJourneyGlassCardFace(
                     title: ActivityJourneyCopy.inProgressTitle,

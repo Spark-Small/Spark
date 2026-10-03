@@ -15,6 +15,7 @@ struct AppDependencies {
     let repositories: AppRepositories
 
     let activitiesParticipation: ActivitiesParticipationUseCases
+    let activitiesHosting: ActivitiesHostingUseCases
     let activitiesBrowse: ActivitiesBrowseUseCases
     let buddiesBooking: BuddiesBookingUseCases
 
@@ -31,6 +32,7 @@ struct AppDependencies {
 
     let membershipStore: MembershipStore
     let notificationPreferencesStore: NotificationPreferencesStore
+    let inAppNotificationStore: InAppNotificationStore
     let privacyPreferencesStore: PrivacyPreferencesStore
     let youthModeStore: YouthModeStore
     let legalConsentStore: LegalConsentStore
@@ -38,11 +40,14 @@ struct AppDependencies {
     let photoVerificationStore: PhotoVerificationStore
     let opsContentStore: OpsContentStore
     let remoteBookingSync: any RemoteBookingSyncing
+    let remoteInviteSync: any RemoteInviteSyncing
+    let remoteClubSync: any RemoteClubSyncing
 
     static var live: AppDependencies {
         AppDependencies(
             repositories: .live,
             activitiesParticipation: AppComposition.activitiesParticipation,
+            activitiesHosting: AppComposition.activitiesHosting,
             activitiesBrowse: AppComposition.activitiesBrowse,
             buddiesBooking: AppComposition.buddiesBooking,
             activityEngagementStore: AppComposition.activityEngagementStore,
@@ -56,13 +61,16 @@ struct AppDependencies {
             productLifecycleStore: AppComposition.productLifecycleStore,
             membershipStore: AppComposition.membershipStore,
             notificationPreferencesStore: AppComposition.notificationPreferencesStore,
+            inAppNotificationStore: AppComposition.inAppNotificationStore,
             privacyPreferencesStore: AppComposition.privacyPreferencesStore,
             youthModeStore: AppComposition.youthModeStore,
             legalConsentStore: AppComposition.legalConsentStore,
             membershipAdImpressionStore: AppComposition.membershipAdImpressionStore,
             photoVerificationStore: AppComposition.photoVerificationStore,
             opsContentStore: AppComposition.opsContentStore,
-            remoteBookingSync: RemoteBookingSyncService(client: .shared)
+            remoteBookingSync: RemoteBookingSyncService(client: .shared),
+            remoteInviteSync: RemoteInviteSyncService(client: .shared),
+            remoteClubSync: RemoteClubSyncService(client: .shared)
         )
     }
 
@@ -77,6 +85,7 @@ struct AppDependencies {
         return AppDependencies(
             repositories: repositories,
             activitiesParticipation: ActivitiesParticipationUseCases(),
+            activitiesHosting: ActivitiesHostingUseCases(),
             activitiesBrowse: ActivitiesBrowseUseCases(),
             buddiesBooking: BuddiesBookingUseCases(),
             activityEngagementStore: ActivityEngagementStore(
@@ -96,13 +105,16 @@ struct AppDependencies {
             productLifecycleStore: ProductLifecycleStore(),
             membershipStore: MembershipStore(),
             notificationPreferencesStore: NotificationPreferencesStore(),
+            inAppNotificationStore: InAppNotificationStore(),
             privacyPreferencesStore: PrivacyPreferencesStore(),
             youthModeStore: YouthModeStore(),
             legalConsentStore: LegalConsentStore(),
             membershipAdImpressionStore: MembershipAdImpressionStore(),
             photoVerificationStore: PhotoVerificationStore(trustService: trust),
             opsContentStore: OpsContentStore(),
-            remoteBookingSync: DisabledRemoteBookingSync()
+            remoteBookingSync: DisabledRemoteBookingSync(),
+            remoteInviteSync: DisabledRemoteInviteSync(),
+            remoteClubSync: DisabledRemoteClubSync()
         )
     }
 
@@ -124,11 +136,13 @@ extension AppDependencies {
             repository: repository ?? repositories.activities,
             engagementStore: activityEngagementStore,
             participation: activitiesParticipation,
+            hosting: activitiesHosting,
             browse: activitiesBrowse,
             recentBrowseStore: profileRecentBrowseStore,
             walletPassStore: walletPassStore,
             locationService: locationService,
-            currentUserName: currentUserName
+            currentUserName: currentUserName,
+            currentUserID: LocalUserIdentity.current
         )
     }
 
@@ -146,7 +160,10 @@ extension AppDependencies {
     func makeCommunityModel(currentUserName: String? = nil) -> CommunityModel {
         CommunityModel(
             currentUserName: currentUserName,
-            repository: repositories.community
+            repository: repositories.community,
+            engagement: CommunityEngagementUseCases(),
+            moderation: CommunityModerationUseCases(),
+            notificationInbox: inAppNotificationStore
         )
     }
 
@@ -163,8 +180,11 @@ extension AppDependencies {
             refundFlowService: refundFlowService,
             trustService: trustService,
             remoteBookingSync: remoteBookingSync,
+            remoteInviteSync: remoteInviteSync,
+            remoteClubSync: remoteClubSync,
             snapshot: snapshot,
-            currentUserName: currentUserName
+            currentUserName: currentUserName,
+            currentUserID: LocalUserIdentity.current
         )
     }
 

@@ -228,7 +228,7 @@ struct SettingsProductTipsView: View {
         let hasOrders = !ActivityPaymentStore.allOrders().isEmpty
             || !buddies.bookingRecords.isEmpty
         return lifecycle.eligibleTips(
-            isGuest: app.auth.isGuest,
+            isGuest: false,
             profileComplete: ProfileCompletion.ratio(for: app.user) >= 0.8,
             hasOrders: hasOrders
         )
@@ -553,7 +553,7 @@ struct SettingsStorageView: View {
             exportedAt: .now,
             userID: app.user.id.uuidString,
             nickname: app.user.name,
-            isGuest: app.auth.isGuest,
+            isGuest: false,
             openCount: lifecycle.openCount,
             version: lifecycle.versionLabel,
             blockedCount: app.blockedUserNames.count,

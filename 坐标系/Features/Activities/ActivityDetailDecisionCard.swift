@@ -30,13 +30,16 @@ struct ActivityDetailDecisionCard: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-                HStack(alignment: .firstTextBaseline) {
+                LabeledContent("费用") {
                     Text(activity.fee)
-                        .font(.title2.weight(.bold))
+                        .font(.body.weight(.semibold))
                         .monospacedDigit()
-                    Spacer()
+                        .foregroundStyle(.primary)
+                }
+
+                LabeledContent("名额") {
                     Text(spotsLabel)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(spotsColor)
                         .monospacedDigit()
                 }
@@ -270,8 +273,6 @@ struct ActivityDetailHostTrustRow: View {
                     VStack(alignment: .leading) {
                         HStack {
                             Text(trust.name)
-                            Text(trust.levelText)
-                                .foregroundStyle(.secondary)
                             if trust.isVerified {
                                 Image(systemName: TrustBadgeKind.photoVerified.systemImage)
                                     .foregroundStyle(.tint)
@@ -309,11 +310,9 @@ struct ActivityDetailHostTrustRow: View {
 
     private var accessibilitySummary: String {
         var parts = [trust.name]
-        parts.append(trust.levelText)
         if trust.isVerified { parts.append(TrustBadgeKind.photoVerified.title) }
         if trust.isMember { parts.append(TrustBadgeKind.activeMember.title) }
         parts.append(trust.hostedText)
-        parts.append(trust.completionText)
         return parts.joined(separator: "，")
     }
 }

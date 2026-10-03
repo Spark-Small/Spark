@@ -12,6 +12,7 @@ struct ProfileCircleDetailView: View {
     @Environment(BuddiesModel.self) private var buddies
     @Environment(MessagesModel.self) private var messages
     @Environment(AppModel.self) private var app
+    @Environment(\.profileRecentBrowseStore) private var recentBrowseStore
     @Environment(\.tabNavigationStateRef) private var navigation
     @Environment(\.dismiss) private var dismiss
 
@@ -22,9 +23,32 @@ struct ProfileCircleDetailView: View {
     }
 
     private var members: [DiscoverBuddyItem] {
-        SampleData.circleBuddies
-            .filter { $0.circleName == circle.name }
-            .map(DiscoverBuddyItem.free)
+        var byNickname: [String: DiscoverBuddyItem] = [:]
+
+        if let conversation = circleConversation {
+            for member in messages.groupMembers(for: conversation.id) {
+                let nickname = member.nickname
+                if nickname.caseInsensitiveCompare(app.user.name) == .orderedSame {
+                    continue
+                }
+                byNickname[nickname.lowercased()] = buddies.discoverItem(
+                    for: nickname,
+                    fallbackCircleName: circle.name,
+                    fallbackTopic: circle.topic
+                )
+            }
+        }
+
+        if BuddiesSupplyPolicy.allowsSampleDiscoverCatalog {
+            for buddy in SampleData.circleBuddies where buddy.circleName == circle.name {
+                let key = buddy.profile.nickname.lowercased()
+                if byNickname[key] == nil {
+                    byNickname[key] = DiscoverBuddyItem.free(buddy)
+                }
+            }
+        }
+
+        return Array(byNickname.values)
     }
 
     /// 详情页标题与成员区对齐，不用浏览卡片上的种子 `memberCount`。
@@ -152,6 +176,9 @@ struct ProfileCircleDetailView: View {
             },
             selfMemberTarget: selfMemberProfileTarget()
         )
+        .onAppear {
+            recentBrowseStore.record(circle: circle)
+        }
     }
 
     private func openCircleChat() {

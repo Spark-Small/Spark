@@ -2,7 +2,8 @@
 //  TrustPublicSections.swift
 //  坐标系
 //
-//  信任档案：等级 + 形象认证 + 履约徽章 + 近 90 天事实（单一 Form Section）。
+//  信任档案（对外）：等级 + 奖章墙 + 近 90 天事实。
+//  奖章只展示已点亮视觉格；无徽章时不写空态说明文（对陌生人无意义）。
 //
 
 import CoordinateModels
@@ -48,8 +49,8 @@ struct TrustPublicProfileSections: View {
             signals: TrustPrivateSignals(
                 profileRatio: isSelf ? ProfileCompletion.ratio(for: app.user) : 0.5,
                 isMember: flags.isMember,
-                isGuest: isSelf && app.auth.isGuest,
-                hasPhone: isSelf && !app.auth.isGuest && !app.auth.phoneNumber.isEmpty,
+                isGuest: false,
+                hasPhone: isSelf && !app.auth.phoneNumber.isEmpty,
                 photoVerified: flags.photoVerified,
                 accountCreatedAt: isSelf ? lifecycle.installAt : nil,
                 friendCount: 0,
@@ -60,37 +61,16 @@ struct TrustPublicProfileSections: View {
 
     var body: some View {
         let data = card
-        let flags = credentials
-        let extraBadges = earnedTrustBadges(from: data.badges)
 
         Section {
             TrustLevelStrip(level: data.level)
 
-            if flags.photoVerified {
-                Label(
-                    TrustBadgeKind.photoVerified.title,
-                    systemImage: TrustBadgeKind.photoVerified.systemImage
-                )
-                .symbolRenderingMode(.multicolor)
-                .platformContentSymbolStyle()
-            } else if isSelf {
-                Label(
-                    "形象认证未点亮",
-                    systemImage: "person.crop.circle.badge.questionmark"
-                )
-                .foregroundStyle(.secondary)
-                .platformContentSymbolStyle()
+            if !compact {
+                TrustBadgeShowcase(earned: data.badges, mode: .publicEarned)
             }
 
             if isSelf {
                 publicVerificationPhotosRow
-            }
-
-            if !extraBadges.isEmpty {
-                TrustBadgeRow(badges: extraBadges)
-            } else if !isSelf, !flags.photoVerified {
-                Text("认证徽章将随形象认证点亮。")
-                    .foregroundStyle(.secondary)
             }
 
             TrustFactLabeledRows(
@@ -103,15 +83,8 @@ struct TrustPublicProfileSections: View {
             if compact {
                 EmptyView()
             } else {
-                Text("会员标识不在信任档案中展示；履约事实来自近 90 天行为记录。")
+                Text("奖章为已点亮凭证；会员标识不在信任档案中；履约事实来自近 90 天行为记录。")
             }
-        }
-    }
-
-    /// 信任档案内：不含形象认证（单独展示）与会员徽章
-    private func earnedTrustBadges(from badges: [TrustBadge]) -> [TrustBadge] {
-        badges.filter {
-            $0.kind != .photoVerified && $0.kind != .activeMember
         }
     }
 

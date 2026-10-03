@@ -30,7 +30,7 @@ struct ConversationThreadView<Row: View>: View {
                     if canLoadOlder {
                         Button(MessagesCopy.loadOlderMessages, action: onLoadOlder)
                             .font(.footnote.weight(.semibold))
-                            .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
+                            .padding(.vertical, PlatformMessagesChrome.daySeparatorVerticalPadding)
                     }
                     if isEmpty {
                         PlatformChatEmptyThread(peerName: peerName)

@@ -19,6 +19,39 @@ public struct ActivityEngagementSnapshot: Codable, Sendable {
     }
 }
 
+/// 最近浏览对象类型（广场不做足迹）。
+public enum RecentBrowseKind: String, Codable, Hashable, Sendable, CaseIterable {
+    case activity
+    case buddy
+    case companion
+    case club
+}
+
+public struct RecentBrowseRecord: Codable, Identifiable, Hashable, Sendable {
+    public var kind: RecentBrowseKind
+    public var targetID: UUID
+    public var title: String
+    public var subtitle: String
+    public var viewedAt: Date
+
+    public var id: String { "\(kind.rawValue)|\(targetID.uuidString)" }
+
+    public init(
+        kind: RecentBrowseKind,
+        targetID: UUID,
+        title: String,
+        subtitle: String = "",
+        viewedAt: Date
+    ) {
+        self.kind = kind
+        self.targetID = targetID
+        self.title = title
+        self.subtitle = subtitle
+        self.viewedAt = viewedAt
+    }
+}
+
+/// 旧 JSON 字段（仅迁移）。
 public struct ProfileRecentBrowseRecord: Codable, Identifiable, Hashable, Sendable {
     public let activityID: UUID
     public var title: String
@@ -31,12 +64,20 @@ public struct ProfileRecentBrowseRecord: Codable, Identifiable, Hashable, Sendab
         self.title = title
         self.viewedAt = viewedAt
     }
+
+    public var asRecentBrowseRecord: RecentBrowseRecord {
+        RecentBrowseRecord(
+            kind: .activity,
+            targetID: activityID,
+            title: title,
+            viewedAt: viewedAt
+        )
+    }
 }
 
 /// 仅用于从旧 JSON 一次性迁入 SwiftData。
 public struct ProfileRecentBrowseSnapshot: Codable, Sendable {
     public var items: [ProfileRecentBrowseRecord]
-
 
     public init(items: [ProfileRecentBrowseRecord] = []) {
         self.items = items

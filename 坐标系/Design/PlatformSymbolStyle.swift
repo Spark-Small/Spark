@@ -17,8 +17,11 @@ enum PlatformSymbolChrome: Equatable {
     /// 状态强调：单色 + 语义色（成功 / 警告 / 危险 / tint）。
     case status(Color)
 
-    /// 双层角标：如 `xmark.circle.fill` / `checkmark.circle.fill`。
+    /// 双层角标：如 `xmark.circle.fill`；颜色用系统语义，勿在 Features 写死黑白。
     case badge(primary: Color, secondary: Color)
+
+    /// 叠在任意媒体上的关闭 / 角标：主色 label、底色 tertiaryFill（随外观自适应）。
+    case mediaBadge
 
     /// Apple 原生多色 glyph（仅用于内容分类、设置入口、空态等）。
     case multicolor
@@ -42,6 +45,10 @@ extension View {
         case .badge(let primary, let secondary):
             symbolRenderingMode(.palette)
                 .foregroundStyle(primary, secondary)
+
+        case .mediaBadge:
+            symbolRenderingMode(.palette)
+                .foregroundStyle(Color(.label), Color(.tertiarySystemFill))
 
         case .multicolor:
             symbolRenderingMode(.multicolor)

@@ -65,9 +65,34 @@ extension MessagesModel {
 
             switch conversations[index].kind {
             case .direct:
-                if conversations[index].subtitle != MessagesCopy.friendSubtitle {
-                    conversations[index].subtitle = MessagesCopy.friendSubtitle
-                    changed = true
+                if conversations[index].isMessageRequest {
+                    if conversations[index].isFriend {
+                        conversations[index].isFriend = false
+                        changed = true
+                    }
+                    if conversations[index].requestSource == nil {
+                        conversations[index].requestSource = .directMessage
+                        changed = true
+                    }
+                    let expected = MessagesCopy.strangerSubtitle
+                    if conversations[index].subtitle != expected {
+                        conversations[index].subtitle = expected
+                        changed = true
+                    }
+                } else {
+                    // 旧种子只写了副标题「好友」：补齐 isFriend，避免点资料仍出现「加好友」
+                    if !conversations[index].isFriend,
+                       conversations[index].subtitle == MessagesCopy.friendSubtitle {
+                        conversations[index].isFriend = true
+                        changed = true
+                    }
+                    let expected = conversations[index].isFriend
+                        ? MessagesCopy.friendSubtitle
+                        : MessagesCopy.strangerSubtitle
+                    if conversations[index].subtitle != expected {
+                        conversations[index].subtitle = expected
+                        changed = true
+                    }
                 }
             case .activity, .group:
                 if conversations[index].kind == .activity {
@@ -114,6 +139,7 @@ extension MessagesModel {
         friendRequests = snapshot.friendRequests
         friendRemarks = snapshot.friendRemarks
         friendGroups = snapshot.friendGroups
+        friendGroupCatalog = snapshot.friendGroupCatalog
         groupMembersByConversation = Dictionary(
             uniqueKeysWithValues: snapshot.groupMembers.compactMap { key, value in
                 guard let id = UUID(uuidString: key) else { return nil }
@@ -164,6 +190,7 @@ extension MessagesModel {
             outgoingFriendRequests: outgoingFriendRequests,
             friendRemarks: friendRemarks,
             friendGroups: friendGroups,
+            friendGroupCatalog: friendGroupCatalog,
             groupMembers: Dictionary(
                 uniqueKeysWithValues: groupMembersByConversation.map { ($0.key.uuidString, $0.value) }
             ),

@@ -5,20 +5,21 @@
 
 import CoordinateDomain
 import Foundation
-import Observation
 import CoordinateModels
 
 extension ActivitiesModel {
     func toggleFavorite(_ id: Activity.ID) {
-        if favoriteIDs.contains(id) {
-            favoriteIDs.remove(id)
-            flashLight(ActivityFeedbackCopy.unfavorited)
-        } else {
-            favoriteIDs.insert(id)
+        switch participation.toggleFavorite.execute(
+            activityID: id,
+            favoriteIDs: &favoriteIDs
+        ) {
+        case .favorited:
             flashLight(ActivityFeedbackCopy.favorited)
             if let activity = activity(id: id) {
                 engagementStore.record(.favorited, for: activity)
             }
+        case .unfavorited:
+            flashLight(ActivityFeedbackCopy.unfavorited)
         }
         persist()
     }
@@ -30,7 +31,8 @@ extension ActivitiesModel {
                 activityID: id,
                 activities: &activities,
                 joinedIDs: &joinedIDs,
-                currentUserName: currentUserName
+                currentUserName: currentUserName,
+                currentUserID: currentUserID
             ) {
             case .success:
                 NotificationService.cancelActivityReminder(activityID: id)
@@ -56,10 +58,11 @@ extension ActivitiesModel {
             joinedIDs: &joinedIDs,
             waitlistIDs: &waitlistIDs,
             waitlistSpotNotifiedIDs: &waitlistSpotNotifiedIDs,
-            currentUserName: currentUserName
+            currentUserName: currentUserName,
+            currentUserID: currentUserID
         ) {
         case .success:
-            joinSuccessActivityID = id
+            presentation.joinSuccessActivityID = id
             ensureParticipationProgress(for: id)
             if let activity = activity(id: id) {
                 engagementStore.record(.joined, for: activity)
@@ -132,10 +135,11 @@ extension ActivitiesModel {
             waitlistIDs: &waitlistIDs,
             waitlistSpotNotifiedIDs: &waitlistSpotNotifiedIDs,
             currentUserName: currentUserName,
+            currentUserID: currentUserID,
             hasPaid: ActivityPaymentStore.hasPaid(for: id)
         ) {
         case .success:
-            joinSuccessActivityID = id
+            presentation.joinSuccessActivityID = id
             ensureParticipationProgress(for: id)
             if let activity = activity(id: id) {
                 engagementStore.record(.joined, for: activity)
@@ -163,15 +167,15 @@ extension ActivitiesModel {
     }
 
     func dismissJoinSuccess() {
-        joinSuccessActivityID = nil
+        presentation.dismissJoinSuccess()
     }
 
     var publishSuccessActivity: Activity? {
-        guard let id = publishSuccessActivityID else { return nil }
+        guard let id = presentation.publishSuccessActivityID else { return nil }
         return activity(id: id)
     }
 
     func dismissPublishSuccess() {
-        publishSuccessActivityID = nil
+        presentation.dismissPublishSuccess()
     }
 }

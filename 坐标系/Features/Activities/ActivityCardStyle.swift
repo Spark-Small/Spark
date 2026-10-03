@@ -34,7 +34,7 @@ enum ActivityCardStatus {
     static let openGroupChat = "打开活动群"
     static let joinSuccessGroupHint = "活动群已在消息 → 活动群，集合信息会发在群里"
     static let shareActivity = "分享活动"
-    static let favorite = "收藏"
+    static let favorite = "收藏活动"
     static let unfavorite = "取消收藏"
     static let refineContent = "完善活动说明"
     static let reportReceived = "已收到反馈"
@@ -117,31 +117,20 @@ private extension String {
 
 // MARK: - Primary action（发现表面唯一主操作）
 
-/// 已参加：次要 glass 胶囊（与主 CTA 同家族，非独立材质块）
-struct ActivityJoinedStatusChip: View {
+/// 已参加 / 已候补：次要 glass 胶囊（与主 CTA 同家族，状态即反馈）
+private struct ActivityStatusChip: View {
+    let title: String
+    let accessibilityHint: String
     var controlSize: ControlSize = .regular
     var expandsHorizontally = false
 
     var body: some View {
-        Button(ActivityCardStatus.joined) {}
+        Button(title) {}
             .activitySecondaryCTA(controlSize: controlSize)
             .frame(maxWidth: expandsHorizontally ? .infinity : nil)
             .disabled(true)
-            .accessibilityLabel(ActivityCardStatus.joined)
-    }
-}
-
-/// 已候补：与「已参加」同形态，状态即反馈
-struct ActivityWaitlistedStatusChip: View {
-    var controlSize: ControlSize = .regular
-    var expandsHorizontally = false
-
-    var body: some View {
-        Label(ActivityCardStatus.waitlisted, systemImage: "clock.badge.checkmark")
-            .activitySecondaryCTA(controlSize: controlSize)
-            .frame(maxWidth: expandsHorizontally ? .infinity : nil)
-            .labelStyle(.titleOnly)
-            .accessibilityLabel(ActivityCardStatus.waitlisted)
+            .accessibilityLabel(title)
+            .accessibilityHint(accessibilityHint)
     }
 }
 
@@ -152,22 +141,23 @@ struct ActivityPrimaryAction: View {
     var isFull: Bool
     var controlSize: ControlSize = .regular
     var expandsHorizontally = false
-    var onMedia = false
     var onJoin: (() -> Void)?
 
     var body: some View {
         if isJoined {
-            ActivityJoinedStatusChip(
+            ActivityStatusChip(
+                title: ActivityCardStatus.joined,
+                accessibilityHint: "已参加，打开详情可查看行程或取消",
                 controlSize: controlSize,
                 expandsHorizontally: expandsHorizontally
             )
-            .colorScheme(onMedia ? .dark : .light)
         } else if isWaitlisted {
-            ActivityWaitlistedStatusChip(
+            ActivityStatusChip(
+                title: ActivityCardStatus.waitlisted,
+                accessibilityHint: "已候补，打开详情可退出候补或等待空位",
                 controlSize: controlSize,
                 expandsHorizontally: expandsHorizontally
             )
-            .colorScheme(onMedia ? .dark : .light)
         } else if let onJoin {
             // 满员不禁用：主操作进入候补/详情（与 quickJoin 一致）
             Button(
@@ -249,17 +239,19 @@ struct ActivityHeroCard<Meta: View>: View {
 
     @ViewBuilder
     private var coverMedia: some View {
+        let photo = CommunityRemotePhoto(ref: activity.coverPhoto)
+
         if let zoomNamespace {
             ActivityZoomNavigationLink(
                 activityID: activity.id,
                 namespace: zoomNamespace
             ) {
-                CommunityRemotePhoto(ref: activity.coverPhoto)
+                photo
             }
             .accessibilityLabel(openAccessibilityLabel)
             .accessibilityHint(ActivityCardStatus.openHint)
         } else {
-            CommunityRemotePhoto(ref: activity.coverPhoto)
+            photo
         }
     }
 }

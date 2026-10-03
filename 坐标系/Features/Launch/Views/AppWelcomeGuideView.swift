@@ -2,11 +2,10 @@
 //  AppWelcomeGuideView.swift
 //  坐标系
 //
-//  首启半屏：意图选择（找活动 / 找同好 / 先逛逛）。
+//  首启意图选择：系统导航标题 + 次要胶囊；高度按内容 `.height`。
 //
 
 import SwiftUI
-import CoordinateModels
 
 enum AppWelcomeIntent: String, CaseIterable, Identifiable {
     case findActivity
@@ -17,17 +16,26 @@ enum AppWelcomeIntent: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .findActivity: "找能参加的活动"
-        case .meetPeople: "认识兴趣相同的人"
-        case .browse: "先随便逛逛"
+        case .findActivity: "参加喜好活动"
+        case .meetPeople: "认识新的搭子"
+        case .browse: "一个人先逛逛"
         }
     }
 
+    /// 优先 `.fill`，便于 `platformContentSymbolStyle()`（multicolor）出彩。
     var systemImage: String {
         switch self {
-        case .findActivity: "calendar.badge.clock"
-        case .meetPeople: "person.2.fill"
-        case .browse: "sparkles"
+        case .findActivity: "calendar.circle.fill"
+        case .meetPeople: "person.2.circle.fill"
+        case .browse: "square.grid.2x2.fill"
+        }
+    }
+
+    var accessibilityHint: String {
+        switch self {
+        case .findActivity: "打开活动推荐"
+        case .meetPeople: "打开搭子墙"
+        case .browse: "打开活动发现"
         }
     }
 
@@ -37,28 +45,16 @@ enum AppWelcomeIntent: String, CaseIterable, Identifiable {
         case .meetPeople: .buddies
         }
     }
-
-    /// 欢迎意图写入资料兴趣（bootstrap 用）。
-    var profileInterests: [String] {
-        switch self {
-        case .findActivity:
-            ["同城局", "探店", "骑行", "羽毛球"]
-        case .meetPeople:
-            ["认识同好", "搭子", "羽毛球", "桌游"]
-        case .browse:
-            SampleData.currentUserInterests
-        }
-    }
 }
 
 enum AppWelcomeGuideCopy {
     static let storageKey = "app.hasSeenWelcomeGuide"
     static let skip = "跳过"
     static let title = "你想先做点什么？"
-    static let subtitle = "选一个方向，我们会帮你更快开始"
     static let findActivityConfirmedGeneric = "已为你打开活动推荐"
     static let browseConfirmed = "已为你打开活动发现"
     static let meetPeopleConfirmed = "已为你打开同城同好"
+
     static func filterConfirmed(_ filterName: String) -> String {
         "已为你筛选\(filterName)的活动"
     }
@@ -68,39 +64,50 @@ struct AppWelcomeGuideView: View {
     var onContinue: (AppWelcomeIntent) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    /// 内容区理想高度；sheet 用 `.height(content + 导航栏)`，iPhone 上 `.fitted` 会掉成 `.large`。
+    @State private var contentHeight: CGFloat = 0
+    @State private var selectionPulse = 0
+
+    private var sheetHeight: CGFloat {
+        let chrome: CGFloat = 72 // inline 导航栏 + grabber
+        guard contentHeight > 0 else { return 300 }
+        return contentHeight + chrome
+    }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: PlatformMetrics.sectionSpacing) {
-                VStack(spacing: PlatformMetrics.detailMicroSpacing) {
-                    Text(AppWelcomeGuideCopy.title)
-                        .font(.title2.bold())
-                        .multilineTextAlignment(.center)
-                    Text(AppWelcomeGuideCopy.subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.top, PlatformMetrics.sectionSpacing)
-
-                VStack(spacing: PlatformMetrics.cardFooterSpacing) {
-                    ForEach(AppWelcomeIntent.allCases) { intent in
-                        Button {
-                            finish(with: intent)
-                        } label: {
-                            Label(intent.title, systemImage: intent.systemImage)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
-                                .padding(.horizontal, PlatformMetrics.contentInset)
+            VStack {
+                ForEach(AppWelcomeIntent.allCases) { intent in
+                    Button {
+                        selectionPulse += 1
+                        finish(with: intent)
+                    } label: {
+                        Label {
+                            Text(intent.title)
+                        } icon: {
+                            Image(systemName: intent.systemImage)
+                                .platformContentSymbolStyle()
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
+                        .frame(maxWidth: .infinity)
                     }
+                    .activitySecondaryCTA(controlSize: .large)
+                    .accessibilityHint(intent.accessibilityHint)
                 }
-
-                Spacer(minLength: 0)
             }
-            .padding(.horizontal, PlatformMetrics.contentInset)
+            .padding()
+            .fixedSize(horizontal: false, vertical: true)
+            .sensoryFeedback(.selection, trigger: selectionPulse)
+            .background {
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: WelcomeIntentContentHeightKey.self,
+                        value: proxy.size.height
+                    )
+                }
+            }
+            .onPreferenceChange(WelcomeIntentContentHeightKey.self) { contentHeight = $0 }
+            .navigationTitle(AppWelcomeGuideCopy.title)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(AppWelcomeGuideCopy.skip) {
@@ -109,13 +116,20 @@ struct AppWelcomeGuideView: View {
                 }
             }
         }
-        .tint(PlatformAction.brandAccent)
-        .platformSheet(.confirm)
+        .platformSheet(.light(.height(sheetHeight)))
     }
 
     private func finish(with intent: AppWelcomeIntent) {
         onContinue(intent)
         dismiss()
+    }
+}
+
+private enum WelcomeIntentContentHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat { 0 }
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 

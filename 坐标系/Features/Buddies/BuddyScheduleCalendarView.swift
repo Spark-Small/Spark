@@ -124,7 +124,7 @@ struct BuddyScheduleCalendarView: View {
                     .font(.body.weight(.semibold))
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel("上个月")
+            .accessibilityLabel(BuddyDetailCopy.schedulePrevMonth)
 
             Spacer()
             Text(monthTitle)
@@ -138,7 +138,7 @@ struct BuddyScheduleCalendarView: View {
                     .font(.body.weight(.semibold))
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel("下个月")
+            .accessibilityLabel(BuddyDetailCopy.scheduleNextMonth)
         }
     }
 

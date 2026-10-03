@@ -1,8 +1,9 @@
-# 坐标系 · CredentialArt（行程凭证彩绘）
+# 坐标系 · CredentialArt（行程凭证彩绘）（附录）
 
+> **裁决**：UI 原则见 [Project/05](../Project/05_UI_SPEC.md) / [12](../Project/12_COMPONENT_SPEC.md)。  
 > **版本**：2026-09-02  
 > **读者**：iOS 工程师、设计、AI Agent  
-> **配套**：[DevelopmentGuide.md §6.4](DevelopmentGuide.md#64-活动行程凭证app-内主路径)、[DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md) §6.1
+> **配套附录**：[DevelopmentGuide.md §6.4](DevelopmentGuide.md#64-活动行程凭证app-内主路径)、[DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md) §6.1
 
 ---
 
@@ -92,4 +93,4 @@ CredentialArtCatalog.scene(for:)
 
 ---
 
-*彩绘规范变更时同步 [DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md) §6.1 与 [DevelopmentGuide.md](DevelopmentGuide.md) §6.4。*
+*彩绘规范变更时：先对齐 Project/05·12，再同步 [DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md) §6.1 与 DevelopmentGuide §6.4 附录。*

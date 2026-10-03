@@ -30,7 +30,7 @@ struct ActivityCommentsSheet: View {
                 currentUserName: currentUserName,
                 layout: .sheetList,
                 contentOwnerName: hostName,
-                ownerBadgeTitle: "发起人",
+                ownerBadgeTitle: ActivityDetailCopy.peopleHostRole,
                 emptyTitle: ActivityDetailCopy.commentsEmpty,
                 emptyHint: ActivityDetailCopy.commentsEmptyHint,
                 placeholder: ActivityDetailCopy.commentsPlaceholder,
@@ -40,7 +40,7 @@ struct ActivityCommentsSheet: View {
                 }
             )
             .id(refreshID)
-            .navigationTitle(rootCount == 0 ? "评论" : "评论 \(rootCount)")
+            .navigationTitle(ActivityDetailCopy.commentsCountTitle(rootCount))
             .navigationBarTitleDisplayMode(.inline)
             .platformSheetCancellationToolbar(MessagesCopy.close)
         }
@@ -82,9 +82,8 @@ struct ActivityDetailCommentsPreviewSection: View {
                                     comment: review.asCommunityComment,
                                     style: .thread,
                                     showsLike: false,
-                                    showsTranslate: false,
                                     contentOwnerName: hostName,
-                                    ownerBadgeTitle: "发起人"
+                                    ownerBadgeTitle: ActivityDetailCopy.peopleHostRole
                                 )
                             }
                         }

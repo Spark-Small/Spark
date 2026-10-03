@@ -7,7 +7,6 @@
 
 import PhotosUI
 import SwiftUI
-import UIKit
 import CoordinateModels
 
 /// 发起人写实编辑：覆盖详情模板中的行程 / 须知 / 补充说明
@@ -31,6 +30,33 @@ struct ActivityDetailContentEditorSheet: View {
     /// 恢复类别默认：保存时 timeline / gear 写 nil，不固化模板副本
     @State private var timelineUsesTemplate = false
     @State private var gearUsesTemplate = false
+    @State private var restoreConfirmTarget: RestoreDefaultsTarget?
+
+    private enum RestoreDefaultsTarget: Identifiable {
+        case timeline
+        case gear
+
+        var id: String {
+            switch self {
+            case .timeline: "timeline"
+            case .gear: "gear"
+            }
+        }
+
+        var dialogTitle: String {
+            switch self {
+            case .timeline: "恢复类别默认行程？"
+            case .gear: "恢复类别默认装备？"
+            }
+        }
+
+        var confirmTitle: String {
+            switch self {
+            case .timeline: "恢复默认行程"
+            case .gear: "恢复默认装备"
+            }
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -56,44 +82,60 @@ struct ActivityDetailContentEditorSheet: View {
                         .lineLimit(3...8)
                 }
 
-                Section("费用包含（每行一条）") {
+                Section("\(ActivityDetailCopy.feeIncludedTitle)（每行一条）") {
                     TextField("例如：场地协调", text: $feeIncludedText, axis: .vertical)
                         .lineLimit(2...6)
                 }
 
-                Section("费用不含（每行一条）") {
+                Section("\(ActivityDetailCopy.feeExcludedTitle)（每行一条）") {
                     TextField("例如：个人交通", text: $feeExcludedText, axis: .vertical)
                         .lineLimit(2...6)
                 }
 
-                Section("退改说明（每行一条）") {
+                Section("\(ActivityDetailCopy.feeRefundPolicyTitle)（每行一条）") {
                     TextField("例如：开始前 24 小时可取消", text: $refundNotesText, axis: .vertical)
                         .lineLimit(2...6)
                 }
             }
-            .navigationTitle("完善活动说明")
+            .navigationTitle(ActivityCardStatus.refineContent)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") {
-                        discardUncommittedGalleryIfNeeded()
-                        dismiss()
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") {
-                        save()
-                        onSaved()
-                        dismiss()
-                    }
-                    .fontWeight(.semibold)
-                }
+            .platformSheetCancellationToolbar(ActivityComposeCopy.cancel) {
+                discardUncommittedGalleryIfNeeded()
+                dismiss()
+            }
+            .platformSheetConfirmationToolbar(
+                ActivityComposeCopy.saveAction,
+                emphasizesWhenEnabled: true
+            ) {
+                save()
+                onSaved()
+                dismiss()
             }
             .onAppear(perform: prefill)
             .onDisappear {
                 if !didCommitSave {
                     discardUncommittedGalleryIfNeeded()
                 }
+            }
+            .confirmationDialog(
+                restoreConfirmTarget?.dialogTitle ?? "",
+                isPresented: Binding(
+                    get: { restoreConfirmTarget != nil },
+                    set: { if !$0 { restoreConfirmTarget = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                if let restoreConfirmTarget {
+                    Button(restoreConfirmTarget.confirmTitle, role: .destructive) {
+                        applyRestoreDefaults(restoreConfirmTarget)
+                        self.restoreConfirmTarget = nil
+                    }
+                }
+                Button(ActivityComposeCopy.cancel, role: .cancel) {
+                    restoreConfirmTarget = nil
+                }
+            } message: {
+                Text(ActivityDetailCopy.contentEditorRestoreDefaultsMessage)
             }
         }
         .platformSheet(.form)
@@ -134,8 +176,7 @@ struct ActivityDetailContentEditorSheet: View {
 
             if !timelineRows.isEmpty || timelineUsesTemplate {
                 Button("恢复类别默认行程", role: .destructive) {
-                    timelineRows = []
-                    timelineUsesTemplate = true
+                    restoreConfirmTarget = .timeline
                 }
             }
         } header: {
@@ -189,8 +230,7 @@ struct ActivityDetailContentEditorSheet: View {
 
             if !gearRows.isEmpty || gearUsesTemplate {
                 Button("恢复类别默认装备", role: .destructive) {
-                    gearRows = []
-                    gearUsesTemplate = true
+                    restoreConfirmTarget = .gear
                 }
             }
         } header: {
@@ -219,9 +259,7 @@ struct ActivityDetailContentEditorSheet: View {
                                     removeGalleryPhoto(at: index)
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
-                                        .platformSymbolStyle(
-                                            .badge(primary: .white, secondary: .black.opacity(0.55))
-                                        )
+                                        .platformSymbolStyle(.mediaBadge)
                                 }
                                 .offset(x: PlatformMetrics.galleryRemoveBadgeOffset, y: -PlatformMetrics.galleryRemoveBadgeOffset)
                             }
@@ -326,6 +364,17 @@ struct ActivityDetailContentEditorSheet: View {
 
     private func discardUncommittedGalleryIfNeeded() {
         LocalMediaLibrary.discardUncommitted(current: galleryNames, baseline: baselineGalleryNames)
+    }
+
+    private func applyRestoreDefaults(_ target: RestoreDefaultsTarget) {
+        switch target {
+        case .timeline:
+            timelineRows = []
+            timelineUsesTemplate = true
+        case .gear:
+            gearRows = []
+            gearUsesTemplate = true
+        }
     }
 
     private func save() {

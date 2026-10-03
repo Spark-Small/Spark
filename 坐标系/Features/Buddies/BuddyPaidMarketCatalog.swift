@@ -58,7 +58,7 @@ enum BuddyPaidMarketCatalog {
         }
     }
 
-    /// 榜行展示分：优先读评价库，无数据时用成单量推导演示分
+    /// 榜行展示分：优先读评价库，无数据时用成单量推导
     @MainActor
     static func displayRating(for companion: PaidCompanion) -> Double {
         PlatformReviewCatalog.displayRating(for: companion)

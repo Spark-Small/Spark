@@ -9,41 +9,34 @@ import Foundation
 import CoordinateModels
 
 enum ActivityBrowseCopy {
-    static let searchPrompt = "搜索活动、地点或主办"
+    static let reloadFailed = "活动列表刷新失败，请稍后重试"
+    static let favoritesLibrary = "我的收藏"
+    static let favoritesLibraryHint = "查看我收藏的活动"
+    static let recentsTitle = "最近看过"
+    static let recentsEmptyTitle = "还没有看过的活动"
+    static let recentsEmptyDescription = "打开活动详情后会出现在这里"
+    static let recentsClear = "清空"
 
     // MARK: - 长列表推荐分区（活动域）
 
     enum Shelf {
         static let followingTitle = "接着逛"
-
         static let fillingTitle = "快被约满"
-
         static let nearbyTitle = "出门就能到"
-
         static let freeTitle = "先玩起来"
-
         static let tonightTitle = "今晚有局"
-
-        static let featuredTitle = "精选"
-        static let topChartsTitle = "今日 Top 10"
         static let hotTitle = "热场活动"
-        static let newTitle = "新上架"
-        static let editorsTitle = "编辑之选"
-        static let listTitle = "完整浏览"
     }
 
     // MARK: - Empty / filter
 
     enum Empty {
         static let title = "还没有合适的局"
-        static let description = "换个分类试试，或者自己开一场，邀请朋友一起"
-        static let action = "发起第一场活动"
+        static let description = "换个分类再找，或自己开一场邀请朋友参加"
+        static var action: String { ActivityComposeCopy.createTitle }
         static let filteredTitle = "没有符合条件的局"
-        static let filteredDescription = "试试放宽分类或筛选条件"
-        static let filteredAction = "调整筛选"
-        static let searchTitle = "没有搜到相关活动"
-        static let searchDescription = "换个关键词，或清空搜索看看全部"
-        static let clearSearchAction = "清空搜索"
+        static let filteredDescription = "放宽筛选后再找一场参加"
+        static let filteredAction = "清除条件"
     }
 
     enum ScrollAnchor {

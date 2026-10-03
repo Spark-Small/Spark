@@ -2,6 +2,9 @@
 //  APIEndpoint+Auth.swift
 //  坐标系
 //
+//  Auth 端点：短信 / Apple / 微信换票 + refresh。
+//  后端约定：POST auth/sms/send|login · auth/apple/login · auth/wechat/login · auth/token/refresh
+//
 
 import CoordinateNetworking
 import Foundation
@@ -36,7 +39,8 @@ struct RemoteAuthUser: Codable, Sendable {
     }
 }
 
-struct RemoteSMSLoginData: Codable, Sendable {
+/// 短信 / Apple / 微信登录统一响应。
+struct RemoteAuthLoginData: Codable, Sendable {
     let tokens: RemoteAuthTokens
     let user: RemoteAuthUser
     let created: Bool?
@@ -61,13 +65,13 @@ extension APIEndpoint where Response == RemoteSMSSendData {
     }
 }
 
-extension APIEndpoint where Response == RemoteSMSLoginData {
+extension APIEndpoint where Response == RemoteAuthLoginData {
     static func smsLogin(
         phone: String,
         code: String,
         deviceID: String,
         platform: String
-    ) throws -> APIEndpoint<RemoteSMSLoginData> {
+    ) throws -> APIEndpoint<RemoteAuthLoginData> {
         let body = try APIJSONCoding.makeEncoder().encode([
             "phone": phone,
             "code": code,
@@ -75,6 +79,47 @@ extension APIEndpoint where Response == RemoteSMSLoginData {
             "platform": platform,
         ])
         return APIEndpoint(path: "auth/sms/login", method: .post, body: body)
+    }
+
+    /// Sign in with Apple：服务端校验 `identity_token` 后发 JWT。
+    static func appleLogin(
+        identityToken: String,
+        authorizationCode: String?,
+        deviceID: String,
+        platform: String,
+        fullName: String?,
+        email: String?
+    ) throws -> APIEndpoint<RemoteAuthLoginData> {
+        var payload: [String: String] = [
+            "identity_token": identityToken,
+            "device_id": deviceID,
+            "platform": platform,
+        ]
+        if let authorizationCode, !authorizationCode.isEmpty {
+            payload["authorization_code"] = authorizationCode
+        }
+        if let fullName, !fullName.isEmpty {
+            payload["full_name"] = fullName
+        }
+        if let email, !email.isEmpty {
+            payload["email"] = email
+        }
+        let body = try APIJSONCoding.makeEncoder().encode(payload)
+        return APIEndpoint(path: "auth/apple/login", method: .post, body: body)
+    }
+
+    /// 微信 OAuth：用 `code` 换服务端会话。
+    static func wechatLogin(
+        code: String,
+        deviceID: String,
+        platform: String
+    ) throws -> APIEndpoint<RemoteAuthLoginData> {
+        let body = try APIJSONCoding.makeEncoder().encode([
+            "code": code,
+            "device_id": deviceID,
+            "platform": platform,
+        ])
+        return APIEndpoint(path: "auth/wechat/login", method: .post, body: body)
     }
 }
 
@@ -94,16 +139,46 @@ enum RemoteAuthAPI {
         phone: String,
         code: String,
         client: APIClient = .shared
-    ) async throws -> RemoteSMSLoginData {
+    ) async throws -> RemoteAuthLoginData {
         let deviceID = LocalUserIdentity.current.uuidString
         let data = try await client.send(
             try .smsLogin(phone: phone, code: code, deviceID: deviceID, platform: "ios")
         )
-        AuthTokenStore.save(
-            access: data.tokens.accessToken,
-            refresh: data.tokens.refreshToken,
-            expiresIn: data.tokens.expiresIn
+        applyLoginData(data)
+        return data
+    }
+
+    static func loginApple(
+        identityToken: String,
+        authorizationCode: String?,
+        fullName: String?,
+        email: String?,
+        client: APIClient = .shared
+    ) async throws -> RemoteAuthLoginData {
+        let deviceID = LocalUserIdentity.current.uuidString
+        let data = try await client.send(
+            try .appleLogin(
+                identityToken: identityToken,
+                authorizationCode: authorizationCode,
+                deviceID: deviceID,
+                platform: "ios",
+                fullName: fullName,
+                email: email
+            )
         )
+        applyLoginData(data)
+        return data
+    }
+
+    static func loginWeChat(
+        code: String,
+        client: APIClient = .shared
+    ) async throws -> RemoteAuthLoginData {
+        let deviceID = LocalUserIdentity.current.uuidString
+        let data = try await client.send(
+            try .wechatLogin(code: code, deviceID: deviceID, platform: "ios")
+        )
+        applyLoginData(data)
         return data
     }
 
@@ -112,5 +187,15 @@ enum RemoteAuthAPI {
         client: APIClient
     ) async throws -> RemoteAuthTokens {
         try await client.send(try .tokenRefresh(refreshToken: refreshToken))
+    }
+
+    /// 写入 JWT 并对齐本机 `LocalUserIdentity` 为服务端用户 ID。
+    static func applyLoginData(_ data: RemoteAuthLoginData) {
+        AuthTokenStore.save(
+            access: data.tokens.accessToken,
+            refresh: data.tokens.refreshToken,
+            expiresIn: data.tokens.expiresIn
+        )
+        LocalUserIdentity.adopt(data.user.id)
     }
 }

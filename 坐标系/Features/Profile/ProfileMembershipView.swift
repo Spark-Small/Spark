@@ -20,25 +20,12 @@ struct ProfileMembershipView: View {
     @State private var isProcessing = false
     @State private var errorMessage: String?
     @State private var issuedPassID: UUID?
-    @State private var showCreateAccount = false
 
     private let membershipCents = 2_800
     private let membershipTip = MembershipTip()
 
     var body: some View {
         Form {
-            if app.auth.isGuest {
-                Section {
-                    Text(GuestAccessGate.commerceReason)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Button("创建账号后开通") {
-                        showCreateAccount = true
-                    }
-                    .fontWeight(.semibold)
-                }
-            }
-
             Section {
                 TrustCredentialBadgeStrip(
                     photoVerified: photoVerification.isVerified(for: app.user),
@@ -69,7 +56,7 @@ struct ProfileMembershipView: View {
                 Text("开通后可在活动、社区与消息中展示会员标识。")
             }
 
-            if !membership.isEntitled, !app.auth.isGuest, !YouthModePreference.isEnabled {
+            if !membership.isEntitled, !YouthModePreference.isEnabled {
                 Section {
                     SubscriptionStoreView(productIDs: Array(MembershipStore.productIDs)) {
                         VStack(alignment: .leading, spacing: PlatformMetrics.sectionHeaderSpacing) {
@@ -131,13 +118,6 @@ struct ProfileMembershipView: View {
         .listSectionSpacing(.compact)
         .navigationTitle("会员中心")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showCreateAccount) {
-            ProfileCreateAccountSheet(
-                session: app.auth,
-                reason: GuestAccessGate.commerceReason
-            )
-            .toolbarVisibility(.hidden, for: .tabBar)
-        }
         .alert("无法开通", isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
@@ -165,10 +145,7 @@ struct ProfileMembershipView: View {
 
     private var membershipFooterText: String {
         if YouthModePreference.isEnabled {
-            return GuestAccessGate.youthCommerceReason
-        }
-        if app.auth.isGuest {
-            return "创建账号后即可开通会员。"
+            return CommerceAccessCopy.youthCommerceReason
         }
         return "通过 App Store 订阅开通会员，可随时在系统「订阅」中管理。"
     }
@@ -199,7 +176,6 @@ struct ProfileMembershipView: View {
     private func activateMembershipDemo() {
         #if DEBUG
         guard !YouthModePreference.isEnabled else { return }
-        guard GuestAccessGate.allow(app.auth, presentCreateAccount: $showCreateAccount) else { return }
         guard !membership.isEntitled, !isProcessing else { return }
         isProcessing = true
         let outcome = wallet.charge(

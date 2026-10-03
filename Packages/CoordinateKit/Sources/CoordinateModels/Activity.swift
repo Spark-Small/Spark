@@ -22,6 +22,10 @@ public struct Activity: Identifiable, Hashable, Codable, Sendable {
     public var longitude: Double?
     /// 关联兴趣圈子（详情可进圈子群）
     public var relatedCircleID: UUID?
+    /// 发起人稳定用户 id（旧快照可缺省，校验回退 hostName）
+    public var hostUserID: UUID?
+    /// 报名用户 id 列表（与 participantNames 对齐演进；旧快照可空）
+    public var participantUserIDs: [UUID]
 
     public init(
         id: UUID,
@@ -40,7 +44,9 @@ public struct Activity: Identifiable, Hashable, Codable, Sendable {
         participantNames: [String] = [],
         latitude: Double? = nil,
         longitude: Double? = nil,
-        relatedCircleID: UUID? = nil
+        relatedCircleID: UUID? = nil,
+        hostUserID: UUID? = nil,
+        participantUserIDs: [UUID] = []
     ) {
         self.id = id
         self.title = title
@@ -59,6 +65,8 @@ public struct Activity: Identifiable, Hashable, Codable, Sendable {
         self.latitude = latitude
         self.longitude = longitude
         self.relatedCircleID = relatedCircleID
+        self.hostUserID = hostUserID
+        self.participantUserIDs = participantUserIDs
     }
 
     public init(from decoder: Decoder) throws {
@@ -80,6 +88,8 @@ public struct Activity: Identifiable, Hashable, Codable, Sendable {
         latitude = try container.decodeIfPresent(Double.self, forKey: .latitude)
         longitude = try container.decodeIfPresent(Double.self, forKey: .longitude)
         relatedCircleID = try container.decodeIfPresent(UUID.self, forKey: .relatedCircleID)
+        hostUserID = try container.decodeIfPresent(UUID.self, forKey: .hostUserID)
+        participantUserIDs = try container.decodeIfPresent([UUID].self, forKey: .participantUserIDs) ?? []
     }
 
     public var remainingSpots: Int { max(capacity - joined, 0) }

@@ -66,7 +66,7 @@ extension ActivityDetailView {
     }
 
     func completeJoin(for activity: Activity, note: String?) {
-        guard app.requireIdentityAccess() else { return }
+        guard app.requireIdentityAccess(source: .activityJoin) else { return }
         guard let live = model.activity(id: activity.id) else { return }
 
         if live.isFull || live.isLifecycleEnded {

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 enum PlatformFeedback {
     static let dismissTitle = "好的"
@@ -35,7 +36,7 @@ extension View {
         }
     }
 
-    /// 轻量反馈：复制、收藏等无需打断操作的结果，仅触觉 + 自动清空绑定。
+    /// 轻量反馈：触觉 + VoiceOver 播报；不打断操作，也不做自定义 Toast。
     func platformLightFeedback(_ message: Binding<String?>) -> some View {
         modifier(PlatformLightFeedbackModifier(message: message))
     }
@@ -53,8 +54,10 @@ private struct PlatformLightFeedbackModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onChange(of: message) { _, newValue in
-                guard newValue != nil else { return }
+                guard let text = newValue, !text.isEmpty else { return }
                 feedbackPulse += 1
+                // HIG Accessibility：无打断确认需让 VoiceOver / 旁白用户感知结果。
+                UIAccessibility.post(notification: .announcement, argument: text)
                 Task { @MainActor in
                     try? await Task.sleep(for: .milliseconds(150))
                     if message == newValue {

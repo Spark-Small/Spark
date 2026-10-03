@@ -25,6 +25,10 @@ enum PlatformSurface {
     static var elevated: Color { Color(.secondarySystemGroupedBackground) }
     /// 白底详情页上的信息块（社区正文等 canvas 场景）
     static var groupedBlock: Color { Color(.secondarySystemBackground) }
+    /// 系统三级填充（占位底、未选中 chip）
+    static var tertiaryFill: Color { Color(.tertiarySystemFill) }
+    /// 系统强调色轻底（图标盘 / 海报占位）
+    static var accentSoftFill: Color { Color.accentColor.opacity(0.14) }
     static var bar: Material { .bar }
     static var thin: Material { .thinMaterial }
 }
@@ -37,13 +41,11 @@ enum PlatformStatus {
     static var accent: Color { .accentColor }
 }
 
-/// 域操作色 — 仅用于明确指定的主转化按钮
+/// 域操作色 — 跟随系统 AccentColor（官方原色）；不再使用自定义四叶草紫。
 enum PlatformAction {
-    /// 坐标系品牌色 — App Icon 四叶草紫瓣（petal-06 / 信封印章）；Tab tint、主 CTA、引导页强调。
-    static var cloverPurple: Color {
-        Color(.displayP3, red: 0.58228, green: 0.46771, blue: 0.84753)
-    }
+    /// 系统强调色（Asset Catalog `AccentColor` / 环境 tint）。
+    static var brandAccent: Color { .accentColor }
 
-    /// 与 `cloverPurple` 同值；文档与语义化引用优先用此名。
-    static var brandAccent: Color { cloverPurple }
+    /// 历史别名；等价于 `brandAccent`（系统原色）。
+    static var cloverPurple: Color { brandAccent }
 }

@@ -1,8 +1,9 @@
-# 坐标系 · 行为信用模型
+# 坐标系 · 行为信用模型（域附录）
 
+> **裁决**：V1 是否做公开星级等以 [Project/01](../Project/01_PRODUCT_SPEC.md) 为准。  
 > 信任来自注册→注销全生命周期行为的**衰减移动统计**，不是对人的商品式多维星级评价。  
 > 本文档供实现与后续迭代；代码入口：`Services/Trust/`、`Features/Trust/`。  
-> 产品需求编号见 [PRD.md](PRD.md) §3.5 / `FR-PRO-07`。
+> 历史需求编号可对照 [PRD.md](PRD.md) §3.5（冲突以 Project/01 为准）。
 
 ## 1. 原则
 
@@ -17,14 +18,13 @@
 ## 2. 生命周期
 
 ```text
-访客 → 建号 → 资料/认证 → 社交与履约 → 交易 → 治理 → 沉默/回流 → 注销
+登录 → 资料/认证 → 社交与履约 → 交易 → 治理 → 沉默/回流 → 注销
 ```
 
 | 阶段 | 典型动作 | 信用作用 |
 |---|---|---|
-| 访客 | 继续浏览 | 弱身份基线，交易/发布受限 |
-| 建号 | 手机 / Apple / 微信 | 身份跃迁 |
-| 引导 | 欢迎半屏引导完成 | 轻度正信号；兴趣可在「编辑资料」维护 |
+| 登录 | 手机 / Apple / 微信（硬门闸，无访客主路径） | 身份跃迁；见 AuthModule |
+| 引导 | 兴趣硬门 + 欢迎半屏（可跳过） | 轻度正信号；兴趣可在「编辑资料」维护 |
 | 资料 | 头像昵称城市场简介兴趣 | 身份强度 |
 | 合规 | 隐私、青少年、公约 | 能力边界与风险偏好 |
 | 履约 | 活动 / 邀约 / 预约状态机 | **主权重** |
@@ -98,16 +98,17 @@ S_t = \alpha S_{t-1} + (1-\alpha)\,f(E_t)
 
 ### 对外（好友 / 作者 / 搭子 / 发起人）
 
-- 徽章：手机已验证、形象认证、靠谱发起人、会员…
+- **奖章墙**（`TrustBadgeShowcase` · `publicEarned`）：已点亮的 SF Symbol 奖章格（形象认证 / 手机 / 实名 / 靠谱发起 / 可信伙伴）；无则整行省略，**禁止**对外空态说明文（如「将随形象认证点亮」）
 - 事实条：近 90 天参加履约 a/b · 发起履约 c% · 账号 N 天
 - 可选：响应提示「通常较快回复」
-- **禁止**：多维星条、评价墙、「用户 4.9 分」
+- **禁止**：多维星条、评价墙、「用户 4.9 分」、会员章进信任档案
 
 ### 对内（我的信誉）
 
 - 等级 + 综合行为分
 - 四轴为「行为健康」自查进度（非他人评价）
-- 提升路径、安全提示、对外预览（徽章+事实）
+- **奖章墙**（`privateCollection`）：公开种类全量，未点亮灰态占位（对齐 Game Center / Fitness Awards）
+- 提升路径、安全提示、对外预览（奖章墙 + 事实）
 
 ### 履约后
 
@@ -123,7 +124,7 @@ S_t = \alpha S_{t-1} + (1-\alpha)\,f(E_t)
 - **二次复核**：本机通过后走 `IdentityRemoteReverifyService`（演示代理更严阈值 / 可选远程）；青少年模式不上云特征
 - **冷却**：连续失败 3 次进入 15 分钟冷却；可提交 `identityAppeal` 工单
 - 通过后点亮「形象认证」徽章，写入 `PhotoVerificationStore`（绑定用户 + 认证照基准指纹；注销清空）
-- **IdentityGate**：登录用户未核验则拦截报名 / 预约 / 打招呼 / 发消息（`AppModel.requireIdentityAccess`）
+- **IdentityGate**：登录用户未核验则拦截报名 / 预约 / 打招呼 / 发消息（`AppModel.requireIdentityAccess`）；无访客浏览主路径
 - **内容安全（P2）**：`MediaModerationService` + `LocalPrivateDetectorProxy`（演示）/ 远程 Private Detector；挂钩头像、认证照、聊天、社区、活动封面；青少年更严阈值；误杀可申诉
 
 ### UI 组件（`Features/Trust/`）
@@ -131,7 +132,8 @@ S_t = \alpha S_{t-1} + (1-\alpha)\,f(E_t)
 | 组件 | 用途 |
 |---|---|
 | `TrustLevelStrip` | 公开档案等级行 |
-| `TrustBadgeRow` | 认证徽章：设置风 `Label` 行 |
+| `TrustBadgeShowcase` / `TrustBadgeMedalView` | 奖章墙：自适应格；对外仅已点亮，对内灰态占位 |
+| `TrustBadgeRow` | 兼容包装 → `TrustBadgeShowcase(.publicEarned)` |
 | `TrustFactLabeledRows` | 近 90 天事实：`LabeledContent` |
 | `TrustAxisBars` | 私域四轴：`LabeledContent` |
 | `TrustTipList` | 提升路径 / 安全提示 |
@@ -140,7 +142,7 @@ S_t = \alpha S_{t-1} + (1-\alpha)\,f(E_t)
 | `TrustPrivateDashboardView` | 「我的信誉」：Form，对齐会员 / 账号页 |
 | `TrustSafetyCheckInSheet` | 履约后私密确认 |
 
-视觉对齐：`Form` / `insetGrouped`、语义字色、`LabeledContent`、`Label` + `platformContentSymbolStyle`；禁止自绘 pill、装饰大图标与嵌套进度条看板。
+视觉对齐：`Form` / `insetGrouped`、语义字色、`LabeledContent`、奖章用 **SF Symbol 格**（非色块大章）；禁止自绘 pill 墙、装饰进度条看板、对外空态说教文案。
 
 ## 7. 风险规则（摘要）
 

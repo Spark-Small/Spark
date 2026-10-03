@@ -27,8 +27,8 @@ struct TrustPrivateDashboardView: View {
             signals: TrustPrivateSignals(
                 profileRatio: ProfileCompletion.ratio(for: app.user),
                 isMember: membership.isEntitled,
-                isGuest: app.auth.isGuest,
-                hasPhone: !app.auth.isGuest && !app.auth.phoneNumber.isEmpty,
+                isGuest: false,
+                hasPhone: !app.auth.phoneNumber.isEmpty,
                 photoVerified: photoVerification.isVerified(for: app.user),
                 accountCreatedAt: lifecycle.installAt,
                 friendCount: friends,
@@ -71,11 +71,11 @@ struct TrustPrivateDashboardView: View {
                     photoVerified: photoOK,
                     isMember: membership.isEntitled
                 )
-                TrustBadgeRow(badges: earnedExtraBadges(from: data.badges))
+                TrustBadgeShowcase(earned: data.badges, mode: .privateCollection)
             } header: {
                 Text("认证与徽章")
             } footer: {
-                Text("形象认证与会员在点亮前后都会显示；点亮后对他人可见。")
+                Text("灰态为未点亮；点亮后出现在对外信任档案奖章墙。会员状态见上行，不进入信任档案。")
             }
 
             Section {
@@ -112,7 +112,7 @@ struct TrustPrivateDashboardView: View {
                         .platformContentSymbolStyle()
                 }
             } footer: {
-                Text("他人只会看到等级、形象认证、履约徽章与近 90 天事实；会员标识不在信任档案中。")
+                Text("他人只会看到等级、已点亮奖章与近 90 天事实；会员标识不在信任档案中。")
             }
 
             Section {
@@ -128,9 +128,5 @@ struct TrustPrivateDashboardView: View {
         }
         .navigationTitle("我的认证")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private func earnedExtraBadges(from badges: [TrustBadge]) -> [TrustBadge] {
-        badges.filter { $0.kind != .photoVerified && $0.kind != .activeMember }
     }
 }

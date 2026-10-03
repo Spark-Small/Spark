@@ -1,9 +1,9 @@
-# 坐标系 · 导航、功能与结构框架
+# 坐标系 · 导航、功能与结构框架（附录）
 
-> 基于当前代码库梳理的产品架构说明。**文档同步：2026-09-29**  
-> **文档体系**：[README.md](README.md) · 需求 [PRD.md](PRD.md) · 规范 [DevelopmentGuide.md](DevelopmentGuide.md) · 上线 [ReleaseReadinessAudit.md](ReleaseReadinessAudit.md) §0  
-> 设计参照：[DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md)、[BuddiesProductPlan.md](BuddiesProductPlan.md)、[TrustBehaviorModel.md](TrustBehaviorModel.md)。  
-> Apple 侧灵感：App Store Today / Photos Zoom / PassKit / Settings Form / TabView（iOS 26）等原生模式。
+> **裁决**：现行开发规范唯一入口为 [`../Project/`](../Project/README.md)（IA `03`、架构 `07`、导航 `11`、状态 `10`）。  
+> **本文角色**：代码库结构长图的**过渡附录**；门闸顺序、分层、上线阻塞**以 Project 为准**，勿把本文当总规范。  
+> **文档同步**：2026-09-30（降级）  
+> 附录索引：[README.md](README.md) · 域深读 [AuthModule.md](AuthModule.md) / [ActivitiesModule.md](ActivitiesModule.md) · 视觉 [DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md)
 
 ---
 
@@ -20,11 +20,10 @@
 入口链路：
 
 ```
-未登录 → Launch（信封 / 登录）→ 协议勾选与登录分离
-已登录 → TabView 五 Tab
-  └─ 首次进入活动 Tab → AppWelcomeGuideView（1 页意图选择，可跳过）
-       └─ 完成后写入默认兴趣 + 可选 smart filter / 搭子 landing
-       └─ 活动 Tab 条件显示「下一场」摘要 Banner（≤7 天窗口）
+未登录 → LoginView
+已登录且未选兴趣 → InterestOnboardingView（兴趣标签 ≥3；无跳过；完成后进活动 Tab）
+已选兴趣 → TabView（默认活动）
+  └─ 首次进入活动 Tab → AppWelcomeGuideView（glass 意图半屏，可跳过；不写默认兴趣）
 兴趣维护 → 我的 → 编辑资料 → InterestTaxonomyFormEditor
 ```
 
@@ -38,16 +37,16 @@
 
 | Tab | 符号 | 根视图 | 顶栏标题 |
 |-----|------|--------|----------|
-| 活动 | `calendar` | `ActivitiesView` | 动态分类（如「猜你喜欢」）+ 可点标题菜单 |
+| 活动 | `calendar` | `ActivitiesView` | `platformTabRoot*` + 分类 title menu + Trailing 筛选/发起 |
 | 搭子 | `person.2` | `BuddiesView` | 「搭子」 |
 | 广场 | `bubble.left.and.bubble.right` | `CommunityView` | 可按产品生命周期并入活动 Tab「活动分享」 |
 | 消息 | `message` | `MessagesView` | 「消息」（未读 badge） |
-| 我的 | `person.crop.circle` | `ProfileView` | 「我的」 |
+| 我的 | `person.crop.circle` | `ProfileView` | 顶栏 Continue 促销头 + Settings 式列表 |
 
 顺序与 `ContentView` 一致：活动 → 搭子 → 广场 → 消息 → 我的。
 
 顶栏共用 chrome：`Design/PlatformTabRootChrome.swift`  
-（`inlineLarge` 大标题 + 空 `principal` + `platformTabRootToolbar`）
+（`inlineLarge` 大标题 + 空 `principal` + `platformTabRootToolbar`；活动另加 `toolbarTitleMenu` 切分类）
 
 参考 Apple：**iOS TabView**（系统折叠 / Liquid Glass）、**Photos / Mail** 式 `inlineLarge` 标题。
 
@@ -74,7 +73,7 @@
 | 搭子 | 筛选、邀约、预约下单、圈子加入、语音厅相关 |
 | 广场 | 发分享、更多操作 |
 | 消息 | 发起聊天、加好友、资料卡 |
-| 我的 | 编辑资料、登录 / 创建账号、退款申请 |
+| 我的 | 编辑资料、登录、退款申请 |
 
 ### 2.4 跨 Tab 深链（`AppDeepLink` → `AppRouter` → `AppModel`）
 
@@ -102,9 +101,9 @@
 
 | 能力类 | 功能 |
 |--------|------|
-| 发现 | 分类标题菜单（猜你喜欢为首）、精选 Hero、推荐货架、搜索式筛选 |
+| 发现 | `inlineLarge` + 分类 title menu、精选 Hero、转化优先货架、筛选 |
 | 详情 | Form 决策信息（时间地点费用名额）、评论、相关活动 / 同城俱乐部推荐；日历提醒仅已参加 / 主办可见 |
-| 转化 | 参加确认、演示支付、加入活动群 |
+| 转化 | 参加确认、本机钱包结账、加入活动群 |
 | 主办 | 发起 / 编辑、管理名额与改期、取消与退款演示 |
 | 凭证 | 参加后 App 内活动凭证（「我的」夹）；可选导出 Apple Wallet |
 
@@ -175,7 +174,7 @@
 
 | 能力类 | 功能 |
 |--------|------|
-| 身份 | 头像昵称、编辑资料、兴趣完善、访客 / 登录 |
+| 身份 | 头像昵称、编辑资料、兴趣完善、账号与协议 |
 | 商业 | 会员、钱包、订单（活动 + 陪玩） |
 | 凭证 | 活动凭证夹、陪玩预约凭证、活动邀约；Zoom 展开 App 内票面；分享纪念票；Wallet 在「更多」 |
 | 社交资产 | 俱乐部、内容库入口等 |
@@ -192,9 +191,9 @@
 
 | 板块 | 作用 | 主要落点 |
 |------|------|----------|
-| **Launch** | 品牌信封、本地登录、半屏欢迎引导 | `Features/Launch/`、`AppWelcomeGuideView` |
+| **Launch / Auth** | 会话门闸、登录 UseCase、兴趣硬门、半屏欢迎 | `ContentView`、`Services/Auth/`、`Features/Launch/`（见 [AuthModule.md](AuthModule.md)） |
 | **信任账本** | 行为事件 → 四轴信用（非星级墙） | `Services/Trust/` + [TrustBehaviorModel.md](TrustBehaviorModel.md) |
-| **钱包 / 支付 / 退款** | 演示支付、Pass、退款策略 | `WalletStore`、`RefundFlow`、PassKit |
+| **钱包 / 支付 / 退款** | 设备钱包账本、Pass、退款策略（Release 无假外部到账） | `WalletStore`、`CommercePaymentPolicy`、`RefundFlow`、PassKit |
 | **位置 / 天气** | 附近排序、问候天气 | `LocationService`、`GreetingWeatherStore` |
 | **通知** | 提醒与深链 | `NotificationService`、`AppNotificationRouter` |
 | **同步编排** | 报名 / 发帖等域事件驱动群聊与统计 | `AppDomainEvent`、`AppSyncOrchestrator` |
@@ -206,7 +205,7 @@
 
 ```
 坐标系/
-├── ContentView.swift              # TabView 根视图
+├── ContentView.swift              # 会话门闸 + 延后 AppModel + Tab 根
 ├── Design/                        # 平台 chrome、货架卡、Zoom、票面、Tab 根标题
 │   ├── PlatformSemantics.swift    # 语义色 / 状态色 / 品牌 accent（无间距 token）
 │   ├── PlatformMetrics.swift      # 间距 / 圆角 / 形状 token（静态，不探测 UIKit）
@@ -244,6 +243,8 @@
 │   ├── Models.swift               # 非 SPM 实体（搭子墙、圈子、UI 筛选等）
 │   └── SampleData.swift
 └── Services/
+    ├── Auth/                      # Session / UseCases / Apple / WeChat（见 AuthModule）
+    ├── LocalAuthSession.swift
     ├── AppModel/                  # Navigation / Activities / Profile / Moderation
     ├── AppDependencies.swift      # Features 注入门面
     ├── AppComposition.swift       # Repository / Store 装配（含 TrustBehaviorLedger）
@@ -262,7 +263,7 @@
     ├── MessagingDeliveryPolicy.swift
     ├── CommercePaymentPolicy.swift
     ├── Remote*Repository.swift
-    └── API/                       # APIConfiguration、Endpoint 快照扩展、Shared Client
+    └── API/                       # AuthTokenStore、APIConfiguration、Endpoint、Shared Client
 Packages/
 └── CoordinateKit/
     ├── CoordinateModels/          # 实体 + 五域 Snapshot（Codable）
@@ -362,7 +363,7 @@ Schema 演进：改 `@Model` 字段时升 `AppSwiftDataSchemaVn` 并添加 `Migr
 
 ### 工程阶段（历史记录）
 
-> 新功能开发以 [DevelopmentGuide.md](DevelopmentGuide.md) 与 [PRD.md](PRD.md) 为准；下表仅记录已完成的迁移里程碑。
+> 新功能开发以 [Project/](../Project/README.md)（尤其 `01`/`07`/`21`）为准；下表仅记录已完成的迁移里程碑。旧 DevelopmentGuide / PRD 为附录。
 
 | 阶段 | 状态 | 内容 |
 |------|------|------|
@@ -488,7 +489,7 @@ flowchart LR
 
 | 坐标系落点 | Apple 模式 / 文档方向 |
 |------------|----------------------|
-| 活动货架 + Hero | [App Store] Today 分区与大卡节奏 |
+| 活动货架 | [App Store] Today 分区与货架节奏 |
 | Zoom 进详情 | Photos / SwiftUI `matchedTransitionSource` + `navigationTransition(.zoom)` |
 | 可点大标题分类 | SwiftUI `toolbarTitleMenu` / `ToolbarTitleMenu`（Invites 等系统应用同类交互） |
 | 详情与设置页 | Settings：`Form` / `List` / `LabeledContent` |
@@ -516,7 +517,7 @@ flowchart LR
 4. **消息与关系** — 会话、通讯录、通话  
 5. **我的账户与履约资产** — 身份、订单、凭证、钱包、会员  
 6. **信任与安全** — 行为账本、认证、签到  
-7. **启动与鉴权** — Launch、本地登录、半屏欢迎引导  
+7. **启动与鉴权** — 见 [AuthModule.md](AuthModule.md)；活动软启动真相见 [ActivitiesModule.md](ActivitiesModule.md)  
 8. **平台基建** — Design System、深链、通知、位置、域事件同步  
 
 ---
@@ -539,4 +540,4 @@ flowchart LR
 
 ---
 
-*文档随代码演进（2026-08-28）。需求见 [PRD.md](PRD.md)，开发规范见 [DevelopmentGuide.md](DevelopmentGuide.md)。若 Tab 增减、深链 API 或主 CTA 文案变更，以 `ContentView.swift` / `AppModel`、各 Feature 根视图与 PRD 功能表为准。*
+*文档随代码演进（2026-09-30 降级为附录）。**现行规范**：[Project/](../Project/README.md)。需求摘要 Project/01；登录/活动代码地图见模块附录；工程纪律 Project/07·15·21。*

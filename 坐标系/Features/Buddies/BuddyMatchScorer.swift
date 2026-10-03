@@ -93,6 +93,18 @@ enum BuddyMatchScorer {
         return parts.joined(separator: " · ")
     }
 
+    /// 发现卡 Material 底栏第二行：仅距离与在线态（不展示想找）。
+    static func browseMetaLine(for profile: BuddyProfile, isOnline: Bool) -> String {
+        var parts: [String] = []
+        if PrivacyPreferences.showDistance, !profile.distanceText.isEmpty {
+            parts.append(profile.distanceText)
+        }
+        if isOnline, PrivacyPreferences.showOnline {
+            parts.append(BuddyDetailCopy.online)
+        }
+        return parts.joined(separator: " · ")
+    }
+
     /// 是否与当前搜索意图重合（卡面角标）
     static func matchesIntent(_ profile: BuddyProfile, query: String) -> Bool {
         let intent = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -116,16 +128,25 @@ enum BuddyMatchScorer {
 }
 
 extension BuddyProfile {
+    /// 人墙匹配：条件按 `filter.kind` 分流（找搭子看兴趣；约陪玩不看兴趣；可约在陪玩列表层判定）。
     func matches(_ filter: BuddyFilter) -> Bool {
         if let gender = filter.gender, self.gender != gender { return false }
-        if distanceKM > filter.maxDistanceKM { return false }
-        if let hobby = filter.hobby,
-           !tags.contains(where: { $0.localizedCaseInsensitiveContains(hobby) }) {
-            return false
+
+        switch filter.kind {
+        case .free:
+            if distanceKM > filter.maxDistanceKM { return false }
+            if let hobby = filter.hobby,
+               !tags.contains(where: { $0.localizedCaseInsensitiveContains(hobby) }) {
+                return false
+            }
+        case .paid:
+            if distanceKM > filter.maxDistanceKM { return false }
+        case .clubs:
+            break
         }
+
         let q = filter.query.trimmingCharacters(in: .whitespacesAndNewlines)
         if !q.isEmpty, !matchesQuery(q) { return false }
-        if filter.availableOnly, availability.contains("已满") { return false }
         return true
     }
 

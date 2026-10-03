@@ -28,6 +28,7 @@ struct BuddyBrowseSeeAllView: View {
     let items: [DiscoverBuddyItem]
     var intentQuery: String = ""
     var zoomNamespace: Namespace.ID
+    var contactTitle: (DiscoverBuddyItem) -> String = { _ in BuddyBrowseCopy.chatAction }
     var onChat: (DiscoverBuddyItem) -> Void
     var onBook: (DiscoverBuddyItem) -> Void
 
@@ -37,6 +38,7 @@ struct BuddyBrowseSeeAllView: View {
                 items: items,
                 intentQuery: intentQuery,
                 zoomNamespace: zoomNamespace,
+                contactTitle: contactTitle,
                 onChat: onChat,
                 onBook: onBook
             )
@@ -56,6 +58,7 @@ struct BuddyBrowseShelfSection: View {
     var intentQuery: String = ""
     var zoomNamespace: Namespace.ID
     var boardPeriod: Binding<BuddyPaidBoardPeriod>? = nil
+    var contactTitle: (DiscoverBuddyItem) -> String = { _ in BuddyBrowseCopy.chatAction }
     var onChat: (DiscoverBuddyItem) -> Void
     var onBook: (DiscoverBuddyItem) -> Void
     var onQuickEntry: ((BuddyPaidQuickEntry) -> Void)? = nil
@@ -69,8 +72,11 @@ struct BuddyBrowseShelfSection: View {
                     items: shelf.items,
                     period: boardPeriod,
                     zoomNamespace: zoomNamespace,
+                    contactTitle: contactTitle,
+                    onChat: onChat,
                     onBook: onBook,
-                    onQuickEntry: { onQuickEntry?($0) }
+                    onQuickEntry: { onQuickEntry?($0) },
+                    onSeeAll: shelf.showsSeeAll ? { onSeeAll?(shelf) } : nil
                 )
             }
         default:
@@ -83,6 +89,7 @@ struct BuddyBrowseShelfSection: View {
                     shelf: shelf,
                     intentQuery: intentQuery,
                     zoomNamespace: zoomNamespace,
+                    contactTitle: contactTitle,
                     onChat: onChat,
                     onBook: onBook
                 )
@@ -95,10 +102,9 @@ struct BuddyBrowseShelfRailContent: View {
     let shelf: BuddyBrowseShelf
     var intentQuery: String = ""
     var zoomNamespace: Namespace.ID
-    var onChat: (DiscoverBuddyItem) -> Void
-    var onBook: (DiscoverBuddyItem) -> Void
-
-    @Environment(AppModel.self) private var app
+    var contactTitle: (DiscoverBuddyItem) -> String = { _ in BuddyBrowseCopy.chatAction }
+    var onChat: (DiscoverBuddyItem) -> Void = { _ in }
+    var onBook: (DiscoverBuddyItem) -> Void = { _ in }
 
     var body: some View {
         switch shelf.layout {
@@ -117,11 +123,15 @@ struct BuddyBrowseShelfRailContent: View {
                 BuddyPickCard(
                     item: item,
                     intentQuery: intentQuery,
-                    contactActionTitle: contactTitle(for: item),
                     zoomNamespace: zoomNamespace,
-                    onAction: { action(for: item) }
+                    contextActions: .make(
+                        item: item,
+                        contactTitle: contactTitle(item),
+                        onContact: { onChat(item) },
+                        onBook: { onBook(item) }
+                    )
                 )
-                .platformEditorialRailFrame()
+                .platformPersonFeaturedRailFrame()
             }
         }
     }
@@ -132,80 +142,17 @@ struct BuddyBrowseShelfRailContent: View {
                 BuddyGridCard(
                     item: item,
                     intentQuery: intentQuery,
-                    contactActionTitle: contactTitle(for: item),
                     zoomNamespace: zoomNamespace,
-                    onAction: { action(for: item) }
+                    contextActions: .make(
+                        item: item,
+                        contactTitle: contactTitle(item),
+                        onContact: { onChat(item) },
+                        onBook: { onBook(item) }
+                    )
                 )
                 .platformPosterRailFrame()
             }
         }
-    }
-
-    private func contactTitle(for item: DiscoverBuddyItem) -> String {
-        app.peerContactActionTitle(
-            for: item.profile.nickname,
-            context: .forBuddyItem(item)
-        )
-    }
-
-    private func action(for item: DiscoverBuddyItem) {
-        switch item {
-        case .free: onChat(item)
-        case .paid: onBook(item)
-        }
-    }
-}
-
-// MARK: - Circles rail
-
-struct BuddyInterestCirclesRail: View {
-    let circles: [InterestCircle]
-    var onOpen: (InterestCircle) -> Void
-    var onSeeAll: () -> Void
-
-    var body: some View {
-        DiscoverBrowseSection(
-            title: BuddyBrowseCopy.circlesTitle,
-            showsChevron: true,
-            onSeeAll: onSeeAll
-        ) {
-            DiscoverHorizontalRail {
-                ForEach(circles) { circle in
-                    BuddyPosterShelfCard.circle(circle) {
-                        onOpen(circle)
-                    }
-                    .platformPosterRailFrame()
-                }
-            }
-        }
-    }
-}
-
-// MARK: - 我的预约入口
-
-struct BuddyMyBookingsEntryBanner: View {
-    let bookingCount: Int
-    let attentionCount: Int
-    var onOpen: () -> Void
-
-    private var subtitle: String {
-        BuddyBrowseCopy.MyBookings.bannerSubtitle(
-            count: bookingCount,
-            needsAttention: attentionCount
-        )
-    }
-
-    var body: some View {
-        DiscoverPromoCapsuleBanner(
-            content: DiscoverPromoCapsuleContent(
-                title: BuddyBrowseCopy.MyBookings.bannerTitle,
-                subtitle: subtitle
-            ),
-            action: onOpen
-        )
-        .discoverBrowseContentInset()
-        .accessibilityLabel("\(BuddyBrowseCopy.MyBookings.bannerTitle)，\(subtitle)")
-        .accessibilityHint("打开我的预约")
     }
 }
 
@@ -233,7 +180,7 @@ struct BuddyVoiceChannelCard: View {
 
                     Spacer(minLength: 0)
 
-                    Text(hall.isLive ? "直播中" : "休息中")
+                    Text(hall.isLive ? BuddyBrowseCopy.VoiceHall.live : BuddyBrowseCopy.VoiceHall.idle)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(hall.isLive ? PlatformStatus.success : .secondary)
                 }
@@ -249,7 +196,7 @@ struct BuddyVoiceChannelCard: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer(minLength: 0)
-                    Text("进厅")
+                    Text(BuddyBrowseCopy.ShelfA11y.enterVoiceHall)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color.accentColor)
                 }
@@ -260,7 +207,7 @@ struct BuddyVoiceChannelCard: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(hall.title)，\(hall.topic)，\(hall.audienceText)")
-        .accessibilityHint("进入语音厅")
+        .accessibilityHint(BuddyBrowseCopy.ShelfA11y.enterVoiceHallHint)
     }
 
     private var micAvatarStack: some View {
@@ -300,6 +247,5 @@ struct BuddyVoiceChannelRail: View {
                 }
             }
         }
-        .padding(.top, PlatformMetrics.sectionSpacing)
     }
 }

@@ -9,12 +9,13 @@ import SwiftUI
 
 // MARK: - External composer (社区详情底栏)
 
-/// 与 `PlatformReviewsCommentsHost` 共用 draft / reply 状态的底栏输入。
+/// 与 `PlatformReviewsCommentsHost` 共用 draft / reply / 展开态。
 struct PlatformReviewsCommentComposer: View {
     let target: PlatformReviewTarget
     let currentUserName: String
     @Binding var draft: String
     @Binding var replyTarget: PlatformReview?
+    var expandedThreadIDs: Binding<Set<UUID>>? = nil
     var placeholder: String
     var onChanged: () -> Void = {}
 
@@ -30,7 +31,7 @@ struct PlatformReviewsCommentComposer: View {
             draft: $draft,
             placeholder: replyTarget == nil
                 ? placeholder
-                : "回复 \(replyTarget?.author ?? "")…",
+                : PlatformReviewsCopy.replyPlaceholder(author: replyTarget?.author ?? ""),
             isEnabled: true,
             canSend: canSend,
             isFocused: $focused,
@@ -38,11 +39,11 @@ struct PlatformReviewsCommentComposer: View {
             onCancelReply: { replyTarget = nil },
             onSend: send
         )
-        .alert("评论需要修改", isPresented: Binding(
+        .alert(PlatformReviewsCopy.needsEditTitle, isPresented: Binding(
             get: { blockedWord != nil },
             set: { if !$0 { blockedWord = nil } }
         )) {
-            Button("知道了", role: .cancel) {}
+            Button(PlatformReviewsCopy.needsEditDismiss, role: .cancel) {}
         } message: {
             Text(blockedWord ?? "")
         }
@@ -59,10 +60,12 @@ struct PlatformReviewsCommentComposer: View {
             self.blockedWord = blockedWord
             return
         }
+        if let parentID = outcome.expandedParentID {
+            expandedThreadIDs?.wrappedValue.insert(parentID)
+        }
         draft = ""
         replyTarget = nil
         focused = false
         onChanged()
     }
 }
-

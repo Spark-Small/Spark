@@ -20,18 +20,39 @@ struct BuddyCityChoice: Identifiable, Hashable {
     /// 完整省 · 市
     var menuTitle: String { "\(province) · \(city)" }
 
-    /// 与种子数据 `profile.city` / 圈子城市匹配
+    /// 与种子数据 `profile.city` / 圈子城市 / MapKit `cityName` 匹配
     func matches(locationText: String) -> Bool {
-        locationText.localizedCaseInsensitiveContains(city)
-            || locationText.localizedCaseInsensitiveContains(province)
+        if locationText.localizedCaseInsensitiveContains(city)
+            || locationText.localizedCaseInsensitiveContains(province) {
+            return true
+        }
+        // WeatherKit / MapKit 在英文系统下常回传 Latin 城名
+        return Self.latinAliases[city]?.contains {
+            locationText.localizedCaseInsensitiveContains($0)
+        } == true
     }
+
+    private static let latinAliases: [String: [String]] = [
+        "上海": ["Shanghai"],
+        "北京": ["Beijing"],
+        "天津": ["Tianjin"],
+        "重庆": ["Chongqing"],
+        "杭州": ["Hangzhou"],
+        "成都": ["Chengdu"],
+        "广州": ["Guangzhou"],
+        "深圳": ["Shenzhen"],
+        "南京": ["Nanjing"],
+        "武汉": ["Wuhan"],
+        "西安": ["Xi'an", "Xian"],
+        "苏州": ["Suzhou"]
+    ]
 }
 
 enum BuddyCityCatalog {
     static let shanghai = BuddyCityChoice(province: "上海", city: "上海")
     static let `default` = shanghai
 
-    /// 省 → 下属市（演示用常用城市集）
+    /// 省 → 下属市（常用城市集）
     static let provinces: [(name: String, cities: [String])] = [
         ("上海", ["上海"]),
         ("北京", ["北京"]),

@@ -463,7 +463,6 @@ struct CoordinatePaymentSheet: View {
     var onCancel: () -> Void = {}
 
     @Environment(WalletStore.self) private var wallet
-    @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var selectedMethod: PaymentMethod
     @State private var isProcessing = false
@@ -587,12 +586,6 @@ struct CoordinatePaymentSheet: View {
             try? await Task.sleep(for: .milliseconds(400))
             #endif
             guard !Task.isCancelled else { return }
-            if app.auth.isGuest {
-                isProcessing = false
-                paymentTask = nil
-                errorMessage = GuestAccessGate.commerceReason
-                return
-            }
             let outcome = onConfirm(selectedMethod)
             isProcessing = false
             paymentTask = nil

@@ -12,10 +12,10 @@ import CoordinateModels
 
 func bookingStatusColor(_ status: BookingOrderStatus) -> Color {
     switch status {
-    case .pendingConfirm: .orange
+    case .pendingConfirm: PlatformStatus.warning
     case .awaitingPayment: PlatformStatus.warning
-    case .paid: .blue
-    case .inProgress: .indigo
+    case .paid: Color.accentColor
+    case .inProgress: PlatformAction.brandAccent
     case .completed: PlatformStatus.success
     case .refunding: PlatformStatus.warning
     case .refunded, .cancelled: .secondary
@@ -52,15 +52,15 @@ struct BuddyInviteDetailView: View {
             if let record {
                 Form {
                     Section {
-                        LabeledContent("对象", value: record.nickname)
-                        LabeledContent("状态") {
+                        LabeledContent(BuddyBookingFlowCopy.inviteRecordTarget, value: record.nickname)
+                        LabeledContent(BuddyBookingFlowCopy.inviteRecordStatus) {
                             Text(record.status.rawValue)
                                 .foregroundStyle(inviteStatusColor(record.status))
                                 .fontWeight(.semibold)
                         }
-                        LabeledContent("活动", value: record.activityTitle)
+                        LabeledContent(BuddyBookingFlowCopy.inviteActivity, value: record.activityTitle)
                         LabeledContent(
-                            "发出",
+                            BuddyBookingFlowCopy.inviteRecordSentAt,
                             value: Formatters.activityDate.string(from: record.sentAt)
                         )
                     }
@@ -95,39 +95,47 @@ struct BuddyInviteDetailView: View {
                             NavigationLink {
                                 BuddyDetailRouteView(item: buddy)
                             } label: {
-                                Label("搭子资料", systemImage: "person.crop.circle")
+                                Label(BuddyBookingFlowCopy.buddyProfileLink, systemImage: "person.crop.circle")
                             }
                         }
                     }
 
+                    #if DEBUG
                     if record.status == .pending {
                         Section {
-                            Button("模拟对方接受", systemImage: "checkmark.circle") {
+                            Button(BuddyBookingFlowCopy.debugAdvanceAccept, systemImage: "checkmark.circle") {
                                 buddies.acceptInvite(record.id)
                             }
-                            Button("模拟对方婉拒", systemImage: "xmark.circle", role: .destructive) {
+                            Button(BuddyBookingFlowCopy.debugAdvanceDecline, systemImage: "xmark.circle", role: .destructive) {
                                 buddies.declineInvite(record.id)
                             }
                         } header: {
-                            Text("本地演示")
+                            Text(BuddyBookingFlowCopy.debugAdvanceHeader)
                         } footer: {
-                            Text("正式产品由对方回执；此处可手动推进状态。")
+                            Text(BuddyBookingFlowCopy.debugAdvanceFooter)
                         }
                     }
+                    #endif
 
                     Section {
-                        Button("删除记录", systemImage: "trash", role: .destructive) {
+                        Button(BuddyBookingFlowCopy.inviteDelete, systemImage: "trash", role: .destructive) {
                             buddies.deleteInvite(record.id)
                             dismiss()
                         }
                     }
                 }
             } else {
-                ContentUnavailableView("邀约不存在", systemImage: "paperplane")
-                    .onAppear { dismiss() }
+                ContentUnavailableView {
+                    Label(BuddyBookingFlowCopy.inviteMissingTitle, systemImage: "paperplane")
+                } actions: {
+                    Button(BuddyBookingFlowCopy.inviteMissingDismiss) {
+                        dismiss()
+                    }
+                    .activityPrimaryCTA(controlSize: .large)
+                }
             }
         }
-        .navigationTitle("邀约详情")
+        .navigationTitle(BuddyBookingFlowCopy.inviteDetailTitle)
         .navigationBarTitleDisplayMode(.inline)
         .peerContactDestination(route: $peerContactRoute)
     }
@@ -136,14 +144,14 @@ struct BuddyInviteDetailView: View {
     private func relatedActivityLink(_ activity: Activity) -> some View {
         if let zoomNamespace {
             ActivityZoomNavigationLink(activity: activity, namespace: zoomNamespace) {
-                Label("查看活动", systemImage: "calendar")
+                Label(BuddyBookingFlowCopy.viewActivity, systemImage: "calendar")
             }
         } else {
             NavigationLink {
                 ActivityDetailView(activity: activity)
                     .toolbarVisibility(.hidden, for: .tabBar)
             } label: {
-                Label("查看活动", systemImage: "calendar")
+                Label(BuddyBookingFlowCopy.viewActivity, systemImage: "calendar")
             }
         }
     }
@@ -151,7 +159,7 @@ struct BuddyInviteDetailView: View {
 
 func inviteStatusColor(_ status: BuddyInviteStatus) -> Color {
     switch status {
-    case .pending: .orange
+    case .pending: PlatformStatus.warning
     case .accepted: PlatformStatus.success
     case .declined: .secondary
     }
@@ -176,19 +184,19 @@ struct BookingRescheduleSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("改期") {
-                    DatePicker("开始时间", selection: $scheduledAt, in: Date()...)
-                    Stepper("时长 \(hours) 小时", value: $hours, in: 1...8)
+                Section(BuddyBookingFlowCopy.rescheduleSection) {
+                    DatePicker(BuddyBookingFlowCopy.startTime, selection: $scheduledAt, in: Date()...)
+                    Stepper(BuddyBookingFlowCopy.durationHours(hours), value: $hours, in: 1...8)
                 }
             }
             .navigationTitle(record.companionNickname)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button(BuddyBookingFlowCopy.cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") {
+                    Button(BuddyBookingFlowCopy.save) {
                         onSave(scheduledAt, hours)
                         dismiss()
                     }

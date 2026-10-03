@@ -24,18 +24,18 @@ enum BuddyPaidHotBadge: String, CaseIterable, Hashable {
 
     var tint: Color {
         switch self {
-        case .recommended: Color.accentColor
-        case .booming: .pink
-        case .popular: .orange
-        case .rising: .mint
-        case .topRated: .yellow
-        case .quickReply: .cyan
-        case .reputation: .purple
-        case .trending: .indigo
+        case .recommended: PlatformAction.brandAccent
+        case .booming: PlatformStatus.danger
+        case .popular: PlatformStatus.warning
+        case .rising: PlatformStatus.success
+        case .topRated: PlatformStatus.warning
+        case .quickReply: PlatformStatus.accent
+        case .reputation: PlatformAction.brandAccent
+        case .trending: Color.accentColor
         case .reliable: PlatformStatus.success
-        case .gem: .teal
-        case .repeatGuest: .brown
-        case .valuePick: .blue
+        case .gem: PlatformStatus.accent
+        case .repeatGuest: PlatformStatus.warning
+        case .valuePick: Color.accentColor
         }
     }
 

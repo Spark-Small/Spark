@@ -16,6 +16,7 @@ public struct JoinActivityUseCase: Sendable {
         waitlistIDs: inout Set<UUID>,
         waitlistSpotNotifiedIDs: inout Set<UUID>,
         currentUserName: String,
+        currentUserID: UUID? = nil,
         now: Date = .now
     ) -> Result<Void, JoinActivityFailure> {
         guard let index = activities.firstIndex(where: { $0.id == activityID }) else {
@@ -38,6 +39,9 @@ public struct JoinActivityUseCase: Sendable {
         activities[index].joined = min(activities[index].joined + 1, activities[index].capacity)
         if !activities[index].participantNames.contains(currentUserName) {
             activities[index].participantNames.append(currentUserName)
+        }
+        if let currentUserID, !activities[index].participantUserIDs.contains(currentUserID) {
+            activities[index].participantUserIDs.append(currentUserID)
         }
         return .success(())
     }

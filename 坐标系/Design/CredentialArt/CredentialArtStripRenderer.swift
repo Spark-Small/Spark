@@ -3,17 +3,16 @@
 //  坐标系
 //
 //  Wallet event strip：与 App 内 CredentialArt 同源 SVG + 主题色。
+//  不依赖 CoordinateModels；活动分类 → Scene 的映射在 PassKit / 测试侧。
 //
 
-import CoordinateModels
 import SVGView
 import SwiftUI
 import UIKit
 
 @MainActor
 enum CredentialArtStripRenderer {
-    static func walletStripImage(for category: ActivityCategory, pixelSize: CGSize) -> UIImage? {
-        let scene = CredentialArtScene.forActivityCategory(category)
+    static func walletStripImage(for scene: CredentialArtScene, pixelSize: CGSize) -> UIImage? {
         let theme = CredentialArtTheme.forScene(scene)
         let canvas = CredentialArtStripCanvas(scene: scene, theme: theme, size: pixelSize)
         let renderer = ImageRenderer(content: canvas)
@@ -49,18 +48,6 @@ private struct CredentialArtStripCanvas: View {
                 .scaledToFit()
                 .padding(.horizontal, size.width * 0.08)
                 .padding(.vertical, size.height * 0.06)
-        }
-    }
-}
-
-extension CredentialArtScene {
-    static func forActivityCategory(_ category: ActivityCategory) -> CredentialArtScene {
-        switch category {
-        case .outdoorSports, .cityExplore: .transit
-        case .entertainment, .interestSocial: .event
-        case .food: .dining
-        case .handmade, .learning: .workshop
-        case .all, .forYou: .generic
         }
     }
 }

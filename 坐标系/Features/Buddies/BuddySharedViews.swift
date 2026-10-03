@@ -34,6 +34,7 @@ struct BuddyDetailActionBar: View {
         DetailBottomActionBar {
             Button(greetTitle, action: onGreet)
                 .activityDetailBottomSecondaryCTA()
+                .accessibilityHint(BuddyDetailCopy.greetAccessibilityHint)
 
             if emphasizeInvite {
                 Button(action: onInvite) {
@@ -41,10 +42,20 @@ struct BuddyDetailActionBar: View {
                 }
                 .activityDetailBottomPrimaryCTA()
                 .disabled(!inviteEnabled)
+                .accessibilityHint(
+                    inviteTitle == BuddyDetailCopy.book || inviteTitle == BuddyDetailCopy.quickBook
+                        ? BuddyDetailCopy.bookAccessibilityHint
+                        : BuddyDetailCopy.inviteAccessibilityHint
+                )
             } else {
                 Button(inviteTitle, action: onInvite)
                     .activityDetailBottomPrimaryCTA()
                     .disabled(!inviteEnabled)
+                    .accessibilityHint(
+                        inviteTitle == BuddyDetailCopy.book || inviteTitle == BuddyDetailCopy.quickBook
+                            ? BuddyDetailCopy.bookAccessibilityHint
+                            : BuddyDetailCopy.inviteAccessibilityHint
+                    )
             }
         }
     }

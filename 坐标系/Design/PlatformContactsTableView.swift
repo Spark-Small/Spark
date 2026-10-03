@@ -102,7 +102,8 @@ final class PlatformContactsTableController: UITableViewController {
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         let item = sections[indexPath.section].items[indexPath.row]
-        onOpenChat?(item.nickname)
+        // Apple 通讯录：点行进联系人卡片，发消息从资料底栏发起。
+        onViewProfile?(item.nickname)
     }
 
     // MARK: Native section index
@@ -128,13 +129,13 @@ final class PlatformContactsTableController: UITableViewController {
         trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
     ) -> UISwipeActionsConfiguration? {
         let item = sections[indexPath.section].items[indexPath.row]
-        let profile = UIContextualAction(style: .normal, title: MessagesCopy.viewProfile) { [weak self] _, _, done in
-            self?.onViewProfile?(item.nickname)
+        let chat = UIContextualAction(style: .normal, title: MessagesCopy.friendsListChat) { [weak self] _, _, done in
+            self?.onOpenChat?(item.nickname)
             done(true)
         }
-        profile.image = UIImage(systemName: "person.crop.circle")
-        profile.backgroundColor = .systemBlue
-        return UISwipeActionsConfiguration(actions: [profile])
+        chat.image = UIImage(systemName: "message.fill")
+        chat.backgroundColor = .systemBlue
+        return UISwipeActionsConfiguration(actions: [chat])
     }
 
     override func tableView(

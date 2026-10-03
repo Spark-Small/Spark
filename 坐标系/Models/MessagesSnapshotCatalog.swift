@@ -57,6 +57,10 @@ enum MessagesSnapshotCatalog {
 
         let repairedRemarks = normalizedFriendMetadata(previous.friendRemarks)
         let repairedGroups = normalizedFriendMetadata(previous.friendGroups)
+        let repairedCatalog = normalizedFriendGroupCatalog(
+            previous.friendGroupCatalog,
+            assignedGroups: repairedGroups.values
+        )
         let repairedTransfers = previous.transferRecords.filter { validConversationIDs.contains($0.conversationID) }
         let repairedCalls = previous.callRecords.filter { validConversationIDs.contains($0.conversationID) }
 
@@ -72,6 +76,7 @@ enum MessagesSnapshotCatalog {
             outgoingFriendRequests: repairedOutgoing,
             friendRemarks: repairedRemarks,
             friendGroups: repairedGroups,
+            friendGroupCatalog: repairedCatalog,
             groupMembers: groupMembers,
             transferRecords: repairedTransfers,
             callRecords: repairedCalls
@@ -87,6 +92,31 @@ enum MessagesSnapshotCatalog {
             normalized[key] = value
         }
         return normalized
+    }
+
+    /// 保序去重；把已分配但未入库的自建组名补进目录；排除空串。
+    /// 「未分组」与预设名可出现在赋值里，目录侧去重后由 Model 再与预设合并。
+    private static func normalizedFriendGroupCatalog(
+        _ source: [String],
+        assignedGroups: Dictionary<String, String>.Values
+    ) -> [String] {
+        var seen = Set<String>()
+        var catalog: [String] = []
+
+        func append(_ raw: String) {
+            let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !value.isEmpty else { return }
+            let key = value.lowercased()
+            // 与 MessagesCopy.friendGroupUngrouped / friendGroupPresets 对齐的产品字面量
+            let reserved: Set<String> = ["未分组", "亲密好友", "同事", "同学", "其他"]
+            guard !reserved.contains(key) else { return }
+            guard seen.insert(key).inserted else { return }
+            catalog.append(value)
+        }
+
+        source.forEach(append)
+        assignedGroups.forEach(append)
+        return catalog
     }
 }
 

@@ -8,21 +8,6 @@
 import SwiftUI
 import CoordinateModels
 
-nonisolated enum BuddyOrgJoinCopy {
-    static let confirmJoinCTA = "确认加入"
-
-    static let confirmCircleTitle = "加入俱乐部"
-    static let confirmGuildTitle = "关注工会"
-
-    static let confirmChatRowTitle = "加入后"
-    static let confirmChatRowValue = "成为俱乐部成员"
-    static let confirmChatFooter = "俱乐部与单场活动无绑定；群聊可在资料页进入，也可在「消息」查看。"
-
-    static let confirmGuildRowTitle = "关注后"
-    static let confirmGuildRowValue = "查看工会陪玩"
-    static let confirmGuildFooter = "可在工会资料中随时取消关注。"
-}
-
 struct BuddyOrgJoinConfirmSheet: View {
     let target: BuddyOrgJoinTarget
     var onConfirm: () -> Void
@@ -33,7 +18,12 @@ struct BuddyOrgJoinConfirmSheet: View {
     private var displayName: String {
         switch target {
         case .circle(let c):
-            let count = SampleData.circleBuddies.filter { $0.circleName == c.name }.count
+            let count: Int
+            if BuddiesSupplyPolicy.allowsSampleDiscoverCatalog {
+                count = SampleData.circleBuddies.filter { $0.circleName == c.name }.count
+            } else {
+                count = max(c.memberCount, 0)
+            }
             return "\(c.name)（\(count)）"
         case .guild(let g):
             return g.name
@@ -128,7 +118,7 @@ struct BuddyOrgJoinConfirmSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") {
+                    Button(BuddyOrgJoinCopy.cancel) {
                         onCancel()
                         dismiss()
                     }
@@ -201,7 +191,7 @@ struct BuddyOrgJoinSuccessSheet: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+                        .padding(.horizontal, PlatformMetrics.contentInset)
                 }
 
                 Spacer()
@@ -215,7 +205,7 @@ struct BuddyOrgJoinSuccessSheet: View {
                     .controlSize(.large)
 
                     if hasConversation {
-                        Button("进入群聊") {
+                        Button(BuddyOrgJoinCopy.enterChat) {
                             onEnterChat()
                             dismiss()
                         }
@@ -230,7 +220,7 @@ struct BuddyOrgJoinSuccessSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") {
+                    Button(BuddyOrgJoinCopy.close) {
                         onDone()
                         dismiss()
                     }
@@ -243,20 +233,38 @@ struct BuddyOrgJoinSuccessSheet: View {
 
 struct BuddyOrgInviteMembersSheet: View {
     let target: BuddyOrgInviteTarget
+    let viewerName: String
+    let blockedUserNames: Set<String>
     var onSend: ([String]) -> Void
+    var onBrowseBuddies: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(BuddiesModel.self) private var buddies
+    @Environment(MessagesModel.self) private var messages
     @State private var selected = Set<String>()
 
     private var candidates: [String] {
-        let names: [String]
-        switch target {
-        case .circle:
-            names = SampleData.circleBuddies.map(\.profile.nickname)
-        case .guild:
-            names = SampleData.paidCompanions.map(\.profile.nickname)
+        var names: [String] = []
+        if BuddiesSupplyPolicy.allowsSampleDiscoverCatalog {
+            switch target {
+            case .circle:
+                names.append(contentsOf: SampleData.circleBuddies.map(\.profile.nickname))
+            case .guild:
+                names.append(contentsOf: SampleData.paidCompanions.map(\.profile.nickname))
+            }
         }
-        return names.uniqued()
+        names.append(
+            contentsOf: MessagesContactRoster.nicknames(
+                conversations: messages.conversations,
+                inviteNicknames: buddies.inviteRecords.map(\.nickname),
+                bookingNicknames: buddies.bookingRecords.map(\.companionNickname),
+                blockedNames: Array(blockedUserNames)
+            )
+        )
+        return names
+            .uniqued()
+            .filter { $0.caseInsensitiveCompare(viewerName) != .orderedSame }
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
 
     private var title: String {
@@ -268,40 +276,58 @@ struct BuddyOrgInviteMembersSheet: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    ForEach(candidates, id: \.self) { name in
-                        Button {
-                            if selected.contains(name) {
-                                selected.remove(name)
-                            } else {
-                                selected.insert(name)
-                            }
-                        } label: {
-                            HStack {
-                                PlatformListAvatarView(name: name, side: 36)
-                                Text(name)
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                if selected.contains(name) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(.tint)
+            Group {
+                if candidates.isEmpty {
+                    ContentUnavailableView {
+                        Label(BuddiesSupplyPolicy.orgInviteEmptyTitle, systemImage: "person.badge.plus")
+                    } description: {
+                        Text(BuddiesSupplyPolicy.orgInviteEmptyDescription)
+                    } actions: {
+                        Button(BuddiesSupplyPolicy.orgInviteBrowseCTA) {
+                            dismiss()
+                            onBrowseBuddies?()
+                        }
+                        .activityPrimaryCTA(controlSize: .large)
+                        Button(BuddyOrgJoinCopy.close) { dismiss() }
+                            .activitySecondaryCTA(controlSize: .large)
+                    }
+                } else {
+                    List {
+                        Section {
+                            ForEach(candidates, id: \.self) { name in
+                                Button {
+                                    if selected.contains(name) {
+                                        selected.remove(name)
+                                    } else {
+                                        selected.insert(name)
+                                    }
+                                } label: {
+                                    HStack {
+                                        PlatformListAvatarView(name: name, side: 36)
+                                        Text(name)
+                                            .foregroundStyle(.primary)
+                                        Spacer()
+                                        if selected.contains(name) {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundStyle(.tint)
+                                        }
+                                    }
                                 }
                             }
+                        } footer: {
+                            Text(BuddyOrgJoinCopy.inviteLocalFooter)
                         }
                     }
-                } footer: {
-                    Text("演示：发送后对方会收到邀请提示。")
                 }
             }
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button(BuddyOrgJoinCopy.cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("发送") {
+                    Button(BuddyOrgJoinCopy.send) {
                         onSend(Array(selected))
                         dismiss()
                     }
@@ -317,6 +343,6 @@ struct BuddyOrgInviteMembersSheet: View {
 private extension Array where Element == String {
     func uniqued() -> [String] {
         var seen = Set<String>()
-        return filter { seen.insert($0).inserted }
+        return filter { seen.insert($0.lowercased()).inserted }
     }
 }

@@ -10,10 +10,12 @@ import Observation
 extension MessagesModel {
     func acceptMessageRequest(_ id: ChatConversation.ID) {
         guard let index = index(of: id) else { return }
+        // 陌生人会话移入收件箱 ≠ 加好友（好友申请走 FriendRequest）
         conversations[index].isMessageRequest = false
-        conversations[index].isFriend = true
+        conversations[index].isFriend = false
         conversations[index].requestSource = nil
         conversations[index].requestPreviewText = nil
+        conversations[index].subtitle = MessagesCopy.strangerSubtitle
         conversations[index].unreadCount = 0
         persist()
     }

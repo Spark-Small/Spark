@@ -17,19 +17,24 @@ enum InterestSelectionLimits {
 
     static func meetsMinimum(_ count: Int) -> Bool { count >= minimum }
     static func canSelectMore(_ count: Int) -> Bool { count < maximum }
+    static func isAtMaximum(_ count: Int) -> Bool { count >= maximum }
 
+    /// 可见进度 / VoiceOver hint 共用；避免「已选」赘词。
     static func progressText(count: Int) -> String {
-        if count == 0 {
+        let capped = max(0, count)
+        if capped == 0 {
             return "请至少选择 \(minimum) 项"
         }
-        if count < minimum {
-            return "已选 \(count)/\(maximum)，再选 \(minimum - count) 项即可开启"
+        if capped < minimum {
+            return "\(capped)/\(maximum) · 再选 \(minimum - capped) 项即可开启"
         }
-        if count >= maximum {
-            return "已选满 \(maximum) 项，取消后再换也可以"
+        if capped >= maximum {
+            return "已满 \(maximum) 项，取消后再换也可以"
         }
-        return "已选 \(count)/\(maximum)"
+        return "\(capped)/\(maximum)"
     }
+
+    static let limitReachedFeedback = "最多选择 \(maximum) 项，取消一项后再换"
 }
 
 /// 一级分类下的二级兴趣 / 活动子类型目录。
@@ -82,72 +87,73 @@ enum ActivityTaxonomy {
         groups.first { $0.category == category }?.subtypes ?? []
     }
 
+    /// 优先 `.fill` 变体，便于 `platformContentSymbolStyle()`（multicolor）出彩。
     static func systemImage(forSubtype subtype: String) -> String {
         switch subtype {
         case "徒步": "figure.hiking"
-        case "爬山": "mountain.2"
+        case "爬山": "mountain.2.fill"
         case "骑行": "bicycle"
         case "跑步": "figure.run"
-        case "野营": "tent"
-        case "飞盘": "circle.circle"
+        case "野营": "tent.fill"
+        case "飞盘": "circle.circle.fill"
         case "攀岩": "figure.climbing"
         case "桨板": "figure.open.water.swim"
         case "滑雪": "figure.skiing.downhill"
         case "羽毛球": "figure.badminton"
-        case "篮球": "basketball"
-        case "足球": "soccerball"
+        case "篮球": "basketball.fill"
+        case "足球": "figure.soccer"
         case "网球": "tennis.racket"
         case "乒乓球": "figure.table.tennis"
-        case "咖啡交流": "cup.and.saucer"
-        case "下午茶": "mug"
-        case "语言交换": "bubble.left.and.bubble.right"
-        case "读书会": "book"
-        case "公园聊天": "leaf"
+        case "咖啡交流": "cup.and.saucer.fill"
+        case "下午茶": "mug.fill"
+        case "语言交换": "bubble.left.and.bubble.right.fill"
+        case "读书会": "book.fill"
+        case "公园聊天": "leaf.fill"
         case "城市散步": "figure.walk"
-        case "主题派对": "party.popper"
-        case "电影夜": "film"
-        case "聊天局": "ellipsis.bubble"
-        case "单身交友": "heart"
+        case "主题派对": "party.popper.fill"
+        case "电影夜": "film.fill"
+        case "聊天局": "ellipsis.bubble.fill"
+        case "单身交友": "heart.fill"
         case "速配活动": "sparkles"
-        case "情侣体验": "heart.circle"
-        case "探店": "storefront"
-        case "烹饪体验": "frying.pan"
-        case "火锅局": "flame"
-        case "烘焙": "birthday.cake"
-        case "品酒": "wineglass"
+        case "情侣体验": "heart.circle.fill"
+        case "探店": "storefront.fill"
+        case "烹饪体验": "frying.pan.fill"
+        case "火锅局": "flame.fill"
+        case "烘焙": "birthday.cake.fill"
+        case "品酒": "wineglass.fill"
         case "美食局": "fork.knife"
-        case "桌游": "dice"
-        case "剧本杀": "theatermasks"
-        case "密室逃脱": "lock.shield"
+        case "桌游": "dice.fill"
+        case "剧本杀": "theatermasks.fill"
+        case "密室逃脱": "lock.shield.fill"
         case "KTV": "music.mic"
         case "电竞比赛": "desktopcomputer"
-        case "Switch 聚会": "gamecontroller"
-        case "卡牌游戏": "rectangle.stack"
+        case "Switch 聚会": "gamecontroller.fill"
+        case "卡牌游戏": "rectangle.stack.fill"
         case "沉浸体验": "vision.pro"
-        case "老城探索": "building.columns"
-        case "建筑摄影": "camera"
-        case "夜游": "moon.stars"
-        case "城市漫游": "map"
-        case "周边游": "binoculars"
-        case "一日游": "sun.max"
-        case "自驾": "car"
-        case "看展": "photo.on.rectangle"
+        case "老城探索": "building.columns.fill"
+        case "建筑摄影": "camera.fill"
+        case "夜游": "moon.stars.fill"
+        case "城市漫游": "map.fill"
+        case "周边游": "binoculars.fill"
+        case "一日游": "sun.max.fill"
+        case "自驾": "car.fill"
+        case "看展": "photo.on.rectangle.fill"
         case "陶艺": "circle.dashed"
         case "插花": "camera.macro"
         case "香薰": "aqi.medium"
-        case "蜡烛": "candle"
-        case "手作 DIY": "hammer"
-        case "市集手作": "basket"
+        case "蜡烛": "flame.fill"
+        case "手作 DIY": "hammer.fill"
+        case "市集手作": "basket.fill"
         case "摄影交流": "camera.aperture"
-        case "AI 分享": "cpu"
+        case "AI 分享": "cpu.fill"
         case "编程交流": "chevron.left.forwardslash.chevron.right"
         case "剪辑学习": "scissors"
-        case "设计分享": "paintpalette"
-        case "创业交流": "briefcase"
-        case "行业沙龙": "person.3"
-        case "演讲分享": "mic"
+        case "设计分享": "paintpalette.fill"
+        case "创业交流": "briefcase.fill"
+        case "行业沙龙": "person.3.fill"
+        case "演讲分享": "mic.fill"
         default:
-            category(forSubtype: subtype)?.systemImage ?? "tag"
+            category(forSubtype: subtype)?.systemImage ?? "tag.fill"
         }
     }
 }

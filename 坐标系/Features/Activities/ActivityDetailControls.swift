@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import CoordinateModels
 
 enum ActivityDetailControls {
     /// 官方圆形 glass 图标：闹钟 / 导航 / 私信 / 关闭 / 发送
@@ -51,7 +50,7 @@ enum ActivityDetailControls {
                 Image(systemName: ActivityCalendar.Symbol.systemName(isScheduled: isScheduled))
             }
             .symbolRenderingMode(.monochrome)
-            .foregroundStyle(isScheduled ? Color.accentColor : Color.primary)
+            .foregroundStyle(isScheduled ? PlatformStatus.accent : Color.primary)
             .accessibilityLabel(
                 isScheduled
                     ? ActivityDetailCopy.calendarRemoveAction

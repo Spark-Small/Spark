@@ -352,20 +352,22 @@ struct BookingCredentialExpandedView: View {
                 }
             }
 
-            if record.canSimulateCounterpart, showsCompanionDemoControls {
+            #if DEBUG
+            if record.canSimulateCounterpart, showsCompanionDebugControls {
                 Section {
-                    Button("模拟对方接单", systemImage: "hand.thumbsup") {
+                    Button(BuddyBookingFlowCopy.debugAdvanceAccept, systemImage: "hand.thumbsup") {
                         buddies.acceptBooking(record.id)
                     }
-                    Button("模拟对方拒单", systemImage: "hand.thumbsdown", role: .destructive) {
+                    Button(BuddyBookingFlowCopy.debugAdvanceDecline, systemImage: "hand.thumbsdown", role: .destructive) {
                         buddies.declineBooking(record.id)
                     }
                 } header: {
-                    Text("本地演示")
+                    Text(BuddyBookingFlowCopy.debugAdvanceHeader)
                 } footer: {
-                    Text(companionDemoControlsFooter)
+                    Text(BuddyBookingFlowCopy.debugAdvanceFooter)
                 }
             }
+            #endif
 
             Section {
                 Button("删除记录", systemImage: "trash", role: .destructive) {
@@ -399,7 +401,7 @@ struct BookingCredentialExpandedView: View {
     private func bookingActions(_ record: BuddyBookingRecord) -> some View {
         if record.status == .completed, !trust.hasCheckedIn(bookingID: record.id) {
             Button("履约确认", systemImage: "checkmark.shield") {
-                buddies.pendingSafetyCheckInBookingID = record.id
+                buddies.presentation.pendingSafetyCheckInBookingID = record.id
             }
         }
         if record.canReschedule {
@@ -445,19 +447,12 @@ struct BookingCredentialExpandedView: View {
         )
     }
 
-    private var showsCompanionDemoControls: Bool {
+    private var showsCompanionDebugControls: Bool {
         #if DEBUG
         FeatureFlags.simulateBookingCompanionAcceptance
         #else
         false
         #endif
-    }
-
-    private var companionDemoControlsFooter: String {
-        if FeatureFlags.simulateBookingCompanionAcceptance {
-            return "正式产品由陪玩端确认；\(BuddyBookingFlowCopy.submittedDemoSimulationBadge) 已开启，亦可在此手动推进。"
-        }
-        return "正式产品由陪玩端确认；此处可手动推进状态机。"
     }
 
     private func navigationTitle(for record: BuddyBookingRecord?) -> String {

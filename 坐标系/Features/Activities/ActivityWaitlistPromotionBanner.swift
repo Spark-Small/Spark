@@ -24,9 +24,9 @@ struct ActivityWaitlistPromotionBanner: View {
 
         Button(action: onPromote) {
             Label(promoteTitle, systemImage: promoteSymbol)
+                .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.plain)
-        .foregroundStyle(.primary)
+        .activityPrimaryCTA(controlSize: .large)
     }
 
     private var promoteTitle: String {

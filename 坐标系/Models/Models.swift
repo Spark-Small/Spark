@@ -14,6 +14,7 @@ import CoordinateModels
 enum BuddyKind: String, CaseIterable, Identifiable {
     case free = "搭子"
     case paid = "陪玩"
+    case clubs = "俱乐部"
 
     var id: String { rawValue }
 
@@ -22,6 +23,7 @@ enum BuddyKind: String, CaseIterable, Identifiable {
         switch self {
         case .free: "找搭子"
         case .paid: "约陪玩"
+        case .clubs: "俱乐部"
         }
     }
 
@@ -29,30 +31,49 @@ enum BuddyKind: String, CaseIterable, Identifiable {
         switch self {
         case .free: "person.2"
         case .paid: "chineseyuanrenminbisign"
+        case .clubs: "person.3"
         }
     }
+
+    /// 三模式均有浏览筛选；条件集按 `kind` 分流（人设 / 服务 / 主题）。
+    var usesBrowseFilters: Bool { true }
+
+    /// - Warning: 历史别名；请用 `usesBrowseFilters`。
+    var usesPeopleFilters: Bool { usesBrowseFilters }
 }
 
 struct BuddyFilter: Equatable {
-    /// 搭子页默认免费找人；`.paid` 为花钱预约
+    /// 搭子页默认免费找人；`.paid` 为花钱预约；`.clubs` 为俱乐部
     var kind: BuddyKind = .free
     var gender: BuddyGender?
     var maxDistanceKM: Double = 20
     var hobby: String?
     /// 开放域搜索：昵称 / 我想… / 兴趣 / 擅长（不是产品场景枚举）
     var query: String = ""
-    /// 预约服务类型；`nil` = 全部
+    /// 预约服务类型；`nil` = 全部（仅约陪玩）
     var serviceType: CompanionServiceType?
     var availableOnly = false
+    /// 俱乐部主题；`nil` = 全部（仅俱乐部）
+    var clubTopic: String?
 
-    /// 发现条件是否为默认（不含免费/预约切换）
+    /// 当前模式下发现条件是否为默认（不含模式切换本身）。
     var isDefault: Bool {
-        gender == nil
-            && maxDistanceKM >= 20
-            && hobby == nil
-            && query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && serviceType == nil
-            && !availableOnly
+        let queryEmpty = query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        switch kind {
+        case .free:
+            return gender == nil
+                && maxDistanceKM >= 20
+                && hobby == nil
+                && queryEmpty
+        case .paid:
+            return gender == nil
+                && maxDistanceKM >= 20
+                && serviceType == nil
+                && !availableOnly
+                && queryEmpty
+        case .clubs:
+            return clubTopic == nil && queryEmpty
+        }
     }
 
     mutating func reset() {
@@ -99,6 +120,8 @@ enum BuddyGender: String, CaseIterable, Hashable {
 
 struct BuddyProfile: Identifiable, Hashable {
     let id: UUID
+    /// 稳定用户身份；匹配优先于昵称。旧数据 / 占位卡可缺省。
+    var userID: UUID? = nil
     var nickname: String
     var gender: BuddyGender
     var age: Int
@@ -399,16 +422,6 @@ enum CommunityPhotoRef: Hashable {
     var videoURL: URL? {
         guard isVideo, case .file(let url) = self else { return nil }
         return url
-    }
-}
-
-enum CommunityMediaCopy {
-    static func countChip(_ refs: [CommunityPhotoRef]) -> String {
-        let videos = refs.filter(\.isVideo).count
-        let photos = refs.count - videos
-        if videos == 0 { return "\(photos) 张" }
-        if photos == 0 { return "\(videos) 个视频" }
-        return "\(refs.count) 项"
     }
 }
 

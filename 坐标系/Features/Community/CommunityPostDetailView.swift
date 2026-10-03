@@ -18,7 +18,6 @@ struct CommunityPostDetailView: View {
     @State private var showReportSheet = false
     @State private var confirmDelete = false
     @State private var authorDestination: CommunityAuthorDestination?
-    @State private var photoDestination: CommunityPhotoDestination?
     @State private var commentComposer = CommunityPostCommentComposerState()
 
     private var post: CommunityPost? {
@@ -30,48 +29,58 @@ struct CommunityPostDetailView: View {
             if let post {
                 detailScroll(post)
             } else {
-                ContentUnavailableView("动态不存在", systemImage: "photo.on.rectangle")
+                ContentUnavailableView {
+                    Label(CommunityBrowseCopy.postMissingTitle, systemImage: "photo.on.rectangle")
+                } description: {
+                    Text(CommunityBrowseCopy.postMissingDescription)
+                }
             }
         }
         .alert(
-            "举报这条分享",
+            CommunityBrowseCopy.reportSheetTitle,
             isPresented: $showReportSheet
         ) {
-            ForEach(["垃圾广告", "不实信息", "色情低俗", "人身攻击", "其他"], id: \.self) { reason in
+            ForEach(CommunityBrowseCopy.reportReasons, id: \.self) { reason in
                 Button(reason, role: .destructive) {
                     submitReport(reason: reason)
                 }
             }
-            Button("取消", role: .cancel) {}
+            Button(CommunityBrowseCopy.cancel, role: .cancel) {}
         } message: {
-            Text("选择举报原因。举报后内容会从你的信息流中隐藏。")
+            Text(CommunityBrowseCopy.reportSheetMessage)
         }
         .communityAuthorSheet($authorDestination)
-        .communityPhotoCover($photoDestination)
         .confirmationDialog(
-            "删除这条分享？",
+            CommunityBrowseCopy.deleteConfirmTitle,
             isPresented: $confirmDelete,
             titleVisibility: .visible
         ) {
-            Button("删除", role: .destructive) {
+            Button(CommunityBrowseCopy.deletePost, role: .destructive) {
                 _ = model.deletePost(postID)
                 dismiss()
             }
-            Button("取消", role: .cancel) {}
+            Button(CommunityBrowseCopy.cancel, role: .cancel) {}
         } message: {
-            Text("删除后无法恢复")
+            Text(CommunityBrowseCopy.deleteConfirmMessage)
         }
+        .platformFeedbackAlert(
+            Binding(
+                get: { model.presentation.toastMessage },
+                set: { model.presentation.toastMessage = $0 }
+            )
+        )
     }
 
     private func submitReport(reason: String) {
-        let title = model.post(id: postID)?.messageText ?? "分享"
-        _ = model.reportPost(postID, reason: reason)
+        let title = model.post(id: postID)?.messageText ?? CommunityBrowseCopy.shareFallbackTitle
+        guard model.reportPost(postID, reason: reason) else { return }
         app.addModerationTicket(
             postID: postID,
             title: title,
             reason: reason,
             targetKind: .communityPost
         )
+        dismiss()
     }
 
     private func detailScroll(_ post: CommunityPost) -> some View {
@@ -86,15 +95,7 @@ struct CommunityPostDetailView: View {
 
                 if !post.displayPhotos.isEmpty {
                     CommunityMediaPager(pageCount: post.displayPhotos.count) { index in
-                        Button {
-                            photoDestination = CommunityPhotoDestination(
-                                photos: post.displayPhotos,
-                                startIndex: index
-                            )
-                        } label: {
-                            CommunityRemotePhoto(ref: post.displayPhotos[index])
-                        }
-                        .buttonStyle(.plain)
+                        CommunityRemotePhoto(ref: post.displayPhotos[index])
                     }
                     .communityRowToContentSpacing()
                 }
@@ -103,20 +104,20 @@ struct CommunityPostDetailView: View {
                     .communityRowToContentSpacing()
 
                 if let activity = activities.activity(relatedTo: post) {
-                    CommunityRelatedActivityLink(activity: activity, showsEventTime: true)
+                    CommunityRelatedActivityLink(activity: activity)
                         .communityRowToContentSpacing()
                 }
 
-                Divider()
-                    .padding(
-                        .top,
-                        activities.activity(relatedTo: post) == nil
-                            ? PlatformConversationListRow.rowToContentSpacing
-                            : PlatformConversationListRow.textToSecondarySpacing
-                    )
+                if activities.activity(relatedTo: post) == nil {
+                    Divider()
+                        .communityRowToContentSpacing()
+                } else {
+                    Divider()
+                        .communityInlineSpacing()
+                }
 
-                Text("评论 \(post.commentCount)")
-                    .font(.headline)
+                Text("\(CommunityBrowseCopy.commentsHeader) \(post.commentCount)")
+                    .font(PlatformListTypography.headline)
                     .communityRowToContentSpacing()
 
                 PlatformReviewsCommentsHost(
@@ -127,10 +128,12 @@ struct CommunityPostDetailView: View {
                     externalDraft: commentComposer.draftBinding,
                     externalReplyTarget: commentComposer.replyTargetBinding,
                     contentOwnerName: post.author,
-                    emptyTitle: "还没有评论，来抢沙发吧",
-                    emptyHint: "我来说两句…",
-                    placeholder: "我来说两句...",
-                    onChanged: { model.syncComments(for: postID) }
+                    emptyTitle: CommunityBrowseCopy.commentsEmpty,
+                    emptyHint: CommunityBrowseCopy.commentsPlaceholder,
+                    placeholder: CommunityBrowseCopy.commentsPlaceholder,
+                    onChanged: { model.syncComments(for: postID) },
+                    refreshToken: model.commentRevision,
+                    expandedThreadIDs: commentComposer.expandedThreadIDsBinding
                 )
                 .communityInlineSpacing()
             }
@@ -141,44 +144,46 @@ struct CommunityPostDetailView: View {
                 currentUserName: model.currentUserName,
                 draft: commentComposer.draftBinding,
                 replyTarget: commentComposer.replyTargetBinding,
-                placeholder: "我来说两句...",
+                expandedThreadIDs: commentComposer.expandedThreadIDsBinding,
+                placeholder: CommunityBrowseCopy.commentsPlaceholder,
                 onChanged: { model.syncComments(for: postID) }
             )
         }
         .communityDetailScrollChrome()
-        .id(model.commentRevision)
-        .navigationTitle("分享详情")
+        .navigationTitle(CommunityBrowseCopy.detailTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { detailToolbar(for: post) }
     }
 
     @ToolbarContentBuilder
     private func detailToolbar(for post: CommunityPost) -> some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
             Menu {
                 if model.isOwnPost(post) {
-                    Button("删除", systemImage: "trash", role: .destructive) {
+                    Button(CommunityBrowseCopy.deletePost, systemImage: "trash", role: .destructive) {
                         confirmDelete = true
                     }
                 } else {
-                    Button("举报", systemImage: "flag") {
+                    Button(CommunityBrowseCopy.reportPost, systemImage: "flag") {
                         showReportSheet = true
                     }
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
-            .accessibilityLabel("更多")
+            .platformNavigationBarItemChrome()
+            .accessibilityLabel(CommunityBrowseCopy.moreActions)
         }
     }
 }
 
-/// 社区详情内嵌评论：集中管理底栏输入栏与线程区共用的 draft / reply 状态。
+/// 社区详情内嵌评论：集中管理底栏输入栏与线程区共用的 draft / reply / 展开态。
 @Observable
 @MainActor
 private final class CommunityPostCommentComposerState {
     var draft = ""
     var replyTarget: PlatformReview?
+    var expandedThreadIDs: Set<UUID> = []
 
     var draftBinding: Binding<String> {
         Binding(
@@ -193,12 +198,20 @@ private final class CommunityPostCommentComposerState {
             set: { self.replyTarget = $0 }
         )
     }
+
+    var expandedThreadIDsBinding: Binding<Set<UUID>> {
+        Binding(
+            get: { self.expandedThreadIDs },
+            set: { self.expandedThreadIDs = $0 }
+        )
+    }
 }
 
 #Preview {
-  let app = AppModel.preview
-  return NavigationStack {
-        CommunityPostDetailView(postID: SampleData.posts[0].id)
+    let app = AppModel.preview
+    let postID = app.community.items.first?.id ?? UUID()
+    return NavigationStack {
+        CommunityPostDetailView(postID: postID)
             .environment(app.community)
             .environment(app.messages)
             .environment(app.activities)

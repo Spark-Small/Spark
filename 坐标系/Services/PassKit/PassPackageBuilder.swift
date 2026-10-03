@@ -133,7 +133,10 @@ enum PassPackageBuilder {
     @MainActor
     private static func renderCredentialArtStripCover(for category: ActivityCategory) -> UIImage? {
         let pixelSize = PassTemplateResources.pixelSize(kind: .eventStrip, scale: .x1)
-        return CredentialArtStripRenderer.walletStripImage(for: category, pixelSize: pixelSize)
+        return CredentialArtStripRenderer.walletStripImage(
+            for: .forActivityCategory(category),
+            pixelSize: pixelSize
+        )
     }
 }
 

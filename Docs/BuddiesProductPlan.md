@@ -1,9 +1,10 @@
-# 搭子 Tab 产品方案
+# 搭子 Tab 产品方案（域附录）
 
+> **裁决**：模块边界与上线诚实供给以 [Project/03](../Project/03_INFORMATION_ARCHITECTURE.md) / [16](../Project/16_RELEASE_CHECKLIST.md) 为准。  
 > **核心只有一句话：找人玩。**  
 > 不花钱找人玩 = 同好；花钱找人玩 = 预约。两条路径，同一件事。  
 > 活动 Tab 卖「场」；搭子 Tab 卖「人」。  
-> 产品需求编号见 [PRD.md](PRD.md) §3.2（`FR-BUD-*`）。
+> 历史需求编号可对照 [PRD.md](PRD.md) §3.2（冲突以 Project/01 为准）。
 
 ---
 

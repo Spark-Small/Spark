@@ -15,14 +15,22 @@ enum PlatformMessagesChrome {
     /// 气泡列 ↔ 头像列 = 系统 subtitleCell imageToTextPadding
     static var bubbleAvatarSpacing: CGFloat { PlatformConversationListRow.imageToTextPadding }
     static var composerControlSize: ControlSize { .large }
-    static var composerToolSpacing: CGFloat { PlatformMetrics.composerToolSpacing }
-    static var composerFieldHorizontalPadding: CGFloat { PlatformMetrics.composerFieldHorizontalPadding }
-    static var composerBarVerticalPadding: CGFloat { PlatformMetrics.composerBarVerticalPadding }
-    static var composerInlineSpacing: CGFloat { PlatformMetrics.composerInlineSpacing }
-    static var daySeparatorVerticalPadding: CGFloat { PlatformMetrics.sectionSubtitleSpacing }
+    /// 输入工具间距 = 系统 imageToTextPadding
+    static var composerToolSpacing: CGFloat { PlatformConversationListRow.imageToTextPadding }
+    static var composerFieldHorizontalPadding: CGFloat { PlatformConversationListRow.imageToTextPadding }
+    /// 底栏上下：subtitleCell 行垂直 margin（Messages 控件↔键盘建议条）
+    static var composerBarVerticalPadding: CGFloat { PlatformConversationListRow.verticalInset }
+    static var composerInlineSpacing: CGFloat { PlatformConversationListRow.textToSecondarySpacing }
+    /// 日期分隔 / 系统 tip 上下 = subtitleCell 主副文距
+    static var daySeparatorVerticalPadding: CGFloat { PlatformConversationListRow.textToSecondarySpacing }
+    /// 线程空态上下（仅 Scroll 线程；List 空态交给系统节奏）
     static var emptyVerticalPadding: CGFloat { PlatformMetrics.emptyStateVerticalPadding }
     static var senderNameSpacing: CGFloat { PlatformConversationListRow.textToSecondarySpacing }
     static var replyCardSpacing: CGFloat { PlatformMetrics.hairlineSpacing }
+    /// 页级水平 inset（与 List contentMargins 同源；勿与行 insets 叠用）
+    static var pageHorizontalInset: CGFloat { PlatformConversationListRow.horizontalInset }
+    /// 行内主副文 / 控件栈间距
+    static var stackSpacing: CGFloat { PlatformConversationListRow.textToSecondarySpacing }
     /// 同发送者连续气泡的最大间隔（秒）
     static var clusterGap: TimeInterval { 120 }
     /// 超过该间隔插入居中时间（秒）——系统信息节奏

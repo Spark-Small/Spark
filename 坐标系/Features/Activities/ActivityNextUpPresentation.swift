@@ -2,7 +2,7 @@
 //  ActivityNextUpPresentation.swift
 //  坐标系
 //
-//  活动 Tab 顶部 Continue / 发现引导 + 底栏 Now Playing 共用摘要。
+//  活动下一场 Continue / 发现引导共用摘要。
 //
 
 import Foundation
@@ -18,8 +18,8 @@ enum ActivityNextUpPresentation {
 
     enum DiscoverPromo {
         static let title = "找一场一起玩"
-        static let subtitle = "浏览推荐，或自己发起活动"
-        static let accessibilityHint = "滚动到推荐活动"
+        static let subtitle = "挑一场参加，或自己发起"
+        static let accessibilityHint = "滚动到可参加的活动"
     }
 
     enum Phase: Equatable {
@@ -55,10 +55,11 @@ enum ActivityNextUpPresentation {
         var promoTitle: String { activity.title }
 
         var promoSubtitle: String {
-            guard let pendingHint else {
-                return "\(Copy.sectionTitle) · \(headline)"
+            let actionHint = trailingActionTitle
+            if let pendingHint {
+                return "\(Copy.sectionTitle) · \(pendingHint) · \(actionHint)"
             }
-            return "\(Copy.sectionTitle) · \(pendingHint) · \(headline)"
+            return "\(Copy.sectionTitle) · \(headline) · \(actionHint)"
         }
 
         var promoContent: (title: String, subtitle: String) {
@@ -92,6 +93,7 @@ enum ActivityNextUpPresentation {
         case nextUp(Summary)
         case discover
 
+        /// 有真实「下一场」时在「我的活动」以 Form 行呈现；无场次不推发现引导。
         static func resolve(
             hasSeenWelcomeGuide: Bool,
             from activities: ActivitiesModel,
@@ -105,41 +107,21 @@ enum ActivityNextUpPresentation {
             ) {
                 return .nextUp(summary)
             }
-            guard ActivityNextUpPresentation.playbackQueue(from: activities).isEmpty else {
-                return nil
-            }
-            return .discover
+            return nil
         }
     }
 
     private static let bannerWindow: TimeInterval = 7 * 24 * 3600
 
-    /// 非主理人、已报名场次队列（底部 Now Playing 条轮播用）。
-    static func playbackQueue(from activities: ActivitiesModel) -> [Activity] {
-        activities.joinedActivities.filter { !activities.isHost($0) }
-    }
-
-    static func showsDiscoverPromo(
-        hasSeenWelcomeGuide: Bool,
-        from activities: ActivitiesModel,
-        now: Date = .now
-    ) -> Bool {
-        BrowsePromoHeader.resolve(
-            hasSeenWelcomeGuide: hasSeenWelcomeGuide,
-            from: activities,
-            now: now
-        ) == .discover
-    }
-
-    static func nowPlayingBarIdentity(
-        for activities: ActivitiesModel,
-        hasSeenWelcomeGuide: Bool
-    ) -> String {
-        [
-            String(activities.calendarSyncRevision),
-            String(playbackQueue(from: activities).count),
-            hasSeenWelcomeGuide ? "guided" : "welcome"
-        ].joined(separator: "|")
+    /// 非主理人、已报名场次队列（已结束且复盘完成的场次不占位）。
+    static func journeyQueue(from activities: ActivitiesModel) -> [Activity] {
+        activities.joinedActivities.filter { activity in
+            guard !activities.isHost(activity) else { return false }
+            if !activity.isLifecycleEnded { return true }
+            let progress = activities.participationRecord(for: activity.id)
+            let recapDone = progress?.recapPublished == true || progress?.recapSkipped == true
+            return !recapDone
+        }
     }
 
     static func summary(
@@ -223,16 +205,11 @@ enum ActivityNextUpPresentation {
         from activities: ActivitiesModel,
         now: Date
     ) -> Activity? {
-        activities.joinedActivities.first { activity in
-            guard !activities.isHost(activity) else { return false }
-            if !activity.isLifecycleEnded { return true }
-            let progress = activities.participationRecord(for: activity.id)
-            let recapDone = progress?.recapPublished == true || progress?.recapSkipped == true
-            return activity.isLifecycleEnded && !recapDone
-        }
+        _ = now
+        return journeyQueue(from: activities).first
     }
 
-    private static func resolvePhase(for activity: Activity, now: Date) -> Phase {
+    static func resolvePhase(for activity: Activity, now: Date = .now) -> Phase {
         if activity.isLifecycleEnded { return .ended }
         let calendar = Calendar.current
         if activity.date <= now, !activity.isLifecycleEnded { return .inProgress }

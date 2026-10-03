@@ -4,6 +4,7 @@
 //
 //  搭子邀约 / 陪玩下单链路 Sheet 宿主。
 //  邀约挂在外层；预约挂在 Buddies 栈内，避免跨 TabView 呈现造成竞争。
+//  Sheet 内避免再 `.environment(AppModel)`：与 Tab 根 Observation 叠加重绘会卡死主线程。
 //
 
 import SwiftUI
@@ -13,21 +14,24 @@ extension View {
     /// 邀约链路 Sheet
     func buddyInviteChrome(
         buddies: BuddiesModel,
-        activities: ActivitiesModel
+        activities: ActivitiesModel,
+        app: AppModel
     ) -> some View {
         modifier(
             BuddyInviteChromeModifier(
                 buddies: buddies,
-                activities: activities
+                activities: activities,
+                app: app
             )
         )
     }
 
     /// 搭子 Tab：选档下单与提交待确认 Sheet
     func buddyBookingChrome(
-        buddies: BuddiesModel
+        buddies: BuddiesModel,
+        app: AppModel
     ) -> some View {
-        modifier(BuddyBookingFlowChromeModifier(buddies: buddies))
+        modifier(BuddyBookingFlowChromeModifier(buddies: buddies, app: app))
     }
 
     /// Tab 根：待支付 / 支付 / 成功 / 履约安全确认（「我的」订单详情也会触发）
@@ -49,20 +53,26 @@ extension View {
 private struct BuddyInviteChromeModifier: ViewModifier {
     @Bindable var buddies: BuddiesModel
     var activities: ActivitiesModel
+    var app: AppModel
 
     func body(content: Content) -> some View {
         content
-            .sheet(item: $buddies.inviteTarget) { target in
+            .sheet(item: $buddies.presentation.inviteTarget) { target in
                 BuddyInviteSheet(
                     nickname: target.nickname,
-                    activities: activities.inviteableActivities
-                ) { activity, note in
-                    buddies.recordInvite(
-                        nickname: target.nickname,
-                        activity: activity,
-                        note: note
-                    )
-                }
+                    activities: activities.inviteableActivities,
+                    onSent: { activity, note in
+                        guard app.requireIdentityAccess(source: .buddyBooking) else { return }
+                        buddies.recordInvite(
+                            nickname: target.nickname,
+                            activity: activity,
+                            note: note
+                        )
+                    },
+                    onBrowseActivities: {
+                        app.selectedTab = .activities
+                    }
+                )
                 .toolbarVisibility(.hidden, for: .tabBar)
             }
             .sheet(item: inviteSuccessBinding) { record in
@@ -80,7 +90,7 @@ private struct BuddyInviteChromeModifier: ViewModifier {
     private var inviteSuccessBinding: Binding<BuddyInviteRecord?> {
         Binding(
             get: {
-                guard let id = buddies.pendingInviteSuccessID else { return nil }
+                guard let id = buddies.presentation.pendingInviteSuccessID else { return nil }
                 return buddies.inviteRecords.first { $0.id == id }
             },
             set: { if $0 == nil { buddies.dismissInviteSuccess() } }
@@ -98,13 +108,15 @@ private struct BuddyInviteChromeModifier: ViewModifier {
 
 private struct BuddyBookingFlowChromeModifier: ViewModifier {
     @Bindable var buddies: BuddiesModel
+    var app: AppModel
 
     func body(content: Content) -> some View {
         content
-            .sheet(item: $buddies.bookingPresentation) { presentation in
+            .sheet(item: $buddies.presentation.bookingPresentation) { presentation in
                 BuddyBookingSheet(
                     presentation: presentation
                 ) { scheduledAt, hours, slotLabel in
+                    guard app.requireIdentityAccess(source: .buddyBooking) else { return }
                     _ = buddies.recordBooking(
                         companion: presentation.companion,
                         scheduledAt: scheduledAt,
@@ -130,6 +142,7 @@ private struct BuddyBookingFlowChromeModifier: ViewModifier {
                         buddies.dismissBookingAcknowledgement()
                     }
                 )
+                .environment(buddies)
                 .toolbarVisibility(.hidden, for: .tabBar)
             }
     }
@@ -208,6 +221,8 @@ private struct BuddyBookingSharedSheetsModifier: ViewModifier {
                 TrustSafetyCheckInSheet(record: record) {
                     buddies.cancelPendingSafetyCheckIn()
                 }
+                .environment(app)
+                .environment(app.trustService)
                 .toolbarVisibility(.hidden, for: .tabBar)
             }
     }
@@ -215,7 +230,7 @@ private struct BuddyBookingSharedSheetsModifier: ViewModifier {
     private var bookingSuccessBinding: Binding<BuddyBookingRecord?> {
         Binding(
             get: {
-                guard let id = buddies.pendingBookingSuccessID else { return nil }
+                guard let id = buddies.presentation.pendingBookingSuccessID else { return nil }
                 return buddies.bookingRecords.first { $0.id == id }
             },
             set: { if $0 == nil { buddies.dismissBookingSuccess() } }

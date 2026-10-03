@@ -27,7 +27,7 @@ struct CallSessionView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: PlatformMetrics.sectionHeaderSpacing) {
+            VStack(spacing: PlatformMessagesChrome.stackSpacing) {
                 Spacer(minLength: 0)
                 Image(systemName: call?.kind.systemImage ?? "phone.fill")
                     .font(.largeTitle)
@@ -41,11 +41,11 @@ struct CallSessionView: View {
                     .font(.footnote)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, PlatformMetrics.contentInset)
+                    .padding(.horizontal, PlatformMessagesChrome.pageHorizontalInset)
 
                 Spacer(minLength: 0)
 
-                HStack(spacing: PlatformMetrics.railCardSpacing) {
+                HStack(spacing: PlatformMessagesChrome.composerToolSpacing) {
                     toggleButton(MessagesCopy.callMuted, systemImage: isMuted ? "mic.slash.fill" : "mic.fill") {
                         isMuted.toggle()
                     }
@@ -70,7 +70,7 @@ struct CallSessionView: View {
                 }
                 .activitySecondaryCTA(controlSize: .large)
             }
-            .padding(PlatformMetrics.contentInset)
+            .padding(PlatformMessagesChrome.pageHorizontalInset)
             .navigationBarTitleDisplayMode(.inline)
             .task(id: call?.status) {
                 guard let call, call.status == .ringing else { return }
@@ -100,7 +100,7 @@ struct CallSessionView: View {
 
     private func toggleButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: PlatformMetrics.hairlineSpacing) {
+            VStack(spacing: PlatformMessagesChrome.replyCardSpacing) {
                 Image(systemName: systemImage)
                     .font(.title3)
                 Text(title)

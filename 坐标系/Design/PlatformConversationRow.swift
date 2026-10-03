@@ -18,12 +18,30 @@ enum PlatformListTypography {
     static var secondary: Font { Font(UIFont.preferredFont(forTextStyle: .subheadline)) }
     static var footnote: Font { Font(UIFont.preferredFont(forTextStyle: .footnote)) }
     static var trailing: Font { secondary }
+    static var headline: Font { Font(UIFont.preferredFont(forTextStyle: .headline)) }
+    static var title2: Font { Font(UIFont.preferredFont(forTextStyle: .title2)) }
+    static var title3: Font { Font(UIFont.preferredFont(forTextStyle: .title3)) }
+    static var caption: Font { Font(UIFont.preferredFont(forTextStyle: .caption1)) }
+    static var caption2: Font { Font(UIFont.preferredFont(forTextStyle: .caption2)) }
+
+    static var title3Emphasized: Font { scaled(.title3, weight: .bold) }
+    static var secondaryEmphasized: Font { scaled(.subheadline, weight: .semibold) }
+    static var footnoteEmphasized: Font { scaled(.footnote, weight: .semibold) }
+    static var captionEmphasized: Font { scaled(.caption1, weight: .medium) }
+    static var caption2Emphasized: Font { scaled(.caption2, weight: .medium) }
 
     static var primaryUIFont: UIFont {
         let metrics = UIFontMetrics(forTextStyle: .body)
         let base = UIFont.preferredFont(forTextStyle: .body)
         let semibold = UIFont.systemFont(ofSize: base.pointSize, weight: .semibold)
         return metrics.scaledFont(for: semibold)
+    }
+
+    private static func scaled(_ style: UIFont.TextStyle, weight: UIFont.Weight) -> Font {
+        let metrics = UIFontMetrics(forTextStyle: style)
+        let base = UIFont.preferredFont(forTextStyle: style)
+        let weighted = UIFont.systemFont(ofSize: base.pointSize, weight: weight)
+        return Font(metrics.scaledFont(for: weighted))
     }
 }
 

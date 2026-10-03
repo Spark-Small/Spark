@@ -26,7 +26,7 @@ struct ContentView: View {
                     hasAcceptedLegalConsent = true
                 }
             } else if !auth.isSignedIn {
-                RootView(session: auth)
+                LoginView(session: auth)
             } else if let model {
                 signedInRoot(model)
             } else {
@@ -60,6 +60,7 @@ struct ContentView: View {
         }
         .task(id: "\(auth.isSignedIn)-\(hasAcceptedLegalConsent)") {
             // 未登录也可做轻量目录刷新；敏感权限仍在登录同意与主界面后再申请。
+            auth.reconcilePersistedSession()
             await runDeferredStartupIfNeeded()
             if await AppleSignInService.refreshCredentialStateIfNeeded(),
                auth.provider == .apple {
@@ -71,22 +72,35 @@ struct ContentView: View {
             hasAcceptedLegalConsent = true
             await ensureModelReady()
         }
+        .onReceive(NotificationCenter.default.publisher(for: AuthSessionEvents.remoteSessionInvalidated)) { _ in
+            auth.invalidateRemoteSession()
+        }
         .platformAnimation(.spring(duration: 0.45, bounce: 0.12), value: auth.isSignedIn)
-        .platformAnimation(.spring(duration: 0.4, bounce: 0.1), value: model?.hasCompletedWelcomeBootstrap)
+        .platformAnimation(.spring(duration: 0.4, bounce: 0.1), value: model?.hasCompletedInterestSelection)
         .platformAnimation(.easeOut(duration: 0.25), value: hasAcceptedLegalConsent)
     }
 
     @ViewBuilder
     private func signedInRoot(_ model: AppModel) -> some View {
-        VStack(spacing: 0) {
-            PersistenceRecoveryBanner()
-            mainTabs(model)
-        }
+        // 兴趣标签与欢迎意图分离：登录后先完成兴趣，再进主 Tab（硬门槛，无跳过）。
+        if !model.hasCompletedInterestSelection {
+            InterestOnboardingView(
+                initialInterests: model.user.interests,
+                onComplete: { interests in
+                    model.completeInterestSelection(interests: interests)
+                }
+            )
+        } else {
+            VStack(spacing: 0) {
+                PersistenceRecoveryBanner()
+                mainTabs(model)
+            }
             .onAppear {
                 if !model.welcomeGuide.hasSeenGuide {
                     model.selectedTab = .activities
                 }
             }
+        }
     }
 
     private func mainTabs(_ model: AppModel) -> some View {
@@ -102,6 +116,7 @@ struct ContentView: View {
             Tab("搭子", systemImage: "person.2", value: AppTab.buddies) {
                 BuddiesView()
             }
+            .badge(model.buddies.actionableBookingCount)
 
             if !mergesCommunity {
                 Tab("广场", systemImage: "bubble.left.and.bubble.right", value: AppTab.community) {
@@ -112,7 +127,7 @@ struct ContentView: View {
             Tab("消息", systemImage: "message", value: AppTab.messages) {
                 MessagesView()
             }
-            .badge(model.messages.unreadTotal)
+            .badge(model.messages.unreadTotal(blockedNames: Array(model.blockedUserNames)))
 
             Tab("我的", systemImage: "person.crop.circle", value: AppTab.profile) {
                 ProfileView()
@@ -128,6 +143,7 @@ struct ContentView: View {
         .environment(model.walletStore)
         .environment(model.membershipStore)
         .environment(model.notificationPreferencesStore)
+        .environment(model.inAppNotificationStore)
         .environment(model.privacyPreferencesStore)
         .environment(model.youthModeStore)
         .environment(model.legalConsentStore)
@@ -140,33 +156,15 @@ struct ContentView: View {
         .environment(model.productLifecycleStore)
         .environment(PassUpdateWebService.shared)
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory(
-            isEnabled: model.selectedTab == .activities && model.activitiesTabNowPlayingBarVisible
-        ) {
-            ActivityJourneyNowPlayingBar(
-                snapshot: ActivityJourneyNowPlayingPresentation.snapshot(
-                    for: model.activities,
-                    hasSeenWelcomeGuide: model.welcomeGuide.hasSeenGuide
-                ),
-                onOpenJourney: { model.openActivityJourney($0.id) },
-                onNavigate: { model.requestActivityMapNavigation($0) },
-                onOpenProfileJourneys: { model.selectedTab = .profile }
-            )
-            .id(
-                ActivityNextUpPresentation.nowPlayingBarIdentity(
-                    for: model.activities,
-                    hasSeenWelcomeGuide: model.welcomeGuide.hasSeenGuide
-                )
-            )
-        }
-            .buddyBookingSharedSheets(
-                buddies: model.buddies,
-                app: model,
-                peerContactRoute: $commercePeerContactRoute
-            )
-            .buddyInviteChrome(
+        .buddyBookingSharedSheets(
             buddies: model.buddies,
-            activities: model.activities
+            app: model,
+            peerContactRoute: $commercePeerContactRoute
+        )
+        .buddyInviteChrome(
+            buddies: model.buddies,
+            activities: model.activities,
+            app: model
         )
         .peerContactDestination(route: $commercePeerContactRoute)
         .sheet(isPresented: $model.pendingIdentityVerification) {

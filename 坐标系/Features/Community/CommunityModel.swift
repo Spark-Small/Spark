@@ -17,11 +17,7 @@ enum CommunityPublishResult: Equatable {
 @Observable
 final class CommunityModel {
     var posts: [CommunityPost]
-    var isComposing = false
-    /// 从活动页跳转发复盘时预填正文
-    var pendingComposeBody: String?
-    var pendingRelatedActivityTitle: String?
-    var pendingRelatedActivityID: UUID?
+    var presentation = CommunityPresentationStore()
     var likedIDs: Set<UUID>
     var repostedIDs: Set<UUID>
     var bookmarkedIDs: Set<UUID>
@@ -34,16 +30,40 @@ final class CommunityModel {
     private(set) var commentRevision = 0
     /// 广场加载失败文案；成功或尚未尝试时为 `nil`。
     private(set) var loadErrorMessage: String?
-    private(set) var isRefreshing = false
     let repository: any CommunityRepository
+    let engagement: CommunityEngagementUseCases
+    let moderation: CommunityModerationUseCases
+    /// 站内通知写回（赞/转他人帖）；预览与「我的·通知」同源。
+    let notificationInbox: InAppNotificationStore?
     @ObservationIgnored var persistenceGeneration: Int
     @ObservationIgnored var persistTask: Task<Void, Never>?
 
+    var pendingComposeBody: String? {
+        get { presentation.pendingComposeBody }
+        set { presentation.pendingComposeBody = newValue }
+    }
+
+    var pendingRelatedActivityTitle: String? {
+        get { presentation.pendingRelatedActivityTitle }
+        set { presentation.pendingRelatedActivityTitle = newValue }
+    }
+
+    var pendingRelatedActivityID: UUID? {
+        get { presentation.pendingRelatedActivityID }
+        set { presentation.pendingRelatedActivityID = newValue }
+    }
+
     init(
         currentUserName: String? = nil,
-        repository: any CommunityRepository
+        repository: any CommunityRepository,
+        engagement: CommunityEngagementUseCases = CommunityEngagementUseCases(),
+        moderation: CommunityModerationUseCases = CommunityModerationUseCases(),
+        notificationInbox: InAppNotificationStore? = nil
     ) {
         self.repository = repository
+        self.engagement = engagement
+        self.moderation = moderation
+        self.notificationInbox = notificationInbox
         let snapshot = repository.load()
         posts = snapshot.posts
         likedIDs = Set(snapshot.likedIDs)
@@ -58,7 +78,8 @@ final class CommunityModel {
             }
         }
         bookmarkCollections = collections
-        self.currentUserName = currentUserName ?? SampleData.currentUser.name
+        // AppModel 注入资料昵称；缺省时空串，禁止静默回落 Sample 身份。
+        self.currentUserName = currentUserName ?? ""
         persistenceGeneration = repository.currentPersistenceGeneration()
         if CommunityCommentsStore.bootstrap(posts: &posts, likedCommentIDs: likedCommentIDs) {
             likedCommentIDs = []
@@ -112,20 +133,7 @@ final class CommunityModel {
     func bookmarkCollection(for id: CommunityPost.ID) -> String? { bookmarkCollections[id] }
     func post(id: CommunityPost.ID) -> CommunityPost? { posts.first { $0.id == id } }
 
-    func likerNames(for id: CommunityPost.ID) -> [String] {
-        guard let post = post(id: id) else { return [] }
-        var names = post.likerNames
-        if likedIDs.contains(id), !names.contains(where: { $0 == currentUserName }) {
-            names.insert(currentUserName, at: 0)
-        }
-        if !likedIDs.contains(id) {
-            names.removeAll { $0 == currentUserName }
-        }
-        return names
-    }
     func reloadFromRepository() async {
-        isRefreshing = true
-        defer { isRefreshing = false }
         do {
             let snapshot = try await repository.loadAsync()
             persistenceGeneration = repository.currentPersistenceGeneration()
@@ -148,7 +156,7 @@ final class CommunityModel {
                 persist()
             }
         } catch {
-            loadErrorMessage = CommunityCopy.loadFailedMessage
+            loadErrorMessage = CommunityBrowseCopy.loadFailedMessage
         }
     }
 
@@ -159,7 +167,6 @@ final class CommunityModel {
         repository.invalidatePendingWrites()
         persistenceGeneration = repository.currentPersistenceGeneration()
     }
-
 
     func persist() {
         let snapshot = CommunitySnapshot(
@@ -189,4 +196,35 @@ final class CommunityModel {
         commentRevision += 1
     }
 
+    func recordCommunityInbox(
+        kind: String,
+        title: String,
+        body: String,
+        postID: UUID,
+        author: String
+    ) {
+        guard author != currentUserName else { return }
+        notificationInbox?.record(
+            category: .community,
+            title: title,
+            body: body,
+            dedupeKey: CommunityEngagementNotificationKeys.dedupeKey(
+                kind: kind,
+                postID: postID,
+                actorName: currentUserName
+            ),
+            communityPostID: postID,
+            activityKind: kind
+        )
+    }
+
+    /// 取消赞 / 取消转发：撤销同 actor·同帖·同 kind 的站内通知。
+    func revokeCommunityInbox(kind: String, postID: UUID) {
+        let key = CommunityEngagementNotificationKeys.dedupeKey(
+            kind: kind,
+            postID: postID,
+            actorName: currentUserName
+        )
+        notificationInbox?.removeMatching(dedupeKey: key)
+    }
 }

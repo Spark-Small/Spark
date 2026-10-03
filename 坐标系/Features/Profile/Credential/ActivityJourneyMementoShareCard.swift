@@ -3,6 +3,7 @@
 //  坐标系
 //
 //  纪念票分享图（9:16，朋友圈竖图；无履约条码）。
+//  宽 / 圆角走 PlatformMetrics（系统推导），无裸 390 / 24。
 //
 
 import SwiftUI
@@ -14,6 +15,12 @@ struct ActivityJourneyMementoShareCard: View {
     private var face: PassFaceModel { model.face }
     private var foregroundColor: Color { WalletPassEventTicketAppearance.foregroundColor }
     private var labelColor: Color { WalletPassEventTicketAppearance.labelColor }
+    private var cardShape: RoundedRectangle {
+        RoundedRectangle(
+            cornerRadius: PlatformMetrics.mementoShareCornerRadius,
+            style: .continuous
+        )
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,12 +33,11 @@ struct ActivityJourneyMementoShareCard: View {
             shareBody
             shareFooter
         }
-        .frame(width: 390)
+        .frame(width: PlatformMetrics.mementoShareExportWidth)
         .background(face.backgroundColor)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .clipShape(cardShape)
         .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(.white.opacity(0.12), lineWidth: 1)
+            cardShape.strokeBorder(.white.opacity(0.12), lineWidth: 1)
         }
         .colorScheme(.dark)
     }
@@ -39,7 +45,7 @@ struct ActivityJourneyMementoShareCard: View {
     private var shareHeader: some View {
         HStack(alignment: .top) {
             HStack(spacing: PlatformMetrics.minContentGap) {
-                BrandCloverMark(size: 24)
+                BrandCloverMark(size: PlatformMetrics.cloverBrandMarkSide)
                 Text(ActivityJourneyCopy.brandName)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(foregroundColor)
@@ -49,18 +55,18 @@ struct ActivityJourneyMementoShareCard: View {
                 Text(headline)
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(foregroundColor.opacity(0.92))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, PlatformMetrics.chipPaddingHorizontalSmall)
+                    .padding(.vertical, PlatformMetrics.chipPaddingVerticalMini)
                     .background(.white.opacity(0.16), in: Capsule())
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-        .padding(.bottom, 12)
+        .padding(.horizontal, PlatformMetrics.contentInset)
+        .padding(.top, PlatformMetrics.contentInset)
+        .padding(.bottom, PlatformMetrics.sectionHeaderSpacing)
     }
 
     private var shareBody: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: PlatformMetrics.sectionHeaderSpacing) {
             if let primary = face.primaryFields.first {
                 Text(primary.value)
                     .font(.title2.weight(.bold))
@@ -100,12 +106,12 @@ struct ActivityJourneyMementoShareCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.horizontal, PlatformMetrics.contentInset)
+        .padding(.vertical, PlatformMetrics.contentInset)
     }
 
     private var shareFooter: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: PlatformMetrics.minContentGap) {
             Text(ActivityJourneyCopy.mementoShareFooter)
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(foregroundColor)
@@ -115,10 +121,10 @@ struct ActivityJourneyMementoShareCard: View {
                 .foregroundStyle(labelColor)
                 .multilineTextAlignment(.center)
                 .lineLimit(4)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, PlatformMetrics.contentInset)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
+        .padding(.vertical, PlatformMetrics.contentInset)
         .background(face.backgroundColor.opacity(0.98))
     }
 }

@@ -76,9 +76,14 @@ struct PlatformChatBubble: View {
                         .platformThinMaterialBackground(in: Capsule())
                 }
                 if showsTime
+                    || message?.editedAt != nil
                     || (isMe && message?.deliveryStatus == .read)
                     || (isMe && message?.deliveryStatus == .failed) {
                     HStack(spacing: PlatformMetrics.hairlineSpacing) {
+                        if message?.editedAt != nil {
+                            Text(MessagesCopy.editedStatus)
+                                .foregroundStyle(.tertiary)
+                        }
                         if showsTime {
                             Text(Formatters.shortTime.string(from: sentAt))
                         }
@@ -122,7 +127,7 @@ struct PlatformChatBubble: View {
                             .foregroundStyle(PlatformStatus.danger)
                             .padding(PlatformMetrics.hairlineSpacing)
                             .background(Color(.systemBackground), in: Circle())
-                            .offset(y: PlatformMetrics.detailCompactSpacing)
+                            .offset(y: PlatformMessagesChrome.replyCardSpacing)
                             .accessibilityHidden(true)
                     }
                 }
@@ -140,7 +145,7 @@ struct PlatformChatBubble: View {
                 .textSelection(.enabled)
                 .platformChatBubbleStyle(isMe: isMe)
         case .sticker:
-            Text(text).font(.largeTitle).padding(PlatformMetrics.detailCompactSpacing)
+            Text(text).font(.largeTitle).padding(PlatformMessagesChrome.replyCardSpacing)
         case .image:
             imageBubble
         case .voice:

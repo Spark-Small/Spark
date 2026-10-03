@@ -8,7 +8,7 @@ import CoordinateDomain
 import CoordinateModels
 
 protocol BuddyInviteService {
-    func createInvite(nickname: String, activity: Activity) -> BuddyInviteRecord
+    func createInvite(nickname: String, inviteeUserID: UUID?, activity: Activity) -> BuddyInviteRecord
     func advanceInvite(_ record: BuddyInviteRecord, to status: BuddyInviteStatus) -> BuddyInviteRecord
 }
 
@@ -29,10 +29,11 @@ protocol BuddyBookingService {
 }
 
 struct LocalBuddyInviteService: BuddyInviteService {
-    func createInvite(nickname: String, activity: Activity) -> BuddyInviteRecord {
+    func createInvite(nickname: String, inviteeUserID: UUID?, activity: Activity) -> BuddyInviteRecord {
         BuddyInviteRecord(
             id: UUID(),
             nickname: nickname,
+            inviteeUserID: inviteeUserID,
             activityTitle: activity.title,
             sentAt: .now,
             status: .pending,
@@ -58,6 +59,7 @@ struct LocalBuddyBookingService: BuddyBookingService {
         return BuddyBookingRecord(
             id: UUID(),
             companionNickname: companion.profile.nickname,
+            companionUserID: companion.profile.userID,
             hours: hours,
             scheduledAt: scheduledAt,
             bookedAt: bookedAt,

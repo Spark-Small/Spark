@@ -56,7 +56,7 @@ public struct ChatConversation: Identifiable, Hashable, Codable, Sendable {
         requestSource: MessageRequestSource? = nil,
         requestPreviewText: String? = nil,
         peerIsActive: Bool = false,
-        isFriend: Bool = false
+        isFriend: Bool? = nil
     ) {
         self.id = id
         self.title = title
@@ -78,7 +78,8 @@ public struct ChatConversation: Identifiable, Hashable, Codable, Sendable {
         self.requestSource = requestSource
         self.requestPreviewText = requestPreviewText
         self.peerIsActive = peerIsActive
-        self.isFriend = isFriend
+        // 与 Codable 回退一致：副标题「好友」的私聊视为已是好友（种子数据常只写 subtitle）
+        self.isFriend = isFriend ?? (kind == .direct && !isMessageRequest && subtitle == "好友")
     }
 
     public init(from decoder: Decoder) throws {
@@ -225,6 +226,10 @@ public struct ChatMessage: Identifiable, Hashable, Codable, Sendable {
     public var transferID: UUID?
     /// 送达 / 已读（本地模拟）
     public var deliveryStatus: ChatDeliveryStatus
+    /// 编辑时间（本机）；`nil` 表示未编辑
+    public var editedAt: Date?
+    /// 已撤回（本机展示为系统小字）
+    public var isRecalled: Bool
 
     public init(
         id: UUID,
@@ -250,7 +255,9 @@ public struct ChatMessage: Identifiable, Hashable, Codable, Sendable {
         cardActivityID: UUID? = nil,
         transferAmount: Double? = nil,
         transferID: UUID? = nil,
-        deliveryStatus: ChatDeliveryStatus = .sent
+        deliveryStatus: ChatDeliveryStatus = .sent,
+        editedAt: Date? = nil,
+        isRecalled: Bool = false
     ) {
         self.id = id
         self.sender = sender
@@ -276,6 +283,8 @@ public struct ChatMessage: Identifiable, Hashable, Codable, Sendable {
         self.transferAmount = transferAmount
         self.transferID = transferID
         self.deliveryStatus = deliveryStatus
+        self.editedAt = editedAt
+        self.isRecalled = isRecalled
     }
 
     public init(from decoder: Decoder) throws {
@@ -304,9 +313,12 @@ public struct ChatMessage: Identifiable, Hashable, Codable, Sendable {
         transferAmount = try container.decodeIfPresent(Double.self, forKey: .transferAmount)
         transferID = try container.decodeIfPresent(UUID.self, forKey: .transferID)
         deliveryStatus = try container.decodeIfPresent(ChatDeliveryStatus.self, forKey: .deliveryStatus) ?? .sent
+        editedAt = try container.decodeIfPresent(Date.self, forKey: .editedAt)
+        isRecalled = try container.decodeIfPresent(Bool.self, forKey: .isRecalled) ?? false
     }
 
     public var previewText: String {
+        if isRecalled { return "[已撤回]" }
         if isSystem { return text }
         switch messageKind {
         case .text, .sticker: return text

@@ -22,6 +22,8 @@ public enum BuddyInviteStatus: String, Codable, Hashable, CaseIterable, Sendable
 public struct BuddyInviteRecord: Identifiable, Codable, Hashable, Sendable {
     public let id: UUID
     public var nickname: String
+    /// 被邀约人稳定 userID；旧快照可缺省，匹配回退昵称
+    public var inviteeUserID: UUID?
     public var activityTitle: String
     public var sentAt: Date
     public var status: BuddyInviteStatus
@@ -31,6 +33,7 @@ public struct BuddyInviteRecord: Identifiable, Codable, Hashable, Sendable {
     public init(
         id: UUID,
         nickname: String,
+        inviteeUserID: UUID? = nil,
         activityTitle: String,
         sentAt: Date,
         status: BuddyInviteStatus = .pending,
@@ -38,6 +41,7 @@ public struct BuddyInviteRecord: Identifiable, Codable, Hashable, Sendable {
     ) {
         self.id = id
         self.nickname = nickname
+        self.inviteeUserID = inviteeUserID
         self.activityTitle = activityTitle
         self.sentAt = sentAt
         self.status = status
@@ -48,6 +52,7 @@ public struct BuddyInviteRecord: Identifiable, Codable, Hashable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
         nickname = try container.decode(String.self, forKey: .nickname)
+        inviteeUserID = try container.decodeIfPresent(UUID.self, forKey: .inviteeUserID)
         activityTitle = try container.decode(String.self, forKey: .activityTitle)
         sentAt = try container.decode(Date.self, forKey: .sentAt)
         status = try container.decodeIfPresent(BuddyInviteStatus.self, forKey: .status) ?? .accepted
@@ -58,6 +63,8 @@ public struct BuddyInviteRecord: Identifiable, Codable, Hashable, Sendable {
 public struct BuddyBookingRecord: Identifiable, Codable, Hashable, Sendable {
     public let id: UUID
     public var companionNickname: String
+    /// 陪玩稳定 userID；旧快照可缺省，匹配回退昵称
+    public var companionUserID: UUID?
     public var hours: Int
     public var scheduledAt: Date
     public var bookedAt: Date
@@ -80,6 +87,7 @@ public struct BuddyBookingRecord: Identifiable, Codable, Hashable, Sendable {
     public init(
         id: UUID,
         companionNickname: String,
+        companionUserID: UUID? = nil,
         hours: Int,
         scheduledAt: Date,
         bookedAt: Date,
@@ -96,6 +104,7 @@ public struct BuddyBookingRecord: Identifiable, Codable, Hashable, Sendable {
     ) {
         self.id = id
         self.companionNickname = companionNickname
+        self.companionUserID = companionUserID
         self.hours = hours
         self.scheduledAt = scheduledAt
         self.bookedAt = bookedAt
@@ -115,6 +124,7 @@ public struct BuddyBookingRecord: Identifiable, Codable, Hashable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
         companionNickname = try container.decode(String.self, forKey: .companionNickname)
+        companionUserID = try container.decodeIfPresent(UUID.self, forKey: .companionUserID)
         hours = try container.decode(Int.self, forKey: .hours)
         scheduledAt = try container.decode(Date.self, forKey: .scheduledAt)
         bookedAt = try container.decode(Date.self, forKey: .bookedAt)

@@ -39,7 +39,7 @@ struct ActivityReportSheet: View {
                         Text(activity.title)
                             .multilineTextAlignment(.trailing)
                     }
-                    LabeledContent("发起人", value: activity.hostName)
+                    LabeledContent(ActivityDetailCopy.peopleHostRole, value: activity.hostName)
                 }
 
                 Section {
@@ -81,19 +81,18 @@ struct ActivityReportSheet: View {
 
                     if !previewImages.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: PlatformMetrics.hairlineSpacing) {
+                            HStack(spacing: PlatformMetrics.minContentGap) {
                                 ForEach(Array(previewImages.enumerated()), id: \.offset) { index, image in
                                     Image(uiImage: image)
                                         .resizable()
                                         .scaledToFill()
                                         .frame(width: PlatformMetrics.detailRelatedThumb, height: PlatformMetrics.detailRelatedThumb)
-                                        .clipShape(RoundedRectangle(cornerRadius: PlatformMetrics.radiusMedia, style: .continuous))
+                                        .clipShape(PlatformMetrics.mediaShape)
                                         .accessibilityLabel("证据 \(index + 1)")
                                 }
                             }
-                            .padding(.vertical, 4)
+                            .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
                         }
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                     }
                 } header: {
                     Text(ActivityDetailCopy.reportEvidenceLabel)
@@ -107,8 +106,13 @@ struct ActivityReportSheet: View {
                         dismiss()
                     }
                     .disabled(!canSubmit)
+                    .fontWeight(.semibold)
                 } footer: {
-                    Text(ActivityDetailCopy.reportSubmitFooter)
+                    Text(
+                        canSubmit
+                            ? ActivityDetailCopy.reportSubmitFooter
+                            : ActivityDetailCopy.reportSubmitNeedDetailFooter
+                    )
                 }
             }
             .navigationTitle(ActivityDetailCopy.reportAction)

@@ -19,7 +19,6 @@ struct MessagesFriendsListView: View {
     @State private var searchText = ""
     @State private var profileRoute: FriendProfileRoute?
     @State private var showRequests = false
-    @State private var showStartChat = false
     @State private var showAddFriendByUID = false
 
     private var friends: [FriendListEntry] {
@@ -93,37 +92,22 @@ struct MessagesFriendsListView: View {
             prompt: MessagesCopy.friendsListSearch
         )
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 Menu {
-                    Button(MessagesCopy.startChat, systemImage: "bubble.left.and.bubble.right") {
-                        showStartChat = true
-                    }
                     Button(MessagesCopy.addFriendByUID, systemImage: "person.badge.plus") {
                         showAddFriendByUID = true
-                    }
-                    Button(MessagesCopy.inviteFriends, systemImage: "square.and.arrow.up") {
-                        MessagesInviteFriends.presentSystemShare()
                     }
                     Button(MessagesCopy.messageRequestsTitle, systemImage: "person.crop.circle.badge.questionmark") {
                         showRequests = true
                     }
-                    Button(MessagesCopy.markAllRead, systemImage: "envelope.open") {
-                        model.markAllRead()
-                    }
-                    .disabled(model.unreadTotal == 0)
                 } label: {
                     Label(MessagesCopy.add, systemImage: "plus")
                 }
                 .badge(model.requestBadgeCount)
+                .platformNavigationBarItemChrome()
+                .accessibilityLabel(MessagesCopy.add)
+                .accessibilityHint(MessagesCopy.contactsPlusMenuHint)
             }
-        }
-        .sheet(isPresented: $showStartChat) {
-            StartChatSheet { conversationID in
-                if let conversation = model.conversations.first(where: { $0.id == conversationID }) {
-                    onOpenConversation(conversation)
-                }
-            }
-            .platformHiddenTabBar()
         }
         .sheet(isPresented: $showRequests) {
             MessageRequestsSheet(onOpen: onOpenConversation)
@@ -167,11 +151,9 @@ struct MessagesFriendsListView: View {
                 .activitySecondaryCTA(controlSize: .large)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
         } else {
             ContentUnavailableView.search(text: searchText)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
         }
     }
 }

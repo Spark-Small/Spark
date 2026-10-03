@@ -2,7 +2,7 @@
 //  ProfileSocialViews.swift
 //  坐标系
 //
-//  圈子发现 + 「我的活动」下的陪玩预约凭证 / 活动邀约。
+//  圈子列表 + 「我的」下的陪玩预约凭证 / 活动邀约。
 //
 
 import SwiftUI
@@ -55,6 +55,14 @@ struct ProfileMyClubsView: View {
         .profileSecondaryListChrome()
         .navigationTitle(ProfileDashboardCopy.myClubsTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(ProfileDashboardCopy.createClub, systemImage: "plus") {
+                    buddies.presentation.beginComposeClub()
+                }
+                .accessibilityHint(ProfileDashboardCopy.createClubHint)
+            }
+        }
     }
 }
 
@@ -97,10 +105,10 @@ private struct ProfileCircleRow: View {
                     if showsCreatorBadge {
                         Text("我创建")
                             .font(.caption2.weight(.semibold))
-                            .foregroundStyle(PlatformAction.cloverPurple)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(PlatformAction.cloverPurple.opacity(0.12), in: Capsule())
+                            .foregroundStyle(Color.accentColor)
+                            .padding(.horizontal, PlatformMetrics.chipPaddingHorizontalMini)
+                            .padding(.vertical, PlatformMetrics.chipPaddingVerticalMini)
+                            .background(Color.accentColor.opacity(0.12), in: Capsule())
                     }
                 }
                 Text("\(circle.city) · \(circle.topic)")
@@ -114,59 +122,6 @@ private struct ProfileCircleRow: View {
             Image(systemName: circle.systemImage)
                 .foregroundStyle(.tint)
         }
-    }
-}
-
-// MARK: - My clubs shelf
-
-struct ProfileMyClubsShelf: View {
-    let circles: [InterestCircle]
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: PlatformMetrics.cardFooterSpacing) {
-                ForEach(circles) { circle in
-                    NavigationLink(value: CircleBrowseRoute.circle(circle)) {
-                        clubPosterLabel(circle)
-                            .platformPosterRailFrame()
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.vertical, PlatformMetrics.minContentGap)
-        }
-    }
-
-    private func clubPosterLabel(_ circle: InterestCircle) -> some View {
-        ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: PlatformMetrics.radiusPoster, style: .continuous)
-                .fill(Color.accentColor.opacity(0.14))
-                .overlay {
-                    Image(systemName: circle.systemImage)
-                        .font(.largeTitle)
-                        .platformSymbolStyle(.multicolor)
-                }
-                .aspectRatio(PlatformMetrics.posterCardAspectRatio, contentMode: .fit)
-        }
-        .overlay(alignment: .bottom) {
-            VStack(spacing: PlatformMetrics.minContentGap) {
-                Text(circle.name)
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                Text("\(circle.topic) · \(circle.memberCount) 人")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(PlatformMetrics.captionBadgeInset)
-            .colorScheme(.dark)
-        }
-        .clipShape(PlatformMetrics.posterShape)
-        .contentShape(PlatformMetrics.posterShape)
-        .accessibilityLabel("\(circle.name)，\(circle.topic)，\(circle.memberCount) 成员")
     }
 }
 

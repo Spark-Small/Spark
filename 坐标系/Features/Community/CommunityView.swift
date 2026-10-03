@@ -2,8 +2,11 @@
 //  CommunityView.swift
 //  坐标系
 //
+//  广场 Tab / 内嵌栈根；Feed / 动态区 / 工具栏 / 搜索见同模块扩展。
+//
 
 import SwiftUI
+import UserNotifications
 import CoordinateModels
 
 enum CommunityFeedPresentation {
@@ -14,115 +17,110 @@ enum CommunityFeedPresentation {
 /// 广场信息流（Tab 根或从活动 Tab push）。
 struct CommunityFeedStack: View {
     var presentation: CommunityFeedPresentation = .tabRoot
-    @Binding var path: NavigationPath
     var zoomNamespace: Namespace.ID
+    /// 活动 Tab 内嵌时由父栈注册 `CommunityPost` / Zoom，避免嵌套 NavigationStack。
+    var registersStackDestinations = true
 
-    @Environment(CommunityModel.self) private var model
+    @Environment(CommunityModel.self) var model
+    @Environment(AppModel.self) var app
+    @Environment(ActivitiesModel.self) var activities
+    @Environment(InAppNotificationStore.self) var notificationInbox
+
+    @State var searchText = ""
+    @State var feedFilter: CommunityFeedFilter = .all
+    @State var feedPreferences = CommunityFeedPreferences()
+    @State var notificationAuth: UNAuthorizationStatus = .notDetermined
 
     var body: some View {
         @Bindable var model = model
 
         List {
             Section {
-                if let error = model.loadErrorMessage, model.items.isEmpty {
-                    errorState(message: error)
-                        .communityFeedRowChrome()
-                } else if model.items.isEmpty {
-                    emptyState
-                        .communityFeedRowChrome()
-                } else {
-                    ForEach(model.items) { post in
-                        CommunityPostCard(post: post)
-                            .communityFeedRowChrome()
-                    }
-                }
+                CommunityFeedFilterBar(filter: $feedFilter)
+                    .communityFeedFilterRowChrome()
+            }
+
+            if showsDynamicsRail {
+                dynamicsSection
+            }
+
+            Section {
+                feedPostsSection
             }
         }
         .communityFeedChrome()
+        // 搜索：系统托管；minimize 仅配合 bottomBar DefaultToolbarItem（见 +Toolbar）。
+        .searchable(
+            text: $searchText,
+            prompt: CommunityBrowseCopy.searchPrompt
+        )
+        .searchSuggestions {
+            communitySearchSuggestions
+        }
+        .searchToolbarBehavior(.minimize)
+        .onSubmit(of: .search) {
+            rememberCurrentSearchIfNeeded()
+        }
         .refreshable {
             await model.reloadFromRepository()
+            await refreshNotificationAuth()
+            await notificationInbox.syncDeliveredFromSystem()
         }
         .modifier(CommunityFeedPresentationChrome(presentation: presentation))
         .communityFeedToolbar(presentation: presentation) { feedToolbar }
-        .tint(PlatformAction.cloverPurple)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if showsNotifyBanner {
+                CommunityNotificationsOffBanner(
+                    onTurnOn: { Task { await turnOnNotifications() } },
+                    onDismiss: { feedPreferences.dismissNotifyBanner() }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
         .task {
-            // 首次进入时再拉一次，便于区分空列表与加载失败。
             if model.loadErrorMessage == nil {
                 await model.reloadFromRepository()
             }
+            await refreshNotificationAuth()
         }
-        .navigationDestination(for: CommunityPost.self) { post in
-            CommunityPostDetailView(postID: post.id)
-                .toolbarVisibility(.hidden, for: .tabBar)
-        }
-        .activityZoomNavigationDestination(namespace: zoomNamespace)
-        .navigationDestination(for: CommunityLibraryDestination.self) { destination in
-            CommunityLibraryRouter(destination: destination)
-                .toolbarVisibility(.hidden, for: .tabBar)
-        }
-        .sheet(isPresented: $model.isComposing) {
+        .platformFeedbackAlert(
+            Binding(
+                get: { model.presentation.toastMessage },
+                set: { model.presentation.toastMessage = $0 }
+            )
+        )
+        .modifier(
+            CommunityFeedStackDestinationsModifier(
+                enabled: registersStackDestinations,
+                zoomNamespace: zoomNamespace
+            )
+        )
+        .sheet(isPresented: $model.presentation.isComposing) {
             CommunityComposeSheet()
                 .toolbarVisibility(.hidden, for: .tabBar)
         }
     }
+}
 
-    @ToolbarContentBuilder
-    private var feedToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .topBarTrailing) {
-            Button("发分享", systemImage: "plus") {
-                model.isComposing = true
-            }
+private struct CommunityFeedStackDestinationsModifier: ViewModifier {
+    let enabled: Bool
+    let zoomNamespace: Namespace.ID
 
-            Menu {
-                Button("收藏", systemImage: "bookmark") {
-                    path.append(CommunityLibraryDestination.bookmarks)
+    func body(content: Content) -> some View {
+        if enabled {
+            content
+                .navigationDestination(for: CommunityPost.self) { post in
+                    CommunityPostDetailView(postID: post.id)
+                        .toolbarVisibility(.hidden, for: .tabBar)
                 }
-                Button("赞过", systemImage: "heart") {
-                    path.append(CommunityLibraryDestination.liked)
+                .navigationDestination(for: CommunityLibraryDestination.self) { destination in
+                    CommunityLibraryRouter(destination: destination)
+                        .toolbarVisibility(.hidden, for: .tabBar)
                 }
-                Button("我的分享", systemImage: "square.and.pencil") {
-                    path.append(CommunityLibraryDestination.myPosts)
-                }
-                Button("转发", systemImage: "arrow.2.squarepath") {
-                    path.append(CommunityLibraryDestination.reposts)
-                }
-                Divider()
-                Button("社区公约", systemImage: "doc.text") {
-                    path.append(CommunityLibraryDestination.guidelines)
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-            }
-            .accessibilityLabel("更多")
+                .activityZoomNavigationDestination(namespace: zoomNamespace)
+        } else {
+            content
         }
-    }
-
-    private var emptyState: some View {
-        ContentUnavailableView {
-            Label(CommunityCopy.emptyTitle, systemImage: "photo.on.rectangle")
-        } description: {
-            Text(CommunityCopy.emptyDescription)
-        } actions: {
-            Button("发分享") { model.isComposing = true }
-                .activityPrimaryCTA(controlSize: .large)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
-    }
-
-    private func errorState(message: String) -> some View {
-        ContentUnavailableView {
-            Label(CommunityCopy.loadFailedTitle, systemImage: "exclamationmark.triangle")
-        } description: {
-            Text(message)
-        } actions: {
-            Button(CommunityCopy.retryLoad) {
-                Task { await model.reloadFromRepository() }
-            }
-            .activityPrimaryCTA(controlSize: .large)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
     }
 }
 
@@ -132,17 +130,17 @@ private struct CommunityFeedPresentationChrome: ViewModifier {
     func body(content: Content) -> some View {
         switch presentation {
         case .tabRoot:
-            content.platformTabRootListChrome(title: CommunityCopy.rootTitle)
+            content.platformTabRootListChrome(title: CommunityBrowseCopy.rootTitle)
         case .embedded:
             content
-                .navigationTitle(CommunityCopy.embeddedTitle)
+                .navigationTitle(CommunityBrowseCopy.embeddedTitle)
                 .navigationBarTitleDisplayMode(.inline)
                 .platformHiddenTabBar()
         }
     }
 }
 
-private extension View {
+extension View {
     @ViewBuilder
     func communityFeedToolbar(
         presentation: CommunityFeedPresentation,
@@ -157,6 +155,42 @@ private extension View {
     }
 }
 
+/// 消费 `pendingCommunityPostID`，推进到帖详情；缺帖时先 reload 再试，仍无则清空避免挂死。
+struct CommunityPendingPostNavigationModifier: ViewModifier {
+    @Binding var path: NavigationPath
+    @Environment(AppModel.self) private var app
+    @Environment(CommunityModel.self) private var community
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear(perform: consume)
+            .onChange(of: app.pendingCommunityPostID) { _, _ in
+                consume()
+            }
+    }
+
+    private func consume() {
+        guard let id = app.pendingCommunityPostID else { return }
+        if let post = community.post(id: id) {
+            app.pendingCommunityPostID = nil
+            path.append(post)
+            return
+        }
+        Task {
+            await community.reloadFromRepository()
+            await MainActor.run {
+                guard app.pendingCommunityPostID == id else { return }
+                if let post = community.post(id: id) {
+                    app.pendingCommunityPostID = nil
+                    path.append(post)
+                } else {
+                    app.pendingCommunityPostID = nil
+                }
+            }
+        }
+    }
+}
+
 /// 广场：活动图文分享流（种草 / 复盘），找人与陪玩在「搭子」页完成
 struct CommunityView: View {
     @State private var path = NavigationPath()
@@ -166,30 +200,19 @@ struct CommunityView: View {
         NavigationStack(path: $path) {
             CommunityFeedStack(
                 presentation: .tabRoot,
-                path: $path,
                 zoomNamespace: zoomNamespace
             )
         }
-    }
-}
-
-/// 活动 Tab 内嵌入口：安装 7 日且广场零打开时替代独立 Tab。
-struct CommunityFeedEmbeddedDestination: View {
-    @State private var path = NavigationPath()
-    @Namespace private var zoomNamespace
-
-    var body: some View {
-        CommunityFeedStack(
-            presentation: .embedded,
-            path: $path,
-            zoomNamespace: zoomNamespace
-        )
+        .modifier(CommunityPendingPostNavigationModifier(path: $path))
     }
 }
 
 #Preview("广场") {
     let app = AppModel.preview
     CommunityView()
+        .environment(app)
         .environment(app.community)
         .environment(app.activities)
+        .environment(app.buddies)
+        .environment(app.inAppNotificationStore)
 }

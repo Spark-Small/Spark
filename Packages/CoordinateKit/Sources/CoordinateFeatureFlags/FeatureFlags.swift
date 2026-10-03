@@ -18,7 +18,17 @@ public enum FeatureFlags {
     }
 
     /// 本地样例目录合并（`AppPersistence.refreshCatalogIfNeeded`）。
-    public static var useLocalCatalogBootstrap: Bool { true }
+    /// Release：远程目录未作真相源时保持 true；DEBUG 可关以验证空库 / 远程合并。
+    public static var useLocalCatalogBootstrap: Bool {
+        #if DEBUG
+        if UserDefaults.standard.object(forKey: Keys.useLocalCatalogBootstrap) != nil {
+            return UserDefaults.standard.bool(forKey: Keys.useLocalCatalogBootstrap)
+        }
+        return true
+        #else
+        true
+        #endif
+    }
 
     /// 远程资料同步（`RemoteProfileRepository`）。
     public static var useRemoteProfile: Bool {
@@ -56,9 +66,22 @@ public enum FeatureFlags {
         #endif
     }
 
+    /// 搭子写路径（邀约 / 俱乐部远程提交）。契约已备；Release / DEBUG 默认关，接通后端后再开。
+    public static var useRemoteBuddiesWrite: Bool {
+        #if DEBUG
+        UserDefaults.standard.bool(forKey: Keys.useRemoteBuddiesWrite)
+        #else
+        false
+        #endif
+    }
+
     /// 发现页使用 `SampleData` 人设目录。Release 恒关闭（避免与虚构人设交易）。
+    /// DEBUG：远程搭子关着时始终开样例（避免联调一键关掉 Sample 后永久空页）；远程开着时尊重显式开关。
     public static var useSampleBuddiesCatalog: Bool {
         #if DEBUG
+        if !useRemoteBuddies {
+            return true
+        }
         if UserDefaults.standard.object(forKey: Keys.useSampleBuddiesCatalog) != nil {
             return UserDefaults.standard.bool(forKey: Keys.useSampleBuddiesCatalog)
         }
@@ -198,6 +221,10 @@ public enum FeatureFlags {
         UserDefaults.standard.set(enabled, forKey: Keys.useRemoteBuddies)
     }
 
+    public static func setUseRemoteBuddiesWrite(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: Keys.useRemoteBuddiesWrite)
+    }
+
     public static func setUseSampleBuddiesCatalog(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: Keys.useSampleBuddiesCatalog)
     }
@@ -206,12 +233,37 @@ public enum FeatureFlags {
         UserDefaults.standard.set(enabled, forKey: Keys.useRemoteAuth)
     }
 
-    /// 一键打开活动 / 广场 / 我的读路径 + 远程登录（D2 联调）。
+    public static func setUseLocalCatalogBootstrap(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: Keys.useLocalCatalogBootstrap)
+    }
+
+    /// 一键打开读路径联调：活动 / 广场 / 资料 / 搭子 snapshot + 远程登录；关 Sample 与演示接单。
     public static func enableReadPathRemoteIntegration() {
         setUseRemoteCatalog(true)
         setUseRemoteCommunity(true)
         setUseRemoteProfile(true)
+        setUseRemoteBuddies(true)
         setUseRemoteAuth(true)
+        setUseLocalCatalogBootstrap(false)
+        setUseSampleBuddiesCatalog(false)
+        setSimulateBookingCompanionAcceptance(false)
+        // 写路径仍默认关；后端邀约/俱乐部就绪后另调 `setUseRemoteBuddiesWrite(true)`
+    }
+
+    /// DEBUG：关远程搭子、开样例货架（找回「找搭子」模拟目录）。
+    public static func restoreLocalBuddiesSampleCatalog() {
+        setUseRemoteBuddies(false)
+        setUseRemoteBuddiesWrite(false)
+        setUseSampleBuddiesCatalog(true)
+        setSimulateBookingCompanionAcceptance(true)
+    }
+
+    /// 搭子读+写联调（需后端 snapshot + invites/clubs 已通）。
+    public static func enableBuddiesRemoteIntegration() {
+        setUseRemoteBuddies(true)
+        setUseRemoteBuddiesWrite(true)
+        setUseSampleBuddiesCatalog(false)
+        setSimulateBookingCompanionAcceptance(false)
     }
 
     public static func setSimulateBookingCompanionAcceptance(_ enabled: Bool) {
@@ -254,10 +306,12 @@ public enum FeatureFlags {
     private enum Keys {
         static let useRemoteCatalog = "feature.useRemoteCatalog"
         static let legacyUseRemoteCatalog = "api.useRemoteCatalog"
+        static let useLocalCatalogBootstrap = "feature.useLocalCatalogBootstrap"
         static let useRemoteProfile = "feature.useRemoteProfile"
         static let useRemoteMessages = "feature.useRemoteMessages"
         static let useRemoteCommunity = "feature.useRemoteCommunity"
         static let useRemoteBuddies = "feature.useRemoteBuddies"
+        static let useRemoteBuddiesWrite = "feature.useRemoteBuddiesWrite"
         static let useSampleBuddiesCatalog = "feature.useSampleBuddiesCatalog"
         static let useRemoteAuth = "feature.useRemoteAuth"
         static let simulateBookingCompanionAcceptance = "feature.simulateBookingCompanionAcceptance"

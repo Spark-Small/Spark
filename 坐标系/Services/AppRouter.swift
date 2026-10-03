@@ -22,6 +22,7 @@ enum AppDeepLink: Equatable {
     case booking(BuddyBookingRecord.ID?)
     case profile(ProfileRoute)
     case buddies(BuddiesRoute)
+    case communityPost(CommunityPost.ID)
 
     init?(notification link: NotificationDeepLink) {
         switch link {
@@ -31,6 +32,8 @@ enum AppDeepLink: Equatable {
             self = .conversation(id)
         case .booking(let id):
             self = .booking(id)
+        case .communityPost(let id):
+            self = .communityPost(id)
         }
     }
 }
@@ -48,6 +51,10 @@ final class AppRouter {
     var pendingBookingID: BuddyBookingRecord.ID?
     var pendingProfileRoute: ProfileRoute?
     var pendingBuddiesRoute: BuddiesRoute?
+    /// 广场帖深链：独立 Tab 或活动内嵌 Feed 消费。
+    var pendingCommunityPostID: CommunityPost.ID?
+    /// 软启动合并 Tab 时，先推进活动栈内的广场入口。
+    var pendingOpenEmbeddedCommunityFeed = false
 
     func apply(_ link: AppDeepLink, selectedTab: inout AppTab) {
         switch link {
@@ -70,6 +77,10 @@ final class AppRouter {
         case .buddies(let route):
             pendingBuddiesRoute = route
             selectedTab = .buddies
+        case .communityPost(let id):
+            pendingCommunityPostID = id
+            // 合并 Tab 时由 `openCommunityPost` 改切活动；本路径仅作兜底。
+            selectedTab = .community
         }
     }
 
@@ -83,5 +94,7 @@ final class AppRouter {
         pendingBookingID = nil
         pendingProfileRoute = nil
         pendingBuddiesRoute = nil
+        pendingCommunityPostID = nil
+        pendingOpenEmbeddedCommunityFeed = false
     }
 }

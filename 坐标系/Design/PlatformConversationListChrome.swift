@@ -20,6 +20,26 @@ enum PlatformCardListRow {
     }
 }
 
+/// Form / 普通 List 内媒体或系统按钮行：水平交给系统 margins，垂直用 subtitleCell。
+enum PlatformFormControlListRow {
+    static var insets: EdgeInsets {
+        let vertical = PlatformConversationListRow.verticalInset
+        return EdgeInsets(top: vertical, leading: 0, bottom: vertical, trailing: 0)
+    }
+}
+
+/// insetGrouped 内 Banner / 全宽宣传行：水平交给分组页边，避免再叠 `contentInset`。
+enum PlatformGroupedPromoListRow {
+    static var insets: EdgeInsets {
+        EdgeInsets(
+            top: PlatformMetrics.sectionHeaderSpacing,
+            leading: 0,
+            bottom: PlatformMetrics.sectionHeaderSpacing,
+            trailing: 0
+        )
+    }
+}
+
 /// insetGrouped 内长条凭证行：水平交给系统分组页边；垂直用 subtitleCell 行 margin。
 enum PlatformWalletPassListRow {
     static var insets: EdgeInsets {

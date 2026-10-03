@@ -20,6 +20,7 @@ public struct PromoteFromWaitlistUseCase: Sendable {
         waitlistIDs: inout Set<UUID>,
         waitlistSpotNotifiedIDs: inout Set<UUID>,
         currentUserName: String,
+        currentUserID: UUID? = nil,
         hasPaid: Bool,
         now: Date = .now
     ) -> Result<Void, PromoteFromWaitlistFailure> {
@@ -42,6 +43,7 @@ public struct PromoteFromWaitlistUseCase: Sendable {
             waitlistIDs: &waitlistIDs,
             waitlistSpotNotifiedIDs: &waitlistSpotNotifiedIDs,
             currentUserName: currentUserName,
+            currentUserID: currentUserID,
             now: now
         ) {
         case .success:

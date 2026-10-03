@@ -46,9 +46,8 @@ enum ActivityDetailCopy {
     static let joinConfirmMessage = "参加后将自动加入活动群，可在开始前取消。"
     static let joinConfirmPaidHint = "确认后将用所选方式完成支付并参加，成功后自动加入活动群。"
     static let joinConfirmNotePlaceholder = "给发起人留言（可选）"
-    static let joinConfirmPayCTA = "支付并参加"
     static let joinConfirmPayAction = "支付"
-    static let waitlistPromotionTitle = "候补名额已开放"
+    static var waitlistPromotionTitle: String { ActivityCardStatus.waitlistSpotOpen }
     static let waitlistPromotionFreeDetail = "有空位了，确认后即可转正参加并进入活动群。"
     static let waitlistPromotionPaidDetail = "有空位了，支付后即可转正参加；名额有限，请尽快确认。"
     static let waitlistConfirmTitle = "候补转正"
@@ -56,7 +55,6 @@ enum ActivityDetailCopy {
     static let waitlistConfirmPaidHint = "支付后将立即转正并加入活动群。"
     static let waitlistPromotePayAction = "支付并转正"
     static let waitlistPromotePaidAction = "确认转正"
-    static let joinConflictHeader = "时间冲突"
     static let joinConflictFooter = "你已有行程与本场时间重叠，确认后仍可参加，请自行协调安排。"
     static func joinConflictTitle(_ count: Int) -> String {
         count == 1 ? "与 1 场已有行程冲突" : "与 \(count) 场已有行程冲突"
@@ -73,11 +71,11 @@ enum ActivityDetailCopy {
     static let reportEvidenceFooter = "可选；建议上传聊天记录、活动页截图等证明材料，最多 4 张。"
     static let reportSubmit = "提交举报"
     static let reportSubmitFooter = "恶意举报可能影响账号权限。提交前请确认材料与说明属实。"
+    static let reportSubmitNeedDetailFooter = "请先填写情况说明后再提交举报。"
     static let reportReasons = ["虚假信息", "欺诈或收费异常", "安全隐患", "不当内容", "其他"]
     static let reportReceivedMessage = "我们已收到对该活动的反馈，将尽快核查。"
     static let peopleMemberRole = "已参加成员"
     static let peopleHostRole = "发起人"
-    static let peopleSheetBack = "返回"
     static let peopleSheetDone = "完成"
     static let peopleSheetFooter = "点头像查看资料，点消息可私信对方。其余名额以参加人数为准。"
     static let notesEditorSection = "参加须知（每行一条）"
@@ -88,7 +86,12 @@ enum ActivityDetailCopy {
 
     static let paymentTitle = "确认支付"
     static let paymentProcessing = "支付处理中…"
-    static let paymentMockHint = "支付成功后将更新订单并完成参加。钱包余额为本地账本；外部通道就绪前仅支持余额。"
+    static let paymentMockHint = "支付成功后将更新订单并完成参加。\(CommercePaymentPolicy.checkoutDisclosure)"
+    /// 参加确认 / 结账主路径一眼可见的支付边界（对齐审核 2.3.1 / 3.1.1）。
+    static let paymentBoundaryTitle = "关于本次扣款"
+    static let orderCreateFailed = "无法创建订单"
+    static let joinNoticesHeader = "参加须知"
+    static let joinNoticesFooter = "完整须知见活动详情；确认即表示已知悉。"
     static let joinFailedFullAfterPayTitle = ActivityCardStatus.fullVerbose
     static let joinFailedFullAfterPayMessage = "支付完成时名额刚满，已自动退款。你可以加入候补，有空位时再参加。"
 
@@ -105,27 +108,62 @@ enum ActivityDetailCopy {
     static let commentsWriteFirst = "写评论…"
     static let relatedTitle = "相关活动"
     static let relatedCircleTitle = "相关俱乐部"
-    static let credentialSectionTitle = "我的行程"
     static let credentialReissueAction = "补发活动凭证"
-    static let credentialVoidedAction = "凭证已作废"
     static let credentialViewAction = "打开我的行程"
     static let timelineEditorTitle = "行程安排"
+    static let heroGalleryA11y = "活动封面相册"
+    static let heroGallerySwipeHint = "左右滑动切换照片"
+    static func heroGalleryPageA11y(index: Int, total: Int) -> String {
+        "活动照片，第 \(index) 张，共 \(total) 张"
+    }
     static let timelineEditorHint = "每行一条，格式：时间｜环节｜说明"
+    static let feeSectionTitle = "费用说明"
+    static let feeIncludedTitle = "费用包含"
+    static let feeExcludedTitle = "费用不含"
+    static let feeRefundPolicyTitle = "变更与退款"
     static let gearEditorTitle = "装备清单"
     static let gearEditorHint = "按实际活动填写，留空则使用类别默认"
     static let galleryEditorTitle = "活动相册"
     static let galleryEditorHint = "除封面外最多再添加 5 张照片或视频"
+    static let contentEditorRestoreDefaultsMessage = "当前编辑内容将被类别默认模板替换，此操作不可撤销。"
+
+    // MARK: - 详情分区诚实归因（类别模板 ≠ 发起人已填）
+
+    static let templateRailSummaryPrefix = "类型参考"
+    static let templateRailAttribution = "按活动类型生成的参考安排，发起人可随时完善"
+    static func sectionSummary(
+        authored: Bool,
+        contentSummary: String
+    ) -> String {
+        authored ? contentSummary : "\(templateRailSummaryPrefix) · \(contentSummary)"
+    }
 
     // MARK: - 发起人管理
 
     static let hostManageTitle = "管理活动"
     static let hostManageCapacityTitle = "名额设置"
+    static let hostManageCurrentSignup = "当前报名"
+    static func hostManageCapacityLimit(_ capacity: Int) -> String {
+        "名额上限：\(capacity) 人"
+    }
     static let hostManageCapacityHint = "不能低于当前已参加人数"
+    static let hostManageSaveCapacity = "保存名额"
+    static let hostManageConfirmReschedule = "确认改期"
     static let hostManageRescheduleTitle = "改期"
     static let hostManageRescheduleHint = "改期后已参加成员会收到日历提醒更新；说明会展示在发起人补充"
     static let hostManageRescheduleNotePlaceholder = "改期说明（可选，如：因天气顺延 1 小时）"
+    static let hostManageRescheduleUnchangedHint = "请修改开始时间，或填写改期说明后再确认"
+    static let hostManageRescheduleConfirmTitle = "确认改期？"
+    static let hostManageRescheduleConfirmMessage = "改期后已参加成员会收到通知与日历提醒更新，请确认新的时间无误。"
+    static let hostManageCapacityChangedHint = "名额已改动，点「保存名额」生效"
+    static let hostManageRescheduleReadyHint = "改期信息已就绪，点「确认改期」通知成员"
+    static let hostManageCommitBothHint = "名额与时间均有改动，请分别保存"
+    static let hostManageCommitIdleHint = "名额与时间未改动时，保存与改期按钮不可用"
     static let hostManageEditBasics = "编辑标题、地点与简介"
     static let hostManageCancelActivity = "取消活动"
+    static let hostManageKeepActivity = "保留活动"
+    static let hostManageThinkAgain = "再想想"
+    static let hostManageFallbackTitle = "该活动"
     static let hostManageCancelHint = "取消后活动将从发现列表移除；已支付订单将退款，群聊会收到通知。"
     static let hostManageCancelAlertTitle = "确认取消活动？"
     static func hostManageCancelAlertMessage(title: String) -> String {
@@ -140,6 +178,7 @@ enum ActivityDetailCopy {
     static let ordersTitle = "活动订单"
     static let ordersEmptyTitle = "暂无订单"
     static let ordersEmptySubtitle = "付费参加后会在这里显示"
+    static let ordersEmptyAction = "去发现活动"
     static let orderBannerTitle = "查看支付订单"
     static let refundCTA = "申请退款"
     static let refundProcessing = "退款处理中"
@@ -176,6 +215,15 @@ enum ActivityDetailCopy {
         return primary
     }
 
+    static func joinButtonHint(full: Bool, waitlisted: Bool, free: Bool) -> String {
+        if full {
+            return waitlisted ? "退出候补，不再等待空位" : "名额已满，加入候补排队"
+        }
+        return free ? "确认后即可参加并加入活动群" : "确认后完成支付并参加"
+    }
+
+    static let joinNeedsVerificationHint = "完成认证照与人脸核验后即可参加"
+
     // MARK: - 底栏
 
     static var cancelRegistration: String { ActivityCardStatus.cancelJoin }
@@ -187,6 +235,9 @@ enum ActivityDetailCopy {
     static let navigationAddressField = "活动地址"
     static let recapCTA = "活动已结束 · 分享你的体验"
     static let activityEnded = "活动已结束"
+    static let activityEndedDescription = "本场活动已结束，无法再报名。"
+    static let closeSheet = "关闭"
+    static let moreMenu = "更多"
     static let experienceFeedbackTitle = "参与者感受"
     static func experienceFeedbackLine(tags: [(tag: String, count: Int)]) -> String {
         tags.map { "\($0.tag) \($0.count)" }.joined(separator: " · ")
@@ -205,12 +256,10 @@ enum ActivityDetailCopy {
         [
             ("确认名额与地点", askHostGreeting(title: activity.title)),
             ("集合时间", "请问活动大概几点集合？需要提前多久到？"),
-            ("费用说明", "想了解一下费用都包含哪些内容？"),
+            (feeSectionTitle, "想了解一下费用都包含哪些内容？"),
             ("新手须知", "我是第一次参加这类活动，有什么需要特别注意的吗？"),
         ]
     }
-
-    static let askMemberQuickRepliesTitle = "快捷打招呼"
 
     /// 向活动参加者打招呼时的快捷发送模版。
     static func askMemberQuickReplies(for activity: Activity) -> [(label: String, text: String)] {

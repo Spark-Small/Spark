@@ -210,7 +210,7 @@ struct BuddyVoiceIntroRecorderSheet: View {
                             .font(.title2.bold())
                             .monospacedDigit()
                             .foregroundStyle(isRecording ? Color.accentColor : .primary)
-                            .accessibilityLabel("录音时长 \(durationLabel)")
+                            .accessibilityLabel(BuddyVoiceIntroCopy.recordDurationA11y(durationLabel))
 
                         Text(
                             isRecording
@@ -249,7 +249,7 @@ struct BuddyVoiceIntroRecorderSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button(BuddyVoiceIntroCopy.cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(BuddyVoiceIntroCopy.save) {

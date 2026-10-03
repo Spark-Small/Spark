@@ -14,16 +14,8 @@ import Observation
 @Observable
 final class BuddiesModel {
     var filter = BuddyFilter()
-    var inviteTarget: BuddyInviteTarget?
-    var bookingPresentation: BuddyBookingPresentation?
-    var pendingBookingAcknowledgementID: BuddyBookingRecord.ID?
-    var pendingBookingSuccessID: BuddyBookingRecord.ID?
-    var pendingInviteSuccessID: BuddyInviteRecord.ID?
-    var pendingPaymentBookingID: BuddyBookingRecord.ID?
-    /// 接单后待用户主动确认的「待支付」详情 Sheet（不自动打开支付 Sheet）。
-    var pendingAwaitingPaymentReviewID: BuddyBookingRecord.ID?
-    var pendingSafetyCheckInBookingID: BuddyBookingRecord.ID?
-    var toastMessage: String?
+    /// Sheet / toast 表现态（与快照分离）
+    var presentation = BuddiesPresentationStore()
     var onRecordsChanged: (() -> Void)?
     var onMembershipChanged: (() -> Void)?
     var inviteRecords: [BuddyInviteRecord]
@@ -34,7 +26,6 @@ final class BuddiesModel {
     var joinedCircleNames: Set<String>
     var joinedGuildNames: Set<String>
     var membershipPrefs: [String: OrgMembershipPrefs]
-    var isComposingClub = false
     let repository: any BuddiesRepository
     let inviteService: any BuddyInviteService
     let bookingService: any BuddyBookingService
@@ -48,16 +39,16 @@ final class BuddiesModel {
     @ObservationIgnored var bookingConfirmationExpiryTasks: [BuddyBookingRecord.ID: Task<Void, Never>] = [:]
     var blockedUserNames: Set<String> = []
     var currentUserName: String
+    var currentUserID: UUID
+    /// 远程发现目录缓存（Merge 后写入）；Sample 关闭时优先映射此目录
+    var discoverCatalog: BuddiesDiscoverCatalog?
     var hiddenBuddyNames: Set<String> = []
     var usesSystemLocation = true
     var locatedPlaceName: String?
     var selectedCityID = BuddyCityCatalog.default.id
-    var pendingOrgJoin: BuddyOrgJoinTarget?
-    var pendingOrgJoinSuccess: BuddyOrgJoinSuccess?
     var pendingOpenConversationID: UUID?
     /// 欢迎引导等深链：落地免费同好页并打开俱乐部发现。
     var pendingShowCircleDiscover = false
-    var pendingOrgInvite: BuddyOrgInviteTarget?
 
     @ObservationIgnored var freeItemsCacheKey = ""
     @ObservationIgnored var freeItemsCache: [DiscoverBuddyItem] = []
@@ -68,6 +59,8 @@ final class BuddiesModel {
     @ObservationIgnored let refundFlowService: RefundFlowService
     @ObservationIgnored let trustService: TrustService
     @ObservationIgnored let remoteBookingSync: any RemoteBookingSyncing
+    @ObservationIgnored let remoteInviteSync: any RemoteInviteSyncing
+    @ObservationIgnored let remoteClubSync: any RemoteClubSyncing
 
     init(
         repository: any BuddiesRepository,
@@ -77,8 +70,11 @@ final class BuddiesModel {
         refundFlowService: RefundFlowService,
         trustService: TrustService,
         remoteBookingSync: (any RemoteBookingSyncing)? = nil,
+        remoteInviteSync: (any RemoteInviteSyncing)? = nil,
+        remoteClubSync: (any RemoteClubSyncing)? = nil,
         snapshot: BuddiesSnapshot? = nil,
         currentUserName: String? = nil,
+        currentUserID: UUID? = nil,
         inviteService: (any BuddyInviteService)? = nil,
         bookingService: (any BuddyBookingService)? = nil
     ) {
@@ -88,7 +84,10 @@ final class BuddiesModel {
         self.refundFlowService = refundFlowService
         self.trustService = trustService
         self.remoteBookingSync = remoteBookingSync ?? DisabledRemoteBookingSync()
+        self.remoteInviteSync = remoteInviteSync ?? DisabledRemoteInviteSync()
+        self.remoteClubSync = remoteClubSync ?? DisabledRemoteClubSync()
         self.currentUserName = currentUserName ?? SampleData.currentUser.name
+        self.currentUserID = currentUserID ?? LocalUserIdentity.current
         self.inviteService = inviteService ?? LocalBuddyInviteService()
         self.bookingService = bookingService ?? LocalBuddyBookingService()
         self.booking = booking
@@ -100,6 +99,7 @@ final class BuddiesModel {
         joinedCircleNames = Set(resolved.joinedCircleNames)
         joinedGuildNames = Set(resolved.joinedGuildNames)
         membershipPrefs = resolved.membershipPrefs
+        discoverCatalog = resolved.discoverCatalog
         persistenceGeneration = repository.currentPersistenceGeneration()
         migrateJoinedCircleMembershipIfNeeded()
         syncJoinedCircleNamesFromIDs()
@@ -143,29 +143,37 @@ final class BuddiesModel {
     }
 
     var pendingPaymentBooking: BuddyBookingRecord? {
-        guard let id = pendingPaymentBookingID else { return nil }
+        guard let id = presentation.pendingPaymentBookingID else { return nil }
         return bookingRecords.first { $0.id == id }
     }
 
     var pendingAwaitingPaymentReview: BuddyBookingRecord? {
-        guard let id = pendingAwaitingPaymentReviewID else { return nil }
+        guard let id = presentation.pendingAwaitingPaymentReviewID else { return nil }
         return bookingRecords.first { $0.id == id }
     }
 
     func dismissAwaitingPaymentReview() {
-        pendingAwaitingPaymentReviewID = nil
+        presentation.dismissAwaitingPaymentReview()
     }
 
-    func purgeSocialLinks(with nickname: String) {
+    func purgeSocialLinks(with nickname: String, userID: UUID? = nil) {
         inviteRecords = inviteRecords.map { record in
-            guard record.nickname.caseInsensitiveCompare(nickname) == .orderedSame,
-                  record.status == .pending
+            guard BuddyIdentityMatching.matches(
+                nickname: record.nickname,
+                userID: record.inviteeUserID,
+                otherNickname: nickname,
+                otherUserID: userID
+            ), record.status == .pending
             else { return record }
             return inviteService.advanceInvite(record, to: .declined)
         }
         let cancellable = bookingRecords.filter {
-            $0.companionNickname.caseInsensitiveCompare(nickname) == .orderedSame
-                && ($0.status == .pendingConfirm || $0.status == .awaitingPayment)
+            BuddyIdentityMatching.matches(
+                nickname: $0.companionNickname,
+                userID: $0.companionUserID,
+                otherNickname: nickname,
+                otherUserID: userID
+            ) && ($0.status == .pendingConfirm || $0.status == .awaitingPayment)
         }
         for record in cancellable {
             cancelBooking(record.id)
@@ -174,8 +182,22 @@ final class BuddiesModel {
         onRecordsChanged?()
     }
 
+    func matchesIdentity(
+        nickname: String,
+        userID: UUID?,
+        otherNickname: String,
+        otherUserID: UUID?
+    ) -> Bool {
+        BuddyIdentityMatching.matches(
+            nickname: nickname,
+            userID: userID,
+            otherNickname: otherNickname,
+            otherUserID: otherUserID
+        )
+    }
+
     func flash(_ message: String) {
-        toastMessage = message
+        presentation.flash(message)
     }
 
     func reloadFromRepository() async {
@@ -188,6 +210,9 @@ final class BuddiesModel {
         joinedCircleNames = Set(snapshot.joinedCircleNames)
         joinedGuildNames = Set(snapshot.joinedGuildNames)
         membershipPrefs = snapshot.membershipPrefs
+        discoverCatalog = snapshot.discoverCatalog
+        freeItemsCacheKey = ""
+        paidItemsCacheKey = ""
         migrateJoinedCircleMembershipIfNeeded()
         syncJoinedCircleNamesFromIDs()
         for name in joinedCircleNames {
@@ -238,7 +263,8 @@ final class BuddiesModel {
             joinedCircleIDs: Array(joinedCircleIDs),
             joinedCircleNames: Array(joinedCircleNames),
             joinedGuildNames: Array(joinedGuildNames),
-            membershipPrefs: membershipPrefs
+            membershipPrefs: membershipPrefs,
+            discoverCatalog: discoverCatalog
         )
         let previousTask = persistTask
         let generation = persistenceGeneration
@@ -248,13 +274,13 @@ final class BuddiesModel {
             } catch {
                 assertionFailure("Buddies persist failed: \(error)")
                 PersistenceWriteFailureReporter.record(domainKey: "buddies", error: error)
-                self.flash("保存失败，请稍后重试")
+                self.flash(BuddyFeedbackCopy.persistFailed)
             }
         }
     }
 
     func trustActorKey() -> String {
-        currentUserName
+        currentUserID.uuidString
     }
 }
 

@@ -13,7 +13,8 @@ public struct LeaveActivityUseCase: Sendable {
         activityID: UUID,
         activities: inout [Activity],
         joinedIDs: inout Set<UUID>,
-        currentUserName: String
+        currentUserName: String,
+        currentUserID: UUID? = nil
     ) -> Result<Void, LeaveActivityFailure> {
         guard let index = activities.firstIndex(where: { $0.id == activityID }) else {
             return .failure(.activityNotFound)
@@ -25,6 +26,9 @@ public struct LeaveActivityUseCase: Sendable {
         joinedIDs.remove(activityID)
         activities[index].joined = max(activities[index].joined - 1, 0)
         activities[index].participantNames.removeAll { $0 == currentUserName }
+        if let currentUserID {
+            activities[index].participantUserIDs.removeAll { $0 == currentUserID }
+        }
         return .success(())
     }
 }

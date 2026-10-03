@@ -236,9 +236,9 @@ struct RefundRequestSheet: View {
                                 .accessibilityLabel("证明材料 \(index + 1)")
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, PlatformMetrics.chipPaddingVerticalMini)
                 }
-                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowInsets(PlatformFormControlListRow.insets)
             }
         } header: {
             Text(RefundRequestCopy.evidenceLabel)

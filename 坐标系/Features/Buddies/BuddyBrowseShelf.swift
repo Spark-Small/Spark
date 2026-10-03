@@ -29,20 +29,24 @@ struct BuddyBrowseShelf: Identifiable, Hashable {
 struct BuddyBrowseHomeSnapshot {
     /// 首轨无分区标题
     let spotlight: [DiscoverBuddyItem]
-    /// 有信号辅轨（≤2），已与精选去重
+    /// 有信号辅轨（≤1，首屏节奏：Hero + 至多一条），已与精选去重
     let rails: [BuddyBrowseShelf]
     /// 主浏览：精选与辅轨之外的剩余全部
     let wall: [DiscoverBuddyItem]
     let wallTitle: String
-    /// 预约排行榜（可与墙重叠展示排名，不占墙名额）
+    /// 预约排行榜（Top 展示；与墙可重叠排名，不占墙名额）
     let leaderboard: BuddyBrowseShelf?
 }
 
 @MainActor
 enum BuddyBrowseHomeCatalog {
     static let minimumCount = 2
-    static let paidSpotlightLimit = 5
+    /// 弱信号不凑轨：至少 3 人才挂辅轨
+    static let railMinimumCount = 3
+    static let paidSpotlightLimit = BuddyDiscoveryPicks.spotlightLimit
     static let railItemCap = 8
+    /// 首屏辅轨上限（Hero 之外）
+    static let maxSignalRails = 1
 
     // MARK: Free
 
@@ -62,14 +66,13 @@ enum BuddyBrowseHomeCatalog {
         }
 
         var used = Set<UUID>()
-        let spotlightLimit = BuddyDiscoveryPicks.limit
-        let showSpotlight = people.count > spotlightLimit
-        let spotlight = showSpotlight ? Array(people.prefix(spotlightLimit)) : []
+        // 与活动精选 Hero 一致：只取 1 张全宽人物卡
+        let spotlight = Array(people.prefix(BuddyDiscoveryPicks.spotlightLimit))
         used.formUnion(spotlight.map(\.id))
 
         var rails: [BuddyBrowseShelf] = []
 
-        // 「附近」用分区展示，不占页内排序按钮
+        // 优先级：附近 > 同频 > 今晚 > 接着逛；只保留最强一条
         let nearbyItems = take(
             from: people,
             excluding: used,
@@ -85,38 +88,42 @@ enum BuddyBrowseHomeCatalog {
             used.formUnion(nearbyItems.map(\.id))
         }
 
-        let affinityItems = take(
-            from: people,
-            excluding: used,
-            limit: railItemCap
-        ) { !BuddyMatchScorer.sharedHobbies(with: $0.profile).isEmpty }
-        if appendRail(
-            &rails,
-            id: "affinity",
-            title: BuddyBrowseCopy.Shelf.affinityTitle,
-            layout: .hot,
-            items: affinityItems
-        ) {
-            used.formUnion(affinityItems.map(\.id))
+        if rails.isEmpty {
+            let affinityItems = take(
+                from: people,
+                excluding: used,
+                limit: railItemCap
+            ) { !BuddyMatchScorer.sharedHobbies(with: $0.profile).isEmpty }
+            if appendRail(
+                &rails,
+                id: "affinity",
+                title: BuddyBrowseCopy.Shelf.affinityTitle,
+                layout: .hot,
+                items: affinityItems
+            ) {
+                used.formUnion(affinityItems.map(\.id))
+            }
         }
 
-        let tonightItems = take(
-            from: people,
-            excluding: used,
-            limit: railItemCap,
-            where: hasTonightSlot
-        )
-        if appendRail(
-            &rails,
-            id: "tonight",
-            title: BuddyBrowseCopy.Shelf.tonightTitle,
-            layout: .editorial,
-            items: tonightItems
-        ) {
-            used.formUnion(tonightItems.map(\.id))
+        if rails.isEmpty {
+            let tonightItems = take(
+                from: people,
+                excluding: used,
+                limit: railItemCap,
+                where: hasTonightSlot
+            )
+            if appendRail(
+                &rails,
+                id: "tonight",
+                title: BuddyBrowseCopy.Shelf.tonightTitle,
+                layout: .editorial,
+                items: tonightItems
+            ) {
+                used.formUnion(tonightItems.map(\.id))
+            }
         }
 
-        if rails.count < 2, !joinedCircleNames.isEmpty {
+        if rails.isEmpty, !joinedCircleNames.isEmpty {
             let followingItems = take(from: people, excluding: used, limit: railItemCap) { item in
                 guard case .free(let buddy) = item else { return false }
                 return joinedCircleNames.contains(buddy.circleName)
@@ -178,7 +185,8 @@ enum BuddyBrowseHomeCatalog {
                 id: "leaderboard",
                 title: BuddyBrowseCopy.Shelf.leaderboardTitle,
                 layout: .leaderboard,
-                items: boardItems
+                items: boardItems,
+                showsSeeAll: boardItems.count > 3
             )
             : nil
 
@@ -203,7 +211,7 @@ enum BuddyBrowseHomeCatalog {
         layout: BuddyBrowseShelfLayout,
         items: [DiscoverBuddyItem]
     ) -> Bool {
-        guard rails.count < 2, items.count >= minimumCount else { return false }
+        guard rails.count < maxSignalRails, items.count >= railMinimumCount else { return false }
         rails.append(
             BuddyBrowseShelf(
                 id: id,
@@ -249,45 +257,4 @@ enum BuddyBrowseHomeCatalog {
                     || labels.contains { $0.contains("今晚") || $0.contains("今夜") }
             }
     }
-}
-
-enum BuddyBrowseCopy {
-    static let rootTitle = "搭子"
-
-    enum Shelf {
-        static let nearbyTitle = "附近的人"
-        static let affinityTitle = "同频的人"
-        static let followingTitle = "接着逛"
-        static let tonightTitle = "今晚有空"
-        static let leaderboardTitle = "推荐陪玩"
-        static let listTitle = "推荐"
-        static let activeWallTitle = "刚活跃"
-        static let paidWallTitle = "更多陪玩"
-    }
-
-    static let circlesTitle = "同城俱乐部"
-    static let searchResultsTitle = "搜索结果"
-    static let availableOnlyChip = "仅可约"
-    static let leaderboardRankTitle = "排行榜"
-    /// 发现卡 / 成员半屏：打开档期选择（详情底栏见 `BuddyDetailCopy.quickBook`）
-    static let bookAction = "选档期"
-    static let bookUnavailable = BuddyDetailCopy.bookUnavailable
-
-    enum VoiceHall {
-        static let sectionTitle = "语音厅"
-        static let sectionSubtitle = "实时语音闲聊，与预约陪玩分开"
-    }
-
-    enum MyBookings {
-        static let bannerTitle = "我的预约"
-        static func bannerSubtitle(count: Int, needsAttention: Int) -> String {
-            if needsAttention > 0 {
-                return "\(needsAttention) 笔待确认或待支付 · 共 \(count) 笔进行中"
-            }
-            return "\(count) 笔进行中"
-        }
-    }
-
-    static let showSocialCTA = "看看免费搭子"
-    static let unifiedSearchPrompt = "搜搭子、陪玩、兴趣或擅长"
 }

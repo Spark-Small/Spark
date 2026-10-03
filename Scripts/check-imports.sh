@@ -7,11 +7,15 @@ FAILED=0
 
 DESIGN_ALLOWLIST=(
   "ActivityZoomNavigation.swift"
+  "CircleDetailNavigation.swift"
   "WalletPassFace.swift"
   "WalletPassStripViews.swift"
   "WalletPassFaceFactory.swift"
   "WalletPassRecordFace.swift"
-  "PlatformCatalogCards.swift"
+  "PlatformCatalogCardChrome.swift"
+  "PlatformCatalogContinueCards.swift"
+  "PlatformCatalogPosterCard.swift"
+  "PlatformCatalogEditorialCard.swift"
   "PlatformMessagesChromeMetrics.swift"
   "PlatformChatThreadChrome.swift"
   "PlatformChatBubble.swift"

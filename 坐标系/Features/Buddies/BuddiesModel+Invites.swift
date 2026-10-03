@@ -2,7 +2,7 @@
 //  BuddiesModel+Invites.swift
 //  坐标系
 //
-//  邀约记录编排：创建、接受/拒绝、演示回复模拟。
+//  邀约记录编排：创建、接受/拒绝与状态推进。
 //
 
 import Foundation
@@ -10,34 +10,65 @@ import CoordinateModels
 
 extension BuddiesModel {
     func invite(_ nickname: String) {
-        inviteTarget = BuddyInviteTarget(nickname: nickname)
+        presentation.inviteTarget = BuddyInviteTarget(nickname: nickname)
     }
 
     @discardableResult
     func recordInvite(
         nickname: String,
         activity: Activity,
-        note: String? = nil
+        note: String? = nil,
+        inviteeUserID: UUID? = nil
     ) -> BuddyInviteRecord {
-        let record = inviteService.createInvite(nickname: nickname, activity: activity)
+        let resolvedID = inviteeUserID
+            ?? item(for: nickname)?.profile.userID
+        let record = inviteService.createInvite(
+            nickname: nickname,
+            inviteeUserID: resolvedID,
+            activity: activity
+        )
         inviteRecords.insert(record, at: 0)
-        inviteTarget = nil
-        pendingInviteSuccessID = record.id
+        presentation.inviteTarget = nil
+        presentation.pendingInviteSuccessID = record.id
         trustService.record(
             .inviteSent,
             domain: .buddy,
             actorKey: trustActorKey(),
-            subjectKey: nickname,
+            subjectKey: resolvedID?.uuidString ?? nickname,
             note: note
         )
         persist()
         onRecordsChanged?()
         scheduleInviteReplySimulation(for: record.id)
+        if remoteInviteSync.isEnabled {
+            Task { await submitInviteToRemote(record.id) }
+        }
         return record
     }
 
+    func submitInviteToRemote(_ id: BuddyInviteRecord.ID) async {
+        guard remoteInviteSync.isEnabled,
+              let record = inviteRecords.first(where: { $0.id == id }) else { return }
+        do {
+            let remote = try await remoteInviteSync.submit(record)
+            if let index = inviteRecords.firstIndex(where: { $0.id == id }) {
+                var merged = inviteRecords[index]
+                if merged.inviteeUserID == nil {
+                    merged.inviteeUserID = remote.inviteeUserID
+                }
+                if merged.status == .pending, remote.status != .pending {
+                    merged.status = remote.status
+                }
+                inviteRecords[index] = merged
+                persist()
+            }
+        } catch {
+            flash(BuddyFeedbackCopy.remoteInviteSubmitFailed)
+        }
+    }
+
     func dismissInviteSuccess() {
-        pendingInviteSuccessID = nil
+        presentation.pendingInviteSuccessID = nil
     }
 
     func acceptInvite(_ id: BuddyInviteRecord.ID) {
@@ -52,7 +83,10 @@ extension BuddiesModel {
         )
         persist()
         onRecordsChanged?()
-        flash("\(inviteRecords[index].nickname) 已接受邀约")
+        flash(BuddyFeedbackCopy.inviteAccepted(inviteRecords[index].nickname))
+        if let activityID = inviteRecords[index].relatedActivityID {
+            presentation.pendingOpenActivityAfterInviteID = activityID
+        }
     }
 
     func declineInvite(_ id: BuddyInviteRecord.ID) {
@@ -67,7 +101,7 @@ extension BuddiesModel {
         )
         persist()
         onRecordsChanged?()
-        flash("\(inviteRecords[index].nickname) 婉拒了邀约")
+        flash(BuddyFeedbackCopy.inviteDeclined(inviteRecords[index].nickname))
     }
 
     func deleteInvite(_ id: BuddyInviteRecord.ID) {

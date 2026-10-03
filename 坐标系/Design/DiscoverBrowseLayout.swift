@@ -2,10 +2,14 @@
 //  DiscoverBrowseLayout.swift
 //  坐标系
 //
-//  发现页分区组件：
-//  - 标题与 trailing 同一行；副标题可选下一行
-//  - 标题旁 chevron 可点时 =「查看全部」（HIG：可见控件可操作）
-//  - 标题 ↔ 内容：sectionHeaderSpacing
+//  发现页分区组件（HIG 对齐契约）：
+//  - 单一水平对齐线：标题 / Hero / 竖向列表 / 横滑轨首卡共用 `PlatformMetrics.contentInset`
+//    （= 系统 subtitleCell leading）。禁止「页边 + 行内边」双重叠。
+//  - 分区间距：`sectionSpacing`；标题 ↔ 内容：`sectionHeaderSpacing`
+//  - 卡内叠层文案用 `heroStackedTextInset` / `captionBadgeInset`
+//    （相对卡片边缘，由系统列表 margin 推导；不是页边 `contentInset`）
+//  - Form/List 表单页交给系统 margins；全宽媒体行用零 inset，相关轨用负 inset + Rail 回补页边
+//  - 标题与 trailing 同一行；副标题可选下一行；标题旁 chevron 可点时 =「查看全部」
 //  - 横滑：ScrollView + scrollTargetLayout + viewAligned + contentMargins
 //
 
@@ -201,10 +205,11 @@ private struct DiscoverRailSnapBehaviorModifier: ViewModifier {
 // MARK: - Page chrome
 
 extension View {
-    /// 发现类 ScrollView 页：分组底 + 底 safe inset（与活动 Tab 发现页一致）。
-    func discoverBrowseScrollChrome() -> some View {
+    /// 发现类 ScrollView 页：分组底 + 底 safe inset；默认顶边 soft scroll edge（官方栏下滚动交互）。
+    /// - Parameter softTopEdge: 是否启用顶边 soft scroll edge。
+    func discoverBrowseScrollChrome(softTopEdge: Bool = true) -> some View {
         scrollDismissesKeyboard(.interactively)
-            .scrollEdgeEffectStyle(.soft, for: .top)
+            .modifier(DiscoverBrowseSoftTopEdgeModifier(enabled: softTopEdge))
             .background(PlatformSurface.groupedPage)
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: PlatformMetrics.sectionSpacing)
@@ -212,11 +217,13 @@ extension View {
     }
 
     /// 非横滑内容（Hero、竖向列表）：与分区标题 / 横滑轨首卡共用 `contentInset` 对齐线。
+    /// 勿再叠一层 Features 内的水平 padding，否则滚动时会出现第二条对齐线。
     func discoverBrowseContentInset() -> some View {
         padding(.horizontal, PlatformMetrics.contentInset)
     }
 
-    /// 发现页主列：分区之间统一 `sectionSpacing`，左对齐撑满。
+    /// 发现页主列：顶/底页边 + 撑满；**分区间距**由调用方内层 `LazyVStack(spacing: sectionSpacing)` 提供。
+    /// 滚动锚点须放在外层 `VStack(spacing: 0)`，勿与首块内容同处带 `sectionSpacing` 的栈（否则大标题下多一段留白）。
     func discoverBrowsePageColumn() -> some View {
         frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, PlatformMetrics.sectionHeaderSpacing)
@@ -225,6 +232,13 @@ extension View {
 }
 
 extension View {
+    /// Form 内全宽媒体行：清掉系统行边距，由媒体自身 bleed。
+    func platformFullBleedMediaFormRow() -> some View {
+        listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+    }
+
     /// Form 内相关活动 / 最近浏览横滑轨：负水平 inset，页边交给 `DiscoverHorizontalRail`。
     func platformFormRelatedRailRow() -> some View {
         listRowInsets(
@@ -237,5 +251,17 @@ extension View {
         )
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)
+    }
+}
+
+private struct DiscoverBrowseSoftTopEdgeModifier: ViewModifier {
+    var enabled: Bool
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            content
+        }
     }
 }

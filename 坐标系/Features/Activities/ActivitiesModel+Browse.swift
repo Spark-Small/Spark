@@ -5,15 +5,12 @@
 
 import CoordinateDomain
 import Foundation
-import Observation
 import CoordinateModels
 
 extension ActivitiesModel {
-    /// 默认浏览态：精选 Hero + 目录模块（快捷筛选 / 日期 / 搜索时隐藏精选）
+    /// 默认浏览态：精选 Hero + 目录模块（有快捷筛选时隐藏精选）
     var showsBrowseModules: Bool {
         quickFilters.isEmpty
-            && dayFilter == nil
-            && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var catalogIndexByID: [UUID: Int] {
@@ -24,10 +21,13 @@ extension ActivitiesModel {
         ActivityBrowseCriteria(
             category: selectedCategory,
             quickFilters: quickFilters,
-            dayFilter: dayFilter,
-            nearbyRadiusKM: RecommendationConfig.nearbyKM,
-            searchText: searchText
+            nearbyRadiusKM: resolvedNearbyRadiusKM
         )
+    }
+
+    /// 启用「附近」时用会话半径；未选档位则回落全局默认（仅读，不写）。
+    private var resolvedNearbyRadiusKM: Double {
+        nearbyFilterRadiusKM ?? RecommendationConfig.nearbyKM
     }
 
     /// 当前可见目录（分类 / 快捷筛选）
@@ -36,11 +36,12 @@ extension ActivitiesModel {
     }
 
     var featured: [Activity] {
-        ActivityBrowseFeed.featured(
+        guard let spot = ActivityBrowseFeed.spotlight(
             from: filtered,
             catalogIndex: catalogIndexByID,
             showsHero: showsBrowseModules
-        )
+        ) else { return [] }
+        return [spot]
     }
 
     /// 长列表货架（活动 Tab 主列表）。按输入指纹缓存。
@@ -48,8 +49,7 @@ extension ActivitiesModel {
         let key = RecommendationShelvesCacheKey(
             category: selectedCategory,
             filters: quickFilters,
-            dayFilter: dayFilter.map { Calendar.current.startOfDay(for: $0).timeIntervalSince1970 },
-            searchText: searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+            nearbyRadiusKM: quickFilters.contains(.nearby) ? resolvedNearbyRadiusKM : nil,
             activityRevision: activities.map(\.id),
             distanceRevision: activities.map { activity in
                 UInt16(min(65_535, max(0, Int((activity.distanceKM * 10).rounded()))))
@@ -75,12 +75,9 @@ extension ActivitiesModel {
         return built
     }
 
-    /// 今日焦点：浏览态用精选池首卡，否则用当前目录首卡。
+    /// 今日焦点：仅默认浏览态用精选池首卡（筛选时不抢转化路径）。
     var spotlightActivity: Activity? {
-        if showsBrowseModules, let featured = featured.first {
-            return featured
-        }
-        return filtered.first
+        featured.first
     }
 
     /// 焦点 Hero 占用的活动 id（货架编排跨轨去重）。
@@ -98,16 +95,29 @@ extension ActivitiesModel {
 
     func clearQuickFilters() {
         quickFilters = []
-        dayFilter = nil
+        nearbyFilterRadiusKM = nil
+    }
+
+    func clearBrowseQuery() {
+        clearQuickFilters()
     }
 
     func toggleQuickFilter(_ filter: ActivityQuickFilter) {
         if filter.isTimeFilter {
-            dayFilter = nil
             if quickFilters.contains(filter) {
                 quickFilters.remove(filter)
             } else {
                 quickFilters = Set(quickFilters.filter { !$0.isTimeFilter } + [filter])
+            }
+        } else if filter == .nearby {
+            if quickFilters.contains(.nearby) {
+                quickFilters.remove(.nearby)
+                nearbyFilterRadiusKM = nil
+            } else {
+                quickFilters.insert(.nearby)
+                if nearbyFilterRadiusKM == nil {
+                    nearbyFilterRadiusKM = RecommendationConfig.nearbyKM
+                }
             }
         } else if quickFilters.contains(filter) {
             quickFilters.remove(filter)
@@ -116,19 +126,17 @@ extension ActivitiesModel {
         }
     }
 
-    /// 欢迎引导等场景：应用筛选并触发 chip 高亮反馈
+    /// 欢迎引导等场景：应用筛选
     func applyWelcomeQuickFilter(_ filter: ActivityQuickFilter) {
         if !quickFilters.contains(filter) {
             toggleQuickFilter(filter)
         }
-        lastHighlightedQuickFilter = filter
-        quickFilterHighlightToken += 1
     }
 
     /// 欢迎意图落地：切到推荐分类，并按目录智能套用快捷筛选。
     @discardableResult
     func applyWelcomeLanding(for intent: AppWelcomeIntent, now: Date = .now) -> String? {
-        selectedCategory = .forYou
+        selectBrowseCategory(.forYou)
         switch intent {
         case .findActivity:
             clearQuickFilters()
@@ -152,12 +160,11 @@ extension ActivitiesModel {
     }
 }
 
-/// 货架缓存指纹：分类 / 筛选 / 目录顺序 / 距离 / 报名变化时失效
+/// 货架缓存指纹：分类 / 筛选 / 附近半径 / 目录顺序 / 距离 / 报名变化时失效
 struct RecommendationShelvesCacheKey: Equatable {
     var category: ActivityCategory
     var filters: Set<ActivityQuickFilter>
-    var dayFilter: TimeInterval?
-    var searchText: String
+    var nearbyRadiusKM: Double?
     var activityRevision: [UUID]
     var distanceRevision: [UInt16]
     var availabilityRevision: [UInt32]

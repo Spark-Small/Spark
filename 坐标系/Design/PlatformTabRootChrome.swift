@@ -2,49 +2,67 @@
 //  PlatformTabRootChrome.swift
 //  坐标系
 //
-//  Tab 根页顶栏：inlineLarge 大标题 + principal 占位 + 可选标题菜单。
+//  五 Tab 根顶栏统一契约：inlineLarge + soft 顶边 + 栏材质联动；
+//  不压制 compact title；活动/搭子可选 toolbarTitleMenu。
 //
 
 import SwiftUI
 
-/// Tab 根页顶栏：suppress 滚动后中间紧凑标题。
-struct PlatformTabRootTitlePrincipal: ToolbarContent {
-    var body: some ToolbarContent {
-        ToolbarItem(placement: .principal) {
-            Text(verbatim: "")
-                .accessibilityHidden(true)
-        }
-    }
-}
-
 extension View {
-    /// Tab 根 ScrollView / List：顶栏标题 + scroll edge。
-    func platformTabRootScrollChrome(title: String) -> some View {
+    /// Tab 根 ScrollView / List：系统标题 + 栏材质随滚动联动；可选顶边 soft edge。
+    func platformTabRootScrollChrome(
+        title: String,
+        titleDisplayMode: ToolbarTitleDisplayMode = .inlineLarge,
+        softTopEdge: Bool = true
+    ) -> some View {
         contentMargins(.top, 0, for: .scrollContent)
-            .scrollEdgeEffectStyle(.soft, for: .top)
+            .modifier(PlatformTabRootSoftTopEdgeModifier(enabled: softTopEdge))
             .navigationTitle(title)
-            .toolbarTitleDisplayMode(.inlineLarge)
+            .toolbarTitleDisplayMode(titleDisplayMode)
+            .toolbarBackground(.automatic, for: .navigationBar)
+            .toolbarBackgroundVisibility(.automatic, for: .navigationBar)
     }
 
-    /// Tab 根 List：可选 compact section spacing（「我的」）。
-    func platformTabRootListChrome(title: String, compactSections: Bool = false) -> some View {
-        modifier(PlatformTabRootListChromeModifier(title: title, compactSections: compactSections))
+    /// Tab 根 List：可选 compact section spacing。
+    func platformTabRootListChrome(
+        title: String,
+        compactSections: Bool = false,
+        titleDisplayMode: ToolbarTitleDisplayMode = .inlineLarge,
+        softTopEdge: Bool = true
+    ) -> some View {
+        modifier(
+            PlatformTabRootListChromeModifier(
+                title: title,
+                compactSections: compactSections,
+                titleDisplayMode: titleDisplayMode,
+                softTopEdge: softTopEdge
+            )
+        )
     }
 
-    /// Tab 根页可点标题菜单（活动分类等）。
+    /// Tab 根页可点标题菜单（搭子模式等）。
     func platformTabRootTitleMenu<MenuContent: View>(
         @ViewBuilder menu: () -> MenuContent
     ) -> some View {
         toolbarTitleMenu(content: menu)
     }
 
-    /// Tab 根页 toolbar：自动注入 `PlatformTabRootTitlePrincipal`。
+    /// Tab 根页 toolbar（不注入空 principal）。图标须 `.platformNavigationBarItemChrome()`；分组用 `ToolbarItemGroup` + `ToolbarSpacer`。
     func platformTabRootToolbar<Content: ToolbarContent>(
         @ToolbarContentBuilder content: () -> Content
     ) -> some View {
-        toolbar {
-            PlatformTabRootTitlePrincipal()
-            content()
+        toolbar(content: content)
+    }
+}
+
+private struct PlatformTabRootSoftTopEdgeModifier: ViewModifier {
+    var enabled: Bool
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            content
         }
     }
 }
@@ -52,6 +70,8 @@ extension View {
 private struct PlatformTabRootListChromeModifier: ViewModifier {
     let title: String
     let compactSections: Bool
+    var titleDisplayMode: ToolbarTitleDisplayMode = .inlineLarge
+    var softTopEdge: Bool = true
 
     func body(content: Content) -> some View {
         Group {
@@ -61,6 +81,10 @@ private struct PlatformTabRootListChromeModifier: ViewModifier {
                 content
             }
         }
-        .platformTabRootScrollChrome(title: title)
+        .platformTabRootScrollChrome(
+            title: title,
+            titleDisplayMode: titleDisplayMode,
+            softTopEdge: softTopEdge
+        )
     }
 }

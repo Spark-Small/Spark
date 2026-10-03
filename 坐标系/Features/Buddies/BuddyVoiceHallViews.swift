@@ -34,7 +34,7 @@ struct BuddyVoiceHallRoomView: View {
             Section {
                 VStack(spacing: PlatformMetrics.cardInfoSpacing) {
                     HStack {
-                        Label(hall.isLive ? "直播中" : "休息中", systemImage: "dot.radiowaves.left.and.right")
+                        Label(hall.isLive ? BuddyBrowseCopy.VoiceHall.live : BuddyBrowseCopy.VoiceHall.idle, systemImage: "dot.radiowaves.left.and.right")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(hall.isLive ? PlatformStatus.success : .secondary)
                         Spacer()
@@ -68,27 +68,27 @@ struct BuddyVoiceHallRoomView: View {
                 .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
             }
 
-            Section("厅信息") {
-                LabeledContent("主题", value: hall.topic)
-                LabeledContent("城市", value: hall.city)
-                LabeledContent("厅主", value: hall.hostNickname)
+            Section(BuddyBrowseCopy.VoiceHall.infoSection) {
+                LabeledContent(BuddyBrowseCopy.VoiceHall.topic, value: hall.topic)
+                LabeledContent(BuddyBrowseCopy.VoiceHall.city, value: hall.city)
+                LabeledContent(BuddyBrowseCopy.VoiceHall.host, value: hall.hostNickname)
             }
 
             Section {
-                Text("演示语音厅：可上麦围观，点麦位查看资料。正式实时语音将另行接入。")
+                Text(BuddyBrowseCopy.VoiceHall.roomFooter)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("语音厅")
+        .navigationTitle(BuddyBrowseCopy.VoiceHall.roomTitle)
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: PlatformMetrics.cardFooterSpacing) {
                 Button(isOnMic ? BuddyMemberCopy.leaveMic : BuddyMemberCopy.takeMic) {
                     if isOnMic {
                         isOnMic = false
-                        toast = BuddyMemberCopy.offMicDemo
+                        toast = BuddyMemberCopy.offMic
                     } else {
                         confirmTakeMic = true
                     }
@@ -96,7 +96,7 @@ struct BuddyVoiceHallRoomView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
 
-                Button("离开") { dismiss() }
+                Button(BuddyBrowseCopy.VoiceHall.leave) { dismiss() }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
             }
@@ -108,9 +108,9 @@ struct BuddyVoiceHallRoomView: View {
         .alert(BuddyMemberCopy.takeMic, isPresented: $confirmTakeMic) {
             Button(BuddyMemberCopy.takeMic) {
                 isOnMic = true
-                toast = BuddyMemberCopy.onMicDemo
+                toast = BuddyMemberCopy.onMic
             }
-            Button("取消", role: .cancel) {}
+            Button(BuddyDetailCopy.cancel, role: .cancel) {}
         } message: {
             Text(BuddyMemberCopy.emptySeatHint)
         }
@@ -125,10 +125,12 @@ struct BuddyVoiceHallRoomView: View {
                     ? {
                         isOnMic = false
                         selectedSeat = nil
-                        toast = BuddyMemberCopy.offMicDemo
+                        toast = BuddyMemberCopy.offMic
                     }
                     : nil
             )
+            .environment(app)
+            .environment(buddies)
             .toolbarVisibility(.hidden, for: .tabBar)
         }
         .platformFeedbackAlert($toast)

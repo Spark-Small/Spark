@@ -38,7 +38,7 @@ struct SettingsNotificationsView: View {
             } header: {
                 Text("推送偏好（本地）")
             } footer: {
-                Text("开启活动提醒时会请求系统通知权限。搭子上线与社区摘要为本地偏好占位，正式版将接运营推送。")
+                Text("开启活动提醒时会请求系统通知权限。站内通知历史在「我的」铃铛中查看。搭子上线与社区摘要为本地偏好占位，正式版将接运营推送。")
             }
         }
         .navigationTitle("通知设置")

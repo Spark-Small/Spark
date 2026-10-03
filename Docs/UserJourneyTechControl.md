@@ -1,8 +1,10 @@
-# 用户旅程与技控地图（真实生活 · 0→1）
+# 用户旅程与技控地图（真实生活 · 0→1）（附录）
 
 > **本文视角**：用户 0→1 完成「参加活动」「约陪玩」的真实心理与技控节点。  
-> **不绑定实现**：行业参照与 P2 愿景 ≠ V1 已交付；**落地对照**见 [PRD.md §5](PRD.md#5-技控节点对照表旅程--需求--实现)。  
-> **与信任模型**：文中「评价 / 好评率」多为**行业类比**；V1 不做公开星级墙，见 [TrustBehaviorModel.md](TrustBehaviorModel.md)。
+> **不绑定实现**：行业参照与 P2 愿景 ≠ V1 已交付。  
+> **现行实现门闸 / 流程**：[Project/02](../Project/02_USER_FLOW.md) · [17](../Project/17_SCREEN_SPEC.md)。  
+> **历史落地对照**：可参考 [PRD.md §5](PRD.md#5-技控节点对照表旅程--需求--实现)（冲突以 Project 为准）。  
+> **与信任模型**：文中「评价 / 好评率」多为**行业类比**；V1 不做公开星级墙，见 [TrustBehaviorModel.md](TrustBehaviorModel.md) 与 Project/01。
 
 ---
 
@@ -395,4 +397,4 @@ journey
 
 ---
 
-*文档定位：用户心理与技控的「真相源」。**实现对照**见 [PRD.md §5](PRD.md#5-技控节点对照表旅程--需求--实现)；代码落点见 [AppArchitecture.md](AppArchitecture.md)。*
+*文档定位：用户心理与技控附录。**实现门闸**见 [Project/02](../Project/02_USER_FLOW.md)；历史对照可参考 PRD §5；代码落点附录 [AppArchitecture.md](AppArchitecture.md)。*

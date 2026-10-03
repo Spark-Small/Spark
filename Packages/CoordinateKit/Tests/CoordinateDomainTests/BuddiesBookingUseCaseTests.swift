@@ -301,8 +301,9 @@ final class BuddiesBookingUseCaseTests: XCTestCase {
 
     func testReconcileRemoteAcceptFromPendingConfirm() {
         let reconcile = ReconcileRemoteBookingRecordUseCase()
-        let local = makeRecord(status: .pendingConfirm)
-        var remote = makeRecord(status: .awaitingPayment)
+        let id = UUID()
+        let local = makeRecord(id: id, status: .pendingConfirm)
+        var remote = makeRecord(id: id, status: .awaitingPayment)
         remote.acceptedAt = now
         remote.paymentDueAt = now.addingTimeInterval(3600)
         let merged = reconcile.reconcile(local: local, remote: remote)
@@ -312,36 +313,54 @@ final class BuddiesBookingUseCaseTests: XCTestCase {
 
     func testReconcileRemoteDeclineFromPendingConfirm() {
         let reconcile = ReconcileRemoteBookingRecordUseCase()
-        let local = makeRecord(status: .pendingConfirm)
-        let remote = makeRecord(status: .cancelled)
+        let id = UUID()
+        let local = makeRecord(id: id, status: .pendingConfirm)
+        let remote = makeRecord(id: id, status: .cancelled)
         XCTAssertEqual(reconcile.reconcile(local: local, remote: remote)?.status, .cancelled)
     }
 
     func testReconcileIgnoresLocalPaidRegression() {
         let reconcile = ReconcileRemoteBookingRecordUseCase()
-        let local = makeRecord(status: .paid)
-        let remote = makeRecord(status: .awaitingPayment)
+        let id = UUID()
+        let local = makeRecord(id: id, status: .paid)
+        let remote = makeRecord(id: id, status: .awaitingPayment)
         XCTAssertNil(reconcile.reconcile(local: local, remote: remote))
     }
 
     func testReconcileEnrichesAwaitingPaymentTimestamps() {
         let reconcile = ReconcileRemoteBookingRecordUseCase()
-        var local = makeRecord(status: .awaitingPayment)
-        var remote = makeRecord(status: .awaitingPayment)
+        let id = UUID()
+        let local = makeRecord(id: id, status: .awaitingPayment)
+        var remote = makeRecord(id: id, status: .awaitingPayment)
         remote.acceptedAt = now
         remote.paymentDueAt = now.addingTimeInterval(3600)
         let merged = reconcile.reconcile(local: local, remote: remote)
         XCTAssertEqual(merged?.paymentDueAt, remote.paymentDueAt)
     }
 
+    func testReconcileEnrichesCompanionUserID() {
+        let reconcile = ReconcileRemoteBookingRecordUseCase()
+        let id = UUID()
+        let companionID = UUID()
+        let local = makeRecord(id: id, status: .awaitingPayment)
+        var remote = makeRecord(id: id, status: .awaitingPayment)
+        remote.companionUserID = companionID
+        let merged = reconcile.reconcile(local: local, remote: remote)
+        XCTAssertEqual(merged?.companionUserID, companionID)
+    }
+
     // MARK: - Helpers
 
-    private func makeRecord(status: BookingOrderStatus) -> BuddyBookingRecord {
+    private func makeRecord(
+        id: UUID = UUID(),
+        status: BookingOrderStatus,
+        scheduledAt: Date? = nil
+    ) -> BuddyBookingRecord {
         BuddyBookingRecord(
-            id: UUID(),
+            id: id,
             companionNickname: "阿川",
             hours: 2,
-            scheduledAt: now.addingTimeInterval(7200),
+            scheduledAt: scheduledAt ?? Date().addingTimeInterval(7200),
             bookedAt: now,
             priceText: "¥100",
             status: status

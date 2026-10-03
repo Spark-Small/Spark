@@ -172,7 +172,7 @@ struct ProfileFavoriteActivitiesLibraryView: View {
             }
         }
         .profileSecondaryListChrome()
-        .navigationTitle("收藏的活动")
+        .navigationTitle(ActivityBrowseCopy.favoritesLibrary)
         .navigationBarTitleDisplayMode(.inline)
         .activityZoomNavigationDestinationIfNeeded(fallback: zoomNamespace)
     }

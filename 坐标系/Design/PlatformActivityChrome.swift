@@ -12,7 +12,7 @@ struct PlatformPlaceholderFill: View {
     var body: some View {
         LinearGradient(
             colors: [
-                Color(.tertiarySystemFill),
+                PlatformSurface.tertiaryFill,
                 Color(.secondarySystemFill)
             ],
             startPoint: .topLeading,
@@ -328,18 +328,19 @@ private struct PlatformMaterialChipStyle: ButtonStyle {
     }
 }
 
-private extension View {
+extension View {
+    /// 可选标签 / chip 背景：选中走 bar 材质 + tint 描边，未选中 tertiaryFill。
     @ViewBuilder
     func platformMaterialTagChrome(isSelected: Bool) -> some View {
         if isSelected {
             self
                 .platformBarMaterialBackground(in: Capsule())
                 .overlay {
-                    Capsule().strokeBorder(Color.accentColor, lineWidth: 1)
+                    Capsule().strokeBorder(PlatformStatus.accent, lineWidth: 1)
                 }
         } else {
             self
-                .background(Color(.tertiarySystemFill), in: Capsule())
+                .background(PlatformSurface.tertiaryFill, in: Capsule())
         }
     }
 }

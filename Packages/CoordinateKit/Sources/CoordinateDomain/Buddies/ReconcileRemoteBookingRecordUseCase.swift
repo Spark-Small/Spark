@@ -34,6 +34,10 @@ public struct ReconcileRemoteBookingRecordUseCase: Sendable {
             merged.confirmDueAt = confirmDueAt
             changed = true
         }
+        if merged.companionUserID == nil, let companionUserID = remote.companionUserID {
+            merged.companionUserID = companionUserID
+            changed = true
+        }
         if merged.status == .awaitingPayment {
             if merged.acceptedAt == nil, let acceptedAt = remote.acceptedAt {
                 merged.acceptedAt = acceptedAt

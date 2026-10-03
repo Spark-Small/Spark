@@ -117,12 +117,12 @@ struct BuddyOrgReportSheet: View {
                                                 style: .continuous
                                             )
                                         )
-                                        .accessibilityLabel("证据 \(index + 1)")
+                                        .accessibilityLabel(BuddyOrgJoinCopy.evidenceA11y(index + 1))
                                 }
                             }
-                            .padding(.vertical, 4)
+                            .padding(.vertical, PlatformMetrics.chipPaddingVerticalMini)
                         }
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        .listRowInsets(PlatformFormControlListRow.insets)
                     }
                 } header: {
                     Text(BuddyOrgReportCopy.evidenceLabel)
@@ -144,7 +144,7 @@ struct BuddyOrgReportSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button(BuddyOrgJoinCopy.cancel) { dismiss() }
                 }
             }
         }

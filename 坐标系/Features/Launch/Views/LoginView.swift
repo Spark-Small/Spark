@@ -2,8 +2,6 @@
 //  LoginView.swift
 //  坐标系
 //
-//  视频背景 + 系统 Form：字号 / 行高 / 箭头缩放交给 Form 环境；验证码发送后插入。
-//
 
 import CoordinateFeatureFlags
 import SwiftUI
@@ -13,68 +11,23 @@ struct LoginView: View {
     @Bindable var session: LocalAuthSession
 
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var focusedField: Field?
 
-    @State private var phone = ""
-    @State private var code = ""
+    @State private var isLoginSheetPresented = false
+    @State private var draft = LoginPhoneCodeDraft()
+    @State private var work = LoginAuthWorkGate()
     @State private var errorMessage: String?
-    @State private var isSendingCode = false
-    @State private var isSubmitting = false
-    @State private var codeCooldownSeconds = 0
-    @State private var hasRequestedCode = false
-    @State private var phoneUsedForCode: String?
     @State private var hasAgreedToLegal = false
     @State private var showLegalAlert = false
     @State private var pendingAction: PendingAction?
     @State private var socialUnavailableMessage: String?
-    @State private var cooldownTask: Task<Void, Never>?
-    @State private var workTask: Task<Void, Never>?
-    @State private var workGeneration = 0
     @State private var sendSuccessPulse = 0
     @State private var errorPulse = 0
-    @State private var showsControls = false
 
     private enum Field { case phone, code }
-
-    private enum PendingAction {
-        case sendCode, submitPhone, appleLogin, weChatLogin
-    }
-
-    private enum BusyFlag {
-        case sendingCode, submitting
-    }
-
-    private enum Copy {
-        static let phone = "手机号"
-        static let code = "验证码"
-        static let login = "登录"
-        static let sendCode = "获取验证码"
-        static let apple = "通过 Apple 登录"
-        static let wechat = "微信登录"
-        static let needPhone = "请输入 11 位手机号"
-        static let needCode = "请输入 \(LoginChrome.codeLength) 位验证码"
-        static let needSendCode = "请先获取验证码"
-        static let wechatUnavailable = "微信登录即将开放，请使用 Apple 或手机号登录。"
-        static let codeFooter = "验证码将发送到你的手机。"
-        static let codeSent = "验证码已发送"
-        static let badCredentials = "手机号或验证码不正确"
-        static let needRemoteSMS = "请使用短信验证码登录。"
-        static let socialAlertTitle = "暂不可用"
-        static let socialAlertDismiss = "好的"
-    }
+    private enum PendingAction { case sendCode, submitPhone, appleLogin, weChatLogin }
 
     private var usesRemoteSMS: Bool { FeatureFlags.useRemoteAuth }
-    private var phoneNumber: String { LoginChrome.sanitizedPhone(phone) }
-    private var isBusy: Bool { isSendingCode || isSubmitting }
-    private var canSendCode: Bool {
-        LoginChrome.isValidPhone(phone) && !isBusy && codeCooldownSeconds == 0
-    }
-
-    private var sendCodeTitle: String {
-        codeCooldownSeconds > 0 ? "\(codeCooldownSeconds)s 后可重发" : Copy.sendCode
-    }
-
     private var socialUnavailablePresented: Binding<Bool> {
         Binding(
             get: { socialUnavailableMessage != nil },
@@ -83,173 +36,179 @@ struct LoginView: View {
     }
 
     var body: some View {
-        ZStack {
-            LoginBackgroundChrome(isActive: scenePhase == .active)
-
-            VStack(spacing: 0) {
-                Spacer(minLength: 0)
-
-                Form {
-                    credentialsSection
-                    actionsSection
-                    socialSection
+        LoginBackgroundChrome(isActive: scenePhase == .active)
+            .safeAreaInset(edge: .bottom) {
+                if !isLoginSheetPresented {
+                    LoginPrimaryButton(title: LoginAuthCopy.login) {
+                        isLoginSheetPresented = true
+                    }
+                    .padding(.horizontal, PlatformMetrics.contentInset)
+                    .padding(.bottom, PlatformMetrics.sectionSpacing)
                 }
-                .formStyle(.grouped)
-                .scrollContentBackground(.hidden)
-                .scrollDismissesKeyboard(.interactively)
-                .scrollBounceBehavior(.basedOnSize)
-                .listSectionSpacing(PlatformMetrics.sectionSpacing)
-                .fixedSize(horizontal: false, vertical: true)
-                .opacity(showsControls ? 1 : 0)
-                .offset(y: showsControls ? 0 : PlatformMetrics.sectionSpacing)
-                .allowsHitTesting(showsControls)
-                .accessibilityHidden(!showsControls)
             }
-        }
-        .legalConsentAlert(
-            isPresented: $showLegalAlert,
-            onAgree: {
-                hasAgreedToLegal = true
-                guard let action = pendingAction else { return }
-                pendingAction = nil
-                perform(action)
-            },
-            onReject: { pendingAction = nil }
-        )
-        .alert(Copy.socialAlertTitle, isPresented: socialUnavailablePresented) {
-            Button(Copy.socialAlertDismiss, role: .cancel) {
-                socialUnavailableMessage = nil
+            .sheet(isPresented: $isLoginSheetPresented) {
+                NavigationStack {
+                    ScrollView {
+                        loginForm
+                    }
+                    .scrollDismissesKeyboard(.interactively)
+                    .scrollBounceBehavior(.basedOnSize)
+                    .navigationTitle(LoginAuthCopy.login)
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(LoginAuthCopy.cancel) {
+                                focusedField = nil
+                                isLoginSheetPresented = false
+                            }
+                        }
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button(LoginAuthCopy.dismissKeyboard) { focusedField = nil }
+                                .fontWeight(.semibold)
+                        }
+                    }
+                }
+                .loginSheetChrome()
+                .legalConsentAlert(
+                    isPresented: $showLegalAlert,
+                    onAgree: {
+                        hasAgreedToLegal = true
+                        if let method = analyticsMethod(for: pendingAction) {
+                            AuthAnalytics.legalAccepted(method: method, source: .login)
+                        }
+                        guard let action = pendingAction else { return }
+                        pendingAction = nil
+                        perform(action)
+                    },
+                    onReject: {
+                        if let method = analyticsMethod(for: pendingAction) {
+                            AuthAnalytics.legalRejected(method: method, source: .login)
+                        }
+                        pendingAction = nil
+                    }
+                )
+                .alert(LoginAuthCopy.socialAlertTitle, isPresented: socialUnavailablePresented) {
+                    Button(LoginAuthCopy.socialAlertDismiss, role: .cancel) {
+                        socialUnavailableMessage = nil
+                    }
+                } message: {
+                    Text(socialUnavailableMessage ?? "")
+                }
+                .sensoryFeedback(.success, trigger: sendSuccessPulse)
+                .sensoryFeedback(.error, trigger: errorPulse)
+                .onAppear { AuthAnalytics.sheetPresented(source: .login) }
+                .onDisappear { focusedField = nil }
             }
-        } message: {
-            Text(socialUnavailableMessage ?? "")
-        }
-        .sensoryFeedback(.success, trigger: sendSuccessPulse)
-        .sensoryFeedback(.error, trigger: errorPulse)
-        .onChange(of: phone) { _, value in applySanitizedPhone(value) }
-        .onChange(of: code) { _, value in applySanitizedCode(value) }
-        .onAppear(perform: revealControlsIfNeeded)
-        .onDisappear {
-            cooldownTask?.cancel()
-            workTask?.cancel()
-        }
+            .onChange(of: draft.phone) { _, _ in
+                draft.applySanitizedPhone()
+                errorMessage = nil
+            }
+            .onChange(of: draft.code) { _, _ in
+                draft.applySanitizedCode()
+                errorMessage = nil
+            }
+            .onDisappear {
+                draft.cancel()
+                work.cancel()
+            }
     }
 
-    // MARK: - Form sections
+    private var loginForm: some View {
+        VStack(alignment: .leading, spacing: PlatformMetrics.sectionHeaderSpacing) {
+            credentialsCard
+            statusFooter
 
-    private var credentialsSection: some View {
-        Section {
-            HStack {
-                TextField(Copy.phone, text: $phone)
-                    .keyboardType(.numberPad)
-                    .textContentType(.telephoneNumber)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .focused($focusedField, equals: .phone)
-                    .disabled(isSubmitting)
+            LoginPrimaryButton(
+                title: LoginAuthCopy.login,
+                isLoading: work.isSubmitting,
+                disabled: work.isBusy && !work.isSubmitting,
+                action: handleLoginTap
+            )
 
-                LoginSendCodeButton(
-                    isLoading: isSendingCode,
-                    isEnabled: canSendCode && !isSubmitting,
-                    accessibilityTitle: sendCodeTitle,
-                    action: { requireLegalConsent(.sendCode) }
-                )
-            }
-            .loginFormMaterialRow()
+            LoginSocialCircleRow(
+                isBusy: work.isBusy,
+                appleTitle: LoginAuthCopy.apple,
+                appleHint: LoginAuthCopy.appleHint,
+                wechatTitle: LoginAuthCopy.wechat,
+                wechatHint: LoginAuthCopy.wechatHint,
+                onApple: { requireLegalConsent(.appleLogin) },
+                onWeChat: { requireLegalConsent(.weChatLogin) }
+            )
+        }
+        .padding(.horizontal, PlatformMetrics.contentInset)
+        .padding(.top, PlatformMetrics.sectionHeaderSpacing)
+        .padding(.bottom, PlatformMetrics.sectionSpacing)
+        .frame(maxWidth: .infinity, alignment: .top)
+    }
 
-            if hasRequestedCode {
-                TextField(Copy.code, text: $code)
-                    .keyboardType(.numberPad)
+    private var credentialsCard: some View {
+        LoginMaterialCard {
+            phoneRow
+
+            if draft.hasRequestedCode {
+                Divider()
+                TextField(LoginAuthCopy.code, text: $draft.code)
+                    .loginCredentialFieldStyle()
                     .textContentType(.oneTimeCode)
                     .focused($focusedField, equals: .code)
-                    .disabled(isSubmitting)
-                    .loginFormMaterialRow()
+                    .disabled(work.isBusy)
+                    .loginFieldRowPadding()
             }
+
+            Divider()
 
             LegalConsentCheckbox(
                 isChecked: $hasAgreedToLegal,
                 showAlert: $showLegalAlert,
                 centersContent: false
             )
-            .disabled(isBusy)
-            .loginFormMaterialRow()
-        } footer: {
-            credentialsFooter
+            .disabled(work.isBusy)
+            .loginFieldRowPadding()
         }
-        .animation(.default, value: hasRequestedCode)
+        .animation(.default, value: draft.hasRequestedCode)
     }
 
-    private var actionsSection: some View {
-        Section {
-            LoginPrimaryButton(
-                title: Copy.login,
-                isLoading: isSubmitting,
-                disabled: isBusy && !isSubmitting,
-                action: handleLoginTap
+    private var phoneRow: some View {
+        HStack(spacing: PlatformMetrics.inlineControlSpacing) {
+            TextField(LoginAuthCopy.phone, text: $draft.phone)
+                .loginCredentialFieldStyle()
+                .textContentType(.telephoneNumber)
+                .focused($focusedField, equals: .phone)
+                .disabled(work.isBusy)
+
+            LoginSendCodeButton(
+                title: draft.sendCodeTitle,
+                isLoading: work.isSendingCode,
+                isEnabled: draft.canSendCode(isBusy: work.isBusy),
+                action: { requireLegalConsent(.sendCode) }
             )
-            .loginClearListRow()
         }
-    }
-
-    private var socialSection: some View {
-        Section {
-            HStack(spacing: PlatformMetrics.inlineControlSpacing) {
-                Spacer(minLength: 0)
-                LoginCircleButton(
-                    systemImage: "apple.logo",
-                    title: Copy.apple,
-                    hint: "使用 Apple 账号登录",
-                    disabled: isBusy,
-                    action: { requireLegalConsent(.appleLogin) }
-                )
-                LoginCircleButton(
-                    systemImage: "message.fill",
-                    title: Copy.wechat,
-                    hint: "使用微信账号登录",
-                    tint: LoginChrome.wechatGreen,
-                    disabled: isBusy,
-                    action: { requireLegalConsent(.weChatLogin) }
-                )
-                Spacer(minLength: 0)
-            }
-            .loginClearListRow()
-        }
+        .loginFieldRowPadding()
     }
 
     @ViewBuilder
-    private var credentialsFooter: some View {
+    private var statusFooter: some View {
         if let errorMessage {
             Text(errorMessage)
+                .font(.footnote)
                 .foregroundStyle(PlatformStatus.danger)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityAddTraits(.updatesFrequently)
-        } else if !hasRequestedCode {
-            Text(Copy.codeFooter)
-        }
-    }
-
-    private func revealControlsIfNeeded() {
-        guard !showsControls else { return }
-        if reduceMotion {
-            showsControls = true
-        } else {
-            PlatformMotion.withAnimation(.easeOut(duration: 0.45)) {
-                showsControls = true
-            }
+        } else if draft.hasRequestedCode {
+            Text(LoginAuthCopy.codeSent)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityAddTraits(.updatesFrequently)
         }
     }
 
     // MARK: - Actions
 
     private func handleLoginTap() {
-        guard LoginChrome.isValidPhone(phone) else {
-            presentError(Copy.needPhone, focus: .phone)
-            return
-        }
-        guard hasRequestedCode else {
-            presentError(Copy.needSendCode, focus: .phone)
-            return
-        }
-        guard LoginChrome.isValidCode(code) else {
-            presentError(Copy.needCode, focus: .code)
+        if let message = draft.validateForSubmit() {
+            presentError(message, focus: message == LoginAuthCopy.needCode ? .code : .phone)
             return
         }
         focusedField = nil
@@ -257,12 +216,28 @@ struct LoginView: View {
     }
 
     private func requireLegalConsent(_ action: PendingAction) {
+        if let method = analyticsMethod(for: action) {
+            AuthAnalytics.methodTapped(method: method, source: .login)
+        }
+        focusedField = nil
         guard hasAgreedToLegal else {
+            if let method = analyticsMethod(for: action) {
+                AuthAnalytics.legalPrompt(method: method, source: .login)
+            }
             pendingAction = action
             showLegalAlert = true
             return
         }
         perform(action)
+    }
+
+    private func analyticsMethod(for action: PendingAction?) -> AuthAnalytics.Method? {
+        switch action {
+        case .appleLogin: .apple
+        case .weChatLogin: .wechat
+        case .sendCode, .submitPhone: .phone
+        case .none: nil
+        }
     }
 
     private func perform(_ action: PendingAction) {
@@ -275,137 +250,79 @@ struct LoginView: View {
     }
 
     private func sendCode() {
-        guard LoginChrome.isValidPhone(phone) else {
-            presentError(Copy.needPhone, focus: .phone)
+        guard AuthCredentialFormat.isValidPhone(draft.phone) else {
+            presentError(LoginAuthCopy.needPhone, focus: .phone)
             return
         }
 
+        let sentTo = draft.sanitizedPhone
         if usesRemoteSMS {
-            let generation = beginWork()
-            isSendingCode = true
             errorMessage = nil
-            workTask = Task { @MainActor in
-                defer { finishWork(generation, clearing: .sendingCode) }
-                if let err = await session.sendRemoteSMSCode(phone: phoneNumber) {
+            work.run(.sendingCode) { generation in
+                if let err = await session.sendRemoteSMSCode(phone: sentTo) {
                     presentError(err, focus: .phone)
                     return
                 }
-                guard !Task.isCancelled, generation == workGeneration else { return }
-                revealCodeFieldAfterSend()
+                guard work.isCurrent(generation) else { return }
+                revealCodeFieldAfterSend(to: sentTo)
             }
             return
         }
 
         #if DEBUG
         errorMessage = nil
-        revealCodeFieldAfterSend()
+        revealCodeFieldAfterSend(to: sentTo)
         #else
-        presentError(Copy.needRemoteSMS, focus: .phone)
+        presentError(LoginAuthCopy.needRemoteSMS, focus: .phone)
         #endif
     }
 
-    private func revealCodeFieldAfterSend() {
-        hasRequestedCode = true
-        phoneUsedForCode = phoneNumber
-        startCooldown()
+    private func revealCodeFieldAfterSend(to sentTo: String) {
+        draft.markCodeSent(to: sentTo)
         focusedField = .code
         sendSuccessPulse += 1
-        announce(Copy.codeSent)
-    }
-
-    private func startCooldown() {
-        cooldownTask?.cancel()
-        codeCooldownSeconds = LoginChrome.smsCooldownSeconds
-        cooldownTask = Task { @MainActor in
-            while codeCooldownSeconds > 0, !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
-                guard !Task.isCancelled else { return }
-                codeCooldownSeconds -= 1
-            }
-        }
+        announce(LoginAuthCopy.codeSent)
     }
 
     private func submitPhone() {
         errorMessage = nil
         if usesRemoteSMS {
-            let generation = beginWork()
-            isSubmitting = true
-            workTask = Task { @MainActor in
-                defer { finishWork(generation, clearing: .submitting) }
-                if let err = await session.signInRemote(phone: phoneNumber, code: code) {
+            work.run(.submitting) { _ in
+                if let err = await session.signInRemote(
+                    phone: draft.sanitizedPhone,
+                    code: draft.code
+                ) {
                     presentError(err, focus: .code)
                 }
             }
             return
         }
 
-        isSubmitting = true
-        defer { isSubmitting = false }
         #if DEBUG
-        if !session.signIn(phone: phoneNumber, code: code) {
-            presentError(Copy.badCredentials, focus: .code)
+        if !session.signIn(phone: draft.sanitizedPhone, code: draft.code) {
+            presentError(LoginAuthCopy.badCredentials, focus: .code)
         }
         #else
-        presentError(Copy.needRemoteSMS, focus: .code)
+        presentError(LoginAuthCopy.needRemoteSMS, focus: .code)
         #endif
     }
 
     private func signInWithApple() {
-        let generation = beginWork()
-        workTask = Task { @MainActor in
-            if let err = await session.signInWithApple() {
-                guard generation == workGeneration else { return }
+        work.run(.social) { generation in
+            if let err = await session.signInWithApple(source: .login) {
+                guard work.isCurrent(generation) else { return }
                 socialUnavailableMessage = err
             }
         }
     }
 
     private func signInWithWeChat() {
-        #if DEBUG
-        session.signInDemoWeChat()
-        #else
-        socialUnavailableMessage = Copy.wechatUnavailable
-        #endif
-    }
-
-    private func beginWork() -> Int {
-        workTask?.cancel()
-        workGeneration += 1
-        isSendingCode = false
-        isSubmitting = false
-        return workGeneration
-    }
-
-    private func finishWork(_ generation: Int, clearing flag: BusyFlag) {
-        guard generation == workGeneration else { return }
-        switch flag {
-        case .sendingCode: isSendingCode = false
-        case .submitting: isSubmitting = false
+        work.run(.social) { generation in
+            if let err = await session.signInWithWeChat(source: .login) {
+                guard work.isCurrent(generation) else { return }
+                socialUnavailableMessage = err
+            }
         }
-    }
-
-    private func applySanitizedPhone(_ value: String) {
-        let sanitized = LoginChrome.sanitizedPhone(value)
-        if sanitized != value { phone = sanitized }
-        clearErrorIfMatches(Copy.needPhone)
-        clearErrorIfMatches(Copy.needSendCode)
-        guard let sentTo = phoneUsedForCode, sanitized != sentTo else { return }
-        resetCodeRequest()
-    }
-
-    private func applySanitizedCode(_ value: String) {
-        let sanitized = LoginChrome.sanitizedCode(value)
-        if sanitized != value { code = sanitized }
-        clearErrorIfMatches(Copy.needCode)
-    }
-
-    private func resetCodeRequest() {
-        cooldownTask?.cancel()
-        codeCooldownSeconds = 0
-        code = ""
-        phoneUsedForCode = nil
-        hasRequestedCode = false
-        clearErrorIfMatches(Copy.needCode)
     }
 
     private func presentError(_ message: String, focus: Field) {
@@ -413,10 +330,6 @@ struct LoginView: View {
         focusedField = focus
         errorPulse += 1
         announce(message)
-    }
-
-    private func clearErrorIfMatches(_ message: String) {
-        if errorMessage == message { errorMessage = nil }
     }
 
     private func announce(_ message: String) {

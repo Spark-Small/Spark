@@ -152,14 +152,14 @@ struct BuddyDetailProfileHeader: View {
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(width: 28, height: 28)
-                    .background(Color.purple.opacity(0.92), in: Circle())
+                    .background(PlatformAction.brandAccent.opacity(0.92), in: Circle())
                     .overlay {
                         Circle().strokeBorder(Color(.systemBackground), lineWidth: 2)
                     }
                     .frame(width: 44, height: 44)
                     .contentShape(Circle())
                     .offset(x: 4, y: 4)
-                    .accessibilityLabel("语音陪聊")
+                    .accessibilityLabel(BuddyDetailCopy.voicePlayLabel)
             } else if config.isOnline {
                 Circle()
                     .fill(PlatformStatus.success)
@@ -270,10 +270,10 @@ struct BuddyDetailProfileHeader: View {
         Button {
             onToggleFollow?()
         } label: {
-            Text(isFollowing ? "已关注" : "关注")
+            Text(isFollowing ? BuddyDetailCopy.following : BuddyDetailCopy.follow)
                 .font(.caption.weight(.semibold))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 5)
+                .padding(.horizontal, PlatformMetrics.chipPaddingHorizontalRegular)
+                .padding(.vertical, PlatformMetrics.chipPaddingVerticalMini)
         }
         .buttonStyle(.borderedProminent)
         .tint(isFollowing ? Color(.tertiarySystemFill) : .accentColor)
@@ -285,18 +285,18 @@ struct BuddyDetailProfileHeader: View {
 extension BuddyDetailProfileHeaderFactory {
     static func traitStyle(for tag: String, index: Int) -> (icon: String, tint: Color) {
         let presets: [(String, Color)] = [
-            ("sparkles", .purple),
-            ("leaf.fill", .pink),
-            ("heart.fill", .orange),
-            ("star.fill", .yellow),
-            ("figure.run", .mint),
-            ("camera.fill", .teal)
+            ("sparkles", PlatformAction.brandAccent),
+            ("leaf.fill", PlatformStatus.success),
+            ("heart.fill", PlatformStatus.warning),
+            ("star.fill", PlatformStatus.accent),
+            ("figure.run", PlatformStatus.success),
+            ("camera.fill", Color.accentColor)
         ]
         if tag.localizedCaseInsensitiveContains("语音") || tag.localizedCaseInsensitiveContains("声音") {
-            return ("waveform", .purple)
+            return ("waveform", PlatformAction.brandAccent)
         }
         if tag.localizedCaseInsensitiveContains("徒步") || tag.localizedCaseInsensitiveContains("运动") {
-            return ("figure.hiking", .mint)
+            return ("figure.hiking", PlatformStatus.success)
         }
         let preset = presets[index % presets.count]
         return (BuddyHobbyOption.systemImage(for: tag), preset.1)

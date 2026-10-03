@@ -104,10 +104,39 @@ enum PlatformMetrics {
     static var contentInset: CGFloat { systemListLeading }
     /// 我的行程主列可读宽（iPad / 横屏居中，对齐 HIG readable width）
     static var journeyContentMaxWidth: CGFloat { 560 }
-    /// 封面角标边距 ≈ 列表行距
-    static var captionBadgeInset: CGFloat { g(1.5) }
+    /// 封面角标边距（相对卡片边）：系统列表行垂直 margin
+    static var captionBadgeInset: CGFloat { max(g(1), systemListVertical) }
+    /// 媒体信息栏 / 卡内叠字相对卡片边缘的 inset（与页边同值，语义区分「卡内」）。
+    static var mediaChromeInset: CGFloat { contentInset }
+    /// 卡内叠层文案 ↔ 卡片边缘（非页边）：列表垂直 margin 与半页边取大，随 Dynamic Type
+    static var heroStackedTextInset: CGFloat {
+        let halfLeading = (contentInset * 0.5).rounded(.toNearestOrAwayFromZero)
+        return max(systemListVertical, halfLeading, g(1))
+    }
+    /// 纪念票分享导出宽：`contentInset × 24`（紧凑屏内容宽量级，非裸 390）
+    static var mementoShareExportWidth: CGFloat {
+        max(320, (contentInset * 24).rounded(.toNearestOrAwayFromZero))
+    }
+    /// 纪念票分享圆角 = 卡片 continuous 圆角
+    static var mementoShareCornerRadius: CGFloat { radiusCard }
+    /// 票面 / 分享图四叶草标边长（title3 字号量级）
+    static var cloverBrandMarkSide: CGFloat {
+        max(
+            g(2.5),
+            UIFont.preferredFont(forTextStyle: .title3).pointSize.rounded(.toNearestOrAwayFromZero)
+        )
+    }
     /// 发现页滚动顶边（问候头）
     static var pageTopInset: CGFloat { g(0.5) }
+    /// 头像叠压重叠比例（相对头像边长）
+    static var avatarStackOverlapFactor: CGFloat { 0.28 }
+    static func avatarStackSpacing(avatarSide: CGFloat) -> CGFloat {
+        -(avatarSide * avatarStackOverlapFactor)
+    }
+    /// 参加 / 发布成功插图宽高比
+    static var successIllustrationAspectRatio: CGFloat { 7.0 / 3.0 }
+    /// 成功插图相对 `journeyContentMaxWidth` 的最大宽度系数
+    static var successIllustrationMaxWidthFactor: CGFloat { 0.5 }
 
     // MARK: - Rhythm（分区间距取系统 List 量，不用自定义 g 倍数）
 
@@ -126,7 +155,6 @@ enum PlatformMetrics {
     static var captionBadgePaddingVertical: CGFloat { max(2, (caption2 * 0.25).rounded()) }
     /// 标题 ↔ 副标题 = 系统 subtitle 主副文间距
     static var sectionSubtitleSpacing: CGFloat { systemTextToSecondaryPadding }
-    static var heroStackedTextInset: CGFloat { g(0.5) }
     static var heroActionMinWidth: CGFloat { g(9.5) }
     static var rankBadgeLeading: CGFloat { g(0.75) }
     static var rankBadgeTop: CGFloat { g(0.5) }
@@ -150,7 +178,6 @@ enum PlatformMetrics {
     static func detailRelatedThumb(for dynamicTypeSize: DynamicTypeSize) -> CGFloat {
         dynamicTypeSize.detailRelatedThumbSide
     }
-    static var composeCoverHeight: CGFloat { g(20) }
     static var hairlineSpacing: CGFloat { max(2, g(0.25)) }
     static var formRowVerticalPadding: CGFloat {
         max(2, (systemListVertical * 0.35).rounded(.toNearestOrAwayFromZero))
@@ -179,13 +206,7 @@ enum PlatformMetrics {
     /// 回复预览左侧强调条宽度
     static var messageReplyAccentWidth: CGFloat { hairlineSpacing }
 
-    /// 信息输入栏：间距取系统 List 量；高度 / 内边距由 `PlatformChromeMeasurements` 在 View 层实测。
-    static var composerToolSpacing: CGFloat { systemImageToTextPadding }
-    static var composerFieldHorizontalPadding: CGFloat { systemImageToTextPadding }
-    static var composerBarVerticalPadding: CGFloat { systemTextToSecondaryPadding }
-    static var composerInlineSpacing: CGFloat { systemTextToSecondaryPadding }
-
-    // MARK: - Radii（continuous，由 grid 推导）
+    // MARK: - Radii（continuous；`g()` 随 body 字号，对齐 Dynamic Type）
 
     static var radiusMedia: CGFloat { g(1.5) }
     static var radiusCard: CGFloat { g(2.5) }
@@ -197,12 +218,18 @@ enum PlatformMetrics {
     static var profileLibraryCardAspectRatio: CGFloat { 2 / 3 }
     /// 榜单 / 圈子 / 语音厅竖海报（宽:高）；略扁于经典 2:3，降低货架轨高
     static var posterCardAspectRatio: CGFloat { 3 / 4 }
-    static var featuredCardAspectRatio: CGFloat { 3 / 4 }
-    static var editorialCardAspectRatio: CGFloat { 4 / 5 }
+    /// 精选 Hero / 详情头图 / 广场 Feed·详情媒体（宽:高）
+    static var featuredCardAspectRatio: CGFloat { 4 / 5 }
+    /// 广场帖媒体（宽:高）= 精选 Hero 同族 4:5
+    static var communityMediaAspectRatio: CGFloat { featuredCardAspectRatio }
+    /// 活动精选轨 / 焦点大卡（宽:高）；与跟进、热场同为 16:9，避免全宽竖卡过高
+    static var editorialCardAspectRatio: CGFloat { 16 / 9 }
+    /// 搭子精选 Hero（宽:高）= 活动精选同族 4:5；全宽单卡见 `BuddyFeaturedCard`
+    static var personFeaturedCardAspectRatio: CGFloat { featuredCardAspectRatio }
     /// 搭子人像竖卡（宽:高）— 详情头图
     static var personCardAspectRatio: CGFloat { 9 / 16 }
-    /// 搭子发现网格竖卡（宽:高）；一屏约 4～6 人
-    static var personGridCardAspectRatio: CGFloat { 3 / 4 }
+    /// 搭子发现网格 / 精选竖卡（宽:高）= 系统海报族 `posterCardAspectRatio`
+    static var personGridCardAspectRatio: CGFloat { posterCardAspectRatio }
     /// 同好 / 陪玩发现网格列数
     static var personGridColumnCount: Int { 2 }
     static var radiusEditorial: CGFloat { g(3) }

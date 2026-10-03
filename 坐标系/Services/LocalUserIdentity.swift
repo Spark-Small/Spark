@@ -2,11 +2,10 @@
 //  LocalUserIdentity.swift
 //  坐标系
 //
-//  本机稳定用户 UUID：游客与登录用户共用同一本地身份，登录/登出不更换。
+//  本机稳定用户 UUID：游客与登录用户共用；远程登录成功后采用服务端 `user.id`。
 //
 
 import Foundation
-import CoordinateModels
 
 enum LocalUserIdentity {
     private static let key = "identity.localUserID"
@@ -20,11 +19,14 @@ enum LocalUserIdentity {
         return createAndStore()
     }
 
-    /// 确保已分配 UUID（启动时调用）。
     @discardableResult
     static func ensure() -> UUID { current }
 
-    /// 彻底注销本机账号后重新分配（登出、访客切换登录不调用）。
+    /// 远程登录成功后对齐服务端用户 ID。
+    static func adopt(_ id: UUID) {
+        UserDefaults.standard.set(id.uuidString, forKey: key)
+    }
+
     @discardableResult
     static func regenerate() -> UUID {
         UserDefaults.standard.removeObject(forKey: key)

@@ -83,8 +83,8 @@ extension BuddiesModel {
             return
         }
         clearPendingConfirmLifecycle(for: id)
-        if pendingBookingAcknowledgementID == id {
-            pendingBookingAcknowledgementID = nil
+        if presentation.pendingBookingAcknowledgementID == id {
+            presentation.pendingBookingAcknowledgementID = nil
         }
         recordBookingTrustEvent(.expireConfirmation, bookingID: id, note: "确认超时")
         NotificationService.scheduleBookingConfirmationExpiredNotification(
@@ -134,7 +134,7 @@ extension BuddiesModel {
 
     func notifyBookingAcceptedIfNeeded(_ record: BuddyBookingRecord) {
         guard record.status == .awaitingPayment else { return }
-        if pendingAwaitingPaymentReviewID == record.id { return }
+        if presentation.pendingAwaitingPaymentReviewID == record.id { return }
         NotificationService.scheduleBookingAcceptedNotification(
             bookingID: record.id,
             companion: record.companionNickname
@@ -149,10 +149,10 @@ extension BuddiesModel {
 
     func completeCompanionAcceptance(for id: BuddyBookingRecord.ID) {
         clearPendingConfirmLifecycle(for: id)
-        if pendingBookingAcknowledgementID == id {
-            pendingBookingAcknowledgementID = nil
+        if presentation.pendingBookingAcknowledgementID == id {
+            presentation.pendingBookingAcknowledgementID = nil
         }
-        pendingAwaitingPaymentReviewID = id
+        presentation.pendingAwaitingPaymentReviewID = id
         schedulePaymentExpiry(for: id)
         recordBookingTrustEvent(.accept, bookingID: id)
         if let record = bookingRecords.first(where: { $0.id == id }) {
@@ -165,8 +165,8 @@ extension BuddiesModel {
 
     func completeCompanionDecline(for id: BuddyBookingRecord.ID) {
         clearPendingConfirmLifecycle(for: id)
-        if pendingBookingAcknowledgementID == id {
-            pendingBookingAcknowledgementID = nil
+        if presentation.pendingBookingAcknowledgementID == id {
+            presentation.pendingBookingAcknowledgementID = nil
         }
         recordBookingTrustEvent(.decline, bookingID: id)
         persist()
@@ -222,14 +222,14 @@ extension BuddiesModel {
     }
 
     func clearBookingPresentationState(for id: BuddyBookingRecord.ID) {
-        if pendingPaymentBookingID == id {
-            pendingPaymentBookingID = nil
+        if presentation.pendingPaymentBookingID == id {
+            presentation.pendingPaymentBookingID = nil
         }
-        if pendingBookingAcknowledgementID == id {
-            pendingBookingAcknowledgementID = nil
+        if presentation.pendingBookingAcknowledgementID == id {
+            presentation.pendingBookingAcknowledgementID = nil
         }
-        if pendingAwaitingPaymentReviewID == id {
-            pendingAwaitingPaymentReviewID = nil
+        if presentation.pendingAwaitingPaymentReviewID == id {
+            presentation.pendingAwaitingPaymentReviewID = nil
         }
     }
 

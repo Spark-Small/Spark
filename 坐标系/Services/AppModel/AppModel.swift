@@ -13,9 +13,9 @@ import Observation
 @Observable
 final class AppModel {
     var selectedTab: AppTab = .activities
-    /// 活动 Tab 根页是否应展示 `tabViewBottomAccessory`（由 `ActivitiesView` 同步）。
-    var activitiesTabNowPlayingBarVisible = false
-    /// 底栏附件发起的地图导航（`ActivitiesView` 呈现 Sheet 后清空）。
+    /// 活动发现浏览聚焦令牌（「我的」发现引导等共用；`ActivitiesView` 消费后滚到货架）。
+    var activitiesDiscoverBrowseFocusToken = 0
+    /// 地图导航请求（`ActivitiesView` 呈现 Sheet 后清空）。
     var mapNavigationActivity: Activity?
     let router = AppRouter()
     let welcomeGuide = WelcomeGuideStore()
@@ -25,10 +25,15 @@ final class AppModel {
     var buddies: BuddiesModel
     var user: AppUser
     var hasCompletedOnboarding: Bool
-    /// 欢迎引导后资料 bootstrap 完成（持久化键名 `hasCompletedOnboarding` 保留兼容）。
-    var hasCompletedWelcomeBootstrap: Bool {
+    /// 兴趣选择页已完成（持久化键仍为 `hasCompletedOnboarding`）。
+    var hasCompletedInterestSelection: Bool {
         get { hasCompletedOnboarding }
         set { hasCompletedOnboarding = newValue }
+    }
+    /// 兼容旧名；请改用 `hasCompletedInterestSelection`。
+    var hasCompletedWelcomeBootstrap: Bool {
+        get { hasCompletedInterestSelection }
+        set { hasCompletedInterestSelection = newValue }
     }
     var auth: LocalAuthSession
     var blockedUserNames: Set<String>
@@ -72,14 +77,26 @@ final class AppModel {
         set { router.pendingBuddiesRoute = newValue }
     }
 
+    var pendingCommunityPostID: CommunityPost.ID? {
+        get { router.pendingCommunityPostID }
+        set { router.pendingCommunityPostID = newValue }
+    }
+
+    var pendingOpenEmbeddedCommunityFeed: Bool {
+        get { router.pendingOpenEmbeddedCommunityFeed }
+        set { router.pendingOpenEmbeddedCommunityFeed = newValue }
+    }
+
     /// 认证照基准变更后，或门禁拦截后，提示完成摄像头人脸核验。
     var pendingIdentityVerification = false
     /// 门禁拦截：缺少认证照时打开资料编辑。
     var pendingIdentityEditProfile = false
+    /// 最近一次门禁打断的语境（Sheet 文案用）。
+    var pendingIdentityGateSource: IdentityGateSource = .generic
 
     /// 身份门禁：未满足则置 pending 并返回 false（由根视图呈现 Sheet）。
     @discardableResult
-    func requireIdentityAccess() -> Bool {
+    func requireIdentityAccess(source: IdentityGateSource = .generic) -> Bool {
         switch IdentityAccessGate.requirement(
             user: user,
             auth: auth,
@@ -88,9 +105,11 @@ final class AppModel {
         case .satisfied:
             return true
         case .photosMissing:
+            pendingIdentityGateSource = source
             pendingIdentityEditProfile = true
             return false
         case .verificationMissing:
+            pendingIdentityGateSource = source
             pendingIdentityVerification = true
             return false
         }
@@ -109,6 +128,7 @@ final class AppModel {
     let productLifecycleStore: ProductLifecycleStore
     let membershipStore: MembershipStore
     let notificationPreferencesStore: NotificationPreferencesStore
+    let inAppNotificationStore: InAppNotificationStore
     let privacyPreferencesStore: PrivacyPreferencesStore
     let youthModeStore: YouthModeStore
     let legalConsentStore: LegalConsentStore
@@ -135,6 +155,7 @@ final class AppModel {
         productLifecycleStore = dependencies.productLifecycleStore
         membershipStore = dependencies.membershipStore
         notificationPreferencesStore = dependencies.notificationPreferencesStore
+        inAppNotificationStore = dependencies.inAppNotificationStore
         privacyPreferencesStore = dependencies.privacyPreferencesStore
         youthModeStore = dependencies.youthModeStore
         legalConsentStore = dependencies.legalConsentStore
@@ -212,6 +233,8 @@ final class AppModel {
         }
         await activities.reloadFromRepository()
         await community.reloadFromRepository()
+        await messages.reloadFromRepository()
+        await buddies.reloadFromRepository()
         refreshInterestContext(user.interests)
         syncOrchestrator.handle(.recommendationRefreshRequested)
         syncOrchestrator.handle(.statsRefreshRequested)

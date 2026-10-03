@@ -2,268 +2,395 @@
 //  ActivityComposeSheet.swift
 //  坐标系
 //
+//  发起 / 编辑活动：单页系统 Form（封面可选 · 必要成局字段 · 取消/下滑统一落盘）。
+//
 
 import PhotosUI
 import SwiftUI
-import UIKit
 import CoordinateModels
 
 struct ActivityComposeSheet: View {
     var editingActivity: Activity? = nil
-    var onPublish: (
-        _ title: String,
-        _ category: ActivityCategory,
-        _ location: String,
-        _ date: Date,
-        _ capacity: Int,
-        _ fee: String,
-        _ summary: String,
-        _ tags: [String],
-        _ localCoverName: String?,
-        _ latitude: Double?,
-        _ longitude: Double?
-    ) -> Void
-    var onUpdate: ((
-        _ id: Activity.ID,
-        _ title: String,
-        _ category: ActivityCategory,
-        _ location: String,
-        _ date: Date,
-        _ capacity: Int,
-        _ fee: String,
-        _ summary: String,
-        _ tags: [String],
-        _ localCoverName: String?,
-        _ latitude: Double?,
-        _ longitude: Double?
-    ) -> Void)? = nil
+    var onPublish: (ActivityComposePayload) -> Activity.ID?
+    var onUpdate: ((Activity.ID, ActivityComposePayload) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppModel.self) private var app
-    @State private var title = ""
-    @State private var category: ActivityCategory = .outdoorSports
-    @State private var location = ""
-    @State private var date = Date().addingTimeInterval(3600 * 6)
-    @State private var capacity = 8
-    @State private var fee = "免费"
-    @State private var summary = ""
-    @State private var tagText = ""
-    @State private var pickerItem: PhotosPickerItem?
-    @State private var coverPreview: UIImage?
-    @State private var localCoverName: String?
-    /// 进入编辑时的封面；取消时用于回收本会话新写入的文件
-    @State private var baselineCoverName: String?
-    @State private var didCommitSave = false
-    @State private var isPreparingCover = false
-    @State private var didPrefill = false
-    @State private var latitude: Double?
-    @State private var longitude: Double?
+    @State private var draft = ActivityComposeDraft()
     @State private var showMapPicker = false
-    @State private var moderationAlert: String?
+    @State private var showPreview = false
+    @State private var didCommitSave = false
+    @State private var showDiscardEditsConfirm = false
+    @FocusState private var focusedFeeField: FeeField?
 
-    private var isEditing: Bool { editingActivity != nil }
-
-    private var publishCategories: [ActivityCategory] {
-        ActivityCategory.allCases.filter { !$0.isBrowseAggregate }
-    }
-
-    private var canPublish: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !isPreparingCover
+    private enum FeeField: Hashable {
+        case amount
+        case aaEstimate
     }
 
     var body: some View {
+        @Bindable var draft = draft
+
         NavigationStack {
             Form {
-                Section {
-                    if let coverPreview {
-                        Image(uiImage: coverPreview)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(maxWidth: .infinity)
-                            .frame(height: PlatformMetrics.composeCoverHeight)
-                            .clipShape(PlatformMetrics.mediaShape)
-                    }
-
-                    let coverActionTitle = localCoverName == nil ? "添加封面图" : "更换封面"
-                    PhotosPicker(selection: $pickerItem, matching: .images) {
-                        Label(coverActionTitle, systemImage: "photo.on.rectangle.angled")
-                            .frame(maxWidth: .infinity, minHeight: PlatformMetrics.galleryEditorThumb)
-                    }
-                    .onChange(of: pickerItem) { _, item in
-                        Task { await loadCover(item) }
-                    }
-                    if isPreparingCover {
-                        ProgressView("正在处理封面…")
-                    }
-                } header: {
-                    Text("封面")
-                }
-
-                Section("基本信息") {
-                    TextField("活动标题", text: $title)
-                    Picker("类型", selection: $category) {
-                        ForEach(publishCategories) { item in
-                            Label(item.title, systemImage: item.systemImage)
-                                .platformContentSymbolStyle()
-                                .tag(item)
-                        }
-                    }
-                    TextField("地点", text: $location)
-                    Button {
-                        showMapPicker = true
-                    } label: {
-                        Label(
-                            latitude == nil ? "地图选点" : "已选坐标，点击重选",
-                            systemImage: "map"
-                        )
-                        .platformContentSymbolStyle()
-                    }
-                    DatePicker("开始时间", selection: $date, in: Date()...)
-                }
-
-                Section("名额与费用") {
-                    Stepper("人数 \(capacity)", value: $capacity, in: 2...40)
-                    TextField("费用说明", text: $fee)
-                }
-
-                Section("介绍") {
-                    TextField("一句话说明活动亮点…", text: $summary, axis: .vertical)
-                        .lineLimit(3...8)
-                    TextField("标签（空格分隔）", text: $tagText)
-                }
+                coverSection
+                basicsSection
+                feeSection
+                aboutSection
             }
-            .navigationTitle(isEditing ? "编辑活动" : "发起活动")
+            .listSectionSpacing(.compact)
+            .scrollContentBackground(.hidden)
+            .background(PlatformSurface.groupedPage.ignoresSafeArea())
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle(
+                draft.isEditing ? ActivityComposeCopy.editTitle : ActivityComposeCopy.createTitle
+            )
             .navigationBarTitleDisplayMode(.inline)
+            .platformSheetCancellationToolbar(ActivityComposeCopy.cancel, action: requestCancel)
+            .platformSheetConfirmationToolbar(
+                draft.isEditing
+                    ? ActivityComposeCopy.saveAction
+                    : ActivityComposeCopy.publishAction,
+                isEnabled: draft.canPublish,
+                emphasizesWhenEnabled: true,
+                action: openPreview
+            )
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") {
-                        discardUncommittedCoverIfNeeded()
-                        dismiss()
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button(ActivityComposeCopy.keyboardDone) {
+                        focusedFeeField = nil
                     }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(isEditing ? "保存" : "发布") {
-                        submit()
-                    }
-                    .fontWeight(.semibold)
-                    .disabled(!canPublish)
-                }
             }
-            .onAppear(perform: prefillIfNeeded)
-            .onDisappear {
-                if !didCommitSave {
-                    discardUncommittedCoverIfNeeded()
-                }
+            .animation(reduceMotion ? nil : .snappy, value: draft.feeKind)
+            .animation(reduceMotion ? nil : .snappy, value: draft.mediaNames)
+            .animation(reduceMotion ? nil : .snappy, value: draft.canPublish)
+            .sensoryFeedback(.success, trigger: draft.canPublish) { _, newValue in
+                newValue
             }
-            .sheet(isPresented: $showMapPicker) {
-                ActivityMapPickerSheet(
-                    locationText: $location,
-                    latitude: $latitude,
-                    longitude: $longitude
+            .navigationDestination(isPresented: $showPreview) {
+                ActivityComposePublishPreviewView(
+                    activity: draft.makePreviewActivity(
+                        hostName: app.user.name,
+                        existing: editingActivity
+                    ),
+                    galleryExtraNames: draft.galleryPhotoNames,
+                    hostNote: draft.previewHostNote,
+                    confirmTitle: draft.isEditing
+                        ? ActivityComposeCopy.confirmSave
+                        : ActivityComposeCopy.confirmPublish,
+                    onConfirm: submit
                 )
-                .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
         .platformSheet(.form)
-        .platformFeedbackAlert($moderationAlert)
-    }
-
-    private var parsedTags: [String] {
-        tagText
-            .split(whereSeparator: { $0.isWhitespace || $0 == "," || $0 == "，" })
-            .map(String.init)
-            .filter { !$0.isEmpty }
-    }
-
-    private func prefillIfNeeded() {
-        guard !didPrefill, let activity = editingActivity else { return }
-        didPrefill = true
-        title = activity.title
-        category = activity.category.isBrowseAggregate ? .outdoorSports : activity.category
-        location = activity.location
-        date = max(activity.date, Date())
-        capacity = max(activity.capacity, 2)
-        fee = activity.fee
-        summary = activity.summary
-        tagText = activity.tags.joined(separator: " ")
-        localCoverName = activity.localCoverName
-        baselineCoverName = activity.localCoverName
-        latitude = activity.latitude
-        longitude = activity.longitude
-        if let name = activity.localCoverName,
-           let url = LocalMediaLibrary.fileURL(named: name),
-           let data = try? Data(contentsOf: url),
-           let image = UIImage(data: data) {
-            coverPreview = image
+        .interactiveDismissDisabled(draft.isDirty)
+        .platformFeedbackAlert($draft.moderationAlert)
+        .confirmationDialog(
+            draft.isEditing
+                ? ActivityComposeCopy.discardEditsTitle
+                : ActivityComposeCopy.discardCreateTitle,
+            isPresented: $showDiscardEditsConfirm,
+            titleVisibility: .visible
+        ) {
+            if draft.isEditing {
+                Button(ActivityComposeCopy.discardEditsAction, role: .destructive) {
+                    draft.discardUncommittedMediaIfNeeded()
+                    didCommitSave = true
+                    dismiss()
+                }
+            } else {
+                Button(ActivityComposeCopy.saveDraftAndLeave) {
+                    guard settleDismiss(allowModerationBlock: true) else { return }
+                    app.activities.flashLight(ActivityComposeCopy.draftSaved)
+                    didCommitSave = true
+                    dismiss()
+                }
+                Button(ActivityComposeCopy.discardCreateAction, role: .destructive) {
+                    draft.discardUncommittedMediaIfNeeded()
+                    didCommitSave = true
+                    dismiss()
+                }
+            }
+            Button(ActivityComposeCopy.keepEditing, role: .cancel) {}
+        }
+        .onAppear { draft.prefill(from: editingActivity) }
+        .onDisappear {
+            guard !didCommitSave else { return }
+            let shouldAnnounceDraft = draft.shouldPersistDraftOnCancel
+            guard settleDismiss(allowModerationBlock: false) else { return }
+            if shouldAnnounceDraft {
+                app.activities.flashLight(ActivityComposeCopy.draftSaved)
+            }
+        }
+        .sheet(isPresented: $showMapPicker) {
+            ActivityMapPickerSheet(
+                locationText: $draft.location,
+                latitude: $draft.latitude,
+                longitude: $draft.longitude
+            )
+            .toolbarVisibility(.hidden, for: .tabBar)
+        }
+        .onChange(of: draft.mediaPickerItems) { _, items in
+            Task { await draft.loadMedia(items, actorKey: app.user.name) }
+        }
+        .onChange(of: draft.date) { _, _ in
+            draft.syncEndDate()
         }
     }
 
-    private func discardUncommittedCoverIfNeeded() {
-        LocalMediaLibrary.discardUncommitted(
-            current: localCoverName.map { [$0] } ?? [],
-            baseline: baselineCoverName.map { [$0] } ?? []
-        )
+    // MARK: - Sections
+
+    private var coverSection: some View {
+        Section {
+            if draft.canAddMedia {
+                let mediaEmpty = draft.mediaNames.isEmpty
+                PhotosPicker(
+                    selection: $draft.mediaPickerItems,
+                    maxSelectionCount: draft.remainingMediaSlots,
+                    matching: LocalMediaLibrary.photosAndVideos,
+                    photoLibrary: .shared()
+                ) {
+                    Label(
+                        mediaEmpty
+                            ? ActivityComposeCopy.addMedia
+                            : ActivityComposeCopy.addMoreMedia,
+                        systemImage: "photo.on.rectangle.angled"
+                    )
+                }
+            }
+
+            if !draft.mediaNames.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: PlatformMetrics.minContentGap) {
+                        ForEach(Array(draft.mediaNames.enumerated()), id: \.element) { index, name in
+                            mediaThumb(name: name, index: index)
+                        }
+                    }
+                }
+            }
+
+            if draft.isPreparingMedia {
+                ProgressView(ActivityComposeCopy.preparingMedia)
+            }
+        } header: {
+            Text(ActivityComposeCopy.coverSection)
+        }
     }
 
-    private func submit() {
-        let combined = [title, summary, tagText, location].joined(separator: "\n")
-        if case .block(let reason) = ContentModeration.scanText(combined) {
-            moderationAlert = reason
+    private func mediaThumb(name: String, index: Int) -> some View {
+        ZStack(alignment: .topTrailing) {
+            Group {
+                if let image = draft.mediaPreviews[name] {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    PlatformSurface.tertiaryFill
+                }
+            }
+            .frame(
+                width: PlatformMetrics.galleryEditorThumb,
+                height: PlatformMetrics.galleryEditorThumb
+            )
+            .clipShape(PlatformMetrics.mediaShape)
+            .overlay {
+                if draft.isVideo(name) {
+                    Image(systemName: "play.circle.fill")
+                        .font(.title3)
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.white)
+                        .accessibilityHidden(true)
+                }
+            }
+            .overlay(alignment: .bottomLeading) {
+                if index == 0 {
+                    Text(ActivityComposeCopy.coverBadge)
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, PlatformMetrics.captionBadgePaddingHorizontal)
+                        .padding(.vertical, PlatformMetrics.captionBadgePaddingVertical)
+                        .activityGlassCapsule(controlSize: .mini)
+                        .padding(PlatformMetrics.captionBadgeInset)
+                }
+            }
+            .accessibilityLabel(
+                index == 0
+                    ? (draft.isVideo(name)
+                        ? "\(ActivityComposeCopy.coverBadge)，\(ActivityComposeCopy.videoBadge)"
+                        : ActivityComposeCopy.coverBadge)
+                    : (draft.isVideo(name) ? ActivityComposeCopy.videoBadge : ActivityComposeCopy.coverSection)
+            )
+
+            Button {
+                draft.removeMedia(at: index)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.body)
+                    .platformSymbolStyle(.mediaBadge)
+            }
+            .buttonStyle(.plain)
+            .padding(PlatformMetrics.galleryRemoveBadgeOffset)
+            .accessibilityLabel(ActivityComposeCopy.removeMedia)
+        }
+    }
+
+    private var basicsSection: some View {
+        Section {
+            TextField(ActivityComposeCopy.titlePlaceholder, text: $draft.title)
+                .textInputAutocapitalization(.sentences)
+
+            Picker(ActivityComposeCopy.categoryLabel, selection: $draft.category) {
+                ForEach(draft.publishCategories) { item in
+                    Label(item.title, systemImage: item.systemImage)
+                        .platformContentSymbolStyle()
+                        .tag(item)
+                }
+            }
+
+            TextField(ActivityComposeCopy.locationPlaceholder, text: $draft.location)
+
+            Button {
+                showMapPicker = true
+            } label: {
+                Label(
+                    draft.latitude == nil
+                        ? ActivityComposeCopy.mapPick
+                        : ActivityComposeCopy.mapPicked,
+                    systemImage: "map"
+                )
+                .platformContentSymbolStyle()
+            }
+
+            DatePicker(
+                ActivityComposeCopy.startsLabel,
+                selection: $draft.date,
+                in: Date()...,
+                displayedComponents: [.date, .hourAndMinute]
+            )
+            .environment(\.locale, Locale(identifier: "zh_CN"))
+            .datePickerStyle(.compact)
+
+            Stepper(
+                "\(ActivityComposeCopy.capacityLabel) \(draft.capacity)",
+                value: $draft.capacity,
+                in: 2...40
+            )
+        } header: {
+            Text(ActivityComposeCopy.basicsSection)
+        }
+    }
+
+    private var feeSection: some View {
+        Section {
+            Picker(ActivityComposeCopy.feeKindLabel, selection: $draft.feeKind) {
+                ForEach(ActivityComposeFeeKind.allCases) { kind in
+                    Label(kind.title, systemImage: kind.systemImage)
+                        .platformContentSymbolStyle()
+                        .tag(kind)
+                }
+            }
+            .pickerStyle(.menu)
+
+            if draft.feeKind == .paid {
+                LabeledContent(ActivityComposeCopy.feeAmountLabel) {
+                    TextField(ActivityComposeCopy.feeAmountPlaceholder, text: $draft.feeAmountText)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .focused($focusedFeeField, equals: .amount)
+                }
+                .transition(.opacity)
+            }
+
+            if draft.feeKind == .venueAA {
+                LabeledContent(ActivityComposeCopy.feeAAEstimateLabel) {
+                    TextField(
+                        ActivityComposeCopy.feeAAEstimatePlaceholder,
+                        text: $draft.feeAAEstimateText
+                    )
+                    .keyboardType(.numbersAndPunctuation)
+                    .multilineTextAlignment(.trailing)
+                    .focused($focusedFeeField, equals: .aaEstimate)
+                }
+                .transition(.opacity)
+            }
+        } header: {
+            Text(ActivityComposeCopy.feeSection)
+        }
+    }
+
+    private var aboutSection: some View {
+        Section {
+            TextField(
+                ActivityComposeCopy.summaryPlaceholder,
+                text: $draft.summary,
+                axis: .vertical
+            )
+            .lineLimit(3...6)
+        } header: {
+            Text(ActivityComposeCopy.aboutSection)
+        } footer: {
+            if let footer = draft.publishBlockerFooter {
+                Text(footer)
+            }
+        }
+    }
+
+    // MARK: - Actions
+
+    private func openPreview() {
+        if let reason = draft.moderationBlockReason() {
+            draft.moderationAlert = reason
             return
         }
-        // 编辑时替换封面：提交后再删旧文件
-        if isEditing,
-           let baseline = baselineCoverName,
-           baseline != localCoverName {
-            LocalMediaLibrary.delete(named: baseline)
+        focusedFeeField = nil
+        draft.syncEndDate()
+        showPreview = true
+    }
+
+    private func requestCancel() {
+        if draft.isDirty {
+            showDiscardEditsConfirm = true
+            return
         }
-        didCommitSave = true
-        if let activity = editingActivity, let onUpdate {
-            onUpdate(
-                activity.id, title, category, location, date, capacity, fee, summary,
-                parsedTags, localCoverName, latitude, longitude
-            )
-        } else {
-            onPublish(
-                title, category, location, date, capacity, fee, summary,
-                parsedTags, localCoverName, latitude, longitude
-            )
-        }
+        guard settleDismiss(allowModerationBlock: true) else { return }
         dismiss()
     }
 
-    @MainActor
-    private func loadCover(_ item: PhotosPickerItem?) async {
-        guard let item else { return }
-        isPreparingCover = true
-        defer { isPreparingCover = false }
-
-        // 本会话内换图：先丢掉上一张未提交新图，保留基线封面文件
-        if let old = localCoverName, old != baselineCoverName {
-            LocalMediaLibrary.delete(named: old)
-            localCoverName = nil
+    /// - Returns: `false` 表示被审核拦住、应留在页内。
+    @discardableResult
+    private func settleDismiss(allowModerationBlock: Bool) -> Bool {
+        if draft.shouldPersistDraftOnCancel {
+            if allowModerationBlock, let reason = draft.moderationBlockReason() {
+                draft.moderationAlert = reason
+                return false
+            }
+            _ = draft.saveDraftSnapshot()
+        } else {
+            draft.discardUncommittedMediaIfNeeded()
         }
+        didCommitSave = true
+        return true
+    }
 
-        guard let data = try? await item.loadTransferable(type: Data.self),
-              let image = UIImage(data: data)
-        else { return }
-
-        let decision = await MediaModerationService.moderateImage(
-            image,
-            context: .activityCover,
-            actorKey: app.user.name
-        )
-        if case .block(let reason) = decision {
-            moderationAlert = reason
+    private func submit() {
+        if let reason = draft.moderationBlockReason() {
+            draft.moderationAlert = reason
             return
         }
+        draft.syncEndDate()
+        draft.commitMediaRemovalsIfNeeded()
+        didCommitSave = true
 
-        guard let name = LocalMediaLibrary.saveJPEG(data) else { return }
-
-        coverPreview = image
-        localCoverName = name
+        let payload = draft.makePayload
+        if let id = draft.editingActivityID, let onUpdate {
+            onUpdate(id, payload)
+            draft.persistContentOverride(for: id)
+        } else if let id = onPublish(payload) {
+            draft.persistContentOverride(for: id)
+            draft.clearDraftStoreAfterPublish()
+        }
+        dismiss()
     }
 }

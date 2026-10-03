@@ -104,13 +104,17 @@ enum ActivityDetailContentStore {
         persist()
     }
 
-    /// 详情页相册：封面 + 额外配图
-    static func galleryPhotos(for activity: Activity) -> [CommunityPhotoRef] {
+    /// 详情页相册：封面 + 额外配图。
+    /// - Parameter galleryExtraNames: 非 nil 时覆盖本地 store（发起预览用）。
+    static func galleryPhotos(
+        for activity: Activity,
+        galleryExtraNames: [String]? = nil
+    ) -> [CommunityPhotoRef] {
         var refs: [CommunityPhotoRef] = []
         if let cover = activity.coverPhoto {
             refs.append(cover)
         }
-        let extras = override(for: activity.id)?.galleryPhotoNames ?? []
+        let extras = galleryExtraNames ?? override(for: activity.id)?.galleryPhotoNames ?? []
         for name in extras where name != activity.localCoverName {
             if let url = LocalMediaLibrary.fileURL(named: name) {
                 refs.append(.file(url))
@@ -132,42 +136,29 @@ enum ActivityDetailContentStore {
     }
 }
 
-/// 发起人摘要：本地场次 + 目录画像 + 演示徽章（人对人星级已下线）
+/// 发起人摘要：以可核验的举办场次为主；认证仅官方身份，不做种子演示徽章。
 struct ActivityHostTrust: Hashable {
     let name: String
     let hostedCount: Int
-    let completionRate: Int
-    /// 认证徽章
+    /// 认证徽章（官方账号）
     let isVerified: Bool
-    /// 会员徽章
+    /// 活跃身份徽章（角色标签）
     let isMember: Bool
-    /// 等级 1…5（演示档位，与行为信用 TrustLevel 分账）
-    let level: Int
 
     var hostedText: String { "举办\u{00A0}\(hostedCount)\u{00A0}场" }
-    var completionText: String { "履约\u{00A0}\(completionRate)%" }
-    var levelText: String { "Lv.\(level)" }
     /// 第二行整行文案（避免 HStack 在窄宽下把「场」拆到下一行）
-    var metricsLine: String {
-        "\(hostedText) · \(completionText)"
-    }
+    var metricsLine: String { hostedText }
 
     static func make(hostName: String, liveHostedCount: Int) -> ActivityHostTrust {
         let profile = SampleData.author(named: hostName)
-        let hosted = max(liveHostedCount, profile.hostedCount, 1)
-        let seed = abs(hostName.stableSeed)
-        let rate = 86 + seed % 13
+        let hosted = max(liveHostedCount, profile.hostedCount)
         let isOfficial = profile.roleLabel.contains("官方")
-        let isVerified = isOfficial || hosted >= 8 || seed % 3 == 0
-        let isMember = isOfficial || profile.roleLabel.contains("活跃") || seed % 2 == 0
-        let level = min(5, max(1, hosted / 3 + 1))
+        let isActiveHost = profile.roleLabel.contains("活跃") || profile.roleLabel.contains("发起")
         return ActivityHostTrust(
             name: hostName,
             hostedCount: hosted,
-            completionRate: rate,
-            isVerified: isVerified,
-            isMember: isMember,
-            level: level
+            isVerified: isOfficial,
+            isMember: isOfficial || isActiveHost
         )
     }
 }

@@ -14,6 +14,8 @@ struct RemoteReadPathDebugView: View {
     @State private var catalog = FeatureFlags.useRemoteCatalog
     @State private var community = FeatureFlags.useRemoteCommunity
     @State private var profile = FeatureFlags.useRemoteProfile
+    @State private var buddies = FeatureFlags.useRemoteBuddies
+    @State private var sampleBuddies = FeatureFlags.useSampleBuddiesCatalog
     @State private var auth = FeatureFlags.useRemoteAuth
     @State private var syncing = false
     @State private var endpointChoice = EndpointChoice.current
@@ -49,14 +51,21 @@ struct RemoteReadPathDebugView: View {
                 Toggle("活动目录 (useRemoteCatalog)", isOn: $catalog)
                 Toggle("广场 (useRemoteCommunity)", isOn: $community)
                 Toggle("我的资料 (useRemoteProfile)", isOn: $profile)
+                Toggle("搭子远程 (useRemoteBuddies)", isOn: $buddies)
+                Toggle("搭子样例货架 (useSampleBuddiesCatalog)", isOn: $sampleBuddies)
+                    .disabled(!buddies)
                 Button("一键开启读路径联调") {
                     APIConfiguration.enableReadPathRemoteIntegration()
+                    refreshToggles()
+                }
+                Button("恢复样例搭子货架") {
+                    FeatureFlags.restoreLocalBuddiesSampleCatalog()
                     refreshToggles()
                 }
             } header: {
                 Text("旗标")
             } footer: {
-                Text("需已远程登录并持有 JWT。改旗标后点下方「立即同步」。")
+                Text("需已远程登录并持有 JWT。改旗标后点下方「立即同步」。关「搭子远程」或点「恢复样例搭子货架」可重新看到 Sample 找搭子页。")
             }
 
             Section {
@@ -126,6 +135,14 @@ struct RemoteReadPathDebugView: View {
         .onChange(of: catalog) { _, v in APIConfiguration.setUseRemoteCatalog(v) }
         .onChange(of: community) { _, v in APIConfiguration.setUseRemoteCommunity(v) }
         .onChange(of: profile) { _, v in APIConfiguration.setUseRemoteProfile(v) }
+        .onChange(of: buddies) { _, v in
+            APIConfiguration.setUseRemoteBuddies(v)
+            if !v {
+                FeatureFlags.setUseSampleBuddiesCatalog(true)
+            }
+            refreshToggles()
+        }
+        .onChange(of: sampleBuddies) { _, v in FeatureFlags.setUseSampleBuddiesCatalog(v) }
         .onChange(of: auth) { _, v in APIConfiguration.setUseRemoteAuth(v) }
     }
 
@@ -133,6 +150,8 @@ struct RemoteReadPathDebugView: View {
         catalog = FeatureFlags.useRemoteCatalog
         community = FeatureFlags.useRemoteCommunity
         profile = FeatureFlags.useRemoteProfile
+        buddies = FeatureFlags.useRemoteBuddies
+        sampleBuddies = FeatureFlags.useSampleBuddiesCatalog
         auth = FeatureFlags.useRemoteAuth
         endpointChoice = .current
     }

@@ -26,19 +26,6 @@ extension ConversationDetailView {
         sendPulse += 1
     }
 
-    func sendQuickReply(_ text: String, to id: ChatConversation.ID) {
-        guard !isOutboundBlocked else { return }
-        switch ContentModeration.scanText(text) {
-        case .allow:
-            break
-        case .block(let reason):
-            copyFeedback = reason
-            return
-        }
-        guard model.send(text: text, to: id) != nil else { return }
-        sendPulse += 1
-    }
-
     func openLink(_ urlString: String) {
         if let postID = Self.communityPostID(from: urlString) {
             selectedPostID = postID
@@ -113,7 +100,7 @@ extension ConversationDetailView {
     func toolbarTapAction(for conversation: ChatConversation) -> (() -> Void)? {
         switch conversation.kind {
         case .direct:
-            return { selectedBuddy = buddies.item(for: conversation.title) }
+            return { peerProfile = peerProfileRoute(for: conversation.title) }
         case .circle:
             return {
                 if let circle = circleForConversation(conversation) {
@@ -125,6 +112,19 @@ extension ConversationDetailView {
         case .activity, .group, .notice:
             return conversation.isGroup ? { showGroupManage = true } : nil
         }
+    }
+
+    /// 已是好友 → 通讯录资料卡；否则有发现卡走发现详情，再否则仍给轻量好友资料壳。
+    func peerProfileRoute(for nickname: String) -> ConversationPeerProfileRoute? {
+        let name = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return nil }
+        if model.isDirectFriend(with: name) {
+            return .friend(nickname: name)
+        }
+        if let item = buddies.item(for: name) {
+            return .discover(item)
+        }
+        return .friend(nickname: name)
     }
 
     func handleThreadAppear(conversation: ChatConversation) {

@@ -59,9 +59,21 @@ extension View {
         modifier(PlatformBarMaterialFillModifier())
     }
 
+    /// 浮层列表底（地图搜索结果等）：thinMaterial；降低透明度时用不透明底。
+    func platformOverlayMaterialFill() -> some View {
+        modifier(PlatformOverlayMaterialFillModifier())
+    }
+
     /// Photos 式圆形 glass：降低透明度时改 `.bordered`。
     func platformToolbarCircleStyle() -> some View {
         modifier(PlatformAccessibleGlassCircleModifier(controlSize: PlatformToolbarChrome.controlSize))
+    }
+
+    /// List / Form 内嵌分段控件：系统 `Picker` + `.segmented`，清底贴边（消息 / 订单同族）。
+    func platformSegmentedPickerChrome() -> some View {
+        pickerStyle(.segmented)
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
     }
 
     /// Photos 式胶囊 glass（顶栏 principal）。
@@ -153,6 +165,18 @@ private struct PlatformBarMaterialFillModifier: ViewModifier {
             content.background(Color(.secondarySystemBackground))
         } else {
             content.background(.bar)
+        }
+    }
+}
+
+private struct PlatformOverlayMaterialFillModifier: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    func body(content: Content) -> some View {
+        if reduceTransparency {
+            content.background(Color(.secondarySystemBackground))
+        } else {
+            content.background(.thinMaterial)
         }
     }
 }

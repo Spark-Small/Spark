@@ -13,11 +13,15 @@ enum NotificationDeepLink: Equatable {
     case activity(UUID, followUp: ActivityNotificationFollowUp = .none)
     case booking(UUID)
     case conversation(UUID)
+    case communityPost(UUID)
 
     static func parse(
         userInfo: [AnyHashable: Any],
         identifier: String
     ) -> NotificationDeepLink? {
+        if let id = uuid(from: userInfo["communityPostID"]) {
+            return .communityPost(id)
+        }
         if let id = uuid(from: userInfo["activityID"]) {
             let kind = userInfo["kind"] as? String
             let followUp: ActivityNotificationFollowUp = switch kind {
@@ -50,7 +54,21 @@ enum NotificationDeepLink: Equatable {
         if let id = uuidSuffix(identifier, prefixes: ["booking-refund-", "booking-accepted-", "booking-confirm-sla-", "booking-confirm-expired-", "booking-"]) {
             return .booking(id)
         }
+        // community-like-{postID}-… / community-repost-… / community-comment-…
+        if identifier.hasPrefix("community-"),
+           let postID = communityPostID(fromDedupeKey: identifier) {
+            return .communityPost(postID)
+        }
         return nil
+    }
+
+    /// `community-{kind}-{uuid}-{actor}` → uuid
+    private static func communityPostID(fromDedupeKey identifier: String) -> UUID? {
+        let parts = identifier.split(separator: "-", omittingEmptySubsequences: false)
+        // community, kind, 8-4-4-4-12 uuid parts…
+        guard parts.count >= 7, parts[0] == "community" else { return nil }
+        let uuidString = parts[2..<7].joined(separator: "-")
+        return UUID(uuidString: uuidString)
     }
 
     private static func uuid(from value: Any?) -> UUID? {
@@ -98,12 +116,20 @@ final class AppNotificationRouter: NSObject, UNUserNotificationCenterDelegate {
         app.handleNotificationDeepLink(pending)
     }
 
-    // 前台也展示横幅，方便演示「即将开始」
+    // 前台也展示横幅，并写入站内通知中心
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        [.banner, .sound, .list]
+        let request = notification.request
+        AppComposition.inAppNotificationStore.ingestSystemNotification(
+            identifier: request.identifier,
+            title: request.content.title,
+            body: request.content.body,
+            userInfo: request.content.userInfo,
+            deliveredAt: notification.date
+        )
+        return [.banner, .sound, .list]
     }
 
     func userNotificationCenter(
@@ -111,6 +137,14 @@ final class AppNotificationRouter: NSObject, UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse
     ) async {
         let request = response.notification.request
+        AppComposition.inAppNotificationStore.ingestSystemNotification(
+            identifier: request.identifier,
+            title: request.content.title,
+            body: request.content.body,
+            userInfo: request.content.userInfo,
+            deliveredAt: response.notification.date
+        )
+        AppComposition.inAppNotificationStore.markReadMatching(dedupeKey: request.identifier)
         guard let link = NotificationDeepLink.parse(
             userInfo: request.content.userInfo,
             identifier: request.identifier

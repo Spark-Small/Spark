@@ -58,6 +58,29 @@ struct ActivityDetailBlueprint {
         applyOverrides(templateBlueprint(for: activity), activity: activity)
     }
 
+    /// 发起人是否本地覆盖了该分区（预览用：未覆盖则展示「待补充」，不拿模板冒充）。
+    @MainActor
+    static func hasHostAuthoredContent(for id: ActivityDetailSectionID, activity: Activity) -> Bool {
+        guard let override = ActivityDetailContentStore.override(for: activity.id) else {
+            return false
+        }
+        switch id {
+        case .plan:
+            return !(override.timeline?.isEmpty ?? true)
+        case .fee:
+            let hasIncluded = !(override.feeIncluded?.isEmpty ?? true)
+            let hasExcluded = !(override.feeExcluded?.isEmpty ?? true)
+            let hasRefund = !(override.refundNotes?.isEmpty ?? true)
+            return hasIncluded || hasExcluded || hasRefund
+        case .prep:
+            let hasGear = !(override.gear?.isEmpty ?? true)
+            let hasNotes = !(override.prepNotes?.isEmpty ?? true)
+            return hasGear || hasNotes
+        case .notes:
+            return !(override.registrationNotes?.isEmpty ?? true)
+        }
+    }
+
     static func templateBlueprint(for activity: Activity) -> ActivityDetailBlueprint {
         switch activity.category {
         case .outdoorSports:
@@ -79,16 +102,16 @@ struct ActivityDetailBlueprint {
         }
     }
 
-    // MARK: - Outdoor
+    // MARK: - Outdoor（装备与风险）
 
     private static func outdoor(_ a: Activity) -> ActivityDetailBlueprint {
         return assemble(
             activity: a,
             sectionTemplates: [
-                .init(id: .plan, title: "行程安排"),
-                .init(id: .fee, title: "费用说明"),
+                .init(id: .plan, title: ActivityDetailCopy.timelineEditorTitle),
+                .init(id: .fee, title: ActivityDetailCopy.feeSectionTitle),
                 .init(id: .prep, title: "装备与风险"),
-                .init(id: .notes, title: "参加须知")
+                .init(id: .notes, title: ActivityDetailCopy.joinNoticesHeader)
             ],
             timeline: outdoorTimeline(a),
             feeIncluded: [
@@ -118,233 +141,279 @@ struct ActivityDetailBlueprint {
                 "请勿擅自离队，集合后请听从发起人现场安排",
                 "建议自行购买户外运动意外险"
             ],
-            registrationNotes: registrationCommon(a)
+            registrationNotes: registrationNotes(
+                extras: ["适合人群：有基础体能即可，新手请量力选择轻松场次"]
+            )
         )
     }
 
-    // MARK: - Food
+    // MARK: - Food（用餐安排 / 口味与忌口）
 
     private static func food(_ a: Activity) -> ActivityDetailBlueprint {
         assemble(
             activity: a,
             sectionTemplates: [
-                .init(id: .plan, title: "用餐路线"),
-                .init(id: .fee, title: "费用说明"),
+                .init(id: .plan, title: "用餐安排"),
+                .init(id: .fee, title: ActivityDetailCopy.feeSectionTitle),
                 .init(id: .prep, title: "口味与忌口"),
-                .init(id: .notes, title: "参加须知")
+                .init(id: .notes, title: ActivityDetailCopy.joinNoticesHeader)
             ],
             timeline: [
-                .init(time: timeOffset(a, minutes: 0), title: "门口集合", detail: "在 \(a.location) 碰面，确认人数与座位"),
-                .init(time: timeOffset(a, minutes: 15), title: "入座点餐", detail: "按人数安排座位，口味偏好可现场沟通"),
-                .init(time: timeOffset(a, minutes: 90), title: "用餐结束", detail: "可自由续聊或散场，无强制安排")
+                .init(time: timeOffset(a, minutes: 0), title: "门口会合", detail: "在 \(a.location) 碰面，清点人数并确认订位"),
+                .init(time: timeOffset(a, minutes: 10), title: "入座寒暄", detail: "落座后简单自我介绍，沟通忌口与口味偏好"),
+                .init(time: timeOffset(a, minutes: 25), title: "点餐开吃", detail: "按人数与预算点餐，可分享推荐菜"),
+                .init(time: timeOffset(a, minutes: 100), title: "结账散场", detail: "费用按说明结算；可自愿续聊或各自离开")
             ],
             feeIncluded: [
-                .init(text: "座位协调与拼桌安排", included: true),
+                .init(text: "订位协调与拼桌安排", included: true),
                 .init(text: a.isFree ? "餐费现场 AA 结算" : "活动页标注的套餐或席位费用", included: true)
             ],
             feeExcluded: [
-                .init(text: "酒水、加菜等额外消费", included: false),
-                .init(text: "个人往返交通", included: false)
+                .init(text: "酒水、加菜、甜品等额外消费", included: false),
+                .init(text: "个人往返交通与停车费", included: false)
             ],
             refundNotes: [
                 "开餐前 4 小时取消：可释放名额",
-                "临期无故缺席：可能影响后续活动参加资格"
+                "已订位临期无故缺席：可能影响后续活动参加资格"
             ],
             gear: [],
             prepNotes: [
-                "如有食物过敏、宗教或饮食禁忌，请提前告知发起人",
-                "高峰时段可能排队，请预留一定等候时间",
-                "请尊重店员与同桌伙伴，避免长时间占座"
+                "如有食物过敏、宗教或饮食禁忌，请提前私信发起人",
+                "高峰时段可能排队或等位，请预留 15–30 分钟缓冲",
+                "请尊重店员与同桌伙伴，避免长时间占座或大声喧哗",
+                "如需分开结账，请提前与发起人沟通"
             ],
-            registrationNotes: registrationCommon(a)
+            registrationNotes: registrationNotes(
+                extras: ["适合人群：喜欢一起吃饭聊天的朋友，不限厨艺基础"]
+            )
         )
     }
 
-    // MARK: - Social
+    // MARK: - Social（活动流程 / 见面前准备）
 
     private static func social(_ a: Activity) -> ActivityDetailBlueprint {
         assemble(
             activity: a,
             sectionTemplates: [
                 .init(id: .plan, title: "活动流程"),
-                .init(id: .fee, title: "费用说明"),
+                .init(id: .fee, title: ActivityDetailCopy.feeSectionTitle),
                 .init(id: .prep, title: "见面前准备"),
-                .init(id: .notes, title: "参加须知")
+                .init(id: .notes, title: ActivityDetailCopy.joinNoticesHeader)
             ],
             timeline: [
                 .init(time: timeOffset(a, minutes: 0), title: "签到集合", detail: "在 \(a.location) 与发起人 \(a.hostName) 会合"),
-                .init(time: timeOffset(a, minutes: 20), title: "破冰介绍", detail: "轮流自我介绍，分享近期状态或兴趣"),
-                .init(time: timeOffset(a, minutes: 50), title: "主题交流", detail: "按兴趣标签自由组队深入交流"),
-                .init(time: timeOffset(a, minutes: 110), title: "合影散场", detail: "可自愿交换联系方式，尊重个人意愿")
+                .init(time: timeOffset(a, minutes: 15), title: "破冰介绍", detail: "轮流自我介绍，分享近期状态或兴趣标签"),
+                .init(time: timeOffset(a, minutes: 45), title: "主题交流", detail: "按兴趣自由组队深入聊，可换桌换组"),
+                .init(time: timeOffset(a, minutes: 100), title: "轻松收尾", detail: "合影可选；自愿交换联系方式，尊重个人意愿")
             ],
             feeIncluded: [
                 .init(text: "活动组织与场地协调", included: true),
                 .init(text: a.isFree ? "场地费用按活动说明结算" : "费用含基础席位", included: true)
             ],
             feeExcluded: [
-                .init(text: "个人额外饮品消费", included: false)
+                .init(text: "个人额外饮品或小吃消费", included: false),
+                .init(text: "个人往返交通", included: false)
             ],
-            refundNotes: ["活动开始前 6 小时取消：可释放参加名额"],
+            refundNotes: [
+                "活动开始前 6 小时取消：可释放参加名额",
+                "临期缺席会影响候补伙伴的参与机会，请尽量提前取消"
+            ],
             gear: [],
             prepNotes: [
                 "可准备一个想聊的话题，或最近在读的书、看过的展",
-                "尊重他人边界，不强行推销或索取联系方式",
-                "建议手机静音，专注在场交流"
+                "尊重他人边界，不强行推销、撮合或索取联系方式",
+                "建议手机静音，专注在场交流",
+                "如有社交焦虑或需要低互动场次，可提前告知发起人"
             ],
-            registrationNotes: registrationCommon(a)
+            registrationNotes: registrationNotes(
+                extras: ["适合人群：想认识新朋友、愿意真诚交流的伙伴"]
+            )
         )
     }
 
-    // MARK: - City explore
+    // MARK: - City explore（探索路线 / 出行准备）
 
     private static func cityExplore(_ a: Activity) -> ActivityDetailBlueprint {
         assemble(
             activity: a,
             sectionTemplates: [
                 .init(id: .plan, title: "探索路线"),
-                .init(id: .fee, title: "费用说明"),
+                .init(id: .fee, title: ActivityDetailCopy.feeSectionTitle),
                 .init(id: .prep, title: "出行准备"),
-                .init(id: .notes, title: "参加须知")
+                .init(id: .notes, title: ActivityDetailCopy.joinNoticesHeader)
             ],
             timeline: [
-                .init(time: timeOffset(a, minutes: 0), title: "起点集合", detail: "在 \(a.location) 集合，确认路线与注意事项"),
-                .init(time: timeOffset(a, minutes: 40), title: "第一站", detail: "简短讲解后自由参观与拍照"),
-                .init(time: timeOffset(a, minutes: 100), title: "第二站", detail: "短暂休息并补充水分"),
-                .init(time: timeOffset(a, minutes: 160), title: "终点解散", detail: "在附近交通便利处散场")
+                .init(time: timeOffset(a, minutes: 0), title: "起点集合", detail: "在 \(a.location) 集合，确认路线、时长与注意事项"),
+                .init(time: timeOffset(a, minutes: 15), title: "开场说明", detail: "简要介绍本场看点与集合暗号"),
+                .init(time: timeOffset(a, minutes: 40), title: "第一站", detail: "参观 / 拍摄；掉队请及时在群内喊一声"),
+                .init(time: timeOffset(a, minutes: 100), title: "中途休整", detail: "补水小歇，确认下一站与预计结束时间"),
+                .init(time: timeOffset(a, minutes: 160), title: "终点解散", detail: "在附近交通便利处散场，可自愿合影")
             ],
             feeIncluded: [
-                .init(text: "路线组织与现场讲解", included: true)
+                .init(text: "路线组织与现场讲解", included: true),
+                .init(text: a.isFree ? "本场组织免费" : "活动组织费用（见上方报价）", included: true)
             ],
             feeExcluded: [
-                .init(text: "公共交通与景点门票", included: false),
-                .init(text: "餐食与个人消费", included: false)
+                .init(text: "公共交通、打车与景点门票", included: false),
+                .init(text: "餐食、咖啡与个人消费", included: false)
             ],
-            refundNotes: ["活动开始前 12 小时取消：可释放参加名额"],
+            refundNotes: [
+                "活动开始前 12 小时取消：可释放参加名额",
+                "已购门票类场次：退票规则以票务方为准"
+            ],
             gear: [
-                .init(title: "鞋", detail: "舒适防滑的步行鞋", systemImage: "shoeprints.fill"),
+                .init(title: "鞋", detail: "舒适防滑的步行鞋，预计行走较多", systemImage: "shoeprints.fill"),
                 .init(title: "补给", detail: "随身饮用水与少量零食", systemImage: "cup.and.saucer"),
-                .init(title: "防晒", detail: "帽子、防晒用品按天气准备", systemImage: "sun.max")
+                .init(title: "防晒", detail: "帽子、防晒用品按天气准备", systemImage: "sun.max"),
+                .init(title: "雨具", detail: "雨天请自备折叠伞或轻便雨衣", systemImage: "cloud.rain")
             ],
             prepNotes: [
-                "请勿长时间脱离队伍，掉队请及时在群内告知",
-                "请遵守景区与社区相关规定",
-                "雨天请自备雨具"
+                "请勿长时间脱离队伍；掉队请及时在群内告知位置",
+                "请遵守景区、展馆与社区相关规定，文明拍照",
+                "体力不支可随时告知发起人，可中途提前离开",
+                "建议开启定位共享（自愿），方便集合"
             ],
-            registrationNotes: registrationCommon(a)
+            registrationNotes: registrationNotes(
+                extras: ["适合人群：喜欢城市漫游、愿意步行探索的朋友"]
+            )
         )
     }
 
-    // MARK: - Handmade
+    // MARK: - Handmade（体验流程 / 材料与自备）
 
     private static func handmade(_ a: Activity) -> ActivityDetailBlueprint {
         assemble(
             activity: a,
             sectionTemplates: [
                 .init(id: .plan, title: "体验流程"),
-                .init(id: .fee, title: "费用说明"),
-                .init(id: .prep, title: "自备物品"),
-                .init(id: .notes, title: "参加须知")
+                .init(id: .fee, title: ActivityDetailCopy.feeSectionTitle),
+                .init(id: .prep, title: "材料与自备"),
+                .init(id: .notes, title: ActivityDetailCopy.joinNoticesHeader)
             ],
             timeline: [
-                .init(time: timeOffset(a, minutes: 0), title: "签到领料", detail: "在 \(a.location) 签到并领取材料包"),
-                .init(time: timeOffset(a, minutes: 20), title: "示范讲解", detail: "发起人演示关键步骤与注意事项"),
-                .init(time: timeOffset(a, minutes: 50), title: "动手制作", detail: "自由创作，可互相交流请教"),
-                .init(time: timeOffset(a, minutes: 130), title: "成品合影", detail: "完成作品并拍照，可带走成品")
+                .init(time: timeOffset(a, minutes: 0), title: "签到领料", detail: "在 \(a.location) 签到并领取材料包 / 工位"),
+                .init(time: timeOffset(a, minutes: 15), title: "示范讲解", detail: "发起人演示关键步骤、工具用法与安全注意"),
+                .init(time: timeOffset(a, minutes: 40), title: "动手制作", detail: "自由创作，可互相交流请教；按需个别指导"),
+                .init(time: timeOffset(a, minutes: 110), title: "收尾合影", detail: "清理工位，成品拍照；可带走或按说明养护")
             ],
             feeIncluded: [
                 .init(text: "基础材料包", included: true),
-                .init(text: "场地与工具使用", included: true)
+                .init(text: "场地、工具与基础指导", included: true)
             ],
             feeExcluded: [
-                .init(text: "升级材料与额外配件", included: false)
+                .init(text: "升级材料、额外配件与加时", included: false),
+                .init(text: "个人往返交通", included: false)
             ],
-            refundNotes: ["活动开始前 24 小时取消：可释放材料预留名额"],
+            refundNotes: [
+                "活动开始前 24 小时取消：可释放材料预留名额",
+                "材料已开封或体验已开始：费用一般不支持退还"
+            ],
             gear: [
                 .init(title: "围裙", detail: "建议自备围裙或旧衣物，防止弄脏", systemImage: "paintbrush.pointed"),
-                .init(title: "收纳", detail: "自备手提袋，方便带走成品", systemImage: "bag")
+                .init(title: "收纳", detail: "自备手提袋，方便带走成品", systemImage: "bag"),
+                .init(title: "发型", detail: "长发请束起，便于操作与安全", systemImage: "scissors")
             ],
             prepNotes: [
-                "长发请束起，注意刀具与热源使用安全",
-                "未完全干透的作品请小心搬运",
-                "未成年人需监护人全程陪同"
+                "注意刀具、热源与化学品使用安全，听从现场指引",
+                "未完全干透 / 定型的作品请小心搬运",
+                "未成年人需监护人全程陪同",
+                "过敏体质请提前确认材料成分（如香薰、胶水）"
             ],
-            registrationNotes: registrationCommon(a)
+            registrationNotes: registrationNotes(
+                extras: ["适合人群：零基础可参加，喜欢动手创作即可"]
+            )
         )
     }
 
-    // MARK: - Learning
+    // MARK: - Learning（议程安排 / 课前准备）
 
     private static func learning(_ a: Activity) -> ActivityDetailBlueprint {
         assemble(
             activity: a,
             sectionTemplates: [
                 .init(id: .plan, title: "议程安排"),
-                .init(id: .fee, title: "费用说明"),
+                .init(id: .fee, title: ActivityDetailCopy.feeSectionTitle),
                 .init(id: .prep, title: "课前准备"),
-                .init(id: .notes, title: "参加须知")
+                .init(id: .notes, title: ActivityDetailCopy.joinNoticesHeader)
             ],
             timeline: [
-                .init(time: timeOffset(a, minutes: 0), title: "签到入座", detail: "在 \(a.location) 签到并就座"),
-                .init(time: timeOffset(a, minutes: 10), title: "主题导入", detail: "介绍分享目标与整体议程"),
-                .init(time: timeOffset(a, minutes: 40), title: "核心讲解", detail: "案例分享与实操演示"),
-                .init(time: timeOffset(a, minutes: 80), title: "练习与问答", detail: "现场练习，开放提问交流"),
-                .init(time: timeOffset(a, minutes: 110), title: "总结散场", detail: "回顾要点，可领取讲义摘要")
+                .init(time: timeOffset(a, minutes: 0), title: "签到入座", detail: "在 \(a.location) 签到并就座，调试设备"),
+                .init(time: timeOffset(a, minutes: 10), title: "主题导入", detail: "介绍分享目标、议程与适合听讲人群"),
+                .init(time: timeOffset(a, minutes: 35), title: "核心讲解", detail: "案例分享与实操演示"),
+                .init(time: timeOffset(a, minutes: 75), title: "练习与问答", detail: "现场练习或开放提问，鼓励讨论"),
+                .init(time: timeOffset(a, minutes: 105), title: "总结散场", detail: "回顾要点；讲义 / 资料按活动说明发放")
             ],
             feeIncluded: [
-                .init(text: "主题分享与基础讲义", included: true),
+                .init(text: "主题分享与基础讲义 / 资料", included: true),
                 .init(text: "场地席位", included: true)
             ],
             feeExcluded: [
-                .init(text: "延伸付费课程或资料", included: false)
+                .init(text: "延伸付费课程、一对一辅导或进阶资料", included: false),
+                .init(text: "个人设备与软件订阅费用", included: false)
             ],
-            refundNotes: ["活动开始前 12 小时取消：可释放参加名额"],
+            refundNotes: [
+                "活动开始前 12 小时取消：可释放参加名额",
+                "已发放不可撤回的数字资料后：退费规则以发起人说明为准"
+            ],
             gear: [
-                .init(title: "笔记", detail: "笔记本或平板电脑", systemImage: "book"),
-                .init(title: "充电", detail: "电子设备请确保电量充足", systemImage: "battery.100")
+                .init(title: "笔记", detail: "笔记本、平板或电脑，便于记录", systemImage: "book"),
+                .init(title: "充电", detail: "电子设备请确保电量充足，可带充电宝", systemImage: "battery.100"),
+                .init(title: "耳机", detail: "若为线上连麦场次，建议自备耳机麦克风", systemImage: "headphones")
             ],
             prepNotes: [
                 "提问请简洁明确，便于更多伙伴参与交流",
-                "未经发起人允许，请勿公开传播录音或录像",
-                "迟到超过 20 分钟可能影响完整体验"
+                "未经发起人允许，请勿公开传播录音、录像或讲义",
+                "迟到超过 20 分钟可能影响完整体验，请尽量准时",
+                "如需电脑实操，请提前安装活动说明中的软件"
             ],
-            registrationNotes: registrationCommon(a)
+            registrationNotes: registrationNotes(
+                extras: ["适合人群：对该主题感兴趣即可；有无基础以活动介绍为准"]
+            )
         )
     }
 
-    // MARK: - Entertainment
+    // MARK: - Entertainment（活动流程 / 玩法与规则）
 
     private static func entertainment(_ a: Activity) -> ActivityDetailBlueprint {
         assemble(
             activity: a,
             sectionTemplates: [
                 .init(id: .plan, title: "活动流程"),
-                .init(id: .fee, title: "费用说明"),
-                .init(id: .prep, title: "参与规则"),
-                .init(id: .notes, title: "参加须知")
+                .init(id: .fee, title: ActivityDetailCopy.feeSectionTitle),
+                .init(id: .prep, title: "玩法与规则"),
+                .init(id: .notes, title: ActivityDetailCopy.joinNoticesHeader)
             ],
             timeline: [
-                .init(time: timeOffset(a, minutes: 0), title: "集合签到", detail: "在 \(a.location) 签到并确认人数"),
-                .init(time: timeOffset(a, minutes: 15), title: "规则说明", detail: "介绍玩法规则，新手可现场了解"),
-                .init(time: timeOffset(a, minutes: 30), title: "正式进行", detail: "按分组或桌位开始活动"),
-                .init(time: timeOffset(a, minutes: 150), title: "结算散场", detail: "费用按活动说明结算后散场")
+                .init(time: timeOffset(a, minutes: 0), title: "集合签到", detail: "在 \(a.location) 签到，确认人数与桌位 / 房间"),
+                .init(time: timeOffset(a, minutes: 10), title: "规则说明", detail: "介绍玩法、时长与新手友好程度；可现场答疑"),
+                .init(time: timeOffset(a, minutes: 25), title: "正式开玩", detail: "按分组、桌位或剧本角色开始"),
+                .init(time: timeOffset(a, minutes: 100), title: "中场休整", detail: "可补水、换场或加钟（按场馆规则）"),
+                .init(time: timeOffset(a, minutes: 160), title: "结算散场", detail: "费用按活动说明结算后散场，可自愿续摊")
             ],
             feeIncluded: [
-                .init(text: a.isFree ? "活动组织协调（台费现场 AA）" : "活动页标注费用", included: true)
+                .init(text: a.isFree ? "活动组织协调（台费 / 门票现场 AA）" : "活动页标注费用（含基础场次）", included: true),
+                .init(text: "基础规则讲解与组局协调", included: true)
             ],
             feeExcluded: [
-                .init(text: "加钟、饮料及其他个人消费", included: false)
+                .init(text: "加钟、饮料、小费及其他个人消费", included: false),
+                .init(text: "个人往返交通与停车费", included: false)
             ],
             refundNotes: [
                 "活动开始前 6 小时取消：可释放参加名额",
+                "已锁房 / 已开剧本的场次：退改规则以场馆或发起人说明为准",
                 "临期无故缺席：可能影响候补伙伴的参与安排"
             ],
             gear: [],
             prepNotes: [
-                "尊重比赛或游戏结果，禁止人身攻击或不友善行为",
-                "请避免电子设备外放，影响他人体验",
-                "未成年人参与请确认场馆年龄规定"
+                "尊重输赢与角色扮演，禁止人身攻击、性别歧视或不友善行为",
+                "请避免电子设备外放，影响他人沉浸体验",
+                "未成年人参与请确认场馆年龄与监护规定",
+                "桌游 / 剧本杀新手欢迎；若有剧透雷点可提前私信发起人",
+                "KTV / 电竞场次请爱护设备，按场馆规定使用"
             ],
-            registrationNotes: registrationCommon(a)
+            registrationNotes: registrationNotes(
+                extras: ["适合人群：想轻松玩一局的朋友；新手友好程度见活动介绍"]
+            )
         )
     }
 
@@ -519,8 +588,8 @@ struct ActivityDetailBlueprint {
 
     // MARK: - Shared helpers
 
-    private static func registrationCommon(_ a: Activity) -> [String] {
-        [
+    private static func registrationNotes(extras: [String] = []) -> [String] {
+        extras + [
             "请使用真实昵称，便于发起人现场核验",
             "\(ActivityCardStatus.fullVerbose)时可加入候补，有人取消后将按顺序通知",
             "参加成功后将自动加入活动群，接收集合与变更通知",

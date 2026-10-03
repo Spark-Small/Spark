@@ -144,7 +144,8 @@ extension ChatConversation {
             }
             return line
         case .direct:
-            return peerIsActive ? MessagesCopy.activeNow : MessagesCopy.friendSubtitle
+            if peerIsActive { return MessagesCopy.activeNow }
+            return isFriend ? MessagesCopy.friendSubtitle : MessagesCopy.strangerSubtitle
         case .notice:
             return MessagesCopy.noticeSubtitle
         }

@@ -2,10 +2,9 @@
 //  ProfileDashboardViews.swift
 //  坐标系
 //
-//  「我的」文案，以及最近浏览横滑轨与二级列表。
+//  「我的」文案、路由与二级 List chrome。
 //
 
-import SwiftData
 import SwiftUI
 import CoordinateModels
 
@@ -15,16 +14,32 @@ enum ProfileDashboardCopy {
     static let ordersTitle = "我的订单"
     static let activitiesTitle = "我的活动"
     static let rootTitle = "我的"
+    static let settingsAccessibilityLabel = "设置"
+    static let notificationsAccessibilityLabel = "通知"
+    static let communityLibraryTitle = "广场内容"
+    static let communityBookmarks = "收藏的分享"
+    static let communityLiked = "赞过的"
+    static let communityMyPosts = "我的分享"
+    static let communityReposts = "我的转发"
+    static let communityGuidelines = "社区公约"
     static let activityHosted = "我发起的"
     static let activityJoined = "我报名的"
-    static let activityFavorites = "我收藏的"
+    static let activityFavorites = "我的收藏" // 根列表不挂；详情「更多」→ 收藏库
     static let bookingCredentials = "陪玩预约"
     static let activityInvites = "活动邀约"
+    static let activitiesLibraryTitle = "活动与行程"
+    static let activitiesLibraryFooter = "发起、报名与邀约都在这里。"
+    static let attentionSectionTitle = "待办"
+    static let servicesSectionTitle = "服务"
+    static let librarySectionTitle = "我的内容"
+    static let trustBadgeAccessibilityHint = "打开我的认证"
     static let myClubsTitle = "我的俱乐部"
     static let myClubsHosted = "我创建的"
     static let myClubsJoined = "已加入"
     static let myClubsEmpty = "还没有加入俱乐部"
-    static let myClubsEmptyHint = "在「找人玩」发现同城俱乐部，或自己创建一个。"
+    static let myClubsEmptyHint = "可在搭子页发现同城俱乐部，或在此创建自己的。"
+    static let createClub = "创建俱乐部"
+    static let createClubHint = "自定义名称，创建本地俱乐部"
 
     static let membershipOpen = "开通会员"
     static let membershipCenter = "会员中心"
@@ -32,9 +47,6 @@ enum ProfileDashboardCopy {
     static let becomeCompanion = "成为陪玩"
     static let guestHint = "访客 · 创建账号解锁交易与资料"
     static let trustEntry = "我的认证"
-    static let reputationSectionTitle = "我的信誉"
-    static let commerceSectionTitle = "会员与钱包"
-    static let commerceSectionFooter = "充值、会员权益与陪玩入驻。首日可先浏览活动，需要时再打开。"
 
     static let walletCoupons = "优惠券"
     static let walletPoints = "积分"
@@ -42,12 +54,6 @@ enum ProfileDashboardCopy {
     static let walletWithdraw = "提现"
     static let walletLedger = "账单明细"
     static let walletInvoice = "发票中心"
-
-    static let recentBrowseTitle = "最近浏览"
-    static let recentBrowseClear = "清空"
-    static let recentBrowseEmpty = "还没有浏览记录"
-    static let recentBrowseListTitle = "浏览记录"
-    static let recentBrowseEmptyHint = "打开活动详情后会自动记录。"
 
     static let demoWithdraw = "本地演示暂不支持提现，正式版将接入实名与银行卡。"
     static let demoInvoice = "本地演示暂不支持开票，正式版将提供电子发票中心。"
@@ -66,14 +72,16 @@ enum ProfileRoute: Hashable {
     case becomeCompanion
     case orders(ProfileOrderShortcutFilter?)
     case trust
+    case activitiesLibrary
+    case communityLibrary
     case hostedActivities
     case joinedActivities
     case favoriteActivities
-    case browseHistory
     case bookingCredentials
     case activityInvites
     case myClubs
     case bookingDetail(BuddyBookingRecord.ID)
+    case notifications
 }
 
 struct ProfileRouteDestination: View {
@@ -91,14 +99,16 @@ struct ProfileRouteDestination: View {
             ProfileOrdersView(initialShortcut: shortcut)
         case .trust:
             TrustPrivateDashboardView()
+        case .activitiesLibrary:
+            ProfileActivitiesLibraryHubView()
+        case .communityLibrary:
+            ProfileCommunityLibraryHubView()
         case .hostedActivities:
             ProfilePublishedLibraryView(initialSegment: .activities)
         case .joinedActivities:
             ProfileActivityCredentialsView()
         case .favoriteActivities:
             ProfileFavoriteActivitiesLibraryView()
-        case .browseHistory:
-            ProfileRecentBrowseListView()
         case .bookingCredentials:
             ProfileBookingCredentialsView()
         case .activityInvites:
@@ -107,6 +117,8 @@ struct ProfileRouteDestination: View {
             ProfileMyClubsView()
         case .bookingDetail(let recordID):
             BookingCredentialExpandedView(recordID: recordID)
+        case .notifications:
+            NotificationsCenterView()
         }
     }
 }
@@ -118,114 +130,5 @@ extension View {
     func profileSecondaryListChrome() -> some View {
         listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
-    }
-}
-
-// MARK: - Recent browse shelf
-
-/// 「我的」最近浏览：发现页同款横滑轨，而非 Settings 式长列表。
-struct ProfileRecentBrowseShelf: View {
-    let records: [ProfileRecentBrowseRecord]
-    var zoomNamespace: Namespace.ID
-    var onSeeAll: (() -> Void)?
-
-    @Environment(ActivitiesModel.self) private var activities
-
-    private var previewRecords: [ProfileRecentBrowseRecord] {
-        Array(records.prefix(8))
-    }
-
-    var body: some View {
-        DiscoverBrowseSection(
-            title: ProfileDashboardCopy.recentBrowseTitle,
-            onSeeAll: previewRecords.isEmpty ? nil : onSeeAll
-        ) {
-            if previewRecords.isEmpty {
-                Text(ProfileDashboardCopy.recentBrowseEmpty)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, PlatformMetrics.contentInset)
-            } else {
-                DiscoverHorizontalRail {
-                    ForEach(previewRecords) { record in
-                        if let activity = activities.activity(id: record.activityID) {
-                            PlatformContinueCard(
-                                activityID: activity.id,
-                                zoomNamespace: zoomNamespace,
-                                photo: activity.coverPhoto,
-                                title: activity.title,
-                                timeLine: Formatters.activityEventTime(from: activity.date),
-                                metaLine: Formatters.conversationListTime(from: record.viewedAt),
-                                isJoined: activities.isJoined(activity.id),
-                                isFull: activity.isFull
-                            )
-                            .platformContinueRailFrame()
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Recent browse list
-
-struct ProfileRecentBrowseListView: View {
-    @Environment(ActivitiesModel.self) private var activities
-    @Environment(AppModel.self) private var app
-    @Environment(\.profileRecentBrowseStore) private var recentBrowseStore
-    @Query(sort: \RecentBrowseItem.viewedAt, order: .reverse)
-    private var browseItems: [RecentBrowseItem]
-    @Namespace private var zoomNamespace
-
-    private var records: [ProfileRecentBrowseRecord] {
-        Array(browseItems.prefix(ProfileRecentBrowseStore.maxItems)).map(\.asRecord)
-    }
-
-    var body: some View {
-        List {
-            if records.isEmpty {
-                Section {
-                    ContentUnavailableView(
-                        ProfileDashboardCopy.recentBrowseEmpty,
-                        systemImage: "clock.arrow.circlepath",
-                        description: Text(ProfileDashboardCopy.recentBrowseEmptyHint)
-                    )
-                    .listRowBackground(Color.clear)
-
-                    Button("去发现活动") {
-                        app.selectedTab = .activities
-                    }
-                    .activityPrimaryCTA(controlSize: .large)
-                    .buttonSizing(.flexible)
-                    .listRowBackground(Color.clear)
-                }
-            } else {
-                ForEach(records) { record in
-                    if let activity = activities.activity(id: record.activityID) {
-                        ActivityZoomNavigationLink(activity: activity, namespace: zoomNamespace) {
-                            LabeledContent(record.title) {
-                                Text(Formatters.conversationListTime(from: record.viewedAt))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        .activityZoomNavigationDestination(namespace: zoomNamespace)
-        .profileSecondaryListChrome()
-        .navigationTitle(ProfileDashboardCopy.recentBrowseListTitle)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            if !records.isEmpty {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(ProfileDashboardCopy.recentBrowseClear, role: .destructive) {
-                        recentBrowseStore.clear()
-                    }
-                }
-            }
-        }
     }
 }

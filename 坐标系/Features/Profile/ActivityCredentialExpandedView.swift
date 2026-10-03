@@ -243,7 +243,7 @@ struct ActivityCredentialExpandedView: View {
                 app.cancelHostedActivity(activityID)
                 dismiss()
             }
-            Button("保留活动", role: .cancel) {}
+            Button(ActivityDetailCopy.hostManageKeepActivity, role: .cancel) {}
         } message: {
             Text(
                 ActivityDetailCopy.hostManageCancelAlertMessage(

@@ -37,12 +37,12 @@ extension BuddiesModel {
 
     func validateClubName(_ raw: String) -> String? {
         let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if name.count < 2 { return "名称至少 2 个字" }
-        if name.count > 20 { return "名称不超过 20 个字" }
+        if name.count < 2 { return BuddyBrowseCopy.ModelCopy.clubNameTooShort }
+        if name.count > 20 { return BuddyBrowseCopy.ModelCopy.clubNameTooLong }
         if catalogCircles.contains(where: {
             $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame
         }) {
-            return "已有同名俱乐部，请换一个名称"
+            return BuddyBrowseCopy.ModelCopy.clubNameTaken
         }
         return nil
     }
@@ -86,17 +86,34 @@ extension BuddiesModel {
         joinedCircleIDs.insert(circle.id)
         joinedCircleNames.insert(circle.name)
         ensurePrefs(kind: .circle, name: circle.name)
-        isComposingClub = false
+        presentation.endComposeClub()
         persist()
         onMembershipChanged?()
 
-        pendingOrgJoinSuccess = BuddyOrgJoinSuccess(
+        presentation.pendingOrgJoinSuccess = BuddyOrgJoinSuccess(
             kind: .circle,
             name: circle.name,
             systemImage: circle.systemImage
         )
-        flash("已创建「\(circle.name)」")
+        flash(BuddyOrgJoinCopy.createdClub(circle.name))
+        if remoteClubSync.isEnabled {
+            Task { await submitClubCreateToRemote(circle.id) }
+        }
         return circle
+    }
+
+    func submitClubCreateToRemote(_ id: UUID) async {
+        guard remoteClubSync.isEnabled,
+              let club = userClubs.first(where: { $0.id == id }) else { return }
+        do {
+            let remote = try await remoteClubSync.create(club, creatorUserID: currentUserID)
+            if let index = userClubs.firstIndex(where: { $0.id == id }) {
+                userClubs[index] = remote
+                persist()
+            }
+        } catch {
+            flash(BuddyFeedbackCopy.remoteClubSyncFailed)
+        }
     }
 
     func dissolveUserClub(_ circle: InterestCircle) {

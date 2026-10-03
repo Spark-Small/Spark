@@ -4,7 +4,7 @@
 //
 
 import Foundation
-import Observation
+import CoordinateDomain
 import CoordinateModels
 
 extension CommunityModel {
@@ -15,9 +15,18 @@ extension CommunityModel {
            case .block = ContentModeration.scanText(quoteTrimmed) {
             return
         }
-        if !repostedIDs.contains(id), let index = posts.firstIndex(where: { $0.id == id }) {
-            repostedIDs.insert(id)
-            posts[index].repostCount += 1
+        if let change = engagement.markReposted(
+            originalPostID: id,
+            posts: &posts,
+            repostedIDs: &repostedIDs
+        ), case .reposted(let author, let postID) = change {
+            recordCommunityInbox(
+                kind: "repost",
+                title: "\(currentUserName) 转发了你的分享",
+                body: original.messageText,
+                postID: postID,
+                author: author
+            )
         }
         posts.insert(
             CommunityPost(
@@ -87,10 +96,9 @@ extension CommunityModel {
             ),
             at: 0
         )
-        isComposing = false
-        pendingComposeBody = nil
-        pendingRelatedActivityTitle = nil
-        pendingRelatedActivityID = nil
+        presentation.endCompose()
+        presentation.clearPendingCompose()
+        presentation.flash(CommunityBrowseCopy.publishSuccess)
         persist()
         return .published(postID)
     }

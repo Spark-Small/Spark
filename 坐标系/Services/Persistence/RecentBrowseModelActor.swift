@@ -32,7 +32,8 @@ actor RecentBrowseModelActor {
         for record in legacy.items.prefix(maxItems) {
             modelContext.insert(
                 RecentBrowseItem(
-                    activityID: record.activityID,
+                    kind: .activity,
+                    targetID: record.activityID,
                     title: record.title,
                     viewedAt: record.viewedAt
                 )
@@ -42,23 +43,33 @@ actor RecentBrowseModelActor {
         PersistenceMigration.removeLegacyFile(Self.legacyFileName)
     }
 
-    func record(activityID: UUID, title: String, maxItems: Int) throws {
+    func record(
+        kind: RecentBrowseKind,
+        targetID: UUID,
+        title: String,
+        subtitle: String,
+        maxItems: Int
+    ) throws {
+        let key = RecentBrowseItem.makeRecordKey(kind: kind, targetID: targetID)
         var existing = FetchDescriptor<RecentBrowseItem>(
-            predicate: #Predicate { $0.activityID == activityID }
+            predicate: #Predicate { $0.recordKey == key }
         )
         existing.fetchLimit = 1
         if let hit = try modelContext.fetch(existing).first {
             hit.title = title
+            hit.subtitle = subtitle
             hit.viewedAt = .now
         } else {
             modelContext.insert(
                 RecentBrowseItem(
-                    activityID: activityID,
-                    title: title
+                    kind: kind,
+                    targetID: targetID,
+                    title: title,
+                    subtitle: subtitle
                 )
             )
         }
-        try trimIfNeeded(maxItems: maxItems)
+        try trimIfNeeded(kind: kind, maxItems: maxItems)
         try modelContext.save()
     }
 
@@ -70,8 +81,20 @@ actor RecentBrowseModelActor {
         try modelContext.save()
     }
 
-    private func trimIfNeeded(maxItems: Int) throws {
+    func clear(kinds: [RecentBrowseKind]) throws {
+        let raws = Set(kinds.map(\.rawValue))
+        let all = try modelContext.fetch(FetchDescriptor<RecentBrowseItem>())
+        for item in all where raws.contains(item.kindRaw) {
+            modelContext.delete(item)
+        }
+        try modelContext.save()
+    }
+
+    /// 每类各自封顶，避免一类挤爆另一类。
+    private func trimIfNeeded(kind: RecentBrowseKind, maxItems: Int) throws {
+        let kindRaw = kind.rawValue
         let descriptor = FetchDescriptor<RecentBrowseItem>(
+            predicate: #Predicate { $0.kindRaw == kindRaw },
             sortBy: [SortDescriptor(\.viewedAt, order: .reverse)]
         )
         let rows = try modelContext.fetch(descriptor)

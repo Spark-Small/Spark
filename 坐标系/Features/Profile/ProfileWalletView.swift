@@ -13,25 +13,12 @@ struct ProfileWalletView: View {
     @Environment(AppModel.self) private var app
     @Environment(MembershipStore.self) private var membership
     @State private var showTopUp = false
-    @State private var showCreateAccount = false
     @State private var demoAlertMessage: String?
 
     private var tier: WalletBankCardTier { wallet.cardTier }
 
     var body: some View {
         Form {
-            if app.auth.isGuest {
-                Section {
-                    Text(GuestAccessGate.commerceReason)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Button("创建账号后使用钱包") {
-                        showCreateAccount = true
-                    }
-                    .fontWeight(.semibold)
-                }
-            }
-
             Section {
                 WalletBankBalanceCard(
                     balanceText: wallet.balanceText,
@@ -40,9 +27,7 @@ struct ProfileWalletView: View {
                     nickname: app.user.name,
                     isMember: membership.isEntitled,
                     onTopUp: {
-                        if app.auth.isGuest {
-                            showCreateAccount = true
-                        } else if !YouthModePreference.isEnabled {
+                        if !YouthModePreference.isEnabled {
                             showTopUp = true
                         }
                     }
@@ -91,7 +76,7 @@ struct ProfileWalletView: View {
                 Text("快捷操作")
             } footer: {
                 if YouthModePreference.isEnabled {
-                    Text(GuestAccessGate.youthCommerceReason)
+                    Text(CommerceAccessCopy.youthCommerceReason)
                 } else {
                     Text("充值即时入账；提现与发票为本地演示占位，正式版将接入实名与开票。")
                 }
@@ -155,13 +140,6 @@ struct ProfileWalletView: View {
             WalletTopUpSheet()
                 .toolbarVisibility(.hidden, for: .tabBar)
         }
-        .sheet(isPresented: $showCreateAccount) {
-            ProfileCreateAccountSheet(
-                session: app.auth,
-                reason: GuestAccessGate.commerceReason
-            )
-            .toolbarVisibility(.hidden, for: .tabBar)
-        }
         .alert("提示", isPresented: Binding(
             get: { demoAlertMessage != nil },
             set: { if !$0 { demoAlertMessage = nil } }
@@ -174,9 +152,7 @@ struct ProfileWalletView: View {
 
     private func openWalletAction(_ action: () -> Void) {
         if YouthModePreference.isEnabled { return }
-        if GuestAccessGate.allow(app.auth, presentCreateAccount: $showCreateAccount) {
-            action()
-        }
+        action()
     }
 }
 

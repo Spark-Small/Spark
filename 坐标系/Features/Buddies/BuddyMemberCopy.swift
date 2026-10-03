@@ -30,15 +30,17 @@ nonisolated enum BuddyMemberCopy {
     static let collapseMembers = "收起成员"
     static let moreMembers = "更多成员"
     static let emptyMembersTitle = "暂无成员资料"
-    static let emptyMembersDescription = "加入后可邀请同好，或去舞台发现更多人。"
+    static let emptyMembersDescription = "加入后可邀请已加好友的同好进入。"
+    static let emptyMembersInviteCTA = "邀请好友"
+    static let emptyMembersDiscoverCTA = "去发现搭子"
 
     static let sourceSectionTitle = "来源"
     static let takeMic = "上麦"
     static let emptySeat = "空麦位"
-    static let emptySeatHint = "点按申请上麦（演示）"
+    static let emptySeatHint = "点按申请上麦"
     static let leaveMic = "下麦"
-    static let onMicDemo = "已上麦（演示）"
-    static let offMicDemo = "已下麦"
+    static let onMic = "已上麦"
+    static let offMic = "已下麦"
 
     static func roleBadge(_ role: String) -> String { role }
 

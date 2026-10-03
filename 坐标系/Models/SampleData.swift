@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoordinateDomain
 import CoordinateModels
 
 enum SampleData {
@@ -550,7 +551,7 @@ enum SampleData {
     /// 用户投放的样板封面（BuddyPhotos → Assets `BuddyPhoto01`…`25`）
     private static let buddyCoverPool: [String] = (1...25).map { String(format: "BuddyPhoto%02d", $0) }
 
-    /// 按免费池顺序固定封面；预约同昵称共用同一张
+    /// 按免费池顺序固定封面组；预约同昵称共用。每组 2–4 张供发现卡左右滑。
     private static let buddyNickCoverOrder: [String] = [
         "Mia", "阿凯", "阿禾", "小周", "Yuna", "林夏", "Leo", "Noon", "Coco", "阿哲",
         "阿川", "小满", "叙叙", "南栀", "老白", "青禾", "木子", "江晚", "北辰", "半夏",
@@ -559,11 +560,16 @@ enum SampleData {
     ]
 
     private static func coverAssets(for nick: String) -> [String] {
+        let start: Int
         if let index = buddyNickCoverOrder.firstIndex(of: nick) {
-            return [buddyCoverPool[index % buddyCoverPool.count]]
+            start = index % buddyCoverPool.count
+        } else {
+            start = abs(nick.utf8.reduce(0) { ($0 &+ Int($1)) &+ 17 }) % buddyCoverPool.count
         }
-        let slot = abs(nick.utf8.reduce(0) { ($0 &+ Int($1)) &+ 17 }) % buddyCoverPool.count
-        return [buddyCoverPool[slot]]
+        let count = 2 + (start % 3)
+        return (0..<count).map { offset in
+            buddyCoverPool[(start + offset) % buddyCoverPool.count]
+        }
     }
 
     private static func buddy(
@@ -575,7 +581,9 @@ enum SampleData {
         voiceCaption: String? = nil
     ) -> BuddyProfile {
         BuddyProfile(
-            id: UUID(), nickname: nick, gender: gender, age: age,
+            id: BuddyIdentityMatching.stableUserID(forNickname: nick),
+            userID: BuddyIdentityMatching.stableUserID(forNickname: nick),
+            nickname: nick, gender: gender, age: age,
             heightCM: h, weightKG: w, distanceKM: km, photoSeeds: seeds,
             photoAssetNames: photoAssets ?? coverAssets(for: nick),
             city: city, bio: bio, tags: tags, availability: avail,
@@ -1488,10 +1496,12 @@ enum SampleData {
             updatedAt: hours(-8), unreadCount: 0, kind: .direct
         ),
         ChatConversation(
-            id: chatID(10), title: "小满", subtitle: "好友",
+            id: chatID(10), title: "小满", subtitle: "陌生人",
             lastMessage: "嗨，看了你主页想认识一下～",
             updatedAt: hours(-0.2), unreadCount: 1, kind: .direct,
-            isMessageRequest: true
+            isMessageRequest: true,
+            requestSource: .directMessage,
+            isFriend: false
         )
     ]
 

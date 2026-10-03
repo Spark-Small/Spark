@@ -22,7 +22,7 @@ struct WalletTopUpSheet: View {
 
     private var topUpFooterText: String {
         if youthBlocked {
-            return GuestAccessGate.youthCommerceReason
+            return CommerceAccessCopy.youthCommerceReason
         }
         if allowsDemoTopUp {
             return "DEBUG：本地演示充值，立即记入钱包余额。"

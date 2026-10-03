@@ -15,7 +15,7 @@ struct ActivityFilterTip: Tip {
     }
 
     var message: Text? {
-        Text("用筛选缩小日期、费用与距离，更快找到想参加的活动。")
+        Text("点筛选即可按时间、距离和费用缩小范围，选完立即生效。")
     }
 
     var image: Image? {

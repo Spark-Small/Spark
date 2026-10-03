@@ -8,6 +8,11 @@
 import SwiftUI
 import CoordinateModels
 
+/// 成员列表 Sheet 内 typed 目的地（勿用裸 `String`）。
+struct ActivityPeopleMemberRoute: Hashable {
+    let name: String
+}
+
 struct ActivityDetailPeopleSheet: View {
     let activity: Activity
 
@@ -31,7 +36,7 @@ struct ActivityDetailPeopleSheet: View {
                 Section {
                     ForEach(Array(members.enumerated()), id: \.offset) { index, name in
                         HStack {
-                            NavigationLink(value: name) {
+                            NavigationLink(value: ActivityPeopleMemberRoute(name: name)) {
                                 Label {
                                     VStack(alignment: .leading) {
                                         Text(name)
@@ -71,8 +76,8 @@ struct ActivityDetailPeopleSheet: View {
             .navigationTitle("活动成员")
             .navigationBarTitleDisplayMode(.inline)
             .platformSheetConfirmationToolbar(ActivityDetailCopy.peopleSheetDone)
-            .navigationDestination(for: String.self) { name in
-                memberProfile(name)
+            .navigationDestination(for: ActivityPeopleMemberRoute.self) { route in
+                memberProfile(route.name)
                     .toolbarVisibility(.hidden, for: .tabBar)
             }
             .peerContactDestination(route: $memberContactRoute)
@@ -103,4 +108,3 @@ struct ActivityDetailPeopleSheet: View {
         memberContactRoute = app.openPeerContact(with: name, context: context)
     }
 }
-

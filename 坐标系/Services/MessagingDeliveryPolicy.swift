@@ -47,4 +47,10 @@ enum MessagingDeliveryPolicy {
     }
 
     static let pageSize = 80
+
+    /// 本机编辑窗口（对齐信息「编辑」时限量级；非远端同步）。
+    static let localEditWindow: TimeInterval = 15 * 60
+
+    /// 本机撤回窗口。
+    static let localUnsendWindow: TimeInterval = 2 * 60
 }

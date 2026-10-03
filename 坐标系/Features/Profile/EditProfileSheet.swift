@@ -79,8 +79,8 @@ struct ProfileCompletionAvatar: View {
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(percentage == 100 ? PlatformStatus.success : .secondary)
                     .monospacedDigit()
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
+                    .padding(.horizontal, PlatformMetrics.chipPaddingHorizontalMini)
+                    .padding(.vertical, PlatformMetrics.chipPaddingVerticalMini)
                     .background(PlatformSurface.elevated, in: Capsule())
                     .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
                     .offset(x: -4, y: -4)
@@ -141,9 +141,25 @@ struct EditProfileSheet: View {
         draftVerificationPhotos.count < VerificationPhotoLimits.maxCount
     }
 
+    private var identityGateBanner: some View {
+        Section {
+            Text(IdentityAccessGate.needPhotosReason(for: app.pendingIdentityGateSource))
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+            Text(IdentityAccessGate.photosMissingNextStep(for: app.pendingIdentityGateSource))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text(IdentityAccessGate.editProfileSectionHeader(for: app.pendingIdentityGateSource))
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
+                if app.pendingIdentityEditProfile {
+                    identityGateBanner
+                }
                 identitySection
                 verificationPhotosSection
                 personalInfoSection
