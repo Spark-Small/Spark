@@ -153,7 +153,7 @@ struct ActivityJoinConfirmSheet: View {
 
                 Section {
                     TextField(ActivityDetailCopy.joinConfirmNotePlaceholder, text: $note, axis: .vertical)
-                        .lineLimit(3...5)
+                        .platformFormTextInput(.note)
                         .disabled(isProcessing)
                 } header: {
                     Label {
@@ -308,7 +308,7 @@ struct ActivityJoinConfirmSheet: View {
                 return
             }
             pendingOrder = ensured
-            let outcome = ActivityPaymentStore.markPaid(orderID: ensured.id, method: selectedMethod)
+            let outcome = await ActivityPaymentStore.markPaid(orderID: ensured.id, method: selectedMethod)
             isProcessing = false
             paymentTask = nil
             switch outcome {

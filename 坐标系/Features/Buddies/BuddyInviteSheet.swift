@@ -83,11 +83,9 @@ struct BuddyInviteSheet: View {
                     dismiss()
                     onBrowseActivities?()
                 }
-                .activityPrimaryCTA(controlSize: .large)
                 Button(BuddyBookingFlowCopy.inviteEmptyDismiss) {
                     dismiss()
                 }
-                .activitySecondaryCTA(controlSize: .large)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
@@ -145,7 +143,7 @@ struct BuddyInviteSheet: View {
                     text: $note,
                     axis: .vertical
                 )
-                .lineLimit(3...5)
+                .platformFormTextInput(.note)
             }
         }
     }

@@ -30,9 +30,18 @@
 
 ## 3. Empty
 
-统一优先 `ContentUnavailableView`：
+全 App 统一系统空态（Apple `ContentUnavailableView`）：
 
-| 场景 | 行动 |
+| 规则 | 要求 |
+|------|------|
+| 组件 | 仅 `ContentUnavailableView`；搜索无结果仅 `.search` / `.search(text:)` |
+| 结构 | `Label(title, systemImage:)` + `description: Text` + 可选 `actions: { Button… }` |
+| 行动 | 裸 `Button`（系统 tint 文字）；**禁止**空态挂 `activityPrimaryCTA` / `activitySecondaryCTA` / `.borderedProminent` / `.buttonSizing` |
+| 留白 | 交给系统居中；**禁止**再叠 `emptyStateVerticalPadding` 业务空态皮 |
+| 放置 | 页面级空态用 `platformContentUnavailablePageChrome()` 或 `List.overlay` 居中；**禁止**把整页空态塞进 List 行 / ScrollView 首行（会顶对齐） |
+| 文案 | 进 `*Copy`；诚实说明，不塞假供给 |
+
+| 场景 | 行动示例 |
 |------|------|
 | 发现无结果（筛选） | 清除条件 |
 | 发现无局 | 发起活动 |

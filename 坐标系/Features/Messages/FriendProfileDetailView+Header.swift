@@ -14,6 +14,8 @@ extension FriendProfileDetailView {
             HStack(alignment: .center, spacing: PlatformConversationListRow.imageToTextPadding) {
                 PlatformListAvatarView(
                     name: nickname,
+                    photo: isSelf ? app.user.localAvatarImage : nil,
+                    photoRef: isSelf ? nil : profile?.coverPhoto,
                     side: PlatformConversationListRow.imageSide * 1.85
                 )
 
@@ -22,6 +24,8 @@ extension FriendProfileDetailView {
                         .font(PlatformListTypography.title3Emphasized)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
+                        .truncationMode(.tail)
+                        .layoutPriority(1)
 
                     Text(identitySecondaryLine)
                         .font(PlatformListTypography.captionEmphasized)
@@ -35,8 +39,7 @@ extension FriendProfileDetailView {
                             .lineLimit(1)
                     }
                 }
-
-                Spacer(minLength: 0)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             credentialBadgeButtons
@@ -46,7 +49,8 @@ extension FriendProfileDetailView {
             }
 
             ProfileSocialStatsRow(
-                postCount: ProfileSocialStats.postCount(for: nickname, community: community),
+                likesCount: ProfileSocialStats.likesReceived(for: nickname, community: community),
+                mutualCount: ProfileSocialStats.mutualCount(for: nickname, app: app, messages: model),
                 followingCount: ProfileSocialStats.followingCount(for: nickname, app: app),
                 fansCount: ProfileSocialStats.fansCount(for: nickname, app: app)
             )
@@ -104,12 +108,24 @@ extension FriendProfileDetailView {
 
     private var profileMetaLine: String {
         var parts: [String] = []
-        if let profile {
-            let city = profile.city.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !city.isEmpty { parts.append(city) }
-            if profile.age > 0 { parts.append("\(profile.age) 岁") }
-            let availability = profile.availability.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !availability.isEmpty { parts.append(availability) }
+        let city = publicFields.city
+        if !city.isEmpty { parts.append(city) }
+        if isSelf, !publicFields.handle.isEmpty {
+            parts.append("@\(publicFields.handle)")
+        }
+        if let gender = publicFields.gender {
+            parts.append(gender.rawValue)
+        }
+        if let age = publicFields.age, age > 0 {
+            parts.append("\(age) 岁")
+        }
+        if let height = publicFields.heightCM, height > 0 {
+            parts.append("\(height)cm")
+        }
+        if !publicFields.availability.isEmpty {
+            parts.append(publicFields.availability)
+        } else if !publicFields.intentDisplayLine.isEmpty {
+            parts.append(publicFields.intentDisplayLine)
         }
         return parts.joined(separator: " · ")
     }

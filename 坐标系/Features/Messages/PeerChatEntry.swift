@@ -128,7 +128,14 @@ extension View {
 
 private struct PeerContactDestinationModifier: ViewModifier {
     @Binding var route: PeerContactRoute?
-    @Environment(\.hasActivityPeerChatDestination) private var stackHandlesPeerChat
+    @Environment(\.hasActivityPeerChatDestination) private var activityStackHandlesPeerChat
+    @Environment(\.hasCirclePeerChatDestination) private var circleStackHandlesPeerChat
+    @Environment(\.tabNavigationStateRef) private var navigationRef
+
+    /// 活动 / 搭子栈已注册 `PeerChatRoute` 时走 `NavigationPath`，避免 item 推栈藏 Tab 后 Zoom/侧滑返回不恢复。
+    private var usesPathForChat: Bool {
+        (activityStackHandlesPeerChat || circleStackHandlesPeerChat) && navigationRef != nil
+    }
 
     private var chatRoute: Binding<PeerChatRoute?> {
         Binding(
@@ -164,7 +171,13 @@ private struct PeerContactDestinationModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .modifier(ConditionalPeerChatNavigation(route: chatRoute, enabled: !stackHandlesPeerChat))
+            .modifier(ConditionalPeerChatNavigation(route: chatRoute, enabled: !usesPathForChat))
+            .onChange(of: route) { _, newRoute in
+                guard usesPathForChat, let navigation = navigationRef else { return }
+                guard case .chat(let chat) = newRoute else { return }
+                route = nil
+                navigation.path.append(chat)
+            }
             .sheet(item: addFriendRoute) { addRoute in
                 AddFriendPeerSheet(route: addRoute)
                     .toolbarVisibility(.hidden, for: .tabBar)

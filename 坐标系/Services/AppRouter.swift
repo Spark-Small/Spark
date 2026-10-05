@@ -10,6 +10,10 @@ import CoordinateModels
 
 enum BuddiesRoute: Hashable {
     case clubDiscover
+    /// 搭子 Tab · 约陪玩浏览（行程「下一步」等入口）。
+    case paidBrowse
+    /// 找搭子发现面（空态 / 组织邀请「去发现」深链）。
+    case socialBrowse
 }
 
 enum AppDeepLink: Equatable {
@@ -34,6 +38,8 @@ enum AppDeepLink: Equatable {
             self = .booking(id)
         case .communityPost(let id):
             self = .communityPost(id)
+        case .activityInvites:
+            self = .profile(.activityInvites)
         }
     }
 }

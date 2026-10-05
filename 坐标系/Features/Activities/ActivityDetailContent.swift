@@ -26,7 +26,7 @@ extension ActivityDetailView {
         // 分区间距 / 顶边距交给系统语义，不叠自定义 pt
         .listSectionSpacing(.compact)
         .contentMargins(.top, 0, for: .scrollContent)
-        .scrollDismissesKeyboard(.interactively)
+        .platformTextInputScrollChrome()
         .scrollEdgeEffectStyle(.soft, for: .top)
         .navigationTitle(live.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -91,9 +91,16 @@ extension ActivityDetailView {
             .toolbarVisibility(.hidden, for: .tabBar)
         }
         .sheet(isPresented: $showOrders) {
-            ActivityOrdersSheet(activityID: live.id) {
-                ordersRevision += 1
-            }
+            ActivityOrdersSheet(
+                activityID: live.id,
+                onResumePayment: {
+                    showOrders = false
+                    showJoinConfirm = true
+                },
+                onRefundCompleted: {
+                    ordersRevision += 1
+                }
+            )
             .toolbarVisibility(.hidden, for: .tabBar)
         }
         .alert(
@@ -142,6 +149,25 @@ extension ActivityDetailView {
             }
         } message: {
             Text(ActivityDetailCopy.cancelUnpaidMessage)
+        }
+        .alert(
+            ActivityDetailCopy.leaveWaitlistConfirmTitle,
+            isPresented: Binding(
+                get: { leaveWaitlistActivityID != nil },
+                set: { if !$0 { leaveWaitlistActivityID = nil } }
+            )
+        ) {
+            Button(ActivityDetailCopy.leaveWaitlistKeep, role: .cancel) {
+                leaveWaitlistActivityID = nil
+            }
+            Button(ActivityDetailCopy.leaveWaitlistConfirmAction, role: .destructive) {
+                if let id = leaveWaitlistActivityID {
+                    _ = model.toggleWaitlist(id)
+                }
+                leaveWaitlistActivityID = nil
+            }
+        } message: {
+            Text(ActivityDetailCopy.leaveWaitlistConfirmMessage)
         }
         .sheet(item: $cancelAndRefundOrder) { order in
             let activity = model.activity(id: order.activityID)

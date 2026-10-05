@@ -85,10 +85,48 @@ final class CommunityModel {
             likedCommentIDs = []
             persist()
         }
+        presentation.postDrafts = CommunityPostDraftStore.loadAll()
     }
 
     func isOwnPost(_ post: CommunityPost) -> Bool {
         post.isOwned(by: currentUserName)
+    }
+
+    /// 改名后同步帖子作者与评论署名，避免「我的发帖」变空。
+    func migrateUserName(from oldName: String, to newName: String) {
+        guard !oldName.isEmpty, !newName.isEmpty,
+              oldName.caseInsensitiveCompare(newName) != .orderedSame
+        else { return }
+        var changed = false
+        for index in posts.indices {
+            if posts[index].author.caseInsensitiveCompare(oldName) == .orderedSame {
+                posts[index].author = newName
+                changed = true
+            }
+            for commentIndex in posts[index].comments.indices {
+                if posts[index].comments[commentIndex].author.caseInsensitiveCompare(oldName) == .orderedSame {
+                    posts[index].comments[commentIndex].author = newName
+                    changed = true
+                }
+                if let replyTo = posts[index].comments[commentIndex].replyToAuthor,
+                   replyTo.caseInsensitiveCompare(oldName) == .orderedSame {
+                    posts[index].comments[commentIndex].replyToAuthor = newName
+                    changed = true
+                }
+            }
+            let nextLikers = posts[index].likerNames.map {
+                $0.caseInsensitiveCompare(oldName) == .orderedSame ? newName : $0
+            }
+            if nextLikers != posts[index].likerNames {
+                posts[index].likerNames = nextLikers
+                changed = true
+            }
+        }
+        if currentUserName.caseInsensitiveCompare(oldName) == .orderedSame {
+            currentUserName = newName
+            changed = true
+        }
+        if changed { persist() }
     }
 
     var items: [CommunityPost] {

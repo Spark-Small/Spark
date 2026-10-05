@@ -18,6 +18,7 @@ extension View {
         blockedUserNames: Set<String>,
         onBrowseBuddies: (() -> Void)? = nil,
         openCircle: ((InterestCircle) -> Void)? = nil,
+        openGuild: ((CompanionGuild) -> Void)? = nil,
         openConversation: ((UUID) -> Void)? = nil
     ) -> some View {
         modifier(
@@ -28,6 +29,7 @@ extension View {
                 blockedUserNames: blockedUserNames,
                 onBrowseBuddies: onBrowseBuddies,
                 openCircle: openCircle,
+                openGuild: openGuild,
                 openConversation: openConversation
             )
         )
@@ -52,6 +54,7 @@ private struct BuddyOrgJoinChromeModifier: ViewModifier {
     var blockedUserNames: Set<String>
     var onBrowseBuddies: (() -> Void)?
     var openCircle: ((InterestCircle) -> Void)?
+    var openGuild: ((CompanionGuild) -> Void)?
     var openConversation: ((UUID) -> Void)?
 
     @Environment(\.hasBuddyOrgJoinChrome) private var registered
@@ -121,7 +124,11 @@ private struct BuddyOrgJoinChromeModifier: ViewModifier {
                 openCircle?(circle)
             }
         case .guild:
-            break
+            if let guild = buddies.allGuilds.first(where: {
+                $0.name.caseInsensitiveCompare(success.name) == .orderedSame
+            }) {
+                openGuild?(guild)
+            }
         }
     }
 }

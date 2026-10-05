@@ -104,6 +104,16 @@ enum CommunityPhotoStore {
         try FileManager.default.copyItem(at: source, to: dest)
         return dest
     }
+
+    /// 导入本机录音等音轨；返回持久化文件名。
+    @discardableResult
+    static func importAudio(from source: URL) -> String? {
+        do {
+            return try copyMovie(from: source).lastPathComponent
+        } catch {
+            return nil
+        }
+    }
 }
 
 private final class VideoPosterCache: @unchecked Sendable {

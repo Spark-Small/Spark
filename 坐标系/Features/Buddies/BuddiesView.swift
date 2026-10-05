@@ -2,8 +2,9 @@
 //  BuddiesView.swift
 //  坐标系
 //
-//  找人玩：标题菜单切换找搭子 / 约陪玩 / 俱乐部；顶栏与五 Tab 同套 platformTabRoot*；
-//  三模式 Trailing 筛选 Menu（条件分流）。
+//  找人玩：顶栏与五 Tab 同套 platformTabRoot*；
+//  Trailing：筛选 | 模式 Menu（找搭子 / 约陪玩 / 俱乐部 / 最近浏览）。
+//  创建俱乐部在「我的 · 我的俱乐部」，不在本 Tab 顶栏。
 //
 
 import SwiftData
@@ -53,7 +54,9 @@ struct BuddiesView: View {
 
                         LazyVStack(alignment: .leading, spacing: PlatformMetrics.sectionSpacing) {
                             if isBrowsingRecents {
-                                recentsBrowseContent
+                                if !showsBuddiesPageUnavailable {
+                                    recentsBrowseContent
+                                }
                             } else {
                                 unifiedBrowse
                             }
@@ -61,30 +64,32 @@ struct BuddiesView: View {
                     }
                     .discoverBrowsePageColumn()
                 }
+                .overlay {
+                    if showsBuddiesPageUnavailable {
+                        buddiesPageUnavailable
+                    }
+                }
                 .discoverBrowseScrollChrome()
                 .scrollBounceBehavior(.basedOnSize)
                 .scrollEdgeEffectStyle(.soft, for: .bottom)
                 .platformTabRootScrollChrome(title: browseNavigationTitle)
-                .platformTabRootTitleMenu {
-                    BuddiesModeTitleMenu(
-                        kind: $model.filter.kind,
-                        isBrowsingRecents: isBrowsingRecents,
-                        hasRecents: hasBuddiesRecents,
-                        onSelectKind: { selectBrowseKind($0) },
-                        onSelectRecents: { selectBrowseRecents() }
-                    )
-                }
                 .platformTabRootToolbar {
-                    if !isBrowsingRecents, browseKind.usesBrowseFilters {
+                    if isBrowsingRecents {
+                        recentsExitToolbar
+                    } else if browseKind.usesBrowseFilters {
                         BuddiesModeSwitchToolbar(
                             filter: $model.filter,
                             peopleSort: $peopleSort,
                             bookingSort: $bookingSort,
                             clubSort: $clubSort,
+                            isBrowsingRecents: isBrowsingRecents,
+                            hasRecents: hasBuddiesRecents,
                             hasActiveFilters: model.hasActiveBrowseFilters,
                             toolbarSystemImage: model.browseFilterToolbarSystemImage,
                             filterAccessibilityValue: model.browseFilterAccessibilitySummary,
-                            onOpenDeepFilters: { showFilterSheet = true }
+                            onOpenDeepFilters: { showFilterSheet = true },
+                            onSelectKind: { selectBrowseKind($0) },
+                            onSelectRecents: { selectBrowseRecents() }
                         )
                     }
                 }
@@ -104,7 +109,7 @@ struct BuddiesView: View {
                 }
                 .onChange(of: hasBuddiesRecents) { _, hasRecents in
                     if !hasRecents, isBrowsingRecents {
-                        selectBrowseKind(.free)
+                        exitBrowseRecents()
                     }
                 }
                 .onChange(of: discoverBrowseScrollRequest) { _, _ in
@@ -113,11 +118,6 @@ struct BuddiesView: View {
                             BuddyBrowseCopy.ScrollAnchor.discoverBrowse,
                             anchor: .top
                         )
-                    }
-                }
-                .onAppear {
-                    if !model.filter.query.isEmpty {
-                        model.filter.query = ""
                     }
                 }
             }
@@ -183,13 +183,20 @@ struct BuddiesView: View {
             }
             .platformFeedbackAlert($model.presentation.toastMessage)
             .buddyBookingChrome(buddies: model, app: app)
+            .navigationDestination(for: CompanionGuild.self) { guild in
+                BuddyGuildDetailView(guild: guild)
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            }
             .buddyOrgJoinChrome(
                 buddies: model,
                 messages: messages,
                 memberName: app.user.name,
                 blockedUserNames: app.blockedUserNames,
-                onBrowseBuddies: { app.selectedTab = .buddies },
+                onBrowseBuddies: {
+                    landOnDiscover(kind: .free)
+                },
                 openCircle: { navigation.openCircle($0) },
+                openGuild: { navigation.path.append($0) },
                 openConversation: { conversationID in
                     openClubConversation(conversationID)
                 }

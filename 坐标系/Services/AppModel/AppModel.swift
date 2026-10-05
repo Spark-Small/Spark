@@ -95,9 +95,10 @@ final class AppModel {
     var pendingIdentityGateSource: IdentityGateSource = .generic
 
     /// 身份门禁：未满足则置 pending 并返回 false（由根视图呈现 Sheet）。
+    /// 判定规则在 `IdentityCapability`；业务应只调本入口，勿手拼认证字段。
     @discardableResult
     func requireIdentityAccess(source: IdentityGateSource = .generic) -> Bool {
-        switch IdentityAccessGate.requirement(
+        switch IdentityCapability.requirement(
             user: user,
             auth: auth,
             photoVerification: photoVerificationStore
@@ -113,6 +114,11 @@ final class AppModel {
             pendingIdentityVerification = true
             return false
         }
+    }
+
+    /// Trust / 公开卡用的身份只读快照。
+    var identitySignals: IdentitySignals {
+        IdentityCapability.signals(user: user, photoVerification: photoVerificationStore)
     }
 
     let dependencies: AppDependencies
@@ -132,7 +138,6 @@ final class AppModel {
     let privacyPreferencesStore: PrivacyPreferencesStore
     let youthModeStore: YouthModeStore
     let legalConsentStore: LegalConsentStore
-    let membershipAdImpressionStore: MembershipAdImpressionStore
     let photoVerificationStore: PhotoVerificationStore
     let opsContentStore: OpsContentStore
     @ObservationIgnored var profilePersistenceGeneration: Int
@@ -159,7 +164,6 @@ final class AppModel {
         privacyPreferencesStore = dependencies.privacyPreferencesStore
         youthModeStore = dependencies.youthModeStore
         legalConsentStore = dependencies.legalConsentStore
-        membershipAdImpressionStore = dependencies.membershipAdImpressionStore
         photoVerificationStore = dependencies.photoVerificationStore
         opsContentStore = dependencies.opsContentStore
         self.auth = auth ?? LocalAuthSession()
@@ -339,6 +343,9 @@ final class AppModel {
         }
         buddies.onMembershipChanged = { [weak self] in
             self?.syncOrchestrator.handle(.membershipChanged)
+        }
+        buddies.onOpenActivityAfterInvite = { [weak self] activityID in
+            self?.openActivity(activityID)
         }
     }
 }

@@ -80,18 +80,26 @@ extension MessagesModel {
     /// Tab 角标（无屏蔽名单时的回退）；带屏蔽名单请用 `unreadTotal(blockedNames:)`。
     var unreadTotal: Int { unreadTotal(blockedNames: []) }
 
-    /// Tab 角标：与收件箱同一基集上的未读消息合计；静音不计入。
+    /// Tab 角标：收件箱基集 + 陌生人信箱未读合计；静音不计入。
     func unreadTotal(blockedNames: [String]) -> Int {
-        inboxBaseItems(blockedNames: blockedNames)
+        let inboxUnread = inboxBaseItems(blockedNames: blockedNames)
             .filter { !$0.isMuted }
             .reduce(0) { $0 + $1.unreadCount }
+        let strangerUnread = strangerMailboxConversations
+            .filter { !$0.isMuted }
+            .reduce(0) { $0 + $1.unreadCount }
+        return inboxUnread + strangerUnread
     }
 
-    /// 收件箱搜索：匹配好友 / 群聊会话（与列表同一基集）
-    func matchingConversations(query: String, blockedNames: [String]) -> [ChatConversation] {
+    /// 收件箱搜索：会话匹配遵循当前筛选；聊天记录仍搜全量基集。
+    func matchingConversations(
+        query: String,
+        filter: MessagesInboxFilter = .all,
+        blockedNames: [String]
+    ) -> [ChatConversation] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
-        return inboxBaseItems(blockedNames: blockedNames)
+        return inboxItems(filter: filter, blockedNames: blockedNames)
             .filter {
                 $0.title.localizedCaseInsensitiveContains(trimmed)
                     || $0.lastMessage.localizedCaseInsensitiveContains(trimmed)
@@ -105,9 +113,13 @@ extension MessagesModel {
         !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    func hasSearchResults(blockedNames: [String]) -> Bool {
+    func hasSearchResults(filter: MessagesInboxFilter = .all, blockedNames: [String]) -> Bool {
         guard isSearching else { return false }
-        return !matchingConversations(query: searchText, blockedNames: blockedNames).isEmpty
+        return !matchingConversations(
+            query: searchText,
+            filter: filter,
+            blockedNames: blockedNames
+        ).isEmpty
             || !searchHistory(query: searchText).isEmpty
     }
 

@@ -41,6 +41,7 @@ struct SettingsNotificationsView: View {
                 Text("开启活动提醒时会请求系统通知权限。站内通知历史在「我的」铃铛中查看。搭子上线与社区摘要为本地偏好占位，正式版将接运营推送。")
             }
         }
+        .profileSecondaryListChrome()
         .navigationTitle("通知设置")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarVisibility(.hidden, for: .tabBar)

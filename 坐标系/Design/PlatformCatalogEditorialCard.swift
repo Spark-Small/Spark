@@ -23,6 +23,7 @@ struct PlatformEditorialCard: View {
     var isJoined = false
     var isWaitlisted = false
     var isFull = false
+    var isLifecycleEnded = false
     var onJoin: (() -> Void)?
 
     private var prefersStacked: Bool {
@@ -102,6 +103,7 @@ struct PlatformEditorialCard: View {
                 isJoined: isJoined,
                 isWaitlisted: isWaitlisted,
                 isFull: isFull,
+                isLifecycleEnded: isLifecycleEnded,
                 controlSize: .regular,
                 onJoin: onJoin
             )

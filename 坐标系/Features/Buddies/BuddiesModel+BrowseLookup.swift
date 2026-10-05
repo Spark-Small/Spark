@@ -31,7 +31,7 @@ extension BuddiesModel {
         guard sampleCatalogEnabled else {
             if let catalog = discoverCatalog {
                 if let dto = catalog.freeBuddies.first(where: {
-                    BuddyIdentityMatching.matches(
+                    ParticipantIdentity.matches(
                         nickname: $0.nickname,
                         userID: $0.userID,
                         otherNickname: nickname,
@@ -41,7 +41,7 @@ extension BuddiesModel {
                     return .free(BuddiesDiscoverCatalogMapping.circleBuddy(from: dto))
                 }
                 if let dto = catalog.paidCompanions.first(where: {
-                    BuddyIdentityMatching.matches(
+                    ParticipantIdentity.matches(
                         nickname: $0.nickname,
                         userID: $0.userID,
                         otherNickname: nickname,
@@ -55,7 +55,7 @@ extension BuddiesModel {
         }
         return SampleData.circleBuddies
             .first {
-                BuddyIdentityMatching.matches(
+                ParticipantIdentity.matches(
                     nickname: $0.profile.nickname,
                     userID: $0.profile.userID,
                     otherNickname: nickname,
@@ -65,7 +65,7 @@ extension BuddiesModel {
             .map(DiscoverBuddyItem.free)
             ?? SampleData.paidCompanions
                 .first {
-                    BuddyIdentityMatching.matches(
+                    ParticipantIdentity.matches(
                         nickname: $0.profile.nickname,
                         userID: $0.profile.userID,
                         otherNickname: nickname,
@@ -110,7 +110,7 @@ extension BuddiesModel {
         }
         let displayName = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         let resolvedUserID = userID
-            ?? (displayName.isEmpty ? nil : BuddyIdentityMatching.stableUserID(forNickname: displayName))
+            ?? (displayName.isEmpty ? nil : ParticipantIdentity.stableUserID(forNickname: displayName))
         let profile: BuddyProfile
         if BuddiesSupplyPolicy.allowsSampleDiscoverCatalog {
             let author = SampleData.author(named: displayName)
@@ -195,7 +195,7 @@ extension BuddiesModel {
     }
 
     var freeDiscoveryKey: String {
-        "free|\(sampleCatalogEnabled)|\(usesSystemLocation)|\(locatedPlaceName ?? "")|\(selectedCityID)|\(filter.gender?.rawValue ?? "")|\(filter.maxDistanceKM)|\(filter.hobby ?? "")|\(filter.query)|\(blockedUserNames.sorted().joined(separator: ","))|\(hiddenBuddyNames.sorted().joined(separator: ","))|\(discoverCatalogFingerprint)"
+        "free|\(sampleCatalogEnabled)|\(usesSystemLocation)|\(locatedPlaceName ?? "")|\(selectedCityID)|\(filter.gender?.rawValue ?? "")|\(filter.maxDistanceKM)|\(filter.hobby ?? "")|\(filter.intents.map(\.rawValue).sorted().joined(separator: ","))|\(filter.query)|\(blockedUserNames.sorted().joined(separator: ","))|\(hiddenBuddyNames.sorted().joined(separator: ","))|\(discoverCatalogFingerprint)"
     }
 
     var paidDiscoveryKey: String {

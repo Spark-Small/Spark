@@ -24,7 +24,9 @@ struct ActivityHostManageView: View {
     @State private var showCancelConfirm = false
     @State private var showRescheduleConfirm = false
     @State private var showContentEditor = false
+    @State private var showOrders = false
     @State private var contentRevision = 0
+    @State private var ordersRevision = 0
 
     private var live: Activity? {
         model.activity(id: activityID)
@@ -48,6 +50,13 @@ struct ActivityHostManageView: View {
                 }
                 .toolbarVisibility(.hidden, for: .tabBar)
             }
+        }
+        .sheet(isPresented: $showOrders) {
+            ActivityOrdersSheet(
+                activityID: activityID,
+                onRefundCompleted: { ordersRevision += 1 }
+            )
+            .toolbarVisibility(.hidden, for: .tabBar)
         }
         .confirmationDialog(
             ActivityDetailCopy.hostManageCancelAlertTitle,
@@ -83,6 +92,7 @@ struct ActivityHostManageView: View {
     @ViewBuilder
     private func manageForm(_ live: Activity) -> some View {
         let _ = contentRevision
+        let _ = ordersRevision
         let orders = ActivityPaymentStore.orders(for: live.id).filter { $0.status == .paid || $0.status == .refunding }
 
         Form {
@@ -130,7 +140,7 @@ struct ActivityHostManageView: View {
                     displayedComponents: [.date, .hourAndMinute]
                 )
                 TextField(ActivityDetailCopy.hostManageRescheduleNotePlaceholder, text: $notifyNote, axis: .vertical)
-                    .lineLimit(2...4)
+                    .platformFormTextInput(.caption)
             } header: {
                 Text(ActivityDetailCopy.hostManageRescheduleTitle)
             } footer: {
@@ -168,16 +178,32 @@ struct ActivityHostManageView: View {
                 }
 
                 if !live.isFree, !orders.isEmpty {
-                    LabeledContent(ActivityDetailCopy.ordersTitle) {
-                        Text("\(orders.count) 笔")
+                    Button {
+                        showOrders = true
+                    } label: {
+                        LabeledContent(ActivityDetailCopy.ordersTitle) {
+                            HStack(spacing: 4) {
+                                Text("\(orders.count) 笔")
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
                             .foregroundStyle(.secondary)
+                        }
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("查看本场活动订单")
                 }
             }
 
             Section {
                 let capacityActive = capacityChanged(for: live)
-                let rescheduleActive = rescheduleReady(for: live)
+                let dateChanged = dateChanged(for: live)
+                let noteOnly = hasRescheduleNote && !dateChanged
+                let rescheduleActive = dateChanged || noteOnly
+                let rescheduleTitle = dateChanged
+                    ? ActivityDetailCopy.hostManageConfirmReschedule
+                    : ActivityDetailCopy.hostManageSendNoteOnly
 
                 // HIG：同一区块只保留一个 prominent 主操作；改期影响成员，优先作为主确认。
                 if capacityActive, !rescheduleActive {
@@ -194,7 +220,7 @@ struct ActivityHostManageView: View {
                 }
 
                 if rescheduleActive {
-                    Button(ActivityDetailCopy.hostManageConfirmReschedule, systemImage: "calendar.badge.clock") {
+                    Button(rescheduleTitle, systemImage: "calendar.badge.clock") {
                         showRescheduleConfirm = true
                     }
                     .buttonStyle(.borderedProminent)
@@ -219,6 +245,7 @@ struct ActivityHostManageView: View {
                 Text(ActivityDetailCopy.hostManageCancelHint)
             }
         }
+        .platformTextInputScrollChrome()
         .onAppear {
             capacity = live.capacity
             date = live.date
@@ -237,9 +264,16 @@ struct ActivityHostManageView: View {
         capacity != live.capacity
     }
 
-    private func rescheduleReady(for live: Activity) -> Bool {
+    private func dateChanged(for live: Activity) -> Bool {
         date != live.date
-            || !notifyNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var hasRescheduleNote: Bool {
+        !notifyNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func rescheduleReady(for live: Activity) -> Bool {
+        dateChanged(for: live) || hasRescheduleNote
     }
 
     private func commitReschedule() {
@@ -266,7 +300,9 @@ struct ActivityHostManageView: View {
         case (true, false):
             return ActivityDetailCopy.hostManageCapacityChangedHint
         case (false, true):
-            return ActivityDetailCopy.hostManageRescheduleReadyHint
+            return dateChanged(for: live)
+                ? ActivityDetailCopy.hostManageRescheduleReadyHint
+                : ActivityDetailCopy.hostManageNoteOnlyReadyHint
         case (false, false):
             return ActivityDetailCopy.hostManageCommitIdleHint
         }

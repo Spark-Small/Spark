@@ -123,14 +123,16 @@ struct ActivityConversationSyncService {
 struct AppProfileSyncService {
     func apply(user: AppUser, previousName: String, app: AppModel) {
         var next = user
-        next.id = LocalUserIdentity.current
+        next.id = ParticipantIdentity.currentUserID
         app.user = next
         app.activities.currentUserName = next.name
         app.community.currentUserName = next.name
         app.buddies.currentUserName = next.name
-        app.buddies.currentUserID = LocalUserIdentity.current
-        if previousName != next.name {
+        app.buddies.currentUserID = ParticipantIdentity.currentUserID
+        if previousName.caseInsensitiveCompare(next.name) != .orderedSame {
             app.activities.migrateUserName(from: previousName, to: next.name)
+            app.community.migrateUserName(from: previousName, to: next.name)
+            app.buddies.migrateUserName(from: previousName, to: next.name)
         }
         app.refreshInterestContext(next.interests)
     }
@@ -142,19 +144,19 @@ struct AppProfileSyncService {
         if app.user.city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             app.user.city = "上海"
         }
-        app.user.id = LocalUserIdentity.current
+        app.user.id = ParticipantIdentity.currentUserID
         app.user.interests = interests
         app.activities.currentUserName = app.user.name
         app.community.currentUserName = app.user.name
         app.buddies.currentUserName = app.user.name
-        app.buddies.currentUserID = LocalUserIdentity.current
+        app.buddies.currentUserID = ParticipantIdentity.currentUserID
         app.refreshInterestContext(interests)
         app.hasCompletedInterestSelection = true
     }
 
     func apply(snapshot: ProfileSnapshot, app: AppModel) {
         var nextUser = snapshot.user
-        nextUser.id = LocalUserIdentity.current
+        nextUser.id = ParticipantIdentity.currentUserID
         app.user = nextUser
         app.hasCompletedInterestSelection = snapshot.hasCompletedOnboarding
         app.blockedUserNames = Set(snapshot.blockedUserNames)
@@ -162,7 +164,7 @@ struct AppProfileSyncService {
         app.activities.currentUserName = nextUser.name
         app.community.currentUserName = nextUser.name
         app.buddies.currentUserName = nextUser.name
-        app.buddies.currentUserID = LocalUserIdentity.current
+        app.buddies.currentUserID = ParticipantIdentity.currentUserID
         app.buddies.blockedUserNames = app.blockedUserNames
         app.community.blockedUserNames = app.blockedUserNames
         app.refreshInterestContext(nextUser.interests)

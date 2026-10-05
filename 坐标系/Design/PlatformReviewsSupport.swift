@@ -20,18 +20,55 @@ enum PlatformReviewSubmission {
         _ text: String,
         target: PlatformReviewTarget,
         author: String,
-        parent: PlatformReview?
+        parent: PlatformReview?,
+        rating: Int? = nil,
+        serviceTitle: String? = nil,
+        priceText: String? = nil,
+        isAnonymous: Bool = false,
+        bookingID: UUID? = nil,
+        voiceLocalName: String? = nil,
+        voiceDuration: Double? = nil
     ) -> Outcome {
         if let error = PlatformReviewsStore.add(
             text,
             target: target,
             author: author,
-            parent: parent
+            parent: parent,
+            rating: rating,
+            serviceTitle: serviceTitle,
+            priceText: priceText,
+            isAnonymous: isAnonymous,
+            bookingID: bookingID,
+            voiceLocalName: voiceLocalName,
+            voiceDuration: voiceDuration
         ) {
             return Outcome(blockedWord: error, expandedParentID: nil)
         }
         let expandedParentID = parent?.parentID ?? parent?.id
         return Outcome(blockedWord: nil, expandedParentID: expandedParentID)
+    }
+
+    /// Composer 录音确认：临时 m4a → 本机库 → 评论（未上云）。
+    static func submitVoice(
+        fileURL: URL,
+        duration: TimeInterval,
+        target: PlatformReviewTarget,
+        author: String,
+        parent: PlatformReview?
+    ) -> Outcome {
+        guard let name = LocalMediaLibrary.importAudio(from: fileURL) else {
+            try? FileManager.default.removeItem(at: fileURL)
+            return Outcome(blockedWord: PlatformReviewsCopy.voiceSaveFailed, expandedParentID: nil)
+        }
+        try? FileManager.default.removeItem(at: fileURL)
+        return submit(
+            "",
+            target: target,
+            author: author,
+            parent: parent,
+            voiceLocalName: name,
+            voiceDuration: duration
+        )
     }
 }
 
@@ -53,26 +90,27 @@ struct PlatformReviewsRatedTab: View {
     }
 
     var body: some View {
+        // 只读口碑：写评价在订单凭证（完成态）；此处不开放直写 / 回复。
         Section {
             PlatformReviewsCommentsHost(
                 target: target,
                 currentUserName: currentUserName,
                 layout: .formRows,
+                composerPlacement: .external,
                 contentOwnerName: companion.profile.nickname,
-                ownerBadgeTitle: "陪玩",
+                ownerBadgeTitle: PlatformReviewsCopy.ownerBadgeCompanion,
                 emptyTitle: stats.total == 0
                     ? BuddyDetailCopy.reviewsEmpty
                     : BuddyDetailCopy.reviewsFilteredEmpty,
-                emptyHint: BuddyDetailCopy.reviewsFooter,
+                emptyHint: "",
                 placeholder: BuddyDetailCopy.reviewsComposerPlaceholder,
                 companionFilter: stats.total > 0 ? $filter : nil,
                 companionStats: stats.total > 0 ? stats : nil,
+                allowsReply: false,
                 onChanged: onChanged
             )
         } header: {
             PlatformReviewsHeader(count: stats.total)
-        } footer: {
-            Text(BuddyDetailCopy.reviewsFooter)
         }
     }
 }
@@ -107,7 +145,7 @@ struct ReviewRowInteractionModifier: ViewModifier {
         content
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 if review.isOwned(by: currentUserName) {
-                    Button("删除", role: .destructive, action: onDelete)
+                    Button(PlatformReviewsCopy.delete, role: .destructive, action: onDelete)
                 }
             }
     }

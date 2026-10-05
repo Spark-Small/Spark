@@ -178,11 +178,13 @@ enum PlatformMetrics {
     static func detailRelatedThumb(for dynamicTypeSize: DynamicTypeSize) -> CGFloat {
         dynamicTypeSize.detailRelatedThumbSide
     }
-    static var hairlineSpacing: CGFloat { max(2, g(0.25)) }
+    /// 紧凑叠字间距 = 系统 subtitleCell 主↔副文垂直间距（非自建 grid）。
+    static var hairlineSpacing: CGFloat { systemTextToSecondaryPadding }
     static var formRowVerticalPadding: CGFloat {
         max(2, (systemListVertical * 0.35).rounded(.toNearestOrAwayFromZero))
     }
-    static var minContentGap: CGFloat { g(1) }
+    /// 最小内容间隙 = 系统 subtitleCell 图↔文间距（列表行内相邻内容节奏）。
+    static var minContentGap: CGFloat { systemImageToTextPadding }
     static var galleryEditorThumb: CGFloat { g(11) }
     static var galleryRemoveBadgeOffset: CGFloat { g(0.75) }
     static var orderStatusPaddingHorizontal: CGFloat { g(1) }
@@ -241,7 +243,7 @@ enum PlatformMetrics {
     static var posterRailColumnCount: Int { 2 }
     /// 「我的活动 / 发布」凭证横卡：系统相对容器一屏两列。
     static var profileActivityCredentialRailColumnCount: Int { 2 }
-    /// 「我的 → 陪玩预约」凭证竖卡：一屏约三张完整卡，并露出第四张。
+    /// 「我的 → 我的陪玩」凭证竖卡：一屏约三张完整卡，并露出第四张。
     static var profileBookingCredentialRailVisibleFraction: CGFloat { 0.29 }
     /// 个人内容库竖海报（圈子）：一屏约三张完整卡，并露出第四张提示横滑。
     static var profileLibraryRailVisibleFraction: CGFloat { 0.29 }

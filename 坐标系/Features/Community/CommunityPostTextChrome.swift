@@ -71,6 +71,7 @@ struct CommunityPostAuthorHeader: View {
 
     @Environment(AppModel.self) private var app
     @Environment(CommunityModel.self) private var model
+    @Environment(\.communityRetainFollowedAuthor) private var retainFollowedAuthor
 
     private var authorName: String { post.author }
 
@@ -128,9 +129,7 @@ struct CommunityPostAuthorHeader: View {
             .accessibilityHint(CommunityAuthorCopy.authorProfileHint)
 
             if !isSelfAuthor {
-                Button {
-                    app.toggleFollow(authorName)
-                } label: {
+                Button(action: toggleFollow) {
                     Text(isFollowing ? CommunityDynamicsCopy.following : CommunityDynamicsCopy.follow)
                 }
                 .modifier(CommunityFollowButtonChrome(following: isFollowing, controlSize: .mini))
@@ -144,6 +143,15 @@ struct CommunityPostAuthorHeader: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func toggleFollow() {
+        let wasFollowing = isFollowing
+        app.toggleFollow(authorName)
+        // 新关注：登记会话保留（发现作者筛选用），按钮变「已关注」且帖不立刻消失。
+        if !wasFollowing {
+            retainFollowedAuthor?(authorName)
+        }
     }
 }
 

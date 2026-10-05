@@ -45,38 +45,40 @@ struct GroupInviteFriendsSheet: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            Group {
                 if candidates.isEmpty {
                     ContentUnavailableView(
                         MessagesCopy.groupInviteEmptyTitle,
                         systemImage: "person.badge.plus",
                         description: Text(MessagesCopy.groupInviteEmptyDescription)
                     )
-                    .listRowBackground(Color.clear)
+                    .platformContentUnavailablePageChrome()
                 } else {
-                    Section {
-                        ForEach(candidates, id: \.self) { name in
-                            Button {
-                                toggle(name)
-                            } label: {
-                                HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
-                                    PlatformListAvatarView(name: name)
-                                    Text(model.displayName(for: name))
-                                        .foregroundStyle(.primary)
-                                    Spacer(minLength: 0)
-                                    if selected.contains(name.lowercased()) {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(Color.accentColor)
+                    List {
+                        Section {
+                            ForEach(candidates, id: \.self) { name in
+                                Button {
+                                    toggle(name)
+                                } label: {
+                                    HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
+                                        PlatformListAvatarView(name: name)
+                                        Text(model.displayName(for: name))
+                                            .foregroundStyle(.primary)
+                                        Spacer(minLength: 0)
+                                        if selected.contains(name.lowercased()) {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundStyle(Color.accentColor)
+                                        }
                                     }
                                 }
                             }
+                        } header: {
+                            Text(MessagesCopy.groupMemberPickerTitle)
                         }
-                    } header: {
-                        Text(MessagesCopy.groupMemberPickerTitle)
                     }
+                    .listStyle(.insetGrouped)
                 }
             }
-            .listStyle(.insetGrouped)
             .navigationTitle(MessagesCopy.groupInviteMembers)
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $searchText, prompt: MessagesCopy.friendsListSearch)

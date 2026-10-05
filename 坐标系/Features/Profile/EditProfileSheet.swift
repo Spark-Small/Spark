@@ -2,7 +2,7 @@
 //  EditProfileSheet.swift
 //  坐标系
 //
-//  Apple 账户式个人资料编辑 + 环形完整度头像。
+//  个人资料编辑：系统 / Sheet 返回；Trailing 保存；本机写入。
 //
 
 import PhotosUI
@@ -10,517 +10,219 @@ import SwiftUI
 import UIKit
 import CoordinateModels
 
-struct ProfileAvatarView: View {
-    let user: AppUser
-
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    var body: some View {
-        ProfileCompletionAvatar(
-            name: user.name,
-            photo: user.localAvatarImage,
-            side: dynamicTypeSize.detailRelatedThumbSide,
-            completion: ProfileCompletion.ratio(for: user)
-        )
-    }
-}
-
-struct ProfileCompletionAvatar: View {
-    var name: String
-    var photo: UIImage?
-    var side: CGFloat
-    var completion: Double?
-
-    private let ringStart = 0.10
-    private let ringEnd = 0.90
-
-    private var normalizedCompletion: Double? {
-        completion.map { min(max($0, 0), 1) }
-    }
-
-    private var percentage: Int? {
-        normalizedCompletion.map { Int(($0 * 100).rounded()) }
-    }
-
-    private var ringLineWidth: CGFloat { PlatformMetrics.avatarBadgeStroke }
-    private var progressLineWidth: CGFloat { PlatformMetrics.avatarBadgeStroke * 2 }
-    private var avatarInset: CGFloat { PlatformMetrics.avatarBadgeStroke * 3 }
-
-    var body: some View {
-        ZStack {
-            if let normalizedCompletion {
-                Circle()
-                    .trim(from: ringStart, to: ringEnd)
-                    .stroke(
-                        .quaternary,
-                        style: StrokeStyle(lineWidth: ringLineWidth, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-135))
-
-                Circle()
-                    .trim(
-                        from: ringStart,
-                        to: ringStart + (ringEnd - ringStart) * normalizedCompletion
-                    )
-                    .stroke(
-                        Color.accentColor,
-                        style: StrokeStyle(lineWidth: progressLineWidth, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-135))
-            }
-
-            PlatformListAvatarView(name: name, photo: photo, side: side)
-                .padding(avatarInset)
-        }
-        .frame(width: side + avatarInset * 2, height: side + avatarInset * 2)
-        .overlay(alignment: .topLeading) {
-            if let percentage {
-                Text("\(percentage)%")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(percentage == 100 ? PlatformStatus.success : .secondary)
-                    .monospacedDigit()
-                    .padding(.horizontal, PlatformMetrics.chipPaddingHorizontalMini)
-                    .padding(.vertical, PlatformMetrics.chipPaddingVerticalMini)
-                    .background(PlatformSurface.elevated, in: Capsule())
-                    .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
-                    .offset(x: -4, y: -4)
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("头像")
-        .accessibilityValue(percentage.map { "资料完整度 \($0)%" } ?? "")
-    }
-}
-
 struct EditProfileSheet: View {
     @Binding var user: AppUser
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @Environment(AppModel.self) private var app
-    @Environment(PhotoVerificationStore.self) private var photoVerification
+    /// `true`：自带 NavigationStack + sheet chrome（门闸 / 设置入口）；`false`：嵌入现有 NavigationStack（「我的」根 disclosure）。
+    var embedsOwnNavigationChrome = true
 
-    @State private var name = ""
-    @State private var handle = ""
-    @State private var city = ""
-    @State private var bio = ""
-    @State private var lookingFor = ""
-    @State private var selectedInterests: Set<String> = []
-    @State private var pickerItem: PhotosPickerItem?
-    @State private var avatarPreview: UIImage?
-    @State private var avatarLocalName: String?
-    @State private var isPreparingAvatar = false
-    @State private var showVoiceIntroRecorder = false
-    @State private var voiceIntroDuration: Double?
-    @State private var voiceIntroCaption = ""
-    @State private var draftVerificationPhotos: [VerificationPhoto] = []
-    @State private var verificationPickerItem: PhotosPickerItem?
-    @State private var isPreparingVerificationPhoto = false
-    @State private var baselineFingerprintAtLoad = ""
-    @State private var moderationAlert: String?
+    @Environment(\.dismiss) var dismiss
+    @Environment(\.dynamicTypeSize) var dynamicTypeSize
+    /// 跨文件扩展需 internal。
+    @Environment(AppModel.self) var app
+    @Environment(PhotoVerificationStore.self) var photoVerification
 
-    private var completion: Double {
-        ProfileCompletion.ratio(
-            hasAvatar: avatarLocalName != nil,
-            name: name,
-            handle: handle,
-            city: city,
-            bio: bio,
-            lookingFor: lookingFor,
-            interestsCount: selectedInterests.count
-        )
-    }
+    @State var name = ""
+    @State var handle = ""
+    @State var city = ""
+    @State var bio = ""
+    @State var gender: ProfileGender?
+    @State var age: Int?
+    /// 身高/体重：Form 右侧数字 TextField；保存时解析为 Int?。
+    @State var heightText = ""
+    @State var weightText = ""
+    @State var availability = ""
+    @State var draftPrompts: [ProfilePrompt] = []
+    @State var occupation: ProfileOccupation?
+    @State var meetRadius: ProfileMeetRadius?
+    @State var mbti: ProfileMBTI?
+    @State var zodiac: ProfileZodiac?
+    @State var pendingPromptDraft = ProfilePrompt(
+        promptKey: ProfilePromptCatalog.keys.first ?? "weekPlan",
+        answer: ""
+    )
+    @State var selectedInterests: Set<String> = []
+    @State var pickerItem: PhotosPickerItem?
+    @State var avatarPreview: UIImage?
+    @State var avatarLocalName: String?
+    @State var isPreparingAvatar = false
+    /// 编辑页不再提供自定义录音 UI；保存时原样写回，避免误清已有语音介绍。
+    @State var voiceIntroDuration: Double?
+    @State var voiceIntroCaption = ""
+    @State var moderationAlert: String?
+    @State var showBindPhoneSheet = false
+    @State private var didLoadDraft = false
+    @State private var didSaveSuccessfully = false
 
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !isPreparingAvatar
-            && !isPreparingVerificationPhoto
             && InterestSelectionLimits.meetsMinimum(selectedInterests.count)
-    }
-
-    private var canAddVerificationPhoto: Bool {
-        draftVerificationPhotos.count < VerificationPhotoLimits.maxCount
+            && ProfileEditLimits.isHandleFormatOK(handle)
     }
 
     private var identityGateBanner: some View {
         Section {
             Text(IdentityAccessGate.needPhotosReason(for: app.pendingIdentityGateSource))
-                .font(.subheadline)
+                .font(.body)
                 .foregroundStyle(.primary)
-            Text(IdentityAccessGate.photosMissingNextStep(for: app.pendingIdentityGateSource))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         } header: {
             Text(IdentityAccessGate.editProfileSectionHeader(for: app.pendingIdentityGateSource))
         }
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                if app.pendingIdentityEditProfile {
-                    identityGateBanner
-                }
-                identitySection
-                verificationPhotosSection
-                personalInfoSection
-                locationSection
-                favoritesSection
-                voiceIntroSection
-                bioSection
-                lookingForSection
-                identityIDSection
-            }
-            .navigationTitle("个人资料")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("保存", action: save)
-                        .fontWeight(.semibold)
-                        .disabled(!canSave)
-                }
-            }
-            .onAppear(perform: loadDraft)
-            .sheet(isPresented: $showVoiceIntroRecorder) {
-                BuddyVoiceIntroRecorderSheet(
-                    initialDuration: voiceIntroDuration,
-                    initialCaption: voiceIntroCaption,
-                    onSave: { duration, caption in
-                        voiceIntroDuration = duration
-                        voiceIntroCaption = caption.trimmingCharacters(in: .whitespacesAndNewlines)
-                    },
-                    onRemove: {
-                        voiceIntroDuration = nil
-                        voiceIntroCaption = ""
-                    }
-                )
-                .toolbarVisibility(.hidden, for: .tabBar)
+        Group {
+            if embedsOwnNavigationChrome {
+                NavigationStack { formChrome }
+                    .platformSheet(.form)
+            } else {
+                formChrome
             }
         }
-        .platformSheet(.browser)
         .platformFeedbackAlert($moderationAlert)
     }
 
-    private var identitySection: some View {
-        // Apple 账号头区：单行内 VStack（默认 spacing），勿拆成多行以免变成 List 行距。
-        Section {
-            VStack {
-                ProfileCompletionAvatar(
-                    name: name,
-                    photo: avatarPreview,
-                    side: dynamicTypeSize.accountHeaderAvatarSide,
-                    completion: completion
-                )
-
-                let avatarActionTitle = avatarLocalName == nil ? "添加照片" : "更改照片"
-                PhotosPicker(selection: $pickerItem, matching: .images) {
-                    Label(avatarActionTitle, systemImage: "photo.on.rectangle")
-                }
-                .buttonStyle(.plain)
-
-                Text(name.isEmpty ? "坐标系用户" : name)
-                    .font(.title2.bold())
-                    .foregroundStyle(.primary)
-                    .multilineTextAlignment(.center)
-                    .accessibilityAddTraits(.isHeader)
-
-                if isPreparingAvatar {
-                    ProgressView()
-                        .controlSize(.regular)
-                }
+    private var formChrome: some View {
+        Form {
+            if app.pendingIdentityEditProfile {
+                identityGateBanner
             }
-            .frame(maxWidth: .infinity)
-            .multilineTextAlignment(.center)
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-            .onChange(of: pickerItem) { _, item in
-                Task { await loadAvatar(item) }
-            }
+            // Settings 序：身份头 → 介绍 → 基本事实 → 问答 → 兴趣 → 安全（生活照片在「我的」根墙）。
+            identityHeroSection
+            aboutYouSection
+            demographicsSection
+            promptsSection
+            favoritesSection
+            verificationSection
         }
-    }
-
-    private var verificationPhotosSection: some View {
-        Section {
-            ForEach(Array(draftVerificationPhotos.enumerated()), id: \.element.id) { index, photo in
-                HStack(spacing: PlatformMetrics.cardInfoSpacing) {
-                    if let image = verificationPreview(named: photo.localName) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 52, height: 52)
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            .accessibilityHidden(true)
+        // 去掉 Form 默认 top contentMargins（否则头像离顶栏偏高）；分节距仍系统默认。
+        .profileSecondaryListChrome(flushTop: true)
+        .navigationTitle(EditProfileCopy.navigationTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if embedsOwnNavigationChrome {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(EditProfileCopy.back, systemImage: "chevron.backward") {
+                        dismiss()
                     }
-
-                    VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
-                        Text("认证照 \(index + 1)")
-                            .font(.subheadline.weight(.semibold))
-                        Toggle("对外展示", isOn: bindingIsPublic(at: index))
-                    }
-
-                    Spacer(minLength: 0)
-
-                    Button("删除", role: .destructive) {
-                        removeVerificationPhoto(at: index)
-                    }
-                    .font(.footnote)
                 }
             }
-
-            if canAddVerificationPhoto {
-                let verificationActionTitle = draftVerificationPhotos.isEmpty ? "添加认证照" : "再加一张"
-                PhotosPicker(selection: $verificationPickerItem, matching: .images) {
-                    Label(verificationActionTitle, systemImage: "plus.circle")
-                }
-                .disabled(isPreparingVerificationPhoto)
-                .onChange(of: verificationPickerItem) { _, item in
-                    Task { await loadVerificationPhoto(item) }
-                }
+            ToolbarItem(placement: .confirmationAction) {
+                Button(EditProfileCopy.save, action: save)
+                    .fontWeight(.semibold)
+                    .disabled(!canSave)
             }
-
-            if isPreparingVerificationPhoto {
-                ProgressView()
-            }
-        } header: {
-            Text("认证照片")
-        } footer: {
-            Text("上传 1–2 张本人正脸照，用于摄像头人脸核验。关闭「对外展示」后其他人看不到，但仍用于安全核验。头像可另行设置，不参与比对。")
         }
-    }
-
-    private var personalInfoSection: some View {
-        Section {
-            LabeledContent("昵称") {
-                TextField("你的昵称", text: $name)
-                    .multilineTextAlignment(.trailing)
-            }
-            LabeledContent("账号") {
-                TextField("@username", text: $handle)
-                    .multilineTextAlignment(.trailing)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-            }
-        } header: {
-            Text("个人信息")
+        .sheet(isPresented: $showBindPhoneSheet) {
+            BindPhoneSheet()
+                .environment(app)
         }
-    }
-
-    private var locationSection: some View {
-        Section {
-            LabeledContent("常驻城市") {
-                TextField("城市", text: $city)
-                    .multilineTextAlignment(.trailing)
-            }
-        } header: {
-            Text("定位")
+        .onAppear {
+            guard !didLoadDraft else { return }
+            loadDraft()
+            didLoadDraft = true
         }
-    }
-
-    private var favoritesSection: some View {
-        Section {
-            NavigationLink {
-                InterestTaxonomyFormEditor(selected: $selectedInterests)
-            } label: {
-                LabeledContent("兴趣标签") {
-                    Text(
-                        selectedInterests.isEmpty
-                            ? "未选择"
-                            : "\(selectedInterests.count) 项"
-                    )
-                    .foregroundStyle(.secondary)
-                }
-            }
-        } header: {
-            Text("最喜欢")
+        .onChange(of: user.isRealNameVerified) { _, _ in
+            gender = user.gender
+            age = user.age
         }
-    }
-
-    private var voiceIntroSection: some View {
-        Section {
-            Button {
-                showVoiceIntroRecorder = true
-            } label: {
-                LabeledContent(BuddyVoiceIntroCopy.editRowTitle) {
-                    Text(
-                        VoiceIntroPresentation.hasIntro(voiceIntroDuration)
-                            ? VoiceIntroPresentation.durationText(voiceIntroDuration)
-                            : BuddyVoiceIntroCopy.editEmptyValue
-                    )
-                    .foregroundStyle(.secondary)
-                }
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.primary)
-            .accessibilityHint(BuddyVoiceIntroCopy.editAddTitle)
-        } header: {
-            Text(BuddyVoiceIntroCopy.publicSectionTitle)
+        .onChange(of: user.gender) { _, value in
+            gender = value
         }
-    }
-
-    private var bioSection: some View {
-        Section {
-            TextField("介绍一下自己…", text: $bio, axis: .vertical)
-                .lineLimit(3...6)
-        } header: {
-            Text("简介")
+        .onChange(of: user.age) { _, value in
+            age = value
         }
-    }
-
-    private var lookingForSection: some View {
-        Section {
-            TextField("找搭子一起玩什么…", text: $lookingFor)
-        } header: {
-            Text("搭子宣言")
-        }
-    }
-
-    private var identityIDSection: some View {
-        Section {
-            LabeledContent("UID", value: user.publicUIDDisplay)
-                .textSelection(.enabled)
-            Button(MessagesCopy.copyUID) {
-                UIPasteboard.general.string = user.publicUID
-            }
-        } header: {
-            Text("对外 UID")
+        .onDisappear {
+            // 系统返回 / 下滑关闭：未保存则清会话新头像（push 子页时父视图通常仍存活）。
+            guard !didSaveSuccessfully else { return }
+            discardAvatarDraftIfNeeded()
         }
     }
 
     private func loadDraft() {
         name = user.name
-        handle = user.handle
+        handle = ProfileEditLimits.normalizeHandle(user.handle)
         city = user.city
         bio = user.bio
-        lookingFor = user.lookingFor
+        gender = user.gender
+        age = user.age
+        heightText = user.heightCM.map(String.init) ?? ""
+        weightText = user.weightKG.map(String.init) ?? ""
+        availability = user.availability
+        draftPrompts = user.prompts
+        occupation = user.occupation
+        meetRadius = user.meetRadius
+        mbti = user.mbti
+        zodiac = user.displayZodiac ?? user.zodiac
         selectedInterests = Set(user.interests)
         avatarLocalName = user.avatarLocalName
         avatarPreview = user.localAvatarImage
         voiceIntroDuration = user.voiceIntroDuration
         voiceIntroCaption = user.voiceIntroCaption ?? ""
-        draftVerificationPhotos = user.verificationPhotos
-        baselineFingerprintAtLoad = user.verificationBaselineFingerprint
-    }
-
-    private func bindingIsPublic(at index: Int) -> Binding<Bool> {
-        Binding(
-            get: {
-                guard draftVerificationPhotos.indices.contains(index) else { return false }
-                return draftVerificationPhotos[index].isPublic
-            },
-            set: { newValue in
-                guard draftVerificationPhotos.indices.contains(index) else { return }
-                draftVerificationPhotos[index].isPublic = newValue
-            }
-        )
-    }
-
-    private func verificationPreview(named: String) -> UIImage? {
-        guard let url = LocalMediaLibrary.fileURL(named: named),
-              let data = try? Data(contentsOf: url)
-        else { return nil }
-        return UIImage(data: data)
-    }
-
-    private func removeVerificationPhoto(at index: Int) {
-        guard draftVerificationPhotos.indices.contains(index) else { return }
-        let removed = draftVerificationPhotos.remove(at: index)
-        let existedOnUser = user.verificationPhotos.contains { $0.id == removed.id }
-        if !existedOnUser {
-            LocalMediaLibrary.delete(named: removed.localName)
-        }
     }
 
     private func save() {
-        let combined = [name, handle, bio, lookingFor, voiceIntroCaption].joined(separator: "\n")
+        let combined = [name, handle, bio, voiceIntroCaption].joined(separator: "\n")
         if case .block(let reason) = ContentModeration.scanText(combined) {
             moderationAlert = reason
             return
         }
         user.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        user.handle = handle.trimmingCharacters(in: .whitespacesAndNewlines)
+        user.handle = ProfileEditLimits.normalizeHandle(handle)
         user.city = city.trimmingCharacters(in: .whitespacesAndNewlines)
-        user.bio = bio.trimmingCharacters(in: .whitespacesAndNewlines)
-        user.lookingFor = lookingFor.trimmingCharacters(in: .whitespacesAndNewlines)
+        user.bio = ProfileEditLimits.clamped(
+            bio.trimmingCharacters(in: .whitespacesAndNewlines),
+            max: ProfileEditLimits.bioMax
+        )
+        // 性别 / 年龄仅实名流程写入；保存时不手改。
+        if user.isRealNameVerified, let birthDate = user.birthDate {
+            user.age = AppUser.normalizedAge(AppUser.ageYears(from: birthDate))
+            gender = user.gender
+            age = user.age
+        } else {
+            user.gender = nil
+            user.age = nil
+            user.birthDate = nil
+            gender = nil
+            age = nil
+        }
+        user.heightCM = ProfileEditLimits.parsedHeightCM(heightText)
+        user.weightKG = ProfileEditLimits.parsedWeightKG(weightText)
+        user.availability = ProfileEditLimits.clamped(
+            availability.trimmingCharacters(in: .whitespacesAndNewlines),
+            max: ProfileDemographicsLimits.availabilityMax
+        )
+        // 意图不在个人资料编辑；保存时不改写 `user.intents`。
+        user.prompts = ProfilePromptLimits.clamped(draftPrompts)
+        user.occupation = occupation
+        user.meetRadius = meetRadius
+        user.mbti = mbti
+        // 有生日则星座以推导为准，不另存手选冲突值。
+        if let birthDate = user.birthDate {
+            user.zodiac = ProfileZodiac.from(birthDate: birthDate)
+        } else {
+            user.zodiac = zodiac
+        }
         user.interests = Array(selectedInterests)
         user.voiceIntroDuration = voiceIntroDuration
         let trimmedCaption = voiceIntroCaption.trimmingCharacters(in: .whitespacesAndNewlines)
         user.voiceIntroCaption = trimmedCaption.isEmpty ? nil : trimmedCaption
-        if let avatarLocalName {
-            if let old = user.avatarLocalName, old != avatarLocalName {
+
+        if avatarLocalName != user.avatarLocalName {
+            if let old = user.avatarLocalName {
                 LocalMediaLibrary.delete(named: old)
             }
             user.avatarLocalName = avatarLocalName
         }
 
-        let previousNames = Set(user.verificationPhotos.map(\.localName))
-        let nextPhotos = Array(draftVerificationPhotos.prefix(VerificationPhotoLimits.maxCount))
-        let nextNames = Set(nextPhotos.map(\.localName))
-        for name in previousNames where !nextNames.contains(name) {
-            LocalMediaLibrary.delete(named: name)
-        }
-        user.verificationPhotos = nextPhotos
-
-        let nextFingerprint = VerificationPhotoLimits.baselineFingerprint(for: nextPhotos)
-        if nextFingerprint != baselineFingerprintAtLoad {
-            photoVerification.invalidateIfBaselineChanged(photos: nextPhotos)
-            if nextPhotos.isEmpty {
-                photoVerification.clear()
-            } else if !photoVerification.isVerified(for: user.name, photos: nextPhotos) {
-                app.pendingIdentityVerification = true
-            }
-        }
-
+        didSaveSuccessfully = true
         dismiss()
     }
 
-    @MainActor
-    private func loadAvatar(_ item: PhotosPickerItem?) async {
-        guard let item else { return }
-        isPreparingAvatar = true
-        defer { isPreparingAvatar = false }
-        guard let data = try? await item.loadTransferable(type: Data.self),
-              let image = UIImage(data: data)
-        else { return }
-        let decision = await MediaModerationService.moderateImageData(
-            data,
-            context: .avatar,
-            actorKey: user.name
-        )
-        if case .block(let reason) = decision {
-            moderationAlert = reason
-            return
+    private func discardAvatarDraftIfNeeded() {
+        if let avatarLocalName,
+           avatarLocalName != user.avatarLocalName {
+            LocalMediaLibrary.delete(named: avatarLocalName)
         }
-        guard let saved = LocalMediaLibrary.saveJPEG(data) else { return }
-        avatarPreview = image
-        avatarLocalName = saved
-    }
-
-    @MainActor
-    private func loadVerificationPhoto(_ item: PhotosPickerItem?) async {
-        guard let item else { return }
-        guard canAddVerificationPhoto else { return }
-        isPreparingVerificationPhoto = true
-        defer {
-            isPreparingVerificationPhoto = false
-            verificationPickerItem = nil
-        }
-        guard let data = try? await item.loadTransferable(type: Data.self),
-              UIImage(data: data) != nil
-        else { return }
-        let decision = await MediaModerationService.moderateImageData(
-            data,
-            context: .verificationPhoto,
-            actorKey: user.name
-        )
-        if case .block(let reason) = decision {
-            moderationAlert = reason
-            return
-        }
-        guard let saved = LocalMediaLibrary.saveJPEG(data) else { return }
-        draftVerificationPhotos.append(
-            VerificationPhoto(localName: saved, isPublic: false)
-        )
     }
 }

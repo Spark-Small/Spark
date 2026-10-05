@@ -18,6 +18,8 @@ final class BuddiesModel {
     var presentation = BuddiesPresentationStore()
     var onRecordsChanged: (() -> Void)?
     var onMembershipChanged: (() -> Void)?
+    /// 接受活动邀约后跨 Tab 打开活动详情（勿仅依赖搭子页 onAppear）。
+    var onOpenActivityAfterInvite: ((UUID) -> Void)?
     var inviteRecords: [BuddyInviteRecord]
     var bookingRecords: [BuddyBookingRecord]
     /// 用户创建的俱乐部
@@ -61,6 +63,8 @@ final class BuddiesModel {
     @ObservationIgnored let remoteBookingSync: any RemoteBookingSyncing
     @ObservationIgnored let remoteInviteSync: any RemoteInviteSyncing
     @ObservationIgnored let remoteClubSync: any RemoteClubSyncing
+    /// 活动邀约回执写入站内通知（与广场互动同 Store）。
+    @ObservationIgnored let notificationInbox: InAppNotificationStore?
 
     init(
         repository: any BuddiesRepository,
@@ -72,6 +76,7 @@ final class BuddiesModel {
         remoteBookingSync: (any RemoteBookingSyncing)? = nil,
         remoteInviteSync: (any RemoteInviteSyncing)? = nil,
         remoteClubSync: (any RemoteClubSyncing)? = nil,
+        notificationInbox: InAppNotificationStore? = nil,
         snapshot: BuddiesSnapshot? = nil,
         currentUserName: String? = nil,
         currentUserID: UUID? = nil,
@@ -86,8 +91,9 @@ final class BuddiesModel {
         self.remoteBookingSync = remoteBookingSync ?? DisabledRemoteBookingSync()
         self.remoteInviteSync = remoteInviteSync ?? DisabledRemoteInviteSync()
         self.remoteClubSync = remoteClubSync ?? DisabledRemoteClubSync()
+        self.notificationInbox = notificationInbox
         self.currentUserName = currentUserName ?? SampleData.currentUser.name
-        self.currentUserID = currentUserID ?? LocalUserIdentity.current
+        self.currentUserID = currentUserID ?? ParticipantIdentity.currentUserID
         self.inviteService = inviteService ?? LocalBuddyInviteService()
         self.bookingService = bookingService ?? LocalBuddyBookingService()
         self.booking = booking
@@ -158,7 +164,7 @@ final class BuddiesModel {
 
     func purgeSocialLinks(with nickname: String, userID: UUID? = nil) {
         inviteRecords = inviteRecords.map { record in
-            guard BuddyIdentityMatching.matches(
+            guard ParticipantIdentity.matches(
                 nickname: record.nickname,
                 userID: record.inviteeUserID,
                 otherNickname: nickname,
@@ -168,7 +174,7 @@ final class BuddiesModel {
             return inviteService.advanceInvite(record, to: .declined)
         }
         let cancellable = bookingRecords.filter {
-            BuddyIdentityMatching.matches(
+            ParticipantIdentity.matches(
                 nickname: $0.companionNickname,
                 userID: $0.companionUserID,
                 otherNickname: nickname,
@@ -188,7 +194,7 @@ final class BuddiesModel {
         otherNickname: String,
         otherUserID: UUID?
     ) -> Bool {
-        BuddyIdentityMatching.matches(
+        ParticipantIdentity.matches(
             nickname: nickname,
             userID: userID,
             otherNickname: otherNickname,

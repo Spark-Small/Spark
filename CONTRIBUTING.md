@@ -14,7 +14,7 @@
 6. 提 PR 前：
 
 ```bash
-bash Scripts/check-imports.sh
+bash Scripts/check-imports.sh   # 含 import 边界 + 文本输入零旁路（check-text-input）
 cd Packages/CoordinateKit && swift test
 ```
 

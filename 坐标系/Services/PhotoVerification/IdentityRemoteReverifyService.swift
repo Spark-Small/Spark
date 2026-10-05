@@ -60,11 +60,11 @@ enum IdentityRemoteReverifyService {
                 usedNetwork: true
             )
         } catch {
-            // 联网失败：演示默认放行本机结果；正式可改为拦截
+            // 联网失败：放行本机比对结果，但 usedNetwork=false（UI 不得显示「服务端已确认」）。
             return Outcome(
                 passed: true,
                 remoteScore: localSimilarity,
-                reason: "复核服务暂不可用，已采用本机结果。",
+                reason: "复核服务暂不可用，已采用本机结果（未记服务端确认）。",
                 usedNetwork: false
             )
         }

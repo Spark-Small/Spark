@@ -17,6 +17,27 @@ extension MessagesCopy {
     static let attachVoice = "语音"
     static let attachLocation = "位置"
     static let attachActivity = "活动卡片"
+    /// 评论等未接附件通道的 Composer：Menu 仍展示，点按诚实告知。
+    static let composerAttachUnavailable = "此输入栏暂未开放相册与相机附件，请先发送文字。"
+    /// 理论上不应再出现；保留兜底。
+    static let composerVoiceUnavailable = "语音发送失败，请重试。"
+    static let composerVoiceMicHint = "点按后在输入栏录音，键盘保持打开"
+    static let composerVoiceCancel = "取消录音"
+    static let composerVoiceStop = "完成录音"
+    static let composerVoiceStopHint = "结束录音并预览"
+    static let composerVoicePlay = "播放"
+    static let composerVoicePause = "暂停"
+    static let composerVoicePlayHint = "试听刚才录制的语音"
+    static let composerVoiceSendHint = "发送本机语音"
+    static func composerVoiceRecordingA11y(_ durationLabel: String) -> String {
+        "正在录音 \(durationLabel)"
+    }
+    static let composerVoicePermissionDenied = "需要麦克风权限才能录音。请在系统设置中开启。"
+    static let composerVoiceStartFailed = "无法开始录音，请稍后重试。"
+    static let composerVoiceTooShort = "录音太短，请再录一会儿。"
+    static func composerVoiceDurationA11y(_ label: String) -> String {
+        "已录 \(label)"
+    }
     static let voiceCall = "语音通话"
     static let callConnecting = "连接中"
     static let callRinging = "等待接听"

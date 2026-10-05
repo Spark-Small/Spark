@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateDomain
 import CoordinateModels
 
 /// 精选 Hero：4:5 卡片；水平页边与发现货架一致（`PlatformMetrics.contentInset`）。
@@ -128,6 +129,7 @@ struct ActivityFeaturedCard: View {
             isJoined: isJoined,
             isWaitlisted: isWaitlisted,
             isFull: live.isFull,
+            isLifecycleEnded: live.isLifecycleEnded,
             controlSize: .large,
             onJoin: onJoin
         )

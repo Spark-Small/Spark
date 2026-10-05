@@ -9,22 +9,27 @@ import CoordinateDomain
 import CoordinateModels
 
 struct CommunityComposeSheet: View {
-    @Environment(CommunityModel.self) private var model
+    @Environment(CommunityModel.self) var model
     @Environment(ActivitiesModel.self) private var activities
     @Environment(AppModel.self) private var app
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dismiss) var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
-    @State private var bodyText = ""
-    @State private var tagText = ""
-    @State private var relatedActivityID: UUID?
-    @State private var pickerItems: [PhotosPickerItem] = []
-    @State private var previewImages: [UIImage] = []
-    @State private var savedPhotoNames: [String] = []
-    @State private var isPreparingPhotos = false
+    @State var bodyText = ""
+    @State var tagText = ""
+    @State var relatedActivityID: UUID?
+    @State var pickerItems: [PhotosPickerItem] = []
+    @State var previewImages: [UIImage] = []
+    @State var savedPhotoNames: [String] = []
+    @State var isPreparingPhotos = false
     @State private var blockedWord: String?
     @State private var moderationAlert: String?
     @State private var photoImportFailure: PhotoImportFailure?
     @State private var recapSourceActivityID: UUID?
+    @State var showDraftDismissDialog = false
+    @State var draftFeedback: String?
+    /// 发布 / 明确不保存后禁止再后台自动写入草稿箱。
+    @State var suppressDraftAutosave = false
     @FocusState private var focused: Field?
 
     private struct PhotoImportFailure: Identifiable {
@@ -40,7 +45,7 @@ struct CommunityComposeSheet: View {
     private let suggestedTags = ["经验", "探店", "路线", "周末", "夜骑", "美食"]
     private let maxPhotos = 9
 
-    private var linkableActivities: [Activity] {
+    var linkableActivities: [Activity] {
         // 仅「我参加 / 我主办」未结束场次，避免全目录噪音（方案 P6）。
         var seen = Set<UUID>()
         var result: [Activity] = []
@@ -67,7 +72,7 @@ struct CommunityComposeSheet: View {
             Form {
                 Section {
                     TextField(CommunityComposeCopy.bodyPlaceholder, text: $bodyText, axis: .vertical)
-                        .lineLimit(4...10)
+                        .platformFormTextInput(.composeBody)
                         .focused($focused, equals: .body)
                 } header: {
                     Text(CommunityComposeCopy.bodySection)
@@ -137,6 +142,7 @@ struct CommunityComposeSheet: View {
 
                 Section(CommunityComposeCopy.tagsSection) {
                     TextField(CommunityComposeCopy.tagsPlaceholder, text: $tagText)
+                        .platformFormTextInput(.singleLine)
                         .focused($focused, equals: .tags)
 
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -178,13 +184,13 @@ struct CommunityComposeSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(CommunityComposeCopy.cancel) { dismiss() }
+                    Button(CommunityComposeCopy.cancel, action: attemptCancelCompose)
                 }
                 if let recapID = recapSourceActivityID {
                     ToolbarItem(placement: .topBarLeading) {
                         Button(ActivityExperienceFeedbackCopy.skip) {
                             activities.skipActivityRecap(recapID)
-                            dismiss()
+                            dismissComposeWithoutSaving()
                         }
                     }
                 }
@@ -194,13 +200,36 @@ struct CommunityComposeSheet: View {
                         .disabled(!canPublish)
                 }
             }
-            .onAppear {
+            .interactiveDismissDisabled(hasDraftableContent)
+            .confirmationDialog(
+                CommunityComposeCopy.discardDraftTitle,
+                isPresented: $showDraftDismissDialog,
+                titleVisibility: .visible
+            ) {
+                Button(CommunityComposeCopy.discardSave) {
+                    _ = saveCurrentDraft(dismissAfter: true, announce: true)
+                }
+                Button(CommunityComposeCopy.discardDiscard, role: .destructive) {
+                    discardComposeAndDismiss()
+                }
+                Button(CommunityComposeCopy.discardContinue, role: .cancel) {}
+            } message: {
+                Text(CommunityComposeCopy.discardDraftMessage)
+            }
+            .onChange(of: scenePhase) { _, phase in
+                // 进后台 / 失活：静默存入草稿箱，降低意外杀进程丢稿风险。
+                guard phase == .background || phase == .inactive else { return }
+                autosaveDraftForScenePhaseIfNeeded()
+            }
+            .task {
+                await applyDraftIfNeeded()
                 applyInitialValues()
                 recapSourceActivityID = model.pendingRelatedActivityID
             }
         }
         .platformSheet(.form)
         .platformFeedbackAlert($moderationAlert)
+        .platformLightFeedback($draftFeedback)
         .alert(
             CommunityComposeCopy.mediaSection,
             isPresented: Binding(
@@ -232,7 +261,7 @@ struct CommunityComposeSheet: View {
         }
     }
 
-    private var parsedTags: [String] {
+    var parsedTags: [String] {
         tagText
             .split(whereSeparator: { $0.isWhitespace || $0 == "," || $0 == "，" })
             .map(String.init)
@@ -240,7 +269,10 @@ struct CommunityComposeSheet: View {
     }
 
     private func applyInitialValues() {
-        if let initialBody = model.pendingComposeBody, bodyText.isEmpty {
+        // 草稿已由 `applyDraftIfNeeded` 填入时，勿被 pending 复盘正文覆盖。
+        if model.editingDraftID == nil,
+           let initialBody = model.pendingComposeBody,
+           bodyText.isEmpty {
             bodyText = initialBody
         }
         if relatedActivityID == nil {
@@ -254,6 +286,7 @@ struct CommunityComposeSheet: View {
     }
 
     private func publish() {
+        suppressDraftAutosave = true
         let matched = linkableActivities.first { $0.id == relatedActivityID }
         switch model.publish(
             body: bodyText,
@@ -268,9 +301,10 @@ struct CommunityComposeSheet: View {
             }
             dismiss()
         case .blocked(let word):
+            suppressDraftAutosave = false
             blockedWord = word
         case .invalid:
-            break
+            suppressDraftAutosave = false
         }
     }
 

@@ -59,7 +59,7 @@ struct AddFriendPeerSheet: View {
                             text: $verificationMessage,
                             axis: .vertical
                         )
-                        .lineLimit(3...6)
+                        .platformFormTextInput(.body)
                     } header: {
                         Text(MessagesCopy.addFriendVerifyField)
                     }

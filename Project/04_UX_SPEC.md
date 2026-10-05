@@ -20,13 +20,13 @@
 | 登录 | 主路径短；社交按钮次级；协议独立勾选 |
 | 兴趣 | 硬门槛但选项清晰；可稍后在资料改 |
 | 发现 | 分区目的单一（一层标题）；筛选即时生效；下一场 Banner 不抢新用户注意力；Tab 根顶栏见 `11` 五 Tab 统一契约 |
-| 搭子发现 | 标题菜单互切找搭子 / 约陪玩 / 俱乐部；人模式单 Hero；约陪玩卡突出价/可约；空态主诉「找可约的人」；三模式各自 L1 Menu + 深筛选（**无**系统搜索框）；俱乐部海报网格 + 主题/城市筛选；顶栏与五 Tab 同套；门闸 Sheet 写明下一步 |
+| 搭子发现 | Trailing 模式 Menu 互切找搭子 / 约陪玩 / 俱乐部 / 最近浏览；人模式单 Hero；约陪玩卡突出价/可约；空态主诉「找可约的人」；三模式各自 L1 筛选 + 深筛选（**无**系统搜索框）；俱乐部海报网格 + 主题/城市筛选；顶栏与五 Tab 同套；门闸 Sheet 写明下一步 |
 | 详情 | 决策卡 > 信任 > 正文；主 CTA 单一突出；未核验时 Hint 写「完成认证后即可参加」 |
 | 参加确认 | 费用 / 时间 / 冲突一眼可见；付费披露在主路径；确认前走 `IdentityGateSource.activityJoin` |
 | 成功 | 一个主 CTA（行程或群）；次要日历不抢主；**不**交叉推销搭子 |
 | 主办 | Form 管理；破坏性操作二次确认 |
-| 空态 | `ContentUnavailableView` + 一个明确行动（找局 / 开局） |
-| Tab 根顶栏 | 五 Tab 统一：`navigationTitle` + `.inlineLarge` + soft edge + 栏材质联动；不压制 compact title（无空 principal / scroll-away）；活动/搭子另加 `toolbarTitleMenu`；Trailing 分组 + Badge；下拉刷新 |
+| 空态 | 全 App：`ContentUnavailableView`（Label + description + 裸 `Button` actions）；搜索无结果用 `.search(text:)`；**禁止**空态上叠 `activityPrimaryCTA` / `.borderedProminent` / 业务空态留白皮 |
+| Tab 根顶栏 | 五 Tab 统一：`navigationTitle` + `.inlineLarge` + soft edge + 栏材质联动；不压制 compact title（无空 principal / scroll-away）；活动另加 `toolbarTitleMenu`；搭子模式在 Trailing Menu；Trailing 分组 + Badge；下拉刷新 |
 | 我的根 | 同上契约；设置在 `topBarTrailing` |
 | 门闸 Sheet | 按 `IdentityGateSource` 区分活动参加 / 预约邀约 / 发消息的「为什么 / 下一步」 |
 

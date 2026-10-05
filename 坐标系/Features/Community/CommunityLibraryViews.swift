@@ -2,8 +2,8 @@
 //  CommunityLibraryViews.swift
 //  坐标系
 //
-//  广场内容库：收藏 / 赞过 / 我的分享 / 转发 / 公约。
-//  入口：「我的」→「广场内容」Hub；根栈仍注册目的地便于深链。
+//  广场内容库：收藏 / 赞过 / 我的发帖 / 转发 / 公约。
+//  「我的发帖 / 转发」复用 `ProfileMyPostsView`；Hub 入口仍在「广场内容」。
 //
 
 import SwiftUI
@@ -27,9 +27,9 @@ struct CommunityLibraryRouter: View {
         case .liked:
             CommunityLikedPostsView()
         case .myPosts:
-            CommunityMyPostsView()
+            ProfileMyPostsView()
         case .reposts:
-            CommunityMyRepostsView()
+            ProfileMyPostsView(initialCategory: .reposts)
         case .guidelines:
             CommunityGuidelinesView()
         }
@@ -114,33 +114,6 @@ struct CommunityLikedPostsView: View {
     }
 }
 
-struct CommunityMyPostsView: View {
-    @Environment(CommunityModel.self) private var model
-
-    var body: some View {
-        CommunityPostLibraryList(
-            title: CommunityLibraryCopy.myPostsTitle,
-            emptyTitle: CommunityLibraryCopy.myPostsEmpty,
-            emptySystemImage: "square.and.pencil",
-            emptyDescription: CommunityLibraryCopy.myPostsEmptyHint,
-            posts: model.myPosts
-        )
-    }
-}
-
-struct CommunityMyRepostsView: View {
-    @Environment(CommunityModel.self) private var model
-
-    var body: some View {
-        CommunityPostLibraryList(
-            title: CommunityLibraryCopy.repostsTitle,
-            emptyTitle: CommunityLibraryCopy.repostsEmpty,
-            emptySystemImage: "arrow.2.squarepath",
-            emptyDescription: CommunityLibraryCopy.repostsEmptyHint,
-            posts: model.myReposts
-        )
-    }
-}
 
 struct CommunityGuidelinesView: View {
     var body: some View {

@@ -2,7 +2,7 @@
 //  CommunityView.swift
 //  坐标系
 //
-//  广场 Tab / 内嵌栈根；Feed / 动态区 / 工具栏 / 搜索见同模块扩展。
+//  广场 Tab / 内嵌栈根；Feed / 动态区 / 工具栏见同模块扩展（无顶栏搜索）。
 //
 
 import SwiftUI
@@ -26,10 +26,13 @@ struct CommunityFeedStack: View {
     @Environment(ActivitiesModel.self) var activities
     @Environment(InAppNotificationStore.self) var notificationInbox
 
-    @State var searchText = ""
     @State var feedFilter: CommunityFeedFilter = .all
     @State var feedPreferences = CommunityFeedPreferences()
     @State var notificationAuth: UNAuthorizationStatus = .notDetermined
+    /// 「发现作者」下本会话刚关注的作者：帖保留至离开该筛选。
+    @State var sessionRetainedDiscoverAuthors: Set<String> = []
+    /// 「全部」推荐置顶：固定本会话卡片，关注后只改按钮不换帖。
+    @State var pinnedRecommendationID: CommunityPost.ID?
 
     var body: some View {
         @Bindable var model = model
@@ -40,26 +43,30 @@ struct CommunityFeedStack: View {
                     .communityFeedFilterRowChrome()
             }
 
-            if showsDynamicsRail {
+            if showsDynamicsRail, !showsFeedUnavailable {
                 dynamicsSection
             }
 
-            Section {
-                feedPostsSection
+            if !showsFeedUnavailable {
+                Section {
+                    feedPostsSection
+                }
             }
         }
         .communityFeedChrome()
-        // 搜索：系统托管；minimize 仅配合 bottomBar DefaultToolbarItem（见 +Toolbar）。
-        .searchable(
-            text: $searchText,
-            prompt: CommunityBrowseCopy.searchPrompt
-        )
-        .searchSuggestions {
-            communitySearchSuggestions
+        .overlay {
+            // 仅叠系统空态本体（固有尺寸居中）；勿铺满，以免挡住顶栏筛选点击。
+            if showsFeedUnavailable {
+                feedUnavailableOverlay
+            }
         }
-        .searchToolbarBehavior(.minimize)
-        .onSubmit(of: .search) {
-            rememberCurrentSearchIfNeeded()
+        .environment(\.communityRetainFollowedAuthor) { author in
+            guard feedFilter == .peopleYouFollow else { return }
+            sessionRetainedDiscoverAuthors.insert(author)
+        }
+        .onChange(of: feedFilter) { _, _ in
+            sessionRetainedDiscoverAuthors = []
+            pinnedRecommendationID = nil
         }
         .refreshable {
             await model.reloadFromRepository()
@@ -95,7 +102,10 @@ struct CommunityFeedStack: View {
                 zoomNamespace: zoomNamespace
             )
         )
-        .sheet(isPresented: $model.presentation.isComposing) {
+        .sheet(
+            isPresented: $model.presentation.isComposing,
+            onDismiss: { model.presentation.endCompose() }
+        ) {
             CommunityComposeSheet()
                 .toolbarVisibility(.hidden, for: .tabBar)
         }
@@ -158,6 +168,10 @@ extension View {
 /// 消费 `pendingCommunityPostID`，推进到帖详情；缺帖时先 reload 再试，仍无则清空避免挂死。
 struct CommunityPendingPostNavigationModifier: ViewModifier {
     @Binding var path: NavigationPath
+    /// 活动 Tab 软启动栈：先重置 path，避免叠在详情 / 最近看过之上。
+    var resetPathBeforeAppend = false
+    var onBeforeAppend: (() -> Void)?
+
     @Environment(AppModel.self) private var app
     @Environment(CommunityModel.self) private var community
 
@@ -169,11 +183,19 @@ struct CommunityPendingPostNavigationModifier: ViewModifier {
             }
     }
 
+    private func appendPost(_ post: CommunityPost) {
+        onBeforeAppend?()
+        if resetPathBeforeAppend {
+            path = NavigationPath()
+        }
+        path.append(post)
+    }
+
     private func consume() {
         guard let id = app.pendingCommunityPostID else { return }
         if let post = community.post(id: id) {
             app.pendingCommunityPostID = nil
-            path.append(post)
+            appendPost(post)
             return
         }
         Task {
@@ -182,7 +204,7 @@ struct CommunityPendingPostNavigationModifier: ViewModifier {
                 guard app.pendingCommunityPostID == id else { return }
                 if let post = community.post(id: id) {
                     app.pendingCommunityPostID = nil
-                    path.append(post)
+                    appendPost(post)
                 } else {
                     app.pendingCommunityPostID = nil
                 }

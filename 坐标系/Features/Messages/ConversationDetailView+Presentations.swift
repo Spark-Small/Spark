@@ -78,7 +78,7 @@ extension ConversationDetailView {
                 Text(MessagesCopy.reportFooter)
             }
             .alert(
-                "退出圈子？",
+                MessagesCopy.leaveCircleConfirmTitle,
                 isPresented: $confirmLeaveCircle
             ) {
                 Button(MessagesCopy.leaveGroup, role: .destructive) {
@@ -86,7 +86,18 @@ extension ConversationDetailView {
                 }
                 Button(MessagesCopy.cancel, role: .cancel) {}
             } message: {
-                Text("退出后将离开圈子群聊，成员设置会清除，可随时重新加入。")
+                Text(MessagesCopy.leaveCircleConfirmMessage)
+            }
+            .alert(
+                MessagesCopy.groupLeaveConfirmTitle,
+                isPresented: $confirmLeaveActivityGroup
+            ) {
+                Button(MessagesCopy.leaveGroup, role: .destructive) {
+                    leaveActivityGroupIfPossible()
+                }
+                Button(MessagesCopy.cancel, role: .cancel) {}
+            } message: {
+                Text(MessagesCopy.leaveActivityGroupConfirmMessage)
             }
             .alert(
                 MessagesCopy.clearHistoryTitle,
@@ -160,6 +171,7 @@ extension ConversationDetailView {
                 )
             ) {
                 TextField(MessagesCopy.sendPlaceholder, text: $editDraft)
+                    .platformFormTextInput(.singleLine)
                 Button(MessagesCopy.editMessageSave) {
                     guard let editingMessage else { return }
                     if model.editMessage(
@@ -177,20 +189,6 @@ extension ConversationDetailView {
                     editingMessage = nil
                 }
             }
-            .confirmationDialog(
-                MessagesCopy.localVoiceTitle,
-                isPresented: $confirmLocalVoice,
-                titleVisibility: .visible
-            ) {
-                Button(MessagesCopy.localVoiceSend) {
-                    if model.sendVoice(duration: 3, to: conversationID) != nil {
-                        sendPulse += 1
-                    }
-                }
-                Button(MessagesCopy.cancel, role: .cancel) {}
-            } message: {
-                Text(MessagesCopy.localVoiceMessage)
-            }
             .sheet(item: $peerProfile) { route in
                 NavigationStack {
                     switch route {
@@ -206,6 +204,7 @@ extension ConversationDetailView {
                             .platformSheetCancellationToolbar(MessagesCopy.close)
                     }
                 }
+                .independentNavigationSheetChrome()
                 .toolbarVisibility(.hidden, for: .tabBar)
                 .platformSheet(.browser)
             }
@@ -248,17 +247,13 @@ extension ConversationDetailView {
             onViewProfile: {
                 peerProfile = peerProfileRoute(for: conversation.title)
             },
+            onAskPhotoVerification: {
+                askPeerPhotoVerification(in: conversation)
+            },
             onReport: { showReport = true },
             onDissolveGroup: { confirmDissolveGroup = true },
             onLeavePeerGroup: { confirmLeavePeerGroup = true },
-            onCancelRegistration: {
-                if let activityID = conversation.relatedActivityID {
-                    app.cancelActivityRegistration(activityID)
-                    dismiss()
-                } else {
-                    model.requestDelete(conversation)
-                }
-            },
+            onLeaveActivityGroup: { confirmLeaveActivityGroup = true },
             onLeaveCircle: { confirmLeaveCircle = true },
             onDeleteConversation: { model.requestDelete(conversation) }
         )

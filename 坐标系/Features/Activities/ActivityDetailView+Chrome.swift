@@ -185,19 +185,23 @@ extension ActivityDetailView {
             waitlisted: waitlisted,
             free: activity.isFree
         )
-        let identitySatisfied = IdentityAccessGate.requirement(
+        let identitySatisfied = IdentityCapability.canParticipate(
             user: app.user,
             auth: app.auth,
             photoVerification: app.photoVerificationStore
-        ) == .satisfied
+        )
         let hint = identitySatisfied
             ? baseHint
             : ActivityDetailCopy.joinNeedsVerificationHint
 
         if activity.isFull {
             Button(title) {
-                guard app.requireIdentityAccess(source: .activityJoin) else { return }
-                _ = model.toggleWaitlist(activity.id)
+                if model.isWaitlisted(activity.id) {
+                    leaveWaitlistActivityID = activity.id
+                } else {
+                    guard app.requireIdentityAccess(source: .activityJoin) else { return }
+                    _ = model.toggleWaitlist(activity.id)
+                }
             }
                 .activityDetailBottomPrimaryCTA()
                 .accessibilityHint(hint)

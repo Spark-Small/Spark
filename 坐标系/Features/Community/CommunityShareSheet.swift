@@ -160,7 +160,7 @@ struct CommunityShareSheet: View {
         NavigationStack {
             Form {
                 TextField(CommunitySheetCopy.quotePlaceholder, text: $quoteDraft, axis: .vertical)
-                    .lineLimit(3...6)
+                    .platformFormTextInput(.body)
             }
             .navigationTitle(CommunitySheetCopy.quoteRepostTitle)
             .navigationBarTitleDisplayMode(.inline)

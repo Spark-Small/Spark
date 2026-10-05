@@ -64,10 +64,10 @@ struct ActivityDetailPeopleSheet: View {
                         }
                     }
                 } header: {
-                    Text("共 \(activity.joined) 人参与")
+                    Text("名单 \(members.count) 人")
                 } footer: {
-                    if members.count < activity.joined {
-                        Text("已展示 \(members.count) 位伙伴。\(ActivityDetailCopy.peopleSheetFooter)")
+                    if members.count != activity.joined {
+                        Text("报名显示 \(activity.joined) 人；当前可展示 \(members.count) 位。\(ActivityDetailCopy.peopleSheetFooter)")
                     } else {
                         Text(ActivityDetailCopy.peopleSheetFooter)
                     }

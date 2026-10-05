@@ -2,7 +2,7 @@
 //  ConversationComposerSection.swift
 //  坐标系
 //
-//  会话详情底栏：提及条、冷启动限制、系统 Composer（本机语音入口已接，真录音待 B5）。
+//  会话详情底栏：提及条、冷启动限制、系统 Composer（本机录音；上传待 B5）。
 //
 
 import PhotosUI
@@ -21,7 +21,7 @@ struct ConversationComposerSection<AttachMenu: View>: View {
     let memberNamesExcludingSelf: [String]
     var onCancelReply: () -> Void
     var onSend: () -> Void
-    var onVoice: (() -> Void)? = nil
+    var onVoiceCapture: ((URL, TimeInterval) -> Void)? = nil
     @ViewBuilder var attachMenu: () -> AttachMenu
 
     var body: some View {
@@ -66,7 +66,7 @@ struct ConversationComposerSection<AttachMenu: View>: View {
                     ($0.isMe ? "我" : $0.sender, $0.previewText)
                 },
                 onCancelReply: onCancelReply,
-                onVoice: onVoice,
+                onVoiceCapture: onVoiceCapture,
                 attachMenu: attachMenu(),
                 onSend: onSend
             )

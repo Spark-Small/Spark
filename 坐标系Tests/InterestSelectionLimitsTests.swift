@@ -22,6 +22,16 @@ final class InterestSelectionLimitsTests: XCTestCase {
         XCTAssertFalse(InterestSelectionLimits.isAtMaximum(7))
     }
 
+    func testNormalizedCustomTagTrimsAndCapsLength() {
+        XCTAssertEqual(InterestSelectionLimits.normalizedCustomTag("  汉服  "), "汉服")
+        XCTAssertEqual(InterestSelectionLimits.normalizedCustomTag("汉服，滑板"), "汉服滑板")
+        let long = String(repeating: "啊", count: 20)
+        XCTAssertEqual(
+            InterestSelectionLimits.normalizedCustomTag(long).count,
+            InterestSelectionLimits.customTagMaxCharacters
+        )
+    }
+
     func testProgressTextOmitsYixuanPrefix() {
         XCTAssertEqual(
             InterestSelectionLimits.progressText(count: 0),
@@ -33,7 +43,7 @@ final class InterestSelectionLimitsTests: XCTestCase {
         )
         XCTAssertEqual(
             InterestSelectionLimits.progressText(count: 5),
-            "5/8"
+            "5/8 · 还可以再选 3 项"
         )
         XCTAssertEqual(
             InterestSelectionLimits.progressText(count: 8),
@@ -59,6 +69,28 @@ final class InterestSelectionLimitsTests: XCTestCase {
         XCTAssertNil(InterestSelectionDraftStore.load(userID: userID))
     }
 
+    func testCustomTagPlacementRoundTripAndClear() {
+        let userID = UUID()
+        InterestCustomTagPlacementStore.clear(userID: userID)
+        defer { InterestCustomTagPlacementStore.clear(userID: userID) }
+
+        XCTAssertTrue(InterestCustomTagPlacementStore.load(userID: userID).isEmpty)
+        InterestCustomTagPlacementStore.save(
+            ["汉服": "interestSocial", "滑板": "outdoorSports"],
+            userID: userID
+        )
+        XCTAssertEqual(
+            InterestCustomTagPlacementStore.load(userID: userID)["汉服"],
+            "interestSocial"
+        )
+        XCTAssertEqual(
+            InterestCustomTagPlacementStore.load(userID: userID)["滑板"],
+            "outdoorSports"
+        )
+        InterestCustomTagPlacementStore.clear(userID: userID)
+        XCTAssertTrue(InterestCustomTagPlacementStore.load(userID: userID).isEmpty)
+    }
+
     @MainActor
     func testSignOutClearsInterestSelectionAndDraft() async {
         let userID = LocalUserIdentity.current
@@ -76,10 +108,12 @@ final class InterestSelectionLimitsTests: XCTestCase {
         let app = AppDependencies.inMemoryForTests(repositories: repos).makeAppModel()
         XCTAssertTrue(app.hasCompletedInterestSelection)
 
+        InterestCustomTagPlacementStore.save(["汉服": "freeform"], userID: userID)
         await app.signOutLocally()
 
         XCTAssertFalse(app.hasCompletedInterestSelection)
         XCTAssertNil(InterestSelectionDraftStore.load(userID: userID))
+        XCTAssertTrue(InterestCustomTagPlacementStore.load(userID: userID).isEmpty)
         XCTAssertFalse(app.auth.isSignedIn)
     }
 

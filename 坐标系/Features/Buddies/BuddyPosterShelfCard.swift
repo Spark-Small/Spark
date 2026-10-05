@@ -64,13 +64,19 @@ struct BuddyPosterShelfCard: View {
 extension BuddyPosterShelfCard {
     static func circle(
         _ circle: InterestCircle,
+        memberCount: Int? = nil,
+        badgeTitle: String? = nil,
+        badgeTint: Color = PlatformStatus.success,
         onOpen: @escaping () -> Void
     ) -> BuddyPosterShelfCard {
-        BuddyPosterShelfCard(
+        let count = memberCount ?? circle.memberCount
+        return BuddyPosterShelfCard(
             title: circle.name,
-            subtitle: "\(circle.topic) · \(BuddyBrowseCopy.OrgPoster.memberCount(circle.memberCount))",
+            subtitle: "\(circle.topic) · \(BuddyBrowseCopy.OrgPoster.memberCount(count))",
             systemImage: circle.systemImage,
-            accessibilitySummary: "\(circle.name)，\(circle.topic)，\(BuddyBrowseCopy.OrgPoster.membersA11y(circle.memberCount))",
+            badgeTitle: badgeTitle,
+            badgeTint: badgeTint,
+            accessibilitySummary: "\(circle.name)，\(circle.topic)，\(BuddyBrowseCopy.OrgPoster.membersA11y(count))",
             onOpen: onOpen
         )
     }

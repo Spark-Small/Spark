@@ -31,6 +31,19 @@ extension BuddiesModel {
             .sorted { $0.createdAt > $1.createdAt }
     }
 
+    /// 「我的俱乐部」：我创建的在前，其余已加入在后。
+    var membershipClubs: [InterestCircle] {
+        let hosted = hostedClubs
+        let hostedIDs = Set(hosted.map(\.id))
+        let joined = joinedCircleIDs
+            .compactMap { circle(id: $0) }
+            .filter { !hostedIDs.contains($0.id) }
+            .sorted {
+                $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
+        return hosted + joined
+    }
+
     func isUserCreatedClub(_ circle: InterestCircle) -> Bool {
         userClubs.contains { $0.id == circle.id }
     }
@@ -86,15 +99,10 @@ extension BuddiesModel {
         joinedCircleIDs.insert(circle.id)
         joinedCircleNames.insert(circle.name)
         ensurePrefs(kind: .circle, name: circle.name)
-        presentation.endComposeClub()
         persist()
         onMembershipChanged?()
 
-        presentation.pendingOrgJoinSuccess = BuddyOrgJoinSuccess(
-            kind: .circle,
-            name: circle.name,
-            systemImage: circle.systemImage
-        )
+        // 创建成功由「我的俱乐部」Sheet 回调导航进圈子；不挂搭子 Tab 成功 Sheet（避免换 Tab 脏弹）。
         flash(BuddyOrgJoinCopy.createdClub(circle.name))
         if remoteClubSync.isEnabled {
             Task { await submitClubCreateToRemote(circle.id) }
@@ -126,6 +134,24 @@ extension BuddiesModel {
         onMembershipChanged?()
     }
 
+    /// 改昵称后同步自建俱乐部 `creatorName`，避免详情仍显示旧名。
+    func migrateUserName(from oldName: String, to newName: String) {
+        guard !oldName.isEmpty, !newName.isEmpty,
+              oldName.caseInsensitiveCompare(newName) != .orderedSame
+        else { return }
+        var changed = false
+        for index in userClubs.indices {
+            if userClubs[index].creatorName.caseInsensitiveCompare(oldName) == .orderedSame {
+                userClubs[index].creatorName = newName
+                changed = true
+            }
+        }
+        if currentUserName.caseInsensitiveCompare(oldName) == .orderedSame {
+            currentUserName = newName
+        }
+        if changed { persist() }
+    }
+
     func migrateJoinedCircleMembershipIfNeeded() {
         guard joinedCircleIDs.isEmpty, !joinedCircleNames.isEmpty else { return }
         for name in joinedCircleNames {
@@ -138,5 +164,25 @@ extension BuddiesModel {
     func syncJoinedCircleNamesFromIDs() {
         let names = joinedCircleIDs.compactMap { circle(id: $0)?.name }
         joinedCircleNames = Set(names)
+    }
+
+    /// 与俱乐部详情标题人数同源：会话/名册他人数 +（已加入则含自己）；无名单时回落种子。
+    func displayedMemberCount(
+        for circle: InterestCircle,
+        messages: MessagesModel,
+        viewerName: String
+    ) -> Int {
+        let joined = isJoined(circle)
+        var others = 0
+        if let conversation = messages.conversation(forCircleID: circle.id) {
+            others = messages.groupMembers(for: conversation.id).filter {
+                $0.nickname.caseInsensitiveCompare(viewerName) != .orderedSame
+            }.count
+        } else if BuddiesSupplyPolicy.allowsSampleDiscoverCatalog {
+            others = SampleData.circleBuddies.filter { $0.circleName == circle.name }.count
+        }
+        let rosterBased = others + (joined ? 1 : 0)
+        if rosterBased > 0 { return rosterBased }
+        return max(circle.memberCount, joined ? 1 : 0)
     }
 }

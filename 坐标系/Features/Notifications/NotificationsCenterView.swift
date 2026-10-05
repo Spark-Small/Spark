@@ -36,22 +36,7 @@ struct NotificationsCenterView: View {
                     .listRowSeparator(.hidden)
             }
 
-            if visibleItems.isEmpty {
-                ContentUnavailableView {
-                    Label(NotificationsCopy.emptyTitle, systemImage: "bell.slash")
-                } description: {
-                    Text(NotificationsCopy.emptyDescription)
-                } actions: {
-                    NavigationLink {
-                        SettingsNotificationsView()
-                    } label: {
-                        Text(NotificationsCopy.settings)
-                    }
-                    .activityPrimaryCTA(controlSize: .large)
-                }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            } else {
+            if !visibleItems.isEmpty {
                 if !todayItems.isEmpty {
                     Section {
                         ForEach(todayItems) { item in
@@ -73,6 +58,21 @@ struct NotificationsCenterView: View {
             }
         }
         .profileSecondaryListChrome()
+        .overlay {
+            if visibleItems.isEmpty {
+                ContentUnavailableView {
+                    Label(NotificationsCopy.emptyTitle, systemImage: "bell.slash")
+                } description: {
+                    Text(NotificationsCopy.emptyDescription)
+                } actions: {
+                    NavigationLink {
+                        SettingsNotificationsView()
+                    } label: {
+                        Text(NotificationsCopy.settings)
+                    }
+                }
+            }
+        }
         .navigationTitle(NotificationsCopy.centerTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { centerToolbar }

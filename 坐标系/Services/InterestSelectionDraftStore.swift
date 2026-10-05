@@ -35,4 +35,10 @@ enum InterestSelectionDraftStore {
     static func clear(userID: UUID = LocalUserIdentity.current) {
         UserDefaults.standard.removeObject(forKey: key(for: userID))
     }
+
+    /// 登出 / 删号 / 重置：草稿 + 自定义标签分区一并清理。
+    static func clearSessionStores(userID: UUID = LocalUserIdentity.current) {
+        clear(userID: userID)
+        InterestCustomTagPlacementStore.clear(userID: userID)
+    }
 }

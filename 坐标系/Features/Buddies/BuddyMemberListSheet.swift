@@ -20,27 +20,29 @@ struct BuddyMemberListSheet: View {
         @Bindable var navigation = navigation
 
         NavigationStack(path: $navigation.path) {
-            List {
+            Group {
                 if members.isEmpty {
                     ContentUnavailableView(
                         BuddyMemberCopy.emptyMembersTitle,
                         systemImage: "person.2",
                         description: Text(BuddyMemberCopy.emptyMembersDescription)
                     )
-                    .listRowBackground(Color.clear)
+                    .platformContentUnavailablePageChrome()
                 } else {
-                    Section {
-                        ForEach(members) { member in
-                            CircleMemberNavigationLink(
-                                item: member.item,
-                                source: member.source,
-                                groupAlias: member.groupAlias
-                            ) {
-                                memberRow(member)
+                    List {
+                        Section {
+                            ForEach(members) { member in
+                                CircleMemberNavigationLink(
+                                    item: member.item,
+                                    source: member.source,
+                                    groupAlias: member.groupAlias
+                                ) {
+                                    memberRow(member)
+                                }
                             }
+                        } header: {
+                            Text(BuddyMemberCopy.memberCount(members.count))
                         }
-                    } header: {
-                        Text(BuddyMemberCopy.memberCount(members.count))
                     }
                 }
             }

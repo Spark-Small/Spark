@@ -88,6 +88,7 @@ extension ActivitiesView {
     @ViewBuilder
     var emptyState: some View {
         let filtered = hasActiveFilters || model.selectedCategory != .forYou
+        let mergeCommunity = app.productLifecycleStore.shouldMergeCommunityIntoActivitiesTab
         ContentUnavailableView {
             Label(
                 filtered ? ActivityBrowseCopy.Empty.filteredTitle : ActivityBrowseCopy.Empty.title,
@@ -105,13 +106,15 @@ extension ActivitiesView {
                     model.clearBrowseQuery()
                     model.selectBrowseCategory(.forYou)
                 }
-                .activityPrimaryCTA(controlSize: .large)
             } else {
                 Button(ActivityBrowseCopy.Empty.action, action: beginCompose)
-                    .activityPrimaryCTA(controlSize: .large)
+            }
+            // 软启动合并广场：目录空时仍可进内嵌动态（否则入口随 browseContent 一起消失）。
+            if mergeCommunity {
+                Button(ActivityBrowseCopy.Empty.openCommunityFeed) {
+                    landOnEmbeddedCommunityFeed()
+                }
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
     }
 }

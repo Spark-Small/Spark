@@ -64,7 +64,7 @@ struct FriendGroupPickerSheet: View {
             }
             .alert(MessagesCopy.friendNewGroup, isPresented: $showCreateGroup) {
                 TextField(MessagesCopy.friendNewGroupPlaceholder, text: $newGroupDraft)
-                    .textInputAutocapitalization(.never)
+                    .platformFormTextInput(.identifier)
                 Button(MessagesCopy.friendNewGroupCreate) {
                     if model.addFriendGroup(newGroupDraft, assignTo: nickname) {
                         dismiss()

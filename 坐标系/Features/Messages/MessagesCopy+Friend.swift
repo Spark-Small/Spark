@@ -12,7 +12,7 @@ extension MessagesCopy {
     // MARK: - Friend profile
 
     static let friendSendMessage = "发消息"
-    static let friendAVCall = "音视频通话"
+    static let friendAVCall = "语音通话"
     static let friendSetGroup = "设置好友分组"
     static let friendAddToBlacklist = "加入黑名单"
     static let friendComplaint = "投诉"

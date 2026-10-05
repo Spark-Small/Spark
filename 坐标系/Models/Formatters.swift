@@ -52,6 +52,14 @@ enum Formatters {
         return formatter
     }()
 
+    /// 账单分节：2026年10月
+    static let yearMonthSection: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "yyyy年M月"
+        return formatter
+    }()
+
     /// 列表时间：今天时刻 / 昨天 / 星期 / 日期（全中文）
     static func conversationListTime(from date: Date, relativeTo now: Date = .now) -> String {
         let calendar = Calendar.current

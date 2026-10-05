@@ -57,7 +57,7 @@
 **Design 白名单**（可 `import CoordinateModels`）：
 
 - `ActivityZoomNavigation.swift`
-- `WalletPassFace.swift`
+- `WalletPassFace.swift`（及同族 Chrome / Content / Factory）
 - `PlatformCatalogCards.swift`
 - `PlatformMessagesChrome.swift`
 - `Design/CredentialArt/CredentialArtTheme.swift`
@@ -223,7 +223,7 @@ NavigationStack(path: $navigation.path) {
 
 ### 6.4 活动行程凭证（App 内主路径）
 
-**产品定位**：行程页展示 **App 内凭证**（过程管理 + 纪念分享），**不是**系统 Wallet 官方 UI。PassKit 仅作可选导出（展开页「更多」→ `AddPassToWalletButton`）。
+**产品定位**：行程页展示 **App 内凭证**（过程管理 + 纪念分享），**不是**系统 Wallet 官方 UI；产品**不**提供「加入 Apple Wallet」。
 
 **双模式**（`ActivityJourneyCredentialPresentation`）：
 
@@ -470,7 +470,7 @@ PhotosPicker(...) {
 | API | 做法 | 落点示例 |
 |-----|------|----------|
 | `Remote*Repository` | 类标 `@MainActor`；`APIClient` 为 `Sendable` | `Services/API/Remote*.swift` |
-| `PassKit` / `PKPassLibrary` | 封装 enum 标 `@MainActor` | `PassKitLoader` |
+| `PassKit`（若再启用系统加包） | 封装 enum 标 `@MainActor` | 当前产品路径不接 `AddPassToWalletButton` |
 | `EventKit` | 日历读写 enum 标 `@MainActor` | `ActivityCalendar`、`ActivityCalendarStore` |
 | `MKLocalSearch` / `openInMaps` | 搜索 Task 用 `Task { @MainActor in … }` | `ActivityNavigation` |
 | `UIWindowScene` / `rootViewController` | helper 标 `@MainActor` | `MessagesInviteFriends` |
@@ -552,9 +552,9 @@ flowchart TD
 | 阶段 | 范围 | 主要落点 |
 |------|------|----------|
 | A0 | 校验收紧、解码默认、`booking_created` | `CoordinateDomain`、`BuddyRecords`、`BuddiesModel+Bookings` |
-| A1 | D1 接单不自动弹支付 | `BuddiesModel+Bookings`、`ProfileOrdersView`、`*Copy` |
+| A1 | D1 接单不自动弹支付 | `BuddiesModel+Bookings`、`BookingCredentialExpandedView`、`*Copy` |
 | A2 | D2 履约双 CTA、Pass 刷新 | `BookingCredentialExpandedView`、`PassStore` |
-| A3 | D3 `refunding` | `BuddyRecords`、`RefundFlow`、`ProfileOrdersView` |
+| A3 | D3 `refunding` | `BuddyRecords`、`RefundFlow`、`BookingCredentialExpandedView` |
 | A4 | D4 演示接单文案与开关 | `BuddyBookingFlowViews`、`FeatureFlags` |
 
 **Phase B**（工程收口，见 PRD §6.5 注）：

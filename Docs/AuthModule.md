@@ -2,7 +2,7 @@
 
 > **裁决**：现行规范与验收以 [`Project/`](../Project/README.md) 为准（流程 `02`、架构 `07`、API `09`、上线 `16`、屏契约 `17`）。  
 > **本文角色**：Auth 代码地图与联调细节的**深读附录**；与 Project 冲突时改 Project（或改代码后回写 Project），**不要**把本文当单一事实源。  
-> **同步**：2026-09-30（按代码推断）  
+> **同步**：2026-10-05（按代码推断；Identity / ParticipantIdentity 收口）  
 > 软启动 / 阻塞短桩：[SoftLaunchConventions.md](SoftLaunchConventions.md) · [ReleaseBlockers.md](ReleaseBlockers.md)
 
 ---
@@ -106,15 +106,17 @@ DEBUG 联调读路径：`FeatureFlags.enableReadPathRemoteIntegration()`（开�
 
 ## 6. 与下游模块的边界（重要）
 
-登录门闸**正确**；业务身份贯通**未完成**：
+登录门闸**正确**。客户端参与身份已收口到稳定 UUID，**服务端履约贯通仍未完成**：
 
 | 下游 | 现状 |
 |------|------|
-| 活动报名 / 候补 / 主办 | 按**显示名**本地记账，不读 JWT |
-| `IdentityAccessGate` | 认证照 + 人脸核验；`_ = auth`（不替登录态） |
+| 参与身份读口 | `ParticipantIdentity.currentUserID`（=`LocalUserIdentity`；远程登录可 `adopt`） |
+| 活动报名 / 候补 / 主办 | Domain UC 写入 `participantUserIDs` / `hostUserID`；展示层仍可见昵称 |
+| 搭子邀约 / 预约 | `inviteeUserID` / `companionUserID` + `BuddyIdentityMatching`（经 `ParticipantIdentity.matches`） |
+| 身份能力门禁 | `IdentityCapability` / `AppModel.requireIdentityAccess`；`_ = auth`（不替登录态） |
 | 活动目录 / 支付 | 见 [ActivitiesModule.md](ActivitiesModule.md) |
 
-软启动可测「登录 → 兴趣 → 进活动 Tab」；不可把「报名成功」当成服务端履约。
+软启动可测「登录 → 兴趣 → 进活动 Tab」；不可把「本地报名成功」当成服务端履约。勾 `16` B 需后端真人目录 / 远程写就绪。
 
 ---
 

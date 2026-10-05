@@ -50,6 +50,20 @@ struct ActivityBrowseCategoryTitleMenu: View {
     }
 }
 
+/// 「最近看过」Trailing：退出临时表面，回到进入前的分类（系统 toolbar 文本钮，非 push 返回）。
+struct ActivityBrowseRecentsExitToolbar: ToolbarContent {
+    var previousCategoryTitle: String
+    var onExit: () -> Void
+
+    var body: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button(ActivityBrowseCopy.recentsBack, action: onExit)
+                .platformNavigationBarItemChrome()
+                .accessibilityHint(ActivityBrowseCopy.recentsBackHint(previousCategoryTitle))
+        }
+    }
+}
+
 /// Trailing：筛选组 + 发起组（`ToolbarSpacer` 分隔）；图标系统原色。
 struct ActivityBrowseTrailingToolbar: ToolbarContent {
     @Binding var quickFilters: Set<ActivityQuickFilter>

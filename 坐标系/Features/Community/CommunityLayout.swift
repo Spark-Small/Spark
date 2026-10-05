@@ -39,7 +39,7 @@ extension View {
                 for: .scrollContent
             )
             .scrollEdgeEffectStyle(.soft, for: .top)
-            .scrollDismissesKeyboard(.interactively)
+            .platformTextInputScrollChrome()
             .background(PlatformSurface.canvas)
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: PlatformConversationListRow.listSectionSpacing)
@@ -63,11 +63,9 @@ extension View {
             .listRowBackground(Color.clear)
     }
 
-    /// 空态块垂直留白。
+    /// 广场空态：页面级铺满居中（与 `platformContentUnavailablePageChrome` 同口径）。
     func communityEmptyStateChrome() -> some View {
-        self
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
+        platformContentUnavailablePageChrome()
     }
 
     /// 帖子卡片底部 ↔ 下一帖作者行：系统 List 分节间距。
@@ -77,7 +75,7 @@ extension View {
 
     func communityDetailScrollChrome() -> some View {
         self
-            .scrollDismissesKeyboard(.interactively)
+            .platformTextInputScrollChrome()
             .scrollEdgeEffectStyle(.soft, for: .top)
             .contentMargins(
                 .horizontal,

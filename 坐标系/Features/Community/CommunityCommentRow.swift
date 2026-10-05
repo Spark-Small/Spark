@@ -66,7 +66,8 @@ struct CommunityCommentRow: View {
 
             VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
                 threadAuthorLine
-                commentText
+                voiceChip
+                if showsTextBody { commentText }
                 threadMetadataRow
             }
         }
@@ -76,10 +77,30 @@ struct CommunityCommentRow: View {
     private var formBody: some View {
         VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
             formMetadataLine
-            commentText
+            voiceChip
+            if showsTextBody { commentText }
             actionRow
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var showsTextBody: Bool {
+        let trimmed = comment.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        if comment.voiceDuration != nil, trimmed == PlatformReviewsCopy.voicePlaceholder {
+            return false
+        }
+        return true
+    }
+
+    @ViewBuilder
+    private var voiceChip: some View {
+        if let duration = comment.voiceDuration, duration > 0 {
+            PlatformVoiceNoteChip(
+                fileURL: comment.voiceLocalName.flatMap(LocalMediaLibrary.fileURL(named:)),
+                duration: duration
+            )
+        }
     }
 
     @ViewBuilder

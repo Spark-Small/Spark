@@ -104,6 +104,43 @@ extension BuddyFilterSheet {
         }
     }
 
+    var intentSection: some View {
+        Section {
+            ForEach(ProfileIntent.allCases) { intent in
+                let selected = draftIntents.contains(intent)
+                Button {
+                    if selected {
+                        draftIntents.remove(intent)
+                    } else {
+                        draftIntents.insert(intent)
+                    }
+                } label: {
+                    HStack {
+                        Text(intent.rawValue)
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if selected {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.tint)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+            Button {
+                draftIntents = []
+            } label: {
+                Text(BuddyFilterCopy.intentAny)
+            }
+        } header: {
+            Text(BuddyFilterCopy.intentHeader)
+        } footer: {
+            Text(BuddyFilterCopy.intentFooter)
+        }
+    }
+
     var hobbySection: some View {
         Section {
             NavigationLink(value: BuddyFilterRoute.hobbies) {

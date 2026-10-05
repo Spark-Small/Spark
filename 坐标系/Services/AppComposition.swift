@@ -41,7 +41,6 @@ enum AppComposition {
     @MainActor static let privacyPreferencesStore = PrivacyPreferencesStore()
     @MainActor static let youthModeStore = YouthModeStore()
     @MainActor static let legalConsentStore = LegalConsentStore()
-    @MainActor static let membershipAdImpressionStore = MembershipAdImpressionStore()
     @MainActor static let photoVerificationStore = PhotoVerificationStore(trustService: trustService)
     @MainActor static let opsContentStore = OpsContentStore()
 

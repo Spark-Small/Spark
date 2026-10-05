@@ -2,7 +2,7 @@
 //  CommunityView+Feed.swift
 //  坐标系
 //
-//  主 Feed 筛选与空态（搜索建议见 +Search）。
+//  主 Feed 筛选与空态（发现作者关注：会话保留，见 retainedAuthorNames）。
 //
 
 import SwiftUI
@@ -17,58 +17,53 @@ extension CommunityFeedStack {
     }
 
     var filteredPosts: [CommunityPost] {
-        // 「发现作者」= 未关注作者的内容筛选；点关注后该作者帖诚实离开本档（进「关注」）。
+        // 「发现作者」= 未关注作者；本会话刚关注的作者经 `sessionRetainedDiscoverAuthors` 保留至离档。
         var posts = CommunityFeedFiltering.posts(
             model.items,
             filter: feedFilter,
             followedUserNames: app.followedUserNames,
             currentUserName: model.currentUserName,
-            joinedActivityTitles: joinedActivityTitles
+            joinedActivityTitles: joinedActivityTitles,
+            retainedAuthorNames: feedFilter == .peopleYouFollow
+                ? sessionRetainedDiscoverAuthors
+                : []
         )
         if shouldPinRecommended, let recommended = recommendedPost {
             posts = posts.filter { $0.id != recommended.id }
         }
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return posts }
-        return posts.filter { post in
-            post.messageText.localizedCaseInsensitiveContains(query)
-                || post.author.localizedCaseInsensitiveContains(query)
-                || post.title.localizedCaseInsensitiveContains(query)
-                || post.tags.contains { $0.localizedCaseInsensitiveContains(query) }
-                || (post.relatedActivityTitle?.localizedCaseInsensitiveContains(query) ?? false)
+        return posts
+    }
+
+    /// 整页空态（叠在 List 上居中）；有帖时只渲染行。
+    var showsFeedUnavailable: Bool {
+        if model.loadErrorMessage != nil, model.items.isEmpty { return true }
+        if model.items.isEmpty { return true }
+        return filteredPosts.isEmpty
+    }
+
+    @ViewBuilder
+    var feedUnavailableOverlay: some View {
+        if let error = model.loadErrorMessage, model.items.isEmpty {
+            errorState(message: error)
+        } else if model.items.isEmpty {
+            emptyState
+        } else {
+            filterEmptyState(for: feedFilter)
         }
     }
 
     @ViewBuilder
     var feedPostsSection: some View {
-        Group {
-            if let error = model.loadErrorMessage, model.items.isEmpty {
-                errorState(message: error)
-                    .communityFeedRowChrome()
-            } else if model.items.isEmpty {
-                emptyState
-                    .communityFeedRowChrome()
-            } else if filteredPosts.isEmpty {
-                if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    searchEmptyState
-                        .communityFeedRowChrome()
-                } else {
-                    filterEmptyState(for: feedFilter)
-                        .communityFeedRowChrome()
-                }
-            } else {
-                ForEach(filteredPosts) { post in
-                    CommunityFeedPostRow(
-                        post: post,
-                        isLiked: model.isLiked(post.id),
-                        isBookmarked: model.isBookmarked(post.id),
-                        isReposted: model.isReposted(post.id),
-                        isFollowingAuthor: app.isFollowing(post.author)
-                    )
-                    .equatable()
-                    .communityFeedRowChrome()
-                }
-            }
+        ForEach(filteredPosts) { post in
+            CommunityFeedPostRow(
+                post: post,
+                isLiked: model.isLiked(post.id),
+                isBookmarked: model.isBookmarked(post.id),
+                isReposted: model.isReposted(post.id),
+                isFollowingAuthor: app.isFollowing(post.author)
+            )
+            .equatable()
+            .communityFeedRowChrome()
         }
     }
 
@@ -95,9 +90,7 @@ extension CommunityFeedStack {
             Text(CommunityBrowseCopy.emptyDescription)
         } actions: {
             Button(CommunityBrowseCopy.composeAccessibility) { model.presentation.beginCompose() }
-                .activityPrimaryCTA(controlSize: .large)
         }
-        .communityEmptyStateChrome()
     }
 
     var followingEmptyState: some View {
@@ -109,9 +102,7 @@ extension CommunityFeedStack {
             Button(CommunityBrowseCopy.feedEmptyFollowingAction) {
                 feedFilter = .peopleYouFollow
             }
-            .activityPrimaryCTA(controlSize: .large)
         }
-        .communityEmptyStateChrome()
     }
 
     var discoverAuthorsEmptyState: some View {
@@ -123,9 +114,7 @@ extension CommunityFeedStack {
             Button(CommunityBrowseCopy.feedEmptyDiscoverAction) {
                 feedFilter = .all
             }
-            .activityPrimaryCTA(controlSize: .large)
         }
-        .communityEmptyStateChrome()
     }
 
     var conversationEmptyState: some View {
@@ -137,9 +126,7 @@ extension CommunityFeedStack {
             Button(CommunityBrowseCopy.feedEmptyConversationAction) {
                 feedFilter = .all
             }
-            .activityPrimaryCTA(controlSize: .large)
         }
-        .communityEmptyStateChrome()
     }
 
     var mentionEmptyState: some View {
@@ -151,9 +138,7 @@ extension CommunityFeedStack {
             Button(CommunityBrowseCopy.feedEmptyMentionAction) {
                 feedFilter = .all
             }
-            .activityPrimaryCTA(controlSize: .large)
         }
-        .communityEmptyStateChrome()
     }
 
     var filteredEmptyState: some View {
@@ -162,12 +147,6 @@ extension CommunityFeedStack {
         } description: {
             Text(CommunityBrowseCopy.feedEmptyFilteredHint)
         }
-        .communityEmptyStateChrome()
-    }
-
-    var searchEmptyState: some View {
-        ContentUnavailableView.search(text: searchText)
-            .communityEmptyStateChrome()
     }
 
     func errorState(message: String) -> some View {
@@ -179,8 +158,6 @@ extension CommunityFeedStack {
             Button(CommunityBrowseCopy.retryLoad) {
                 Task { await model.reloadFromRepository() }
             }
-            .activityPrimaryCTA(controlSize: .large)
         }
-        .communityEmptyStateChrome()
     }
 }

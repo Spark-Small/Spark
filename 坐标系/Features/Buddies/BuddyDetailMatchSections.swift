@@ -2,32 +2,14 @@
 //  BuddyDetailMatchSections.swift
 //  坐标系
 //
-//  搭子详情：匹配、档期、圈子与来源。
+//  搭子详情：档期、圈子与来源（推荐理由见 BuddyDetailAboutSection）。
 //
 
 import SwiftUI
 import CoordinateModels
 
-// MARK: - Match / schedule / related
-
-struct BuddyDetailMatchSection: View {
-    let profile: BuddyProfile
-
-    private var shared: [String] { BuddyMatchScorer.sharedHobbies(with: profile) }
-
-    var body: some View {
-        if shared.isEmpty {
-            Text(BuddyMatchScorer.reason(for: profile))
-        } else {
-            TagFlow(tags: shared)
-            Text(BuddyMatchScorer.reason(for: profile))
-        }
-    }
-
-    var sectionTitle: String {
-        shared.isEmpty ? BuddyDetailCopy.reasonTitle : BuddyDetailCopy.matchTitle
-    }
-}
+// MARK: - Schedule / related
+// 「推荐理由」文案 + 胶囊已并入 `BuddyDetailAboutSection`。
 
 struct BuddyDetailScheduleSection: View {
     let slots: [String]
@@ -35,7 +17,9 @@ struct BuddyDetailScheduleSection: View {
     var scheduleHint: String? = nil
     var onSelectBookableDay: ((Date) -> Void)? = nil
 
+    @Environment(\.calendar) private var calendar
     @State private var selectedDay: Date?
+    @State private var didSeedSelection = false
 
     var body: some View {
         if slots.isEmpty {
@@ -45,19 +29,13 @@ struct BuddyDetailScheduleSection: View {
         } else {
             BuddyScheduleCalendarView(
                 slots: slots,
-                selectedDay: Binding(
-                    get: { selectedDay },
-                    set: { day in
-                        selectedDay = day
-                        if let day, allowsBooking {
-                            onSelectBookableDay?(day)
-                        }
-                    }
-                ),
+                selectedDay: $selectedDay,
                 allowsSelection: allowsBooking,
-                showsMonthPager: true
+                showsMonthPager: true,
+                onConfirmDay: allowsBooking ? onSelectBookableDay : nil
             )
             .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
+            .onAppear(perform: seedSelectionIfNeeded)
 
             if allowsBooking {
                 Text(scheduleHint ?? BuddyDetailCopy.scheduleCalendarHint)
@@ -65,6 +43,14 @@ struct BuddyDetailScheduleSection: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// 预高亮最近可约日，不触发预约 / 邀约。
+    private func seedSelectionIfNeeded() {
+        guard !didSeedSelection else { return }
+        didSeedSelection = true
+        guard selectedDay == nil else { return }
+        selectedDay = BuddyScheduleSlot.firstBookableDay(slots: slots, calendar: calendar)
     }
 }
 

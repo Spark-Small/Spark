@@ -9,7 +9,8 @@
 | Snapshot | 主要内容 | 仓储 |
 |----------|----------|------|
 | `ActivitiesSnapshot` | activities、joined/favorite/waitlist IDs、participationProgress、feedbackTagCounts | `ActivitiesRepository` |
-| `ProfileSnapshot` | `AppUser`、兴趣等 | Profile repo |
+| `ProfileSnapshot` | `AppUser`（墙/认证照/意图/Prompt/`occupation`/`meetRadius`/`mbti`/`zodiac`（星座：有 `birthDate` 时推导优先）、**实名**：`isRealNameVerified`·`birthDate`·`realNameDocumentKind`（身份证/护照）·证件指纹脱敏·身份证正反面或护照资料页本机文件名；性别年龄由实名写入；遗留 `lookingFor`）、兴趣等；完成度见 `ProfileCompletion` | Profile repo；远程经 **`MergeRemoteProfileSnapshotUseCase`**；本机媒体与实名字段在远程为空时保留；`useRemoteProfile` Release 默认关 |
+| 发现目录 DTO | `BuddiesDiscoverBuddyDTO` / `CompanionDTO` 可选 `galleryImageURLs`、`intents` | 映射入 `BuddyProfile.galleryRemoteURLs` / `intents`；缺省回落种子图 |
 | `MessagesSnapshot` | 会话与消息；`friendRemarks` / `friendGroups` / `friendGroupCatalog`（自建分组） | Messages repo |
 | `BuddiesSnapshot` | invite/booking、clubs、joined*、membershipPrefs、可选 `discoverCatalog` | Buddies repo；远程经 `MergeRemoteBuddiesSnapshotUseCase` |
 | `CommunitySnapshot` | 帖子 | Community repo |
@@ -44,7 +45,7 @@
 | `BuddyBookingRecord.companionUserID` | 陪玩 id |
 | `BuddiesModel.currentUserID` | 本机用户（`LocalUserIdentity`） |
 
-匹配规则：`BuddyIdentityMatching`——两边都有 userID 时只比 ID；否则昵称大小写不敏感。Sample 人设用 `stableUserID(forNickname:)` 写入可复现 id。
+匹配规则：业务走 `ParticipantIdentity.matches`（底层 `BuddyIdentityMatching`）——两边都有 userID 时只比 ID；否则昵称大小写不敏感。Sample 人设用 `stableUserID(forNickname:)` 写入可复现 id。当前用户 id 读口：`ParticipantIdentity.currentUserID`。
 
 `BuddiesSnapshot.discoverCatalog`（`BuddiesDiscoverCatalog`）为远程发现目录契约；服务端未下发时客户端保持诚实空态，**不得**用 Sample 冒充 Release 供给（B4 仍待后端真人数据）。
 
@@ -65,8 +66,13 @@
 ## 4. 订单与钱包
 
 - `ActivityOrder` + 本地 `ActivityPaymentStore`  
-- 设备 `WalletStore` 账本  
-- Release：外部支付方式不可选；退款保持处理中直至服务端  
+- 设备 `WalletStore`：本地账本投影；`useRemoteWallet` 时权威在服务端 `WalletAccountDTO` / ledger  
+- Domain Money UC：`ChargeWalletUseCase` / `ApplyWalletCreditUseCase` / `CreateWalletTopUpIntentUseCase`  
+- DTO：`WalletCommerceDTOs`（账户、流水页、充值意图、扣款、退款案）  
+- Release：外部支付方式不可选（除非远程充值 Flag + 真通道）；退款保持处理中直至服务端  
+- Release **无**开户赠送假充值；DEBUG 可有欢迎金演示  
+- 优惠券 / 积分字段已移除（二期另立）  
+- 会员：`MembershipStore` 本机投影（`storekit` / DEBUG `demo` 分键）；权威交易来自 StoreKit 2 Transaction；**无**会员服务端对账  
 
 ---
 

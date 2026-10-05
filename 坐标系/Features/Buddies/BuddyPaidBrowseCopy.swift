@@ -16,5 +16,4 @@ nonisolated enum BuddyPaidBrowseCopy {
     static let serviceTypeAll = "全部"
 
     static let filterServiceTypeTitle = "服务类型"
-    static let filterServiceTypeFooter = "筛选陪玩服务项目；不限则展示全部。"
 }

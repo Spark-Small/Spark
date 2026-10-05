@@ -14,51 +14,54 @@ struct ModerationTicketsView: View {
     @State private var pendingDeleteID: ModerationTicket.ID?
 
     var body: some View {
-        List {
+        Group {
             if app.moderationTickets.isEmpty {
                 ContentUnavailableView(
                     "暂无举报",
                     systemImage: "flag",
                     description: Text("社区、活动、消息或搭子举报后会出现在这里。")
                 )
+                .platformContentUnavailablePageChrome()
             } else {
-                ForEach(app.moderationTickets) { ticket in
-                    NavigationLink {
-                        ModerationTicketDetailView(ticketID: ticket.id)
-                    } label: {
-                        VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
-                            HStack(spacing: PlatformConversationListRow.textToSecondarySpacing) {
-                                Label(ticket.targetKind.rawValue, systemImage: ticket.targetKind.systemImage)
-                                    .font(PlatformListTypography.footnote)
+                List {
+                    ForEach(app.moderationTickets) { ticket in
+                        NavigationLink {
+                            ModerationTicketDetailView(ticketID: ticket.id)
+                        } label: {
+                            VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
+                                HStack(spacing: PlatformConversationListRow.textToSecondarySpacing) {
+                                    Label(ticket.targetKind.rawValue, systemImage: ticket.targetKind.systemImage)
+                                        .font(PlatformListTypography.footnote)
+                                        .foregroundStyle(.secondary)
+                                    Spacer(minLength: 0)
+                                    Text(ticket.status.rawValue)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(moderationStatusColor(ticket.status))
+                                }
+                                Text(ticket.postTitle)
+                                    .font(PlatformListTypography.primary)
+                                    .lineLimit(2)
+                                Text(ticket.reason)
+                                    .font(PlatformListTypography.secondary)
                                     .foregroundStyle(.secondary)
-                                Spacer(minLength: 0)
-                                Text(ticket.status.rawValue)
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(moderationStatusColor(ticket.status))
+                                Text(Formatters.conversationListTime(from: ticket.createdAt))
+                                    .font(PlatformListTypography.footnote)
+                                    .foregroundStyle(.tertiary)
                             }
-                            Text(ticket.postTitle)
-                                .font(PlatformListTypography.primary)
-                                .lineLimit(2)
-                            Text(ticket.reason)
-                                .font(PlatformListTypography.secondary)
-                                .foregroundStyle(.secondary)
-                            Text(Formatters.conversationListTime(from: ticket.createdAt))
-                                .font(PlatformListTypography.footnote)
-                                .foregroundStyle(.tertiary)
                         }
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button("删除", systemImage: "trash", role: .destructive) {
-                            pendingDeleteID = ticket.id
-                        }
-                        #if DEBUG
-                        if ticket.status.nextSimulated != nil {
-                            Button("推进", systemImage: "arrow.triangle.2.circlepath") {
-                                app.advanceModerationTicket(ticket.id)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button("删除", systemImage: "trash", role: .destructive) {
+                                pendingDeleteID = ticket.id
                             }
-                            .tint(.blue)
+                            #if DEBUG
+                            if ticket.status.nextSimulated != nil {
+                                Button("推进", systemImage: "arrow.triangle.2.circlepath") {
+                                    app.advanceModerationTicket(ticket.id)
+                                }
+                                .tint(.blue)
+                            }
+                            #endif
                         }
-                        #endif
                     }
                 }
             }

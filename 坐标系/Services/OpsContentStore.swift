@@ -48,8 +48,8 @@ final class OpsContentStore {
         ),
         OpsAnnouncement(
             id: "2026-q3-orders",
-            title: "统一订单入口",
-            body: "活动支付与陪玩预约合并到「我的订单」，退款与凭证仍走对应详情。",
+            title: "行程与账单分工",
+            body: "参加与预约在「我的活动」「我的陪玩」；充值账单在钱包；待支付等催办走通知。",
             publishedAt: Date(timeIntervalSince1970: 1_751_241_600),
             pin: false
         ),

@@ -77,14 +77,11 @@ extension BuddyOrgInfoScaffold {
     @ViewBuilder
     var circleChatPrefsSection: some View {
         Section {
-            Button {
-                if let onSearchChat {
-                    onSearchChat()
-                } else {
-                    circleActionMessage = CircleGroupCopy.searchUnavailable
+            // 未接线时不展示死入口，避免点进「即将开放」。
+            if let onSearchChat {
+                Button(action: onSearchChat) {
+                    Text(CircleGroupCopy.searchChat)
                 }
-            } label: {
-                Text(CircleGroupCopy.searchChat)
             }
 
             Toggle(CircleGroupCopy.muteNotifications, isOn: muteBinding)

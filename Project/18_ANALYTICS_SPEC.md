@@ -28,8 +28,14 @@
 | `activity_publish_result` | 发布 | `result` |
 | `identity_gate_shown` / `passed` | 核验打断 | `intent`（join/booking/…） |
 | `commerce_checkout_blocked` | 政策挡外部支付 | `method` |
+| `commerce_topup_start` | 发起充值 | `channel`、`amount_cents`、`mode`（demo_local/remote） |
+| `commerce_topup_result` | 充值结果 | `channel`、`result`（禁止用演示成功冒充转化） |
+| `commerce_charge_result` | 扣款结果 | `order_type`、`result`、`method` |
+| `commerce_refund_submit` | 退款申请 | `order_type`、`result` |
+| `commerce_withdraw_blocked` | 提现未开放 | `reason` |
+| `commerce_invoice_blocked` | 开票未开放 | `reason` |
 
-既有 `AuthAnalytics` / `InterestAnalytics` 应对齐上表语义；新增域事件先改本表再写代码。
+既有 `AuthAnalytics` / `InterestAnalytics` / `CommerceAnalytics` 应对齐上表语义；新增域事件先改本表再写代码。
 
 ---
 

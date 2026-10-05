@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoordinateDomain
 import CoordinateModels
 
 // MARK: - Section
@@ -64,6 +65,7 @@ struct ActivityBrowseShelfRailContent: View {
                     isJoined: model.isJoined(activity.id),
                     isWaitlisted: model.isWaitlisted(activity.id),
                     isFull: activity.isFull,
+                    isLifecycleEnded: activity.isLifecycleEnded,
                     onJoin: { onJoin(activity) }
                 )
                 .platformEditorialRailFrame()
@@ -84,6 +86,7 @@ struct ActivityBrowseShelfRailContent: View {
                     isJoined: model.isJoined(activity.id),
                     isWaitlisted: model.isWaitlisted(activity.id),
                     isFull: activity.isFull,
+                    isLifecycleEnded: activity.isLifecycleEnded,
                     onJoin: joinAction(for: activity)
                 )
                 .platformContinueRailFrame()
@@ -105,6 +108,7 @@ struct ActivityBrowseShelfRailContent: View {
                     isJoined: model.isJoined(activity.id),
                     isWaitlisted: model.isWaitlisted(activity.id),
                     isFull: activity.isFull,
+                    isLifecycleEnded: activity.isLifecycleEnded,
                     onJoin: joinAction(for: activity)
                 )
                 .platformContinueRailFrame()

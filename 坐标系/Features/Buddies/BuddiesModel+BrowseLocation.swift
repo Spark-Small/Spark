@@ -3,7 +3,8 @@
 //  坐标系
 //
 //  搭子发现：定位匹配、城市选择、筛选 Toolbar 摘要。
-//  软启动未接后端：系统定位只服务天气顶栏，不硬杀样例货架。
+//  软启动：系统定位只服务天气 / 展示文案，不硬杀样例或远程货架；
+//  用户手动选城后才按 `selectedCity` 过滤（与空态文案同源）。
 //
 
 import CoordinateModels
@@ -57,6 +58,9 @@ extension BuddiesModel {
             if filter.gender != nil {
                 return "person"
             }
+            if !filter.intents.isEmpty {
+                return "sparkles"
+            }
             if let hobby = filter.hobby, !hobby.isEmpty {
                 return BuddyHobbyOption.systemImage(for: hobby)
             }
@@ -66,9 +70,6 @@ extension BuddiesModel {
             if !usesSystemLocation {
                 return "building.2"
             }
-        }
-        if !filter.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return "magnifyingglass"
         }
         return "line.3.horizontal.decrease.circle.fill"
     }
@@ -106,6 +107,9 @@ extension BuddiesModel {
             }
             if let hobby = filter.hobby, !hobby.isEmpty {
                 parts.append(hobby)
+            }
+            if !filter.intents.isEmpty {
+                parts.append(filter.intents.map(\.rawValue).sorted().joined(separator: "·"))
             }
         case .paid:
             if filter.maxDistanceKM < BuddyFilterDistance.maximumKilometers {

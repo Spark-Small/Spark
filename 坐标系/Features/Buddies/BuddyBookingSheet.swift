@@ -223,7 +223,6 @@ struct BuddyBookingSheet: View {
                 onDismiss()
                 dismiss()
             }
-            .activityPrimaryCTA(controlSize: .large)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -252,12 +251,13 @@ struct BuddyBookingSheet: View {
     @ViewBuilder
     private var scheduleSections: some View {
         Section {
-            DatePicker(
-                BuddyBookingFlowCopy.bookingDate,
-                selection: $selectedDay,
-                in: bookingDateRange,
-                displayedComponents: [.date]
+            BuddyScheduleCalendarView(
+                slots: companion.scheduleSlots,
+                selectedDay: selectedDayBinding,
+                allowsSelection: true,
+                showsMonthPager: true
             )
+            .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
         } header: {
             Text(BuddyBookingFlowCopy.availableSlotsHeader)
         } footer: {
@@ -275,7 +275,7 @@ struct BuddyBookingSheet: View {
             } else {
                 Picker(BuddyBookingFlowCopy.timeSlotLabel, selection: slotSelection) {
                     ForEach(bookableSlotsOnDay) { slot in
-                        Text(slot.label).tag(slot.label)
+                        Text(slot.label).tag(Optional(slot.label))
                     }
                 }
                 .pickerStyle(.inline)
@@ -285,17 +285,21 @@ struct BuddyBookingSheet: View {
         }
     }
 
-    private var slotSelection: Binding<String> {
+    private var selectedDayBinding: Binding<Date?> {
         Binding(
-            get: { selectedSlot ?? bookableSlotsOnDay.first?.label ?? "" },
-            set: { selectedSlot = $0.isEmpty ? nil : $0 }
+            get: { calendar.startOfDay(for: selectedDay) },
+            set: { day in
+                guard let day else { return }
+                selectedDay = calendar.startOfDay(for: day)
+            }
         )
     }
 
-    private var bookingDateRange: ClosedRange<Date> {
-        let start = calendar.startOfDay(for: Date())
-        let end = calendar.date(byAdding: .month, value: 2, to: start) ?? start
-        return start...end
+    private var slotSelection: Binding<String?> {
+        Binding(
+            get: { selectedSlot },
+            set: { selectedSlot = $0 }
+        )
     }
 
     private var daySectionTitle: String {
@@ -309,7 +313,11 @@ struct BuddyBookingSheet: View {
     }
 
     private var emptyDayMessage: String {
-        let status = slotsOnSelectedDay.first?.availability
+        let day = calendar.startOfDay(for: selectedDay)
+        let status = BuddyScheduleSlot.dayAvailabilityMap(
+            slots: companion.scheduleSlots,
+            calendar: calendar
+        )[day]
         switch status {
         case .full: return BuddyBookingFlowCopy.emptyDayFull
         case .pending: return BuddyBookingFlowCopy.emptyDayPending
@@ -328,16 +336,28 @@ struct BuddyBookingSheet: View {
             if !bookable.isEmpty {
                 selectedDay = day
                 selectedSlot = bookable.first?.label
+                useCustomTime = false
                 return
             }
         }
 
-        if let first = resolvedSlots.first(where: \.bookable) {
-            selectedDay = first.dayStart(calendar: calendar)
-            selectedSlot = first.label
+        if let firstDay = BuddyScheduleSlot.firstBookableDay(
+            slots: companion.scheduleSlots,
+            calendar: calendar
+        ) {
+            selectedDay = firstDay
+            selectedSlot = BuddyScheduleSlot.slots(on: firstDay, from: companion.scheduleSlots)
+                .first(where: \.bookable)?
+                .label
+            useCustomTime = false
         } else {
             selectedDay = calendar.startOfDay(for: Date())
             selectedSlot = nil
+            // 无可约公开档：引导自定义时间，避免卡在空日。
+            useCustomTime = !companion.scheduleSlots.isEmpty
+            if useCustomTime {
+                scheduledAt = Date.now.addingTimeInterval(60 * 60 * 24)
+            }
         }
     }
 

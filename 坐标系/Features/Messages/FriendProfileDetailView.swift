@@ -51,11 +51,20 @@ struct FriendProfileDetailView: View {
         !remark.isEmpty && displayName.caseInsensitiveCompare(nickname) != .orderedSame
     }
 
-    var bio: String {
-        profile?.bio.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    /// 本人 → `AppUser`（个人资料录入）；他人 → 搭子目录。
+    var publicFields: ProfilePublicFields {
+        PublicProfileProjection.fields(
+            nickname: nickname,
+            user: app.user,
+            buddyProfile: profile
+        )
     }
 
-    var tags: [String] { profile?.tags ?? [] }
+    var isSelf: Bool { publicFields.isSelf }
+
+    var bio: String { publicFields.bio }
+
+    var tags: [String] { publicFields.tags }
 
     var trustFlags: TrustPublicCredentials.Flags {
         _ = photoVerification.isVerified
@@ -78,11 +87,12 @@ struct FriendProfileDetailView: View {
             currentUserName: app.user.name,
             buddyItem: buddyItem,
             signals: TrustPrivateSignals(
-                profileRatio: 0.5,
+                profileRatio: isSelf ? ProfileCompletion.ratio(for: app.user) : 0.5,
                 isMember: flags.isMember,
                 isGuest: false,
                 hasPhone: false,
                 photoVerified: flags.photoVerified,
+                identityVerified: isSelf && app.identitySignals.realNameVerified,
                 accountCreatedAt: nil,
                 friendCount: 0,
                 liveHostedCount: hostedActivities.count
@@ -105,6 +115,32 @@ struct FriendProfileDetailView: View {
                     contactHeader
                 }
 
+                if !publicFields.galleryRefs.isEmpty {
+                    Section {
+                        ProfileGalleryReadonlyGrid(
+                            refs: publicFields.galleryRefs,
+                            emptyTitle: nil
+                        )
+                    } header: {
+                        Text(ProfileGalleryCopy.sectionTitle)
+                    }
+                }
+
+                ProfilePublicPromptsSection(prompts: publicFields.prompts)
+
+                ProfilePublicBasicsSection(fields: publicFields)
+
+                if publicFields.hasVoiceIntro, let duration = publicFields.voiceIntroDuration {
+                    Section {
+                        BuddyPublicVoiceIntroRow(
+                            duration: duration,
+                            caption: publicFields.voiceIntroCaption
+                        )
+                    } header: {
+                        Text(BuddyVoiceIntroCopy.publicSectionTitle)
+                    }
+                }
+
                 Section {
                     LabeledContent(
                         "UID",
@@ -112,35 +148,35 @@ struct FriendProfileDetailView: View {
                     )
                     .textSelection(.enabled)
 
-                    if let profile, !profile.city.isEmpty {
-                        LabeledContent(MessagesCopy.friendCityLabel, value: profile.city)
+                    if !publicFields.city.isEmpty {
+                        LabeledContent(MessagesCopy.friendCityLabel, value: publicFields.city)
                     }
 
-                    if let looking = profile?.lookingFor.trimmingCharacters(in: .whitespacesAndNewlines),
-                       !looking.isEmpty {
-                        LabeledContent(MessagesCopy.friendLookingForLabel, value: looking)
+                    if isSelf, !publicFields.handle.isEmpty {
+                        LabeledContent(EditProfileCopy.handleLabel, value: "@\(publicFields.handle)")
+                            .textSelection(.enabled)
                     }
 
-                    LabeledContent(MessagesCopy.friendRemarkLabel) {
-                        TextField(MessagesCopy.friendRemarkPlaceholder, text: $remarkDraft)
-                            .multilineTextAlignment(.trailing)
-                            .textInputAutocapitalization(.never)
-                            .submitLabel(.done)
-                            .focused($remarkFocused)
-                            .onSubmit { commitRemarkIfNeeded() }
-                    }
-                    .onAppear { syncRemarkDraft() }
-                    .onChange(of: remarkFocused) { _, focused in
-                        if !focused { commitRemarkIfNeeded() }
-                    }
-                    .onDisappear { commitRemarkIfNeeded() }
+                    if !isSelf {
+                        LabeledContent(MessagesCopy.friendRemarkLabel) {
+                            TextField(MessagesCopy.friendRemarkPlaceholder, text: $remarkDraft)
+                                .platformFormTextInput(.trailingIdentifier)
+                                .focused($remarkFocused)
+                                .onSubmit { commitRemarkIfNeeded() }
+                        }
+                        .onAppear { syncRemarkDraft() }
+                        .onChange(of: remarkFocused) { _, focused in
+                            if !focused { commitRemarkIfNeeded() }
+                        }
+                        .onDisappear { commitRemarkIfNeeded() }
 
-                    Button {
-                        commitRemarkIfNeeded()
-                        showGroupPicker = true
-                    } label: {
-                        LabeledContent(MessagesCopy.friendGroupLabel, value: group)
-                            .foregroundStyle(.primary)
+                        Button {
+                            commitRemarkIfNeeded()
+                            showGroupPicker = true
+                        } label: {
+                            LabeledContent(MessagesCopy.friendGroupLabel, value: group)
+                                .foregroundStyle(.primary)
+                        }
                     }
                 } header: {
                     Text(MessagesCopy.friendContactSection)
@@ -165,30 +201,41 @@ struct FriendProfileDetailView: View {
                 CommunityAuthorRecentPostsSection(authorName: nickname)
             }
             .listStyle(.insetGrouped)
+            .platformTextInputScrollChrome()
             .navigationTitle(MessagesCopy.friendProfileTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button(MessagesCopy.friendAddToBlacklist, systemImage: "hand.raised", role: .destructive) {
-                            confirmBlock = true
+                if !isSelf {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Menu {
+                            Button(
+                                ProfilePhotoVerificationRequest.menuTitle,
+                                systemImage: "person.crop.circle.badge.checkmark"
+                            ) {
+                                askPhotoVerification()
+                            }
+                            Button(MessagesCopy.friendAddToBlacklist, systemImage: "hand.raised", role: .destructive) {
+                                confirmBlock = true
+                            }
+                            Button(MessagesCopy.friendComplaint, systemImage: "exclamationmark.bubble") {
+                                showReport = true
+                            }
+                            Button(MessagesCopy.friendDelete, systemImage: "person.badge.minus", role: .destructive) {
+                                confirmDelete = true
+                            }
+                        } label: {
+                            Label(MessagesCopy.more, systemImage: "ellipsis")
                         }
-                        Button(MessagesCopy.friendComplaint, systemImage: "exclamationmark.bubble") {
-                            showReport = true
-                        }
-                        Button(MessagesCopy.friendDelete, systemImage: "person.badge.minus", role: .destructive) {
-                            confirmDelete = true
-                        }
-                    } label: {
-                        Label(MessagesCopy.more, systemImage: "ellipsis")
                     }
                 }
             }
             .platformDetailBottomBar {
-                FriendProfileActionBar(
-                    onMessage: openChat,
-                    onCall: startCall
-                )
+                if !isSelf {
+                    FriendProfileActionBar(
+                        onMessage: openChat,
+                        onCall: startCall
+                    )
+                }
             }
         )
     }
@@ -205,6 +252,37 @@ struct FriendProfileDetailView: View {
             }()
             guard let convo = app.startDirectChat(with: nickname, deliverGreeting: false) else { return }
             chatSheet = PeerChatRoute(conversationID: convo.id, chatContext: context)
+        }
+    }
+
+    func askPhotoVerification() {
+        commitRemarkIfNeeded()
+        let selfOK = photoVerification.isVerified(for: app.user)
+        switch ProfilePhotoVerificationRequest.canRequest(
+            selfVerified: selfOK,
+            peerVerified: trustFlags.photoVerified
+        ) {
+        case .needSelfVerified:
+            feedback = ProfilePhotoVerificationRequest.needSelfVerifiedMessage
+        case .peerAlreadyVerified:
+            feedback = ProfilePhotoVerificationRequest.peerAlreadyVerifiedMessage
+        case .allowed:
+            guard let convo = app.startDirectChat(with: nickname, deliverGreeting: false) else { return }
+            _ = model.send(
+                text: ProfilePhotoVerificationRequest.chatMessage,
+                to: convo.id
+            )
+            feedback = ProfilePhotoVerificationRequest.sentFeedback
+            switch messageAction {
+            case .dismissToChat:
+                dismiss()
+            case .openChat:
+                let context: ConversationChatContext = {
+                    if let buddyItem { return .forBuddyItem(buddyItem) }
+                    return .communityAuthor
+                }()
+                chatSheet = PeerChatRoute(conversationID: convo.id, chatContext: context)
+            }
         }
     }
 

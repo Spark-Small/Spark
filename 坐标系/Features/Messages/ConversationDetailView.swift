@@ -20,6 +20,7 @@ struct ConversationDetailView: View {
     @Environment(BuddiesModel.self) var buddies
     @Environment(ActivitiesModel.self) var activities
     @Environment(AppModel.self) var app
+    @Environment(PhotoVerificationStore.self) var photoVerification
     @Environment(\.dismiss) var dismiss
 
     @State var draft = ""
@@ -36,11 +37,11 @@ struct ConversationDetailView: View {
     @State var confirmLeaveCircle = false
     @State var confirmClearHistory = false
     @State var confirmLeavePeerGroup = false
+    @State var confirmLeaveActivityGroup = false
     @State var confirmDissolveGroup = false
     @State var editingMessage: ChatMessage?
     @State var editDraft = ""
     @State var forwardingMessage: ChatMessage?
-    @State var confirmLocalVoice = false
     @State var showLocationPicker = false
     @State var locationDraft = ""
     @State var locationLatitude: Double?
@@ -188,9 +189,8 @@ struct ConversationDetailView: View {
                     moreMenu(for: conversation)
                 }
             }
-            // 官方范式：Scroll + `safeAreaInset(edge: .bottom, spacing: 0)` + `.background(.bar)`
-            // （控件与键盘间距靠 Composer 内 `composerBarVerticalPadding`，非 inset spacing）
-            .safeAreaInset(edge: .bottom, spacing: 0) {
+            // 官方：`safeAreaBar`（滚动边缘渐进模糊）+ Composer 内 `.bar` 下延；勿用 inset 硬切第三块板。
+            .platformMessageComposerBottomBar {
                 ConversationComposerSection(
                     conversation: conversation,
                     draft: $draft,
@@ -203,11 +203,20 @@ struct ConversationDetailView: View {
                     memberNamesExcludingSelf: conversation.memberNames.filter { $0 != app.user.name },
                     onCancelReply: { replyTo = nil },
                     onSend: { send(to: conversation.id) },
-                    onVoice: conversation.kind == .notice ? nil : { confirmLocalVoice = true }
+                    onVoiceCapture: conversation.kind == .notice
+                        ? nil
+                        : { url, duration in
+                            if model.sendRecordedVoice(
+                                fileURL: url,
+                                duration: duration,
+                                to: conversation.id
+                            ) != nil {
+                                sendPulse += 1
+                            }
+                        }
                 ) {
                     attachMenu(for: conversation)
                 }
-                .background(.bar)
             },
             conversation: conversation
         )

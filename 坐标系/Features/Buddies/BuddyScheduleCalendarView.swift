@@ -13,6 +13,8 @@ struct BuddyScheduleCalendarView: View {
     @Binding var selectedDay: Date?
     var allowsSelection = true
     var showsMonthPager = true
+    /// 用户点选可约日时回调（与 `selectedDay` 高亮分离，避免仅预高亮也触发下单）。
+    var onConfirmDay: ((Date) -> Void)? = nil
 
     @Environment(\.calendar) private var calendar
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -153,6 +155,7 @@ struct BuddyScheduleCalendarView: View {
         Button {
             guard selectable else { return }
             selectedDay = day
+            onConfirmDay?(day)
         } label: {
             VStack(spacing: PlatformMetrics.hairlineSpacing) {
                 Text("\(calendar.component(.day, from: day))")

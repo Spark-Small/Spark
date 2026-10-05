@@ -42,7 +42,6 @@ struct ActivityComposeSheet: View {
             .listSectionSpacing(.compact)
             .scrollContentBackground(.hidden)
             .background(PlatformSurface.groupedPage.ignoresSafeArea())
-            .scrollDismissesKeyboard(.interactively)
             .navigationTitle(
                 draft.isEditing ? ActivityComposeCopy.editTitle : ActivityComposeCopy.createTitle
             )
@@ -239,7 +238,7 @@ struct ActivityComposeSheet: View {
     private var basicsSection: some View {
         Section {
             TextField(ActivityComposeCopy.titlePlaceholder, text: $draft.title)
-                .textInputAutocapitalization(.sentences)
+                .platformFormTextInput(.singleLine)
 
             Picker(ActivityComposeCopy.categoryLabel, selection: $draft.category) {
                 ForEach(draft.publishCategories) { item in
@@ -250,6 +249,7 @@ struct ActivityComposeSheet: View {
             }
 
             TextField(ActivityComposeCopy.locationPlaceholder, text: $draft.location)
+                .platformFormTextInput(.singleLine)
 
             Button {
                 showMapPicker = true
@@ -296,8 +296,7 @@ struct ActivityComposeSheet: View {
             if draft.feeKind == .paid {
                 LabeledContent(ActivityComposeCopy.feeAmountLabel) {
                     TextField(ActivityComposeCopy.feeAmountPlaceholder, text: $draft.feeAmountText)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
+                        .platformFormTextInput(.decimalAmount)
                         .focused($focusedFeeField, equals: .amount)
                 }
                 .transition(.opacity)
@@ -309,8 +308,7 @@ struct ActivityComposeSheet: View {
                         ActivityComposeCopy.feeAAEstimatePlaceholder,
                         text: $draft.feeAAEstimateText
                     )
-                    .keyboardType(.numbersAndPunctuation)
-                    .multilineTextAlignment(.trailing)
+                    .platformFormTextInput(.trailingLooseAmount)
                     .focused($focusedFeeField, equals: .aaEstimate)
                 }
                 .transition(.opacity)
@@ -327,7 +325,7 @@ struct ActivityComposeSheet: View {
                 text: $draft.summary,
                 axis: .vertical
             )
-            .lineLimit(3...6)
+            .platformFormTextInput(.body)
         } header: {
             Text(ActivityComposeCopy.aboutSection)
         } footer: {

@@ -16,14 +16,6 @@ enum CommunityLibraryCopy {
     static let likedEmpty = "还没有赞过分享"
     static let likedEmptyHint = "点赞过的分享会出现在这里；也可在「我的内容库」统一查看。"
 
-    static let myPostsTitle = "我的分享"
-    static let myPostsEmpty = "还没有发布分享"
-    static let myPostsEmptyHint = "发布的活动图文会出现在这里；完整创作凭证见「我的内容库」。"
-
-    static let repostsTitle = "我的转发"
-    static let repostsEmpty = "还没有转发"
-    static let repostsEmptyHint = "转发到社区的分享会出现在这里；也可在「我的内容库」统一查看。"
-
     static let guidelinesTitle = "社区公约"
     static let guidelinesIntro = "坐标系社区用于分享活动种草、路线与复盘。一起把真实体验留给后来的人。"
     static let guidelinesDoHeader = "请这样发"

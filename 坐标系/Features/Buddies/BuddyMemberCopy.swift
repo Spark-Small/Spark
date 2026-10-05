@@ -18,7 +18,6 @@ nonisolated enum BuddyMemberCopy {
     static let bookUnavailable = BuddyDetailCopy.bookUnavailable
     static let greet = BuddyDetailCopy.greet
 
-    static let roleAdmin = "管理员"
     static let roleMember = "成员"
     static let roleAvailable = BuddyDetailCopy.available
     static let roleBusy = "档期已满"
@@ -32,7 +31,6 @@ nonisolated enum BuddyMemberCopy {
     static let emptyMembersTitle = "暂无成员资料"
     static let emptyMembersDescription = "加入后可邀请已加好友的同好进入。"
     static let emptyMembersInviteCTA = "邀请好友"
-    static let emptyMembersDiscoverCTA = "去发现搭子"
 
     static let sourceSectionTitle = "来源"
     static let takeMic = "上麦"

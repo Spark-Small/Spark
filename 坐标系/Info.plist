@@ -4,6 +4,8 @@
 <dict>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
+	<key>NSCameraUsageDescription</key>
+	<string>用于形象认证自拍，以及后续扫一扫识别搭子或活动群二维码</string>
 	<!-- Release：无明文 HTTP 例外。本地 Docker 调试用下方 localhost；远程测试机请改 HTTPS 或仅 DEBUG 覆盖。 -->
 	<key>NSAppTransportSecurity</key>
 	<dict>

@@ -37,7 +37,8 @@ enum BuddiesDiscoverCatalogMapping {
     }
 
     private static func profile(from dto: BuddiesDiscoverBuddyDTO) -> BuddyProfile {
-        BuddyProfile(
+        let remoteGallery = galleryURLs(dto.galleryImageURLs)
+        return BuddyProfile(
             id: dto.id,
             userID: dto.userID,
             nickname: dto.nickname,
@@ -46,18 +47,21 @@ enum BuddiesDiscoverCatalogMapping {
             heightCM: 0,
             weightKG: 0,
             distanceKM: dto.distanceKM,
-            photoSeeds: seedGallery(for: dto.id),
+            photoSeeds: remoteGallery.isEmpty ? seedGallery(for: dto.id) : [],
             city: dto.city,
             bio: dto.bio,
             tags: dto.tags,
             availability: dto.availability,
             lastActiveText: dto.lastActiveText,
-            lookingFor: dto.lookingFor
+            lookingFor: dto.lookingFor,
+            intents: profileIntents(dto.intents, legacyLookingFor: dto.lookingFor),
+            galleryRemoteURLs: remoteGallery
         )
     }
 
     private static func profile(from dto: BuddiesDiscoverCompanionDTO) -> BuddyProfile {
-        BuddyProfile(
+        let remoteGallery = galleryURLs(dto.galleryImageURLs)
+        return BuddyProfile(
             id: dto.id,
             userID: dto.userID,
             nickname: dto.nickname,
@@ -66,14 +70,38 @@ enum BuddiesDiscoverCatalogMapping {
             heightCM: 0,
             weightKG: 0,
             distanceKM: dto.distanceKM,
-            photoSeeds: seedGallery(for: dto.id),
+            photoSeeds: remoteGallery.isEmpty ? seedGallery(for: dto.id) : [],
             city: dto.city,
             bio: dto.bio,
             tags: dto.tags,
             availability: dto.availability,
             lastActiveText: dto.lastActiveText,
-            lookingFor: dto.lookingFor
+            lookingFor: dto.lookingFor,
+            intents: profileIntents(dto.intents, legacyLookingFor: dto.lookingFor),
+            galleryRemoteURLs: remoteGallery
         )
+    }
+
+    private static func galleryURLs(_ raw: [String]?) -> [URL] {
+        (raw ?? []).compactMap { value in
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let url = URL(string: trimmed),
+                  let scheme = url.scheme?.lowercased(),
+                  scheme == "https" || scheme == "http"
+            else { return nil }
+            return url
+        }
+    }
+
+    private static func profileIntents(_ raw: [String]?, legacyLookingFor: String) -> [ProfileIntent] {
+        let parsed = (raw ?? []).compactMap { ProfileIntent(rawValue: $0) }
+        if !parsed.isEmpty {
+            return ProfileIntentLimits.clamped(parsed)
+        }
+        // 兼容仅下发 lookingFor 字符串：按 rawValue 子串识别
+        return ProfileIntent.allCases.filter { legacyLookingFor.contains($0.rawValue) }
+            .prefix(ProfileIntentLimits.maxSelected)
+            .map { $0 }
     }
 
     /// 远程 DTO 暂无多图字段时，用稳定种子铺 3 张，发现卡可分页。

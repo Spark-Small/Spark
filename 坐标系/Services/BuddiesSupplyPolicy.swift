@@ -19,11 +19,11 @@ enum BuddiesSupplyPolicy {
     }
 
     static var discoverEmptyDescription: String {
-        "同城搭子与陪玩正在接入。想先认识人：去活动现场碰；想建小圈子：到「我的」创建俱乐部。"
+        "同城搭子与陪玩正在接入。想先认识人：去活动现场碰；想建小圈子：去「我的 · 我的俱乐部」创建。"
     }
 
     static var browseActivitiesCTA: String { "去活动找人" }
-    static var createClubCTA: String { "去我的建俱乐部" }
+    static var createClubCTA: String { "去我的俱乐部" }
 
     static var orgInviteEmptyTitle: String { "暂无可邀请对象" }
 

@@ -140,17 +140,10 @@ extension BuddiesModel {
     }
 
     func sendOrgInvites(nicknames: [String]) {
-        guard let target = presentation.pendingOrgInvite, !nicknames.isEmpty else {
-            presentation.pendingOrgInvite = nil
-            return
-        }
+        // 尚无本机邀请账本 / 远程投递：禁止假「已邀请」转化。
         presentation.pendingOrgInvite = nil
-        let label: String
-        switch target {
-        case .circle(let circle): label = circle.name
-        case .guild(let guild): label = guild.name
-        }
-        flash(BuddyOrgJoinCopy.invitedCount(nicknames.count, label: label))
+        guard !nicknames.isEmpty else { return }
+        flash(BuddyOrgJoinCopy.inviteUnavailable)
     }
 
     func ensurePrefs(kind: OrgMembershipKind, name: String) {

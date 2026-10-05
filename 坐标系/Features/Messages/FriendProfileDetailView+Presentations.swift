@@ -19,6 +19,7 @@ extension FriendProfileDetailView {
                         chatContext: route.chatContext
                     )
                 }
+                .independentNavigationSheetChrome()
                 .toolbarVisibility(.hidden, for: .tabBar)
             }
             .sheet(isPresented: $showGroupPicker) {

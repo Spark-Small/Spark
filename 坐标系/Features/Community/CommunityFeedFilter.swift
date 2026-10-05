@@ -69,14 +69,16 @@ enum CommunityFeedFiltering {
         filter: CommunityFeedFilter,
         followedUserNames: Set<String>,
         currentUserName: String,
-        joinedActivityTitles: Set<String>
+        joinedActivityTitles: Set<String>,
+        retainedAuthorNames: Set<String> = []
     ) -> [CommunityPost] {
         CommunityBrowseFiltering.posts(
             posts,
             filter: filter.domainKind,
             followedUserNames: followedUserNames,
             currentUserName: currentUserName,
-            joinedActivityTitles: joinedActivityTitles
+            joinedActivityTitles: joinedActivityTitles,
+            retainedAuthorNames: retainedAuthorNames
         )
     }
 

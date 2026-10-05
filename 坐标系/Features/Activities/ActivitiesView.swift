@@ -24,7 +24,10 @@ struct ActivitiesView: View {
     var browseItems: [RecentBrowseItem]
     @State var showWelcomeGuide = false
     @State private var navigateActivity: Activity?
-    @State private var discoverBrowseScrollRequest = 0
+    /// 跨文件扩展（`+Actions`）需 internal。
+    @State var discoverBrowseScrollRequest = 0
+    /// 已消费的「去发现」落地 token，避免跨 Tab 切入时 onChange 未触发。
+    @State var consumedDiscoverFocusToken = 0
     @State var navigation = TabNavigationState()
     @Namespace var zoomNamespace
 
@@ -41,14 +44,31 @@ struct ActivitiesView: View {
                             .id(ActivityBrowseCopy.ScrollAnchor.discoverBrowse)
 
                         if model.isBrowsingRecents {
-                            recentsBrowseContent
-                        } else if model.filtered.isEmpty {
-                            emptyState
-                        } else {
+                            if !activityRecentActivities.isEmpty {
+                                recentsBrowseContent
+                            }
+                        } else if !model.filtered.isEmpty {
                             browseContent
                         }
                     }
                     .discoverBrowsePageColumn()
+                }
+                .overlay {
+                    if model.isBrowsingRecents, activityRecentActivities.isEmpty {
+                        ContentUnavailableView {
+                            Label(ActivityBrowseCopy.recentsEmptyTitle, systemImage: "clock.arrow.circlepath")
+                        } description: {
+                            Text(ActivityBrowseCopy.recentsEmptyDescription)
+                        } actions: {
+                            Button(ActivityBrowseCopy.Empty.filteredAction) {
+                                model.selectBrowseCategory(.forYou)
+                            }
+                        }
+                        .platformContentUnavailablePageChrome()
+                    } else if !model.isBrowsingRecents, model.filtered.isEmpty {
+                        emptyState
+                            .platformContentUnavailablePageChrome()
+                    }
                 }
                 .discoverBrowseScrollChrome()
                 .platformTabRootScrollChrome(title: model.browseNavigationTitle)
@@ -62,7 +82,12 @@ struct ActivitiesView: View {
                     )
                 }
                 .platformTabRootToolbar {
-                    if !model.isBrowsingRecents {
+                    if model.isBrowsingRecents {
+                        ActivityBrowseRecentsExitToolbar(
+                            previousCategoryTitle: model.selectedCategory.title,
+                            onExit: { model.exitBrowseRecents() }
+                        )
+                    } else {
                         ActivityBrowseTrailingToolbar(
                             quickFilters: $model.quickFilters,
                             nearbyRadiusKM: $model.nearbyFilterRadiusKM,
@@ -85,12 +110,12 @@ struct ActivitiesView: View {
                 }
                 .onChange(of: hasActivityRecents) { _, hasRecents in
                     if !hasRecents, model.isBrowsingRecents {
-                        model.selectBrowseCategory(.forYou)
+                        model.exitBrowseRecents()
                     }
                 }
-                .onChange(of: app.activitiesDiscoverBrowseFocusToken) { _, _ in
-                    discoverBrowseScrollRequest += 1
-                }
+            .onChange(of: app.activitiesDiscoverBrowseFocusToken) { _, _ in
+                consumeDiscoverFocusLandIfNeeded()
+            }
                 .onChange(of: discoverBrowseScrollRequest) { _, _ in
                     PlatformMotion.withAnimation(.snappy) {
                         proxy.scrollTo(
@@ -122,9 +147,19 @@ struct ActivitiesView: View {
             .onChange(of: app.pendingOpenEmbeddedCommunityFeed) { _, open in
                 guard open else { return }
                 app.pendingOpenEmbeddedCommunityFeed = false
-                navigation.path.append(ActivitiesBrowseRoute.communityFeed)
+                landOnEmbeddedCommunityFeed()
             }
-            .modifier(CommunityPendingPostNavigationModifier(path: $navigation.path))
+            .modifier(
+                CommunityPendingPostNavigationModifier(
+                    path: $navigation.path,
+                    resetPathBeforeAppend: true,
+                    onBeforeAppend: {
+                        model.exitBrowseRecents()
+                        model.dismissJoinSuccess()
+                        model.dismissPublishSuccess()
+                    }
+                )
+            )
             .activityZoomNavigationDestination(namespace: zoomNamespace)
             .activityPeerChatNavigationDestination()
             .circleBrowseStackChrome(
@@ -132,12 +167,16 @@ struct ActivitiesView: View {
                 messages: messages,
                 memberName: app.user.name,
                 blockedUserNames: app.blockedUserNames,
-                onBrowseBuddies: { app.selectedTab = .buddies },
+                onBrowseBuddies: {
+                    app.pendingBuddiesRoute = .socialBrowse
+                    app.selectedTab = .buddies
+                },
                 openCircle: { navigation.openCircle($0) },
                 openConversation: openClubConversation
             )
             .onAppear {
                 consumePendingActivityOpen()
+                consumeDiscoverFocusLandIfNeeded()
                 presentWelcomeGuideIfNeeded()
             }
             .onChange(of: app.pendingActivityID) { _, _ in
@@ -167,7 +206,8 @@ struct ActivitiesView: View {
                     ActivityJoinSuccessSheet(
                         activity: activity,
                         context: .joined,
-                        onOpenJourney: { openJourney(activity) }
+                        onOpenJourney: { openJourney(activity) },
+                        onOpenGroup: { openGroup(for: activity) }
                     )
                     .platformHiddenTabBar()
                 }

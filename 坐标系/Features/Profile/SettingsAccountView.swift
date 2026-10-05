@@ -58,7 +58,9 @@ struct SettingsAccountView: View {
                     PhotoVerificationView()
                 } label: {
                     Label(
-                        photoVerified ? "管理形象认证" : "开始形象认证",
+                        photoVerified
+                            ? EditProfileCopy.managePhotoVerification
+                            : EditProfileCopy.startPhotoVerification,
                         systemImage: photoVerified ? "checkmark.seal.fill" : "camera.viewfinder"
                     )
                     .platformContentSymbolStyle()
@@ -118,6 +120,7 @@ struct SettingsAccountView: View {
                 Text("申请成为陪玩后，可在搭子 · 约陪玩中接待预约。")
             }
         }
+        .profileSecondaryListChrome()
         .navigationTitle("账号与安全")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarVisibility(.hidden, for: .tabBar)

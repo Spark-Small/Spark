@@ -12,6 +12,10 @@ import Observation
 @Observable
 final class CommunityPresentationStore {
     var isComposing = false
+    /// 正在编辑的草稿；`nil` 表示新写。
+    var editingDraftID: UUID?
+    /// 本机草稿箱缓存（由 `CommunityModel.reloadPostDrafts` 刷新）。
+    var postDrafts: [CommunityPostDraft] = []
     /// 从活动页跳转发复盘时预填正文
     var pendingComposeBody: String?
     var pendingRelatedActivityTitle: String?
@@ -22,12 +26,14 @@ final class CommunityPresentationStore {
         toastMessage = message
     }
 
-    func beginCompose() {
+    func beginCompose(draftID: UUID? = nil) {
+        editingDraftID = draftID
         isComposing = true
     }
 
     func endCompose() {
         isComposing = false
+        editingDraftID = nil
     }
 
     func clearPendingCompose() {

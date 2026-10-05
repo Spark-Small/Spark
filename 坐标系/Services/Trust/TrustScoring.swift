@@ -167,7 +167,7 @@ enum TrustScoring {
         if signals.isGuest {
             tips.append("创建账号并验证手机，身份强度会明显提升。")
         } else if !signals.photoVerified {
-            tips.append("完成形象认证（自拍与头像比对），可降低冒用风险并点亮徽章。")
+            tips.append("完成防欺诈认证（自拍与认证照比对），可降低冒用风险并点亮徽章。")
         } else if signals.profileRatio < 0.7 {
             tips.append("完善头像、兴趣与简介，有助于匹配与信任展示。")
         }

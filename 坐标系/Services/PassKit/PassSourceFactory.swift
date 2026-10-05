@@ -160,7 +160,7 @@ enum PassSourceFactory {
                 PassField(key: "method", label: "支付", value: record.paymentMethod)
             ],
             backFields: [
-                PassField(key: "hint", label: "说明", value: "本地演示预约凭证，可在「我的 → 陪玩预约」查看。")
+                PassField(key: "hint", label: "说明", value: "本地演示预约凭证，可在「我的 → 我的陪玩」查看。")
             ],
             barcodeMessage: "coordinate:booking:\(record.id.uuidString)",
             relevantDate: record.scheduledAt,
@@ -188,7 +188,7 @@ enum PassSourceFactory {
                 PassField(key: "perks", label: "权益", value: "优先提醒 · 专属标识")
             ],
             backFields: [
-                PassField(key: "hint", label: "说明", value: "演示会员卡。签名后可加入 Apple Wallet。")
+                PassField(key: "hint", label: "说明", value: "演示会员卡，可在会员中心查看票面。")
             ],
             barcodeMessage: "coordinate:membership:\(LocalUserIdentity.current.uuidString)",
             relevantDate: nil,

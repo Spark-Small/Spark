@@ -42,6 +42,10 @@ public struct BuddiesDiscoverBuddyDTO: Codable, Hashable, Sendable, Identifiable
     public var distanceKM: Double
     public var scheduleSlots: [String]
     public var relatedActivityTitles: [String]
+    /// 生活墙 HTTPS；缺省则客户端回落种子图
+    public var galleryImageURLs: [String]?
+    /// 意图 rawValue 列表
+    public var intents: [String]?
 
     public init(
         id: UUID,
@@ -60,7 +64,9 @@ public struct BuddiesDiscoverBuddyDTO: Codable, Hashable, Sendable, Identifiable
         lookingFor: String = "",
         distanceKM: Double = 0,
         scheduleSlots: [String] = [],
-        relatedActivityTitles: [String] = []
+        relatedActivityTitles: [String] = [],
+        galleryImageURLs: [String]? = nil,
+        intents: [String]? = nil
     ) {
         self.id = id
         self.userID = userID
@@ -79,6 +85,8 @@ public struct BuddiesDiscoverBuddyDTO: Codable, Hashable, Sendable, Identifiable
         self.distanceKM = distanceKM
         self.scheduleSlots = scheduleSlots
         self.relatedActivityTitles = relatedActivityTitles
+        self.galleryImageURLs = galleryImageURLs
+        self.intents = intents
     }
 }
 
@@ -105,6 +113,8 @@ public struct BuddiesDiscoverCompanionDTO: Codable, Hashable, Sendable, Identifi
     public var distanceKM: Double
     public var scheduleSlots: [String]
     public var relatedActivityTitles: [String]
+    public var galleryImageURLs: [String]?
+    public var intents: [String]?
 
     public init(
         id: UUID,
@@ -128,7 +138,9 @@ public struct BuddiesDiscoverCompanionDTO: Codable, Hashable, Sendable, Identifi
         lookingFor: String = "",
         distanceKM: Double = 0,
         scheduleSlots: [String] = [],
-        relatedActivityTitles: [String] = []
+        relatedActivityTitles: [String] = [],
+        galleryImageURLs: [String]? = nil,
+        intents: [String]? = nil
     ) {
         self.id = id
         self.userID = userID
@@ -152,5 +164,7 @@ public struct BuddiesDiscoverCompanionDTO: Codable, Hashable, Sendable, Identifi
         self.distanceKM = distanceKM
         self.scheduleSlots = scheduleSlots
         self.relatedActivityTitles = relatedActivityTitles
+        self.galleryImageURLs = galleryImageURLs
+        self.intents = intents
     }
 }

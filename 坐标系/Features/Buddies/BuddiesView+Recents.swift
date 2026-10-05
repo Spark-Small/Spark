@@ -2,7 +2,7 @@
 //  BuddiesView+Recents.swift
 //  坐标系
 //
-//  搭子「最近浏览」表面：标题菜单（俱乐部下方），有记录才出现。
+//  搭子「最近浏览」：人用双列人像卡、俱乐部用海报网格，对齐发现货架（非纯文字行）。
 //
 
 import SwiftUI
@@ -29,116 +29,96 @@ extension BuddiesView {
         isBrowsingRecents = true
     }
 
+    /// 退出「最近浏览」，回到进入前的找搭子 / 约陪玩 / 俱乐部（`filter.kind` 未改）。
+    func exitBrowseRecents() {
+        isBrowsingRecents = false
+    }
+
     var browseNavigationTitle: String {
         isBrowsingRecents ? BuddyBrowseCopy.recentsTitle : browseKind.stageTitle
     }
 
+    @ToolbarContentBuilder
+    var recentsExitToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button(BuddyBrowseCopy.recentsBack, action: exitBrowseRecents)
+                .platformNavigationBarItemChrome()
+                .accessibilityHint(BuddyBrowseCopy.recentsBackHint(browseKind.stageTitle))
+        }
+    }
+
+    var recentPeopleItems: [DiscoverBuddyItem] {
+        var seen = Set<DiscoverBuddyItem.ID>()
+        var ordered: [DiscoverBuddyItem] = []
+        for record in buddiesRecentRecords where record.kind == .buddy || record.kind == .companion {
+            guard let item = model.discoverItem(id: record.targetID),
+                  seen.insert(item.id).inserted
+            else { continue }
+            ordered.append(item)
+        }
+        return ordered
+    }
+
+    var recentCircles: [InterestCircle] {
+        var seen = Set<InterestCircle.ID>()
+        var ordered: [InterestCircle] = []
+        for record in buddiesRecentRecords where record.kind == .club {
+            guard let circle = model.circle(id: record.targetID),
+                  seen.insert(circle.id).inserted
+            else { continue }
+            ordered.append(circle)
+        }
+        return ordered
+    }
+
     @ViewBuilder
     var recentsBrowseContent: some View {
-        let people = buddiesRecentRecords.filter { $0.kind == .buddy || $0.kind == .companion }
-        let clubs = buddiesRecentRecords.filter { $0.kind == .club }
+        let people = recentPeopleItems
+        let clubs = recentCircles
 
         if people.isEmpty, clubs.isEmpty {
-            ContentUnavailableView {
-                Label(BuddyBrowseCopy.recentsEmptyTitle, systemImage: "clock.arrow.circlepath")
-            } description: {
-                Text(BuddyBrowseCopy.recentsEmptyDescription)
-            } actions: {
-                Button(BuddyBrowseCopy.Empty.relaxFilters) {
-                    selectBrowseKind(.free)
-                }
-                .activityPrimaryCTA(controlSize: .large)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
+            EmptyView()
         } else {
-            LazyVStack(alignment: .leading, spacing: PlatformMetrics.sectionSpacing) {
+            VStack(alignment: .leading, spacing: PlatformMetrics.sectionSpacing) {
                 if !people.isEmpty {
                     DiscoverBrowseSection(title: BuddyBrowseCopy.recentsSectionPeople) {
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(people) { record in
-                                buddiesRecentPersonRow(record)
-                            }
-                        }
+                        BuddyPersonGrid(
+                            items: people,
+                            intentQuery: "",
+                            zoomNamespace: zoomNamespace,
+                            contactTitle: peerContactTitle,
+                            onChat: greet,
+                            onBook: invite
+                        )
                     }
                 }
+
                 if !clubs.isEmpty {
                     DiscoverBrowseSection(title: BuddyBrowseCopy.recentsSectionClubs) {
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(clubs) { record in
-                                buddiesRecentClubRow(record)
+                        LazyVGrid(
+                            columns: Array(
+                                repeating: GridItem(.flexible(), spacing: PlatformMetrics.discoverCardSpacing),
+                                count: PlatformMetrics.personGridColumnCount
+                            ),
+                            spacing: PlatformMetrics.discoverCardSpacing
+                        ) {
+                            ForEach(clubs) { circle in
+                                BuddyPosterShelfCard.circle(
+                                    circle,
+                                    memberCount: model.displayedMemberCount(
+                                        for: circle,
+                                        messages: messages,
+                                        viewerName: app.user.name
+                                    )
+                                ) {
+                                    navigation.openCircle(circle)
+                                }
                             }
                         }
+                        .discoverBrowseContentInset()
                     }
                 }
             }
-            .padding(.top, PlatformMetrics.sectionSpacing)
         }
-    }
-
-    @ViewBuilder
-    private func buddiesRecentPersonRow(_ record: RecentBrowseRecord) -> some View {
-        if let item = model.discoverItem(id: record.targetID) {
-            NavigationLink(value: BuddyZoomRoute(item: item)) {
-                recentRowLabel(
-                    title: record.title,
-                    subtitle: record.subtitle,
-                    viewedAt: record.viewedAt
-                )
-            }
-            .buttonStyle(.plain)
-        } else {
-            recentRowLabel(
-                title: record.title,
-                subtitle: record.subtitle,
-                viewedAt: record.viewedAt
-            )
-            .opacity(0.55)
-        }
-    }
-
-    @ViewBuilder
-    private func buddiesRecentClubRow(_ record: RecentBrowseRecord) -> some View {
-        if let circle = model.circle(id: record.targetID) {
-            Button {
-                navigation.openCircle(circle)
-            } label: {
-                recentRowLabel(
-                    title: record.title,
-                    subtitle: record.subtitle,
-                    viewedAt: record.viewedAt
-                )
-            }
-            .buttonStyle(.plain)
-        } else {
-            recentRowLabel(
-                title: record.title,
-                subtitle: record.subtitle,
-                viewedAt: record.viewedAt
-            )
-            .opacity(0.55)
-        }
-    }
-
-    private func recentRowLabel(title: String, subtitle: String, viewedAt: Date) -> some View {
-        HStack(alignment: .center, spacing: PlatformConversationListRow.imageToTextPadding) {
-            VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
-                Text(title)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.primary)
-                if !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer(minLength: 0)
-            Text(Formatters.conversationListTime(from: viewedAt))
-                .font(.footnote)
-                .foregroundStyle(.tertiary)
-        }
-        .padding(.horizontal, PlatformMetrics.contentInset)
-        .padding(.vertical, PlatformMetrics.cardInfoSpacing)
-        .contentShape(Rectangle())
     }
 }

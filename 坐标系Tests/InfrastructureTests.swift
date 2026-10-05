@@ -406,18 +406,6 @@ final class InfrastructureTests: XCTestCase {
         XCTAssertTrue(LegalConsentPreference.isAccepted)
     }
 
-    func testMembershipAdImpressionStoreIncrements() async throws {
-        let store = MembershipAdImpressionStore.shared
-        let priorViews = store.viewCount
-        let priorTaps = store.tapCount
-        defer { store.reset() }
-
-        try await store.handleView(isActive: false)
-        try await store.handleTap(isActive: false)
-        XCTAssertEqual(store.viewCount, priorViews + 1)
-        XCTAssertEqual(store.tapCount, priorTaps + 1)
-    }
-
     func testFeatureFlagsMigratesLegacyRemoteCatalogKey() {
         let defaults = UserDefaults.standard
         let legacyKey = "api.useRemoteCatalog"

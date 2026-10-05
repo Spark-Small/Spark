@@ -80,9 +80,8 @@ struct KeychainAuthSessionStore: AuthSessionPersisting {
         if next.provider == .guest || !next.isSignedIn {
             return .signedOut
         }
-        if next.provider != .phone {
-            next.phoneNumber = ""
-        } else if next.phoneNumber.hasPrefix("apple.")
+        // Apple / 微信登录也可绑定手机号；仅清理占位脏值。
+        if next.phoneNumber.hasPrefix("apple.")
             || next.phoneNumber.hasPrefix("wechat.")
             || next.phoneNumber == "demo.apple"
             || next.phoneNumber == "demo.wechat" {

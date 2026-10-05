@@ -76,7 +76,7 @@ final class ActivitiesModel {
         participationProgress = snapshot.participationProgress
         feedbackTagCounts = snapshot.feedbackTagCounts
         self.currentUserName = currentUserName ?? SampleData.currentUser.name
-        self.currentUserID = currentUserID ?? LocalUserIdentity.current
+        self.currentUserID = currentUserID ?? ParticipantIdentity.currentUserID
         persistenceGeneration = repository.currentPersistenceGeneration()
         refreshDistancesFromLocation()
     }
@@ -96,8 +96,17 @@ final class ActivitiesModel {
         isBrowsingRecents = true
     }
 
+    /// 退出「最近看过」，回到进入前的分类（`selectedCategory` 未改）。
+    func exitBrowseRecents() {
+        isBrowsingRecents = false
+    }
+
     var joinedActivities: [Activity] {
         activities.filter { joinedIDs.contains($0.id) }.sorted { $0.date < $1.date }
+    }
+
+    var waitlistedActivities: [Activity] {
+        activities.filter { waitlistIDs.contains($0.id) }.sorted { $0.date < $1.date }
     }
 
     var hostedActivities: [Activity] {
@@ -159,19 +168,24 @@ final class ActivitiesModel {
 
     /// 改名后同步发起/参加名单中的昵称
     func migrateUserName(from oldName: String, to newName: String) {
-        guard !oldName.isEmpty, !newName.isEmpty, oldName != newName else { return }
+        guard !oldName.isEmpty, !newName.isEmpty,
+              oldName.caseInsensitiveCompare(newName) != .orderedSame
+        else { return }
         var changed = false
         for index in activities.indices {
-            if activities[index].hostName == oldName {
+            if activities[index].hostName.caseInsensitiveCompare(oldName) == .orderedSame {
                 activities[index].hostName = newName
                 changed = true
             }
-            if let participantIndex = activities[index].participantNames.firstIndex(of: oldName) {
+            for participantIndex in activities[index].participantNames.indices
+            where activities[index].participantNames[participantIndex]
+                .caseInsensitiveCompare(oldName) == .orderedSame
+            {
                 activities[index].participantNames[participantIndex] = newName
                 changed = true
             }
         }
-        if currentUserName == oldName {
+        if currentUserName.caseInsensitiveCompare(oldName) == .orderedSame {
             currentUserName = newName
         }
         if changed { persist() }

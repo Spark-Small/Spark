@@ -14,18 +14,25 @@ struct BlockedUsersView: View {
     @State private var pendingUnblockName: String?
 
     var body: some View {
-        List {
+        Group {
             if app.blockedUserNames.isEmpty {
-                ContentUnavailableView("未拉黑任何人", systemImage: "person.crop.circle.badge.checkmark")
+                ProfileLibraryEmptyView(
+                    title: "未拉黑任何人",
+                    systemImage: "person.crop.circle.badge.checkmark",
+                    description: "被你拉黑的人会出现在这里。"
+                )
             } else {
-                ForEach(Array(app.blockedUserNames).sorted(), id: \.self) { name in
-                    Text(name)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button("解除", role: .destructive) {
-                                pendingUnblockName = name
+                List {
+                    ForEach(Array(app.blockedUserNames).sorted(), id: \.self) { name in
+                        Text(name)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button("解除", role: .destructive) {
+                                    pendingUnblockName = name
+                                }
                             }
-                        }
+                    }
                 }
+                .profileSecondaryListChrome()
             }
         }
         .navigationTitle("已拉黑")

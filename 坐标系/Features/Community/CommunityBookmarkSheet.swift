@@ -50,7 +50,7 @@ struct CommunityBookmarkSheet: View {
             Form {
                 Section {
                     TextField(CommunitySheetCopy.collectionNamePlaceholder, text: $newCollectionName)
-                        .textInputAutocapitalization(.never)
+                        .platformFormTextInput(.identifier)
                 } footer: {
                     Text(CommunitySheetCopy.createCollectionFooter)
                 }

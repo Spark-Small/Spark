@@ -10,6 +10,8 @@ import Foundation
 enum CommunityAuthorCopy {
     static let hostedSection = "TA 发起的活动"
     static let recentPostsSection = "最近分享"
+    static let recentPostsEmptyTitle = "还没有动态"
+    static let recentPostsEmptyDescription = "对方在广场发布的分享会出现在这里。"
     static let report = "举报"
     static let block = "拉黑"
     static let cancel = "取消"

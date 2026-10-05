@@ -3,8 +3,7 @@
 //  坐标系
 //
 //  会话详情「更多」：私聊 = 资料 / 置顶 / 免打扰 / 清空 / 删除；
-//  活动群 = 群详情 + 退出·解散（置顶 / 免打扰 / 清空 / 活动在群详情）；
-//  其他群 = 群详情 / 置顶 / 举报 / 退出·解散。
+//  群（活动/俱乐部/同伴）= 群详情 + 置顶 / 免打扰（与群详情 Toggle 同源）+ 清空 + 退出·解散。
 //
 
 import SwiftUI
@@ -21,10 +20,13 @@ struct ConversationDetailMoreMenu: View {
     var onCircleInfo: () -> Void
     var onGroupManage: () -> Void
     var onViewProfile: () -> Void
+    /// 私聊：请对方形象认证（需自己已认证；本机发文，不假服务端状态）。
+    var onAskPhotoVerification: (() -> Void)? = nil
     var onReport: () -> Void
     var onDissolveGroup: () -> Void
     var onLeavePeerGroup: () -> Void
-    var onCancelRegistration: () -> Void
+    /// 退出活动群聊（不取消报名）。
+    var onLeaveActivityGroup: () -> Void
     var onLeaveCircle: () -> Void
     var onDeleteConversation: () -> Void
 
@@ -45,10 +47,14 @@ struct ConversationDetailMoreMenu: View {
         .accessibilityLabel(MessagesCopy.more)
     }
 
-    /// 活动群：仅入口与破坏性动作（对齐信息群「详情 / 离开」）
+    /// 活动群：快捷开关与群详情 Toggle 同源（`conversation.isMuted` / `isPinned`）。
     @ViewBuilder
     private var activityGroupItems: some View {
         Button(MessagesCopy.groupDetailTitle, systemImage: "info.circle", action: onGroupManage)
+        pinButton
+        muteButton
+        Divider()
+        clearHistoryButton
         Divider()
         destructiveGroupActions
     }
@@ -60,8 +66,11 @@ struct ConversationDetailMoreMenu: View {
             Button(MessagesCopy.circleInfo, systemImage: "person.3", action: onCircleInfo)
         }
         pinButton
+        muteButton
         Divider()
         Button(MessagesCopy.reportUser, systemImage: "exclamationmark.bubble", action: onReport)
+        clearHistoryButton
+        Divider()
         destructiveGroupActions
     }
 
@@ -69,6 +78,13 @@ struct ConversationDetailMoreMenu: View {
     private var directItems: some View {
         Button(MessagesCopy.viewProfile, systemImage: "person.crop.circle", action: onViewProfile)
             .disabled(!hasBuddyProfile)
+        if let onAskPhotoVerification {
+            Button(
+                ProfilePhotoVerificationRequest.menuTitle,
+                systemImage: "person.crop.circle.badge.checkmark",
+                action: onAskPhotoVerification
+            )
+        }
         pinButton
         muteButton
         Divider()
@@ -115,6 +131,15 @@ struct ConversationDetailMoreMenu: View {
         )
     }
 
+    private var clearHistoryButton: some View {
+        Button(
+            MessagesCopy.groupClearHistory,
+            systemImage: "eraser",
+            role: .destructive,
+            action: onClearHistory
+        )
+    }
+
     @ViewBuilder
     private var destructiveGroupActions: some View {
         if conversation.isActivityGroup {
@@ -125,7 +150,7 @@ struct ConversationDetailMoreMenu: View {
                     MessagesCopy.leaveGroup,
                     systemImage: "rectangle.portrait.and.arrow.right",
                     role: .destructive,
-                    action: onCancelRegistration
+                    action: onLeaveActivityGroup
                 )
             }
         } else if conversation.isPeerGroup {

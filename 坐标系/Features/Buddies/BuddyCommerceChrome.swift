@@ -34,7 +34,7 @@ extension View {
         modifier(BuddyBookingFlowChromeModifier(buddies: buddies, app: app))
     }
 
-    /// Tab 根：待支付 / 支付 / 成功 / 履约安全确认（「我的」订单详情也会触发）
+    /// Tab 根：待支付 / 支付 / 成功 / 履约安全确认（「我的陪玩」凭证展开页也会触发）
     func buddyBookingSharedSheets(
         buddies: BuddiesModel,
         app: AppModel,
@@ -70,7 +70,7 @@ private struct BuddyInviteChromeModifier: ViewModifier {
                         )
                     },
                     onBrowseActivities: {
-                        app.selectedTab = .activities
+                        app.focusActivitiesDiscoverBrowse()
                     }
                 )
                 .toolbarVisibility(.hidden, for: .tabBar)
@@ -185,7 +185,7 @@ private struct BuddyBookingSharedSheetsModifier: ViewModifier {
                 BookingPaymentSheet(
                     record: record,
                     onConfirm: { method in
-                        buddies.confirmPayment(record.id, method: method)
+                        await buddies.confirmPayment(record.id, method: method)
                     },
                     onCancel: {
                         buddies.cancelPendingPayment()

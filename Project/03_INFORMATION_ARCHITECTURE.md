@@ -9,10 +9,10 @@
 | Tab | 职责 | 根视图 |
 |-----|------|--------|
 | 活动 | 发现局、参加、发起；顶栏与五 Tab 同套 `platformTabRoot*` | `ActivitiesView` |
-| 搭子 | 找搭子 / 约陪玩 / 俱乐部（标题菜单互切）；顶栏与五 Tab 同套 `platformTabRoot*` | `BuddiesView` |
-| 广场 | 分享浏览；顶栏同套；发分享 + 系统搜索；筛选与推荐置顶；**互动通知归「我的」铃铛**；内容库归「我的」；完善方案见 [CommunityModule](../Docs/CommunityModule.md) | `CommunityView` |
+| 搭子 | 找搭子 / 约陪玩 / 俱乐部（Trailing 模式 Menu 互切）；顶栏与五 Tab 同套 `platformTabRoot*` | `BuddiesView` |
+| 广场 | 分享浏览；顶栏同套；发分享；筛选与推荐置顶；**互动通知归「我的」铃铛**；内容库归「我的」；完善方案见 [CommunityModule](../Docs/CommunityModule.md) | `CommunityView` |
 | 消息 | 私聊、活动群；顶栏同套 | Messages 根 |
-| 我的 | 身份、待办、服务（会员/钱包/订单）、我的内容（活动/预约/俱乐部/广场库）、设置；顶栏 **通知 + 设置**；最近浏览不在此 Tab | `ProfileView` |
+| 我的 | 身份、服务（会员/钱包 `FormGatedRow`）；我的内容 Form（活动/陪玩/发帖/俱乐部；`ProfileLibraryChrome`）；设置 `ProfileRoute.settings`；社交统计 `ProfileSocialStats`；产品 Tip `ProfileProductTipsViews`；收藏库 `ProfileFavoriteActivitiesLibraryView`（不挂根）；**无**会员广告曝光 Store；**无**根上订单/待办 | `ProfileView` |
 
 未登录：**无 Tab**，仅会话门闸表面。
 
@@ -26,7 +26,7 @@
 | Activities | `Features/Activities` + Domain Activities UC | 发现、详情、参加、主办编排 | Keychain、直接 Remote I/O |
 | Buddies | `Features/Buddies` | 人/预约 UI | 活动主办规则 |
 | Messages | `Features/Messages` | 会话 UI | 登录 |
-| Profile | `Features/Profile` | 资料、凭证、钱包、广场内容库入口 | 发现货架 |
+| Profile | `Features/Profile` | 资料、服务（会员/钱包）、我的内容（活动/陪玩/发帖/俱乐部）、设置、通知深链；创建俱乐部在「我的俱乐部」 | 发现货架；根上广场 Hub；搭子顶栏再挂创建俱乐部 |
 | Notifications | `Features/Notifications` + `InAppNotificationStore` | 站内通知中心、未读角标、深链打开 | 支付 / IM 投递真相 |
 | Trust | `Features/Trust` + Trust Services | 核验、信用展示 | 支付 PSP |
 | Design | `Design/` | Platform chrome、货架组件 | Feature 业务状态 |

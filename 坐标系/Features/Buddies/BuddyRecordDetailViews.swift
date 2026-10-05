@@ -92,9 +92,7 @@ struct BuddyInviteDetailView: View {
                             }
                         }
                         if let buddy = buddies.item(for: record.nickname) {
-                            NavigationLink {
-                                BuddyDetailRouteView(item: buddy)
-                            } label: {
+                            NavigationLink(value: BuddyZoomRoute(item: buddy)) {
                                 Label(BuddyBookingFlowCopy.buddyProfileLink, systemImage: "person.crop.circle")
                             }
                         }
@@ -131,7 +129,6 @@ struct BuddyInviteDetailView: View {
                     Button(BuddyBookingFlowCopy.inviteMissingDismiss) {
                         dismiss()
                     }
-                    .activityPrimaryCTA(controlSize: .large)
                 }
             }
         }

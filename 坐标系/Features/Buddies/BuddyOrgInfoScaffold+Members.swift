@@ -28,7 +28,6 @@ extension BuddyOrgInfoScaffold {
                     Text(BuddyMemberCopy.emptyMembersDescription)
                 } actions: {
                     Button(BuddyMemberCopy.emptyMembersInviteCTA, action: onInviteTap)
-                        .activityPrimaryCTA(controlSize: .regular)
                 }
                 .listRowBackground(Color.clear)
                 .padding(.vertical, PlatformMetrics.minContentGap)

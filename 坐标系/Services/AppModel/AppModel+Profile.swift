@@ -10,13 +10,22 @@ extension AppModel {
     func updateProfile(_ updated: AppUser) {
         let previousName = user.name
         var next = updated
-        next.id = LocalUserIdentity.current
+        next.id = ParticipantIdentity.currentUserID
         syncOrchestrator.handle(.profileUpdated(previousName: previousName, user: next))
     }
 
     func updateLookingFor(_ text: String) {
         var updated = user
-        updated.lookingFor = text
+        // 遗留 API：无意图 chips 时仍写 lookingFor；有意图则以意图镜像为准。
+        if updated.intents.isEmpty {
+            updated.lookingFor = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        updateProfile(updated)
+    }
+
+    func updateProfileIntents(_ intents: [ProfileIntent]) {
+        var updated = user
+        updated.applyIntents(intents)
         updateProfile(updated)
     }
 
@@ -66,7 +75,7 @@ extension AppModel {
         auth.signOut()
         // 与删号对齐：清掉钱包 / 凭证 / 订单等旁路商业态，避免下一账号看到上一账号余额。
         clearCommerceSideStateOnSignOut()
-        InterestSelectionDraftStore.clear()
+        InterestSelectionDraftStore.clearSessionStores()
         if clearOnboarding {
             hasCompletedInterestSelection = false
             welcomeGuide.reset()
@@ -94,7 +103,7 @@ extension AppModel {
 
     func resetLocalDemoData() async {
         await quiesceAllPersistence()
-        InterestSelectionDraftStore.clear()
+        InterestSelectionDraftStore.clearSessionStores()
         await AppPersistence.resetLocalDemoData()
         activityEngagementStore.reloadFromDisk()
         try? await profileRecentBrowseStore.clearSynchronously()
@@ -103,7 +112,7 @@ extension AppModel {
 
     func deleteLocalAccount() async {
         await quiesceAllPersistence()
-        InterestSelectionDraftStore.clear()
+        InterestSelectionDraftStore.clearSessionStores()
         await AppPersistence.resetLocalDemoData()
         activityEngagementStore.reloadFromDisk()
         try? await profileRecentBrowseStore.clearSynchronously()

@@ -111,45 +111,76 @@ struct TrustFactLabeledRows: View {
 
 // MARK: - Badges
 
-/// 形象认证 / 会员徽章条。
+/// 防欺诈认证 / 会员徽章条（本地胶囊徽章，非系统 glass CTA）。
 /// - `revealLocked == true`：未点亮也显示灰态（我的页 / 我的信誉）
 /// - `revealLocked == false`：只展示已点亮（对外档案 / 搭子 / 好友 / 作者）
+/// - `usesActionTitles == true`：分态行动文案（开始认证 / 已认证 · 开通会员 / 会员中心）
 struct TrustCredentialBadgeStrip: View {
     var photoVerified: Bool
     var isMember: Bool
     var revealLocked: Bool = true
+    var usesActionTitles: Bool = false
+    var onPhotoTap: (() -> Void)? = nil
+    var onMemberTap: (() -> Void)? = nil
+    var photoAccessibilityHint: String? = nil
+    var memberAccessibilityHint: String? = nil
 
     private var showsPhoto: Bool { revealLocked || photoVerified }
     private var showsMember: Bool { revealLocked || isMember }
+    private var usesInteractiveChips: Bool { onPhotoTap != nil || onMemberTap != nil }
 
     var body: some View {
         if showsPhoto || showsMember {
-            HStack(spacing: PlatformMetrics.minContentGap) {
+            let strip = HStack(spacing: PlatformMetrics.minContentGap) {
                 if showsPhoto {
                     credentialChip(
-                        title: TrustBadgeKind.photoVerified.title,
+                        title: photoTitle,
                         systemImage: photoVerified
                             ? TrustBadgeKind.photoVerified.systemImage
                             : "checkmark.seal",
-                        unlocked: photoVerified
+                        unlocked: photoVerified,
+                        hint: photoAccessibilityHint,
+                        action: onPhotoTap
                     )
                 }
                 if showsMember {
                     credentialChip(
-                        title: TrustBadgeKind.activeMember.title,
+                        title: memberTitle,
                         systemImage: isMember
                             ? TrustBadgeKind.activeMember.systemImage
                             : "crown",
-                        unlocked: isMember
+                        unlocked: isMember,
+                        hint: memberAccessibilityHint,
+                        action: onMemberTap
                     )
                 }
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(accessibilityLabel)
+
+            if usesInteractiveChips {
+                strip.accessibilityElement(children: .contain)
+            } else {
+                strip
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(combinedAccessibilityLabel)
+            }
         }
     }
 
-    private var accessibilityLabel: String {
+    private var photoTitle: String {
+        if usesActionTitles {
+            return photoVerified ? "已认证" : "开始认证"
+        }
+        return TrustBadgeKind.photoVerified.title
+    }
+
+    private var memberTitle: String {
+        if usesActionTitles {
+            return isMember ? "会员中心" : "开通会员"
+        }
+        return TrustBadgeKind.activeMember.title
+    }
+
+    private var combinedAccessibilityLabel: String {
         var parts: [String] = []
         if showsPhoto {
             parts.append("认证\(photoVerified ? "已通过" : "未认证")")
@@ -160,12 +191,20 @@ struct TrustCredentialBadgeStrip: View {
         return parts.joined(separator: "，")
     }
 
-    private func credentialChip(title: String, systemImage: String, unlocked: Bool) -> some View {
-        // 与 `PlatformFilterChipButton` 一致：系统紧凑图文间距，避免 List 行内 Label 撑开 icon↔title。
-        HStack(spacing: PlatformMetrics.detailMicroSpacing) {
+    @ViewBuilder
+    private func credentialChip(
+        title: String,
+        systemImage: String,
+        unlocked: Bool,
+        hint: String?,
+        action: (() -> Void)?
+    ) -> some View {
+        let chip = HStack(spacing: PlatformMetrics.detailMicroSpacing) {
             Image(systemName: systemImage)
                 .symbolRenderingMode(unlocked ? .multicolor : .hierarchical)
+                .imageScale(.small)
             Text(title)
+                .lineLimit(1)
         }
         .font(.caption.weight(.semibold))
         .foregroundStyle(unlocked ? .primary : .tertiary)
@@ -175,13 +214,30 @@ struct TrustCredentialBadgeStrip: View {
             Capsule(style: .continuous)
                 .fill(unlocked ? Color(.tertiarySystemFill) : Color(.quaternarySystemFill))
         )
+        .overlay {
+            Capsule(style: .continuous)
+                .strokeBorder(
+                    unlocked ? Color.accentColor.opacity(0.28) : Color.clear,
+                    lineWidth: 0.5
+                )
+        }
         .fixedSize()
+        .contentShape(Capsule(style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(title)
+        .accessibilityAddTraits(action == nil ? [] : .isButton)
+        .accessibilityHint(hint ?? "")
+
+        if let action {
+            Button(action: action) { chip }
+                .buttonStyle(.plain)
+        } else {
+            chip
+        }
     }
 }
 
-/// 「我的信誉」里：形象认证 / 会员状态行（点亮前后都有）。
+/// 「我的信誉」里：防欺诈认证 / 会员状态行（点亮前后都有）。
 struct TrustCredentialStatusRows: View {
     var photoVerified: Bool
     var isMember: Bool

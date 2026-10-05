@@ -23,7 +23,7 @@ enum PassDistributionError: LocalizedError {
 }
 
 enum PassDistribution {
-    /// 通道：读取已签名落盘（供 AddPassToWalletButton）。
+    /// 通道：读取已签名落盘（DEBUG 分发工具）。
     static func signedPassURL(for pass: PassRecord) -> URL {
         PassConfiguration.signedPassesDirectory
             .appendingPathComponent("\(pass.serialNumber).pkpass")

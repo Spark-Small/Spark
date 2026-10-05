@@ -135,26 +135,25 @@ struct MessagesFriendsListView: View {
 
     @ViewBuilder
     private var emptyOverlay: some View {
-        if friends.isEmpty {
-            ContentUnavailableView {
-                Label(MessagesCopy.friendsListEmptyTitle, systemImage: "person.crop.circle")
-            } description: {
-                Text(MessagesCopy.friendsListEmptyDescription)
-            } actions: {
-                Button(MessagesCopy.inviteFriends) {
-                    MessagesInviteFriends.presentSystemShare()
+        Group {
+            if friends.isEmpty {
+                ContentUnavailableView {
+                    Label(MessagesCopy.friendsListEmptyTitle, systemImage: "person.crop.circle")
+                } description: {
+                    Text(MessagesCopy.friendsListEmptyDescription)
+                } actions: {
+                    Button(MessagesCopy.inviteFriends) {
+                        MessagesInviteFriends.presentSystemShare()
+                    }
+                    Button(MessagesCopy.addFriendByUID) {
+                        showAddFriendByUID = true
+                    }
                 }
-                .activityPrimaryCTA(controlSize: .large)
-                Button(MessagesCopy.addFriendByUID) {
-                    showAddFriendByUID = true
-                }
-                .activitySecondaryCTA(controlSize: .large)
+            } else {
+                ContentUnavailableView.search(text: searchText)
             }
-            .frame(maxWidth: .infinity)
-        } else {
-            ContentUnavailableView.search(text: searchText)
-                .frame(maxWidth: .infinity)
         }
+        .platformContentUnavailablePageChrome()
     }
 }
 

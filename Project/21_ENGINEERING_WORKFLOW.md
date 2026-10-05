@@ -23,6 +23,8 @@
 **DoD（作者勾选）：**
 
 - [ ] 分层未破：Features 不 `import CoordinateData`、不直连 `AppComposition`（`check-imports.sh`）  
+- [ ] 文本输入零旁路：`TextField` 挂 Platform API；无 Features/Design 手写键盘字典（`check-imports` → `check-text-input`）  
+
 - [ ] 领域规则在 Domain UC；表现态在 PresentationStore  
 - [ ] 用户可见主文案走 `*Copy`（`20`）  
 - [ ] 导航目的地未在子页重复注册（`11`）  

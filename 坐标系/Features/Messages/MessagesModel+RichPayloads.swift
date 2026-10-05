@@ -29,14 +29,21 @@ extension MessagesModel {
         )
     }
 
-    func sendVoice(duration: Double, to id: ChatConversation.ID) -> ChatMessage? {
+    func sendVoice(duration: Double, localName: String? = nil, to id: ChatConversation.ID) -> ChatMessage? {
         sendPayload(
             ChatMessage(
                 id: UUID(), sender: "我", text: "[语音]", sentAt: .now, isMe: true,
-                messageKind: .voice, voiceDuration: duration
+                messageKind: .voice, mediaLocalName: localName, voiceDuration: duration
             ),
             to: id
         )
+    }
+
+    /// Composer 录音完成：临时 m4a → 本机库 → 会话气泡（不上传；B5）。
+    func sendRecordedVoice(fileURL: URL, duration: Double, to id: ChatConversation.ID) -> ChatMessage? {
+        guard let name = LocalMediaLibrary.importAudio(from: fileURL) else { return nil }
+        try? FileManager.default.removeItem(at: fileURL)
+        return sendVoice(duration: duration, localName: name, to: id)
     }
 
     func sendLocation(name: String, latitude: Double, longitude: Double, to id: ChatConversation.ID) -> ChatMessage? {

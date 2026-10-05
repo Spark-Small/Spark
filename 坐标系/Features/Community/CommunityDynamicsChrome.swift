@@ -32,6 +32,21 @@ struct CommunityFeedFilterBar: View {
     }
 }
 
+// MARK: - Follow session (发现作者：关注后本会话保留帖)
+
+private enum CommunityRetainFollowedAuthorKey: EnvironmentKey {
+    // 闭包非 Sendable；Environment 默认值仅读一次，与 PlatformChromeMeasurementsKey 同规。
+    nonisolated(unsafe) static let defaultValue: ((String) -> Void)? = nil
+}
+
+extension EnvironmentValues {
+    /// 「发现作者」下点关注时登记作者，避免帖立刻被筛掉。
+    var communityRetainFollowedAuthor: ((String) -> Void)? {
+        get { self[CommunityRetainFollowedAuthorKey.self] }
+        set { self[CommunityRetainFollowedAuthorKey.self] = newValue }
+    }
+}
+
 // MARK: - Follow CTA chrome（帖卡作者行 / 作者资料）
 
 struct CommunityFollowButtonChrome: ViewModifier {

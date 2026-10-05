@@ -97,7 +97,7 @@ extension ActivityDetailView {
 
         footerActions(live, joined: joined)
 
-        if let paidOrder, joined || isHost {
+        if let paidOrder, joined || isHost || paidOrder.status == .pending {
             Section {
                 ActivityDetailOrderBanner(order: paidOrder) { showOrders = true }
             }
@@ -166,7 +166,7 @@ extension ActivityDetailView {
                     Button {
                         showFeedbackSheet = true
                     } label: {
-                        Label(ActivityJourneyCopy.shareFeedback, systemImage: "hand.thumbsup")
+                        Label(ActivityDetailCopy.shareFeedback, systemImage: "hand.thumbsup")
                     }
                 }
 

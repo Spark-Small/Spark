@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import CoordinateDomain
 import CoordinateModels
 
 // MARK: - Status vocabulary（发现表面唯一出口）
@@ -19,6 +20,10 @@ enum ActivityCardStatus {
     static let joinSuccess = "参加成功"
     static let joinConfirm = "确认参加"
     static let cancelJoin = "取消参加"
+    /// 履约库 / 已结束场次角标（与发现「已参加」同一词表出口）
+    static let ended = "已结束"
+    /// 我发起的场次（未结束）
+    static let hosting = "我发起的"
     static let full = "已满"
     static let almostFull = "快满"
     static let free = "免费"
@@ -134,14 +139,20 @@ private struct ActivityStatusChip: View {
     }
 }
 
-/// 参加 / 加入候补 / 已参加 — Featured、轨卡、列表大卡共用
+/// 参加 / 加入候补 / 已参加 / 候补转正 — Featured、轨卡、列表大卡共用
 struct ActivityPrimaryAction: View {
     var isJoined: Bool
     var isWaitlisted: Bool = false
     var isFull: Bool
+    /// 已结束生命周期时不展示「名额已开放」转正按钮。
+    var isLifecycleEnded: Bool = false
     var controlSize: ControlSize = .regular
     var expandsHorizontally = false
     var onJoin: (() -> Void)?
+
+    private var waitlistSpotOpen: Bool {
+        isWaitlisted && !isFull && !isLifecycleEnded
+    }
 
     var body: some View {
         if isJoined {
@@ -151,6 +162,12 @@ struct ActivityPrimaryAction: View {
                 controlSize: controlSize,
                 expandsHorizontally: expandsHorizontally
             )
+        } else if waitlistSpotOpen, let onJoin {
+            // 与详情 Banner / quickJoin 转正分支同源：发现卡可直接确认参加。
+            Button(ActivityCardStatus.waitlistSpotOpen, action: onJoin)
+                .activityPrimaryCTA(controlSize: controlSize)
+                .frame(maxWidth: expandsHorizontally ? .infinity : nil)
+                .accessibilityHint("名额已开放，点按确认参加")
         } else if isWaitlisted {
             ActivityStatusChip(
                 title: ActivityCardStatus.waitlisted,
@@ -221,6 +238,7 @@ struct ActivityHeroCard<Meta: View>: View {
                     isJoined: isJoined,
                     isWaitlisted: isWaitlisted,
                     isFull: activity.isFull,
+                    isLifecycleEnded: activity.isLifecycleEnded,
                     controlSize: .regular,
                     onJoin: onJoin
                 )

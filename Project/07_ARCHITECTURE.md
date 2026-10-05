@@ -52,7 +52,7 @@ View
 
 ---
 
-## 4. 认证架构
+## 4. 认证架构（Account）
 
 ```
 LoginView → LocalAuthSession
@@ -61,7 +61,50 @@ LoginView → LocalAuthSession
          → AuthSessionStore (Keychain) + AuthTokenStore (JWT)
 ```
 
-401 → refresh；失败 → `AuthSessionEvents.remoteSessionInvalidated` → 登出。
+401 → refresh；失败 → `AuthSessionEvents.remoteSessionInvalidated` → 登出。  
+业务 Feature **禁止**自建登录 Sheet；会话墙仅在 `ContentView`。
+
+---
+
+## 4.0 身份能力 vs 个人资料（Identity / Profile）
+
+| 层 | 目录 / 入口 | 职责 | 业务怎么用 |
+|---|---|---|---|
+| **Account** | `Services/Auth*` · `LocalAuthSession` | 登录会话 / Token / 设备 UUID | 进 Tab 前已解决 |
+| **Identity** | `Features/Identity/*` · `AppModel.requireIdentityAccess` | 形象认证门禁 + 实名信号；`IdentityCapability` / `IdentitySignals` | 报名 / 预约 / 发消息只调能力门面；Trust 徽章读 `identitySignals`，禁止手拼 `isRealNameVerified` |
+| **Profile** | `Features/Profile/*`（编辑 / 设置 / 完成度 / 入口聚合） | 可编辑自我资料；实名入口挂在编辑页；「我的」可链到 Wallet，但不放实现 | 业务读公开投影，不写编辑态字段 |
+| **Commerce** | `Features/Wallet/*`（钱包 / 会员 / 退款）；结账 Sheet 在业务侧 | 支付账本；青少年诚实门控 | 不并入「认证」概念 |
+| **Legal** | `Features/Legal/*` | 隐私政策 / 用户协议正文 | 设置与协议门闸复用 |
+| **Credentials** | `Features/Activities/Credential/*` · `Features/Buddies/Credential/*` | 行程票面 / 陪玩凭证 / 预约支付 Sheet | 从 Profile 杂物间迁出 |
+
+```
+Activities / Buddies / Messages
+  → AppModel.requireIdentityAccess(source:)
+  → IdentityCapability.requirement（规则）
+  → 未满足 → ContentView 呈现 EditProfile / PhotoVerification Sheet
+```
+
+实名 OCR Domain：`ParseChineseResidentIDUseCase` / `ParsePassportIdentityUseCase`；UI 在 Profile 编辑链，信号经 `IdentitySignals` 外溢。
+
+公开资料投影：业务详情只读 **`PublicProfileProjection`**（实现仍为 `ProfilePublicFields` / Buddy 投影）；禁止业务手改编辑态字段。
+
+参与身份：业务识别当前用户走 **`ParticipantIdentity.currentUserID`**（底层 `LocalUserIdentity`）；匹配走 `ParticipantIdentity.matches`（底层 `BuddyIdentityMatching`，ID 优先、昵称回退）。活动 Join/Leave/Host UC 与搭子邀约/预约已接 userID；**服务端履约贯通仍待后端**，未达标不勾 `16` B。
+
+---
+
+## 4.1 支付 / 钱包（Commerce）
+
+```
+Features（结账 Sheet / Wallet / TopUp）
+  → CommercePaymentPolicy（可见方式 + 诚实披露）
+  → WalletStore.chargeAsync / topUpAsync（投影落盘）
+  → Domain ChargeWallet / CreateTopUpIntent / ApplyCredit UC
+  → RemoteWalletClient（仅 useRemoteWallet）
+  → APIEndpoint+Wallet → 服务端账本 + 微信/支付宝 Webhook
+```
+
+纪律：Features 不直连 PSP SDK 业务规则；未确认到账禁止本地加款；会员数字商品仍走 StoreKit。  
+Flag：`useRemoteWallet` 默认关；真到账前不勾 `16` B1。
 
 ---
 

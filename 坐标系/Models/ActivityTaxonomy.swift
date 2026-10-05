@@ -14,10 +14,19 @@ enum InterestSelectionLimits {
     static let minimum = 3
     /// 最多 8 项，避免全选导致画像稀释。
     static let maximum = 8
+    /// 自定义爱好单条字数上限。
+    static let customTagMaxCharacters = 12
 
     static func meetsMinimum(_ count: Int) -> Bool { count >= minimum }
     static func canSelectMore(_ count: Int) -> Bool { count < maximum }
     static func isAtMaximum(_ count: Int) -> Bool { count >= maximum }
+
+    static func normalizedCustomTag(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "，", with: "")
+            .replacingOccurrences(of: ",", with: "")
+        return String(trimmed.prefix(customTagMaxCharacters))
+    }
 
     /// 可见进度 / VoiceOver hint 共用；避免「已选」赘词。
     static func progressText(count: Int) -> String {
@@ -31,7 +40,7 @@ enum InterestSelectionLimits {
         if capped >= maximum {
             return "已满 \(maximum) 项，取消后再换也可以"
         }
-        return "\(capped)/\(maximum)"
+        return "\(capped)/\(maximum) · 还可以再选 \(maximum - capped) 项"
     }
 
     static let limitReachedFeedback = "最多选择 \(maximum) 项，取消一项后再换"

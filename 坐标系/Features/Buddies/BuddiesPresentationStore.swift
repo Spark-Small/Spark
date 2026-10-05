@@ -22,7 +22,6 @@ final class BuddiesPresentationStore {
     var pendingAwaitingPaymentReviewID: BuddyBookingRecord.ID?
     var pendingSafetyCheckInBookingID: BuddyBookingRecord.ID?
     var toastMessage: String?
-    var isComposingClub = false
     var pendingOrgJoin: BuddyOrgJoinTarget?
     var pendingOrgJoinSuccess: BuddyOrgJoinSuccess?
     var pendingOrgInvite: BuddyOrgInviteTarget?
@@ -65,13 +64,5 @@ final class BuddiesPresentationStore {
 
     func dismissOrgJoinSuccess() {
         pendingOrgJoinSuccess = nil
-    }
-
-    func endComposeClub() {
-        isComposingClub = false
-    }
-
-    func beginComposeClub() {
-        isComposingClub = true
     }
 }

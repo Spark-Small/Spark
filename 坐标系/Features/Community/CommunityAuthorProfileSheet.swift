@@ -18,6 +18,7 @@ struct CommunityAuthorProfileView: View {
     @Environment(BuddiesModel.self) private var buddies
     @Environment(CommunityModel.self) private var community
     @Environment(ActivitiesModel.self) private var activities
+    @Environment(MessagesModel.self) private var messages
     @Environment(\.dismiss) private var dismiss
     @State private var showReport = false
     @State private var confirmBlock = false
@@ -42,17 +43,19 @@ struct CommunityAuthorProfileView: View {
         }
     }
 
-    private var displayCity: String {
-        buddyMatch?.profile.city.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    private var publicFields: ProfilePublicFields {
+        PublicProfileProjection.fields(
+            nickname: name,
+            user: app.user,
+            buddyProfile: buddyMatch?.profile
+        )
     }
 
-    private var displayBio: String {
-        buddyMatch?.profile.bio.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-    }
+    private var displayCity: String { publicFields.city }
 
-    private var displayTags: [String] {
-        buddyMatch?.profile.tags ?? []
-    }
+    private var displayBio: String { publicFields.bio }
+
+    private var displayTags: [String] { publicFields.tags }
 
     private var roleLabel: String {
         switch buddyMatch {
@@ -104,15 +107,22 @@ struct CommunityAuthorProfileView: View {
                                 )
                             }
                         } icon: {
-                            PlatformListAvatarView(name: name)
+                            PlatformListAvatarView(
+                                name: name,
+                                photo: publicFields.isSelf ? app.user.localAvatarImage : nil,
+                                photoRef: publicFields.isSelf ? nil : buddyMatch?.profile.coverPhoto
+                            )
                         }
 
                         Spacer(minLength: 0)
-                        followButton
+                        if !publicFields.isSelf {
+                            followButton
+                        }
                     }
 
                     ProfileSocialStatsRow(
-                        postCount: ProfileSocialStats.postCount(for: name, community: community),
+                        likesCount: ProfileSocialStats.likesReceived(for: name, community: community),
+                        mutualCount: ProfileSocialStats.mutualCount(for: name, app: app, messages: messages),
                         followingCount: ProfileSocialStats.followingCount(for: name, app: app),
                         fansCount: ProfileSocialStats.fansCount(for: name, app: app)
                     )
@@ -126,6 +136,31 @@ struct CommunityAuthorProfileView: View {
 
                 if !displayTags.isEmpty {
                     CommunityTagsLine(tags: displayTags)
+                }
+            }
+
+            if !publicFields.galleryRefs.isEmpty {
+                Section {
+                    ProfileGalleryReadonlyGrid(
+                        refs: publicFields.galleryRefs,
+                        emptyTitle: nil
+                    )
+                } header: {
+                    Text(ProfileGalleryCopy.sectionTitle)
+                }
+            }
+
+            ProfilePublicPromptsSection(prompts: publicFields.prompts)
+            ProfilePublicBasicsSection(fields: publicFields)
+
+            if publicFields.hasVoiceIntro, let duration = publicFields.voiceIntroDuration {
+                Section {
+                    BuddyPublicVoiceIntroRow(
+                        duration: duration,
+                        caption: publicFields.voiceIntroCaption
+                    )
+                } header: {
+                    Text(BuddyVoiceIntroCopy.publicSectionTitle)
                 }
             }
 
@@ -146,12 +181,14 @@ struct CommunityAuthorProfileView: View {
 
             CommunityAuthorRecentPostsSection(authorName: name)
 
-            Section {
-                Button(CommunityAuthorCopy.report, role: .destructive) {
-                    showReport = true
-                }
-                Button(CommunityAuthorCopy.block, role: .destructive) {
-                    confirmBlock = true
+            if !publicFields.isSelf {
+                Section {
+                    Button(CommunityAuthorCopy.report, role: .destructive) {
+                        showReport = true
+                    }
+                    Button(CommunityAuthorCopy.block, role: .destructive) {
+                        confirmBlock = true
+                    }
                 }
             }
         }
@@ -159,7 +196,9 @@ struct CommunityAuthorProfileView: View {
         .navigationTitle(name)
         .navigationBarTitleDisplayMode(.inline)
         .platformDetailBottomBar {
-            authorActionBar
+            if !publicFields.isSelf {
+                authorActionBar
+            }
         }
         .peerContactDestination(route: $peerContactRoute)
         .alert(

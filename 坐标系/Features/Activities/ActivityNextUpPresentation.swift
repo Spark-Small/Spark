@@ -73,7 +73,7 @@ enum ActivityNextUpPresentation {
         var trailingActionTitle: String {
             switch primaryAction {
             case .openJourney: ActivityDetailCopy.credentialViewAction
-            case .navigate: ActivityJourneyCopy.navigate
+            case .navigate: ActivityDetailCopy.navigationAction
             }
         }
 
@@ -85,29 +85,6 @@ enum ActivityNextUpPresentation {
                 pendingHint ?? "complete",
                 headline
             ].joined(separator: "|")
-        }
-    }
-
-    @MainActor
-    enum BrowsePromoHeader: Equatable {
-        case nextUp(Summary)
-        case discover
-
-        /// 有真实「下一场」时在「我的活动」以 Form 行呈现；无场次不推发现引导。
-        static func resolve(
-            hasSeenWelcomeGuide: Bool,
-            from activities: ActivitiesModel,
-            now: Date = .now
-        ) -> BrowsePromoHeader? {
-            guard hasSeenWelcomeGuide else { return nil }
-            if let summary = ActivityNextUpPresentation.summary(
-                for: activities,
-                hasSeenWelcomeGuide: true,
-                now: now
-            ) {
-                return .nextUp(summary)
-            }
-            return nil
         }
     }
 

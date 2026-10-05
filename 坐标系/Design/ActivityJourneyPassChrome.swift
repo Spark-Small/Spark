@@ -8,9 +8,11 @@
 import SwiftUI
 
 struct ActivityJourneyPassVoidedOverlay: View {
+    var title: String = "已作废"
+
     var body: some View {
         Color.black.opacity(0.48)
-        Text(ActivityJourneyCopy.voided)
+        Text(title)
             .font(WalletPassTypography.headerLabel.weight(.semibold))
             .foregroundStyle(.white)
             .padding(.horizontal, PlatformMetrics.contentInset)

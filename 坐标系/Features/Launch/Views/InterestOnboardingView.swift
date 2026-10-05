@@ -71,7 +71,7 @@ struct InterestOnboardingView: View {
                 .id(statusPulse)
                 .accessibilityLabel(statusText)
 
-            Button("开启旅程") {
+            Button(InterestTaxonomyCopy.onboardingContinue) {
                 guard canContinue else { return }
                 let interests = selected.sorted()
                 InterestAnalytics.onboardingCompleted(count: interests.count)
@@ -83,7 +83,7 @@ struct InterestOnboardingView: View {
             .disabled(!canContinue)
             .accessibilityHint(
                 canContinue
-                    ? "保存喜好并开启旅程"
+                    ? InterestTaxonomyCopy.onboardingContinueHint
                     : statusText
             )
         }

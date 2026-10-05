@@ -2,8 +2,7 @@
 //  BuddyVoiceIntroViews.swift
 //  坐标系
 //
-//  语音介绍：资料页对外播放（Form 行）+ 个人资料内录制。
-//  对齐 Soul / 探探等「资料卡上的声音名片」，而非发现列表运营条。
+//  语音介绍：资料页对外播放（系统 Form 行 + bordered 播放）+ 个人资料内录制。
 //
 
 import SwiftUI
@@ -32,7 +31,7 @@ extension BuddyProfile {
 
 // MARK: - Public profile player（资料页）
 
-/// 他人资料上的语音介绍：系统 Form 行内播放，不嵌自定义卡片壳。
+/// 他人资料上的语音介绍：Form 行 + 系统 bordered 播放/暂停 + 线性 ProgressView（HIG）。
 struct BuddyPublicVoiceIntroRow: View {
     let duration: Double
     var caption: String?
@@ -55,51 +54,45 @@ struct BuddyPublicVoiceIntroRow: View {
     }
 
     var body: some View {
-        Button(action: togglePlayback) {
-            HStack(spacing: PlatformConversationListRow.imageToTextPadding) {
-                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 36, height: 36)
-                    .background(tint, in: Circle())
-                    .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
+            HStack(alignment: .center, spacing: PlatformConversationListRow.imageToTextPadding) {
+                Button(action: togglePlayback) {
+                    Label(
+                        isPlaying
+                            ? BuddyVoiceIntroCopy.pauseAccessibility
+                            : BuddyVoiceIntroCopy.playAccessibility,
+                        systemImage: isPlaying ? "pause.fill" : "play.fill"
+                    )
+                    .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .tint(tint)
+                .disabled(duration <= 0)
 
-                VStack(alignment: .leading) {
-                    HStack(spacing: PlatformMetrics.minContentGap) {
-                        BuddyVoiceIntroWaveform(isAnimating: isPlaying, tint: tint)
-                        Text(VoiceIntroPresentation.durationText(duration))
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(tint)
-                            .monospacedDigit()
-                    }
-
+                VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
                     Text(displayCaption)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(.body)
+                        .foregroundStyle(.primary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
+
+                    Text(VoiceIntroPresentation.durationText(duration))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
                 }
 
                 Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .opacity(isPlaying ? 0.92 : 1)
-            .overlay(alignment: .bottom) {
-                if isPlaying {
-                    ProgressView(value: playbackProgress)
-                        .tint(tint)
-                }
+
+            if isPlaying {
+                ProgressView(value: playbackProgress)
+                    .progressViewStyle(.linear)
+                    .tint(tint)
             }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(
-            isPlaying
-                ? BuddyVoiceIntroCopy.pauseAccessibility
-                : BuddyVoiceIntroCopy.playAccessibility
-        )
-        .accessibilityValue(VoiceIntroPresentation.durationText(duration))
-        .accessibilityHint(displayCaption)
+        .accessibilityElement(children: .contain)
         .onDisappear { stopPlayback() }
     }
 
@@ -231,7 +224,7 @@ struct BuddyVoiceIntroRecorderSheet: View {
 
                 Section {
                     TextField(BuddyVoiceIntroCopy.captionPlaceholder, text: $draftCaption, axis: .vertical)
-                        .lineLimit(2...4)
+                        .platformFormTextInput(.caption)
                 } header: {
                     Text(BuddyVoiceIntroCopy.captionLabel)
                 }

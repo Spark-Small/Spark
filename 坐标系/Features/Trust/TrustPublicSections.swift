@@ -52,6 +52,7 @@ struct TrustPublicProfileSections: View {
                 isGuest: false,
                 hasPhone: isSelf && !app.auth.phoneNumber.isEmpty,
                 photoVerified: flags.photoVerified,
+                identityVerified: isSelf && app.identitySignals.realNameVerified,
                 accountCreatedAt: isSelf ? lifecycle.installAt : nil,
                 friendCount: 0,
                 liveHostedCount: liveHostedCount

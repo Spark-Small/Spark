@@ -44,11 +44,17 @@ struct StartChatSheet: View {
         NavigationStack {
             List {
                 if friends.isEmpty {
-                    ContentUnavailableView(
-                        MessagesCopy.startChatEmptyTitle,
-                        systemImage: "person.2",
-                        description: Text(MessagesCopy.startChatEmptyDescription)
-                    )
+                    ContentUnavailableView {
+                        Label(MessagesCopy.startChatEmptyTitle, systemImage: "person.2")
+                    } description: {
+                        Text(MessagesCopy.startChatEmptyDescription)
+                    } actions: {
+                        Button(MessagesCopy.emptyInboxMeetBuddies) {
+                            dismiss()
+                            app.selectedTab = .buddies
+                            buddies.showSocialPage()
+                        }
+                    }
                     .listRowBackground(Color.clear)
                     .messagesListRow()
                 } else if filteredFriends.isEmpty {

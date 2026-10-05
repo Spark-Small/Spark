@@ -30,6 +30,22 @@ final class CommunityBrowseFilteringTests: XCTestCase {
         XCTAssertEqual(discover.map(\.author), ["新人"])
     }
 
+    func testPeopleYouFollowRetainsAuthorsFollowedInSession() {
+        let posts = [
+            makePost(author: "新人", body: "discover"),
+            makePost(author: "阿川", body: "followed")
+        ]
+        let retained = CommunityBrowseFiltering.posts(
+            posts,
+            filter: .peopleYouFollow,
+            followedUserNames: ["新人"],
+            currentUserName: "我",
+            joinedActivityTitles: [],
+            retainedAuthorNames: ["新人"]
+        )
+        XCTAssertEqual(retained.map(\.author), ["新人"])
+    }
+
     func testMentionMatchesJoinedActivityTitle() {
         let posts = [
             makePost(author: "路人", body: "无关", related: "夜骑局"),

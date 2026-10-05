@@ -138,7 +138,7 @@ struct CommunityPostDetailView: View {
                 .communityInlineSpacing()
             }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .platformMessageComposerBottomBar {
             PlatformReviewsCommentComposer(
                 target: .community(post.id),
                 currentUserName: model.currentUserName,

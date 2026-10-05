@@ -23,7 +23,7 @@
 
 ### A3 工程门禁
 
-- [ ] `check-imports.sh` 通过  
+- [ ] `check-imports.sh` 通过（含 `check-text-input` 零旁路）  
 - [ ] Domain 相关测试通过  
 - [ ] Privacy Manifest 与真实 API 粗核对  
 
@@ -33,7 +33,7 @@
 
 | # | 阻塞 | 完成标准 |
 |---|------|----------|
-| 1 | 真支付 PSP | 可选外部方式真实到账；或产品改为纯线下并文案一致 |
+| 1 | 真支付 PSP | 可选外部方式真实到账；或产品改为纯线下并文案一致。**现状**：客户端已接账户/流水读 + topups 意图轮询 + charges（`09` §4.1；`useRemoteWallet` 默认关；空态无「已全网同步」）；**未勾完成**，待后端真到账后再开 Flag / 勾完成 |
 | 2 | 活动写 API | 报名/发起等默认走远程且与 `user.id` 一致 |
 | 3 | 活动目录 | Release `useRemoteCatalog` + 关 bootstrap 或明确空供给 |
 | 4 | 搭子供给 | 非 Sample 交易数据 |
@@ -56,6 +56,7 @@
 - [ ] 活动远程目录不整包覆盖本地  
 - [ ] 搭子远程 snapshot 不整包覆盖本地  
 - [ ] 履约 checklist 不回活动首屏  
+- [ ] Release 陪玩口碑无哈希假分 / 无自动 Sample 灌评（客户端已收：均分与条数仅真实本机评价；旧 `platform_reviews.json` 若含历史种子需重置本机或清文件）  
 
 ---
 

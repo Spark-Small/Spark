@@ -21,7 +21,6 @@ struct PaidCompanionDetailView: View {
     @Environment(ActivitiesModel.self) private var activities
     @Environment(AppModel.self) private var app
     @State private var selectedTab: PaidCompanionDetailTab = .profile
-    @State private var reviewRefreshToken = 0
 
     private var relatedActivities: [Activity] {
         Array(
@@ -38,16 +37,30 @@ struct PaidCompanionDetailView: View {
         PlatformReviewsStore.stats(for: .companion(companion.id))
     }
 
+    private var isSelfViewer: Bool {
+        companion.profile.nickname.caseInsensitiveCompare(app.user.name) == .orderedSame
+    }
+
+    private var displayProfile: BuddyProfile {
+        isSelfViewer
+            ? PublicProfileProjection.buddyProfile(companion.profile, from: app.user)
+            : companion.profile
+    }
+
+    private var paidHeaderConfig: BuddyDetailProfileHeaderConfig {
+        var config = BuddyDetailProfileHeaderFactory.paid(companion: companion)
+        config.showsGenderAge = isSelfViewer ? app.user.hasGenderAgeBadge : true
+        return config
+    }
+
     var body: some View {
         Form {
             Section {
                 BuddyDetailHeroGallery(
-                    profile: companion.profile,
+                    profile: displayProfile,
                     verifiedBadge: companion.isVerified
                 )
-                    .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+                .platformFullBleedMediaFormRow()
             }
 
             if let line = source.contextLine {
@@ -60,24 +73,23 @@ struct PaidCompanionDetailView: View {
 
             Section {
                 BuddyDetailProfileHeader(
-                    profile: companion.profile,
-                    config: BuddyDetailProfileHeaderFactory.paid(companion: companion),
+                    profile: displayProfile,
+                    config: paidHeaderConfig,
                     groupAlias: groupAlias,
-                    showsFollow: true,
+                    showsFollow: !isSelfViewer,
                     isFollowing: app.isFollowing(companion.profile.nickname),
                     onToggleFollow: { app.toggleFollow(companion.profile.nickname) }
                 )
             }
 
+            // 官方分段：系统 Picker + .segmented（经 platformSegmentedPickerChrome；iOS 26 自动玻璃）。
             Section {
                 Picker(BuddyBrowseCopy.PaidShelf.detailTabPicker, selection: $selectedTab) {
                     ForEach(PaidCompanionDetailTab.allCases) { tab in
                         Text(tabTitle(tab)).tag(tab)
                     }
                 }
-                .pickerStyle(.segmented)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
+                .platformSegmentedPickerChrome()
             }
 
             switch selectedTab {
@@ -89,9 +101,10 @@ struct PaidCompanionDetailView: View {
                 PlatformReviewsRatedTab(
                     companion: companion,
                     currentUserName: app.user.name,
-                    onChanged: { reviewRefreshToken += 1 }
+                    onChanged: {}
                 )
-                .id(reviewRefreshToken)
+            case .posts:
+                postsTabSections
             }
         }
         .listSectionSpacing(.compact)
@@ -136,54 +149,48 @@ struct PaidCompanionDetailView: View {
             Text(BuddyDetailCopy.serviceMenuFooter)
         }
 
-        Section {
-            BuddyDetailScheduleSection(
-                slots: companion.scheduleSlots,
-                allowsBooking: companion.isAvailable,
-                onSelectBookableDay: { day in
-                    if let onBookDay {
-                        onBookDay(day)
-                    } else {
-                        onQuickBook()
-                    }
-                }
-            )
-        } header: {
-            Text(BuddyDetailCopy.scheduleTitle)
-        }
-
-        if !relatedActivities.isEmpty {
+        if !isSelfViewer {
             Section {
-                DetailRelatedActivitiesRail(activities: relatedActivities)
+                BuddyDetailScheduleSection(
+                    slots: companion.scheduleSlots,
+                    allowsBooking: companion.isAvailable,
+                    onSelectBookableDay: { day in
+                        if let onBookDay {
+                            onBookDay(day)
+                        } else {
+                            onQuickBook()
+                        }
+                    }
+                )
             } header: {
-                Text(BuddyDetailCopy.relatedTitle)
-            } footer: {
-                Text(BuddyDetailCopy.relatedFooter)
+                Text(BuddyDetailCopy.scheduleTitle)
             }
         }
 
+        relatedActivitiesSection
+    }
+
+    @ViewBuilder
+    private var postsTabSections: some View {
         CommunityAuthorRecentPostsSection(
             authorName: companion.profile.nickname,
-            sectionTitle: BuddyDetailCopy.communityPostsTitle
+            sectionTitle: BuddyDetailCopy.communityPostsTitle,
+            showsEmptyState: true,
+            emptyTitle: BuddyDetailCopy.postsEmptyTitle,
+            emptyDescription: BuddyDetailCopy.postsEmptyDescription
         )
     }
 
     @ViewBuilder
     private var profileTabSections: some View {
-        // 与同好详情一致：身份卡含简介；共同点 → 基本资料 → 服务 → 信任
-        if companion.profile.hasVoiceIntro {
+        BuddyDetailAboutSection(profile: displayProfile)
+
+        if displayProfile.hasVoiceIntro {
             Section {
-                BuddyPublicVoiceIntroRow(profile: companion.profile)
+                BuddyPublicVoiceIntroRow(profile: displayProfile)
             } header: {
                 Text(BuddyVoiceIntroCopy.publicSectionTitle)
             }
-        }
-
-        let matchSection = BuddyDetailMatchSection(profile: companion.profile)
-        Section {
-            matchSection
-        } header: {
-            Text(matchSection.sectionTitle)
         }
 
         Section {
@@ -193,7 +200,15 @@ struct PaidCompanionDetailView: View {
         }
 
         Section {
-            BuddyDetailBasicInfoSection(profile: companion.profile)
+            BuddyDetailBasicInfoSection(
+                profile: displayProfile,
+                showsDemographics: isSelfViewer ? app.user.hasPublicDemographics : true,
+                omitUnsetDemographics: isSelfViewer,
+                recordedGender: isSelfViewer
+                    ? PublicProfileProjection.buddyGender(from: app.user.gender)
+                    : nil,
+                cityOverride: isSelfViewer ? app.user.city : nil
+            )
         } header: {
             Text(BuddyDetailCopy.basicInfoTitle)
         }
@@ -210,11 +225,26 @@ struct PaidCompanionDetailView: View {
             buddyItem: .paid(companion),
             compact: false
         )
+
+        relatedActivitiesSection
+    }
+
+    @ViewBuilder
+    private var relatedActivitiesSection: some View {
+        if !relatedActivities.isEmpty {
+            Section {
+                DetailRelatedActivitiesRail(activities: relatedActivities)
+            } header: {
+                Text(BuddyDetailCopy.relatedTitle)
+            } footer: {
+                Text(BuddyDetailCopy.relatedFooter)
+            }
+        }
     }
 
     private func tabTitle(_ tab: PaidCompanionDetailTab) -> String {
         switch tab {
-        case .service, .profile:
+        case .service, .profile, .posts:
             tab.title
         case .reviews:
             BuddyBrowseCopy.PaidShelf.tabReviewsCount(reviewStats.total)

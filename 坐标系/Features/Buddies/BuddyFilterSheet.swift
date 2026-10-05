@@ -23,6 +23,7 @@ struct BuddyFilterSheet: View {
 
     @State var draftMaxDistanceKM = BuddyFilterDistance.maximumKilometers
     @State var draftHobby: String?
+    @State var draftIntents: Set<ProfileIntent> = []
     @State var draftUsesSystemLocation = true
     @State var draftSelectedCityID = BuddyCityCatalog.default.id
 
@@ -45,6 +46,7 @@ struct BuddyFilterSheet: View {
                 case .free:
                     regionSection
                     distanceSection
+                    intentSection
                     hobbySection
                 case .paid:
                     regionSection
@@ -67,9 +69,10 @@ struct BuddyFilterSheet: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(BuddyFilterCopy.reset) { resetDraft() }
+                    Button(BuddyFilterCopy.cancel) { dismiss() }
                 }
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItemGroup(placement: .confirmationAction) {
+                    Button(BuddyFilterCopy.reset) { resetDraft() }
                     Button(BuddyFilterCopy.apply) {
                         applyDraft()
                         dismiss()

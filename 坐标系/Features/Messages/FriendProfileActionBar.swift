@@ -13,7 +13,7 @@ struct FriendProfileActionBar: View {
 
     var body: some View {
         DetailBottomActionBar {
-            Button(MessagesCopy.friendAVCall, systemImage: "video", action: onCall)
+            Button(MessagesCopy.friendAVCall, systemImage: "phone.fill", action: onCall)
                 .activityDetailBottomSecondaryCTA()
 
             Button(MessagesCopy.friendSendMessage, systemImage: "message.fill", action: onMessage)

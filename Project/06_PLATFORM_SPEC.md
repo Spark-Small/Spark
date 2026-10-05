@@ -11,8 +11,9 @@
 | 容器 | `TabView`、`Form`、`List`、`Sheet`、`confirmationDialog` |
 | 图标 | SF Symbols；按钮必须有 accessibility label |
 | 购买 | StoreKit / 系统按钮；禁止伪装 Apple Pay 成功 |
+| 会员 | 无后端：`SubscriptionStoreView` + 本机 Transaction 投影；DEBUG 演示分键且不冒充 IAP；禁止假服务端对账 |
 | 登录 | Sign in with Apple 可用时优先系统能力；视觉上避免伪造官方按钮合规形态 |
-| 通行 | PassKit：`AddPassToWalletButton`；主 CTA 不抢「分享纪念票」 |
+| 通行 | App 内凭证 / 纪念票；**不**提供「加入 Apple Wallet」 |
 
 最低部署：iOS **26.5**（无书面要求不下调）。
 
@@ -57,10 +58,11 @@
 | `useLocalCatalogBootstrap` | true | 本地种子合并 |
 | `useRemoteBuddies` | true | 搭子 snapshot / 预约同步 |
 | `useRemoteBuddiesWrite` | false | 邀约 / 俱乐部远程写（契约已备） |
+| `useRemoteWallet` | false | 远程钱包账户/流水读 + 充值/扣款（客户端已接；真到账前勿开 Release；不自动勾 B1） |
 | `useSampleBuddiesCatalog` | false | 陪玩样例 |
-| 模拟外部支付 | false | `CommercePaymentPolicy` |
+| 模拟外部支付 | false | `CommercePaymentPolicy`（DEBUG 可本地演示） |
 
-DEBUG：`enableReadPathRemoteIntegration()` 开读路径（含搭子）并关 bootstrap / Sample / 演示接单；`restoreLocalBuddiesSampleCatalog()` / 关搭子远程可恢复样例货架；`enableBuddiesRemoteIntegration()` 另开写 Flag。远程搭子开着但 `discoverCatalog` 空时，DEBUG 货架回落 Sample（Release 仍诚实空态）。
+DEBUG：`enableReadPathRemoteIntegration()` 开读路径（含搭子）并关 bootstrap / Sample / 演示接单；`restoreLocalBuddiesSampleCatalog()` / 关搭子远程可恢复样例货架；`enableBuddiesRemoteIntegration()` 另开写 Flag；`enableWalletRemoteIntegration()` 另开钱包远程（需后端真通）。远程搭子开着但 `discoverCatalog` 空时，DEBUG 货架回落 Sample（Release 仍诚实空态）。
 
 Flag 增删与尸旗清理见 [21_ENGINEERING_WORKFLOW](21_ENGINEERING_WORKFLOW.md) §4。
 

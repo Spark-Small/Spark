@@ -65,6 +65,24 @@ extension ConversationDetailView {
         }
     }
 
+    /// 仅退出活动群聊；报名 / 行程仍在「我的活动」。
+    func leaveActivityGroupIfPossible() {
+        guard let conversation else {
+            dismiss()
+            return
+        }
+        if let activityID = conversation.relatedActivityID {
+            model.leaveGroupChat(
+                activityID: activityID,
+                leaverName: app.user.name,
+                currentUserIsOwner: conversation.isOwned(by: app.user.name)
+            )
+            dismiss()
+        } else {
+            model.requestDelete(conversation)
+        }
+    }
+
     func loadAndSendPhoto(_ item: PhotosPickerItem?, conversationID: ChatConversation.ID) async {
         guard let item else { return }
         defer { photoPickerItem = nil }
@@ -148,6 +166,38 @@ extension ConversationDetailView {
     func handleThreadDisappear() {
         if model.activeConversationID == conversationID {
             model.activeConversationID = nil
+        }
+    }
+
+    /// 私聊「请对方形象认证」：自己须已认证；向会话发送请求文案（不假服务端确认）。
+    func askPeerPhotoVerification(in conversation: ChatConversation) {
+        guard conversation.kind == .direct else { return }
+        let selfOK = photoVerification.isVerified(for: app.user)
+        let peerItem = buddies.item(for: conversation.title)
+        let peerFlags = TrustPublicCredentials.flags(
+            nickname: conversation.title,
+            currentUserName: app.user.name,
+            buddyItem: peerItem,
+            membershipActive: false,
+            liveHostedCount: activities.activities.filter {
+                $0.hostName.caseInsensitiveCompare(conversation.title) == .orderedSame
+            }.count
+        )
+        switch ProfilePhotoVerificationRequest.canRequest(
+            selfVerified: selfOK,
+            peerVerified: peerFlags.photoVerified
+        ) {
+        case .needSelfVerified:
+            copyFeedback = ProfilePhotoVerificationRequest.needSelfVerifiedMessage
+        case .peerAlreadyVerified:
+            copyFeedback = ProfilePhotoVerificationRequest.peerAlreadyVerifiedMessage
+        case .allowed:
+            guard model.send(
+                text: ProfilePhotoVerificationRequest.chatMessage,
+                to: conversation.id
+            ) != nil else { return }
+            sendPulse += 1
+            copyFeedback = ProfilePhotoVerificationRequest.sentFeedback
         }
     }
 }

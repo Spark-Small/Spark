@@ -64,6 +64,11 @@ extension MessagesCopy {
     static func groupInfoTitle(_ count: Int) -> String { "群信息 (\(count))" }
     static let groupLeaveConfirmTitle = "退出群聊？"
     static let groupLeaveConfirmMessage = "退出后将离开本群，可在通讯录或活动中重新加入。"
+    static let leaveActivityGroupConfirmMessage =
+        "退出后仅离开本群聊，活动报名与行程不受影响。若要取消报名，请到「我的活动」。"
+    static let leaveCircleConfirmTitle = "退出圈子？"
+    static let leaveCircleConfirmMessage =
+        "退出后将离开圈子群聊并退出该俱乐部，可随时重新加入。"
     static let groupInviteEmptyTitle = "暂无可邀请的好友"
     static let groupInviteEmptyDescription = "先添加好友，再邀请进群。"
     static let circleInfo = "圈子信息"
@@ -100,9 +105,6 @@ extension MessagesCopy {
     static let forwardPickerTitle = "转发到"
     static let forwardEmptyTitle = "没有可转发的会话"
     static let forwardDone = "已转发"
-    static let localVoiceTitle = "发送本机语音"
-    static let localVoiceMessage = "不录音、不上传；仅在本机会话插入语音气泡。真语音通道需 B5。"
-    static let localVoiceSend = "发送 3 秒气泡"
     static let cancelReply = "取消回复"
     static let bubbleA11yHint = "轻点查看时间，连点两下喜欢"
     static func replyingTo(_ name: String) -> String { "回复 \(name)" }

@@ -10,7 +10,6 @@ import CoordinateModels
 
 struct ProfileView: View {
     @Environment(AppModel.self) var app
-    @Environment(ActivitiesModel.self) var activities
     @Environment(CommunityModel.self) var community
     @Environment(BuddiesModel.self) var buddies
     @Environment(MessagesModel.self) var messages
@@ -19,9 +18,8 @@ struct ProfileView: View {
     @Environment(PhotoVerificationStore.self) var photoVerification
     @Environment(InAppNotificationStore.self) var notificationInbox
 
-    @State var showEditProfile = false
+    @State var showLikesReceivedInfo = false
     @State var youthBlockedMessage: String?
-    @State var showSettingsFromTip = false
     @State var navigateActivity: Activity?
     @State var navigation = TabNavigationState()
     @Namespace var activityZoomNamespace
@@ -32,15 +30,17 @@ struct ProfileView: View {
 
     var body: some View {
         @Bindable var navigation = navigation
-        @Bindable var buddies = buddies
 
         NavigationStack(path: $navigation.path) {
             profileList
                 .platformTabRootToolbar { tabToolbar }
                 .profileRootPresentations(
                     app: app,
-                    showEditProfile: $showEditProfile,
-                    showSettingsFromTip: $showSettingsFromTip,
+                    showLikesReceivedInfo: $showLikesReceivedInfo,
+                    likesReceivedCount: ProfileSocialStats.likesReceived(
+                        for: app.user.name,
+                        community: community
+                    ),
                     youthBlockedMessage: $youthBlockedMessage
                 )
                 .profileRootDestinations(
@@ -51,17 +51,6 @@ struct ProfileView: View {
                     activityZoomNamespace: activityZoomNamespace
                 )
                 .activityMapNavigationSheet(activity: $navigateActivity)
-                .sheet(isPresented: $buddies.presentation.isComposingClub) {
-                    CircleComposeSheet { circle in
-                        if let convo = messages.startCircleChat(
-                            for: circle,
-                            memberName: app.user.name
-                        ) {
-                            buddies.attachJoinConversation(convo.id)
-                        }
-                    }
-                    .toolbarVisibility(.hidden, for: .tabBar)
-                }
                 .onAppear {
                     consumePendingProfileNavigation()
                 }
@@ -83,13 +72,11 @@ struct ProfileView: View {
 
     private var profileList: some View {
         List {
-            Group {
-                lifecycleTipSection
-                identitySection
-                attentionSection
-                servicesSection
-                librarySection
-            }
+            lifecycleTipSection
+            identitySection
+            lifePhotosSection
+            servicesSection
+            librarySection
         }
         .platformTabRootListChrome(title: ProfileDashboardCopy.rootTitle, compactSections: false)
         .refreshable {
@@ -115,29 +102,14 @@ struct ProfileView: View {
         ToolbarSpacer(.fixed, placement: .topBarTrailing)
 
         ToolbarItemGroup(placement: .topBarTrailing) {
-            NavigationLink {
-                ProfileSettingsView()
-                    .platformHiddenTabBar()
+            Button {
+                navigation.path.append(ProfileRoute.settings)
             } label: {
                 Image(systemName: "gearshape.fill")
             }
             .platformNavigationBarItemChrome()
             .accessibilityLabel(ProfileDashboardCopy.settingsAccessibilityLabel)
         }
-    }
-
-    func openJourney(_ activity: Activity) {
-        navigation.path.append(
-            ActivityZoomSource(
-                activityID: activity.id,
-                slot: "profile-promo-journey",
-                intent: .participantPass
-            )
-        )
-    }
-
-    func openIdentity() {
-        showEditProfile = true
     }
 
     func openCommerce(_ action: () -> Void) {
@@ -152,6 +124,8 @@ struct ProfileView: View {
         guard let route = app.pendingProfileRoute else { return }
         app.pendingProfileRoute = nil
         app.pendingBookingID = nil
+        // 深链重置栈，避免在已打开的子页上再叠一层同路由。
+        navigation.path = NavigationPath()
         navigation.path.append(route)
     }
 }

@@ -91,7 +91,7 @@ struct CircleComposeSheet: View {
             Form {
                 Section {
                     TextField(CircleComposeCopy.namePlaceholder, text: $name)
-                        .textInputAutocapitalization(.never)
+                        .platformFormTextInput(.identifier)
                         .onChange(of: name) { _, _ in
                             nameError = buddies.validateClubName(name)
                         }
@@ -126,7 +126,7 @@ struct CircleComposeSheet: View {
 
                 Section {
                     TextField(CircleComposeCopy.summaryPlaceholder, text: $summary, axis: .vertical)
-                        .lineLimit(3...6)
+                        .platformFormTextInput(.body)
                 } header: {
                     Text(CircleComposeCopy.summarySection)
                 } footer: {
@@ -135,6 +135,7 @@ struct CircleComposeSheet: View {
 
                 Section(CircleComposeCopy.tagsSection) {
                     TextField(CircleComposeCopy.tagsPlaceholder, text: $tagText)
+                        .platformFormTextInput(.singleLine)
                 }
             }
             .navigationTitle(CircleComposeCopy.title)

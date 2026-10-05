@@ -19,6 +19,7 @@ struct AddFriendByUIDSheet: View {
     @State private var alertTitle = ""
     @State private var alertMessage: String?
     @State private var pendingOpenNickname: String?
+    @State private var shouldDismissAfterAlert = false
 
     private var canSubmit: Bool {
         UserPublicID.isValid(uidText)
@@ -37,10 +38,7 @@ struct AddFriendByUIDSheet: View {
             Form {
                 Section {
                     TextField(MessagesCopy.addFriendByUIDPlaceholder, text: $uidText)
-                        .keyboardType(.numberPad)
-                        .textContentType(.none)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
+                        .platformFormTextInput(.digits)
                 } header: {
                     Text(MessagesCopy.addFriendByUIDField)
                 } footer: {
@@ -86,26 +84,33 @@ struct AddFriendByUIDSheet: View {
         switch model.addFriendByPublicUID(uidText, myUser: app.user) {
         case .requestSent(let nickname, _):
             pendingOpenNickname = nil
+            shouldDismissAfterAlert = true
             alertTitle = "申请已发送"
             alertMessage = MessagesCopy.addFriendByUIDSuccess(nickname)
         case .alreadyFriend(let nickname):
-            pendingOpenNickname = nil
-            alertTitle = "无法添加"
+            // 已是好友：关掉 Sheet 后打开私聊。
+            pendingOpenNickname = nickname
+            shouldDismissAfterAlert = true
+            alertTitle = "已是好友"
             alertMessage = MessagesCopy.addFriendByUIDAlreadyFriend(nickname)
         case .alreadyPending(let nickname):
             pendingOpenNickname = nil
+            shouldDismissAfterAlert = false
             alertTitle = "申请处理中"
             alertMessage = MessagesCopy.addFriendByUIDPending(nickname)
         case .isSelf:
             pendingOpenNickname = nil
+            shouldDismissAfterAlert = false
             alertTitle = "无法添加"
             alertMessage = MessagesCopy.addFriendByUIDIsSelf
         case .notFound:
             pendingOpenNickname = nil
+            shouldDismissAfterAlert = false
             alertTitle = "无法添加"
             alertMessage = MessagesCopy.addFriendByUIDNotFound
         case .invalid:
             pendingOpenNickname = nil
+            shouldDismissAfterAlert = false
             alertTitle = "无法添加"
             alertMessage = MessagesCopy.addFriendByUIDInvalid
         }
@@ -113,10 +118,14 @@ struct AddFriendByUIDSheet: View {
 
     private func finishAlert() {
         let nickname = pendingOpenNickname
+        let dismissSheet = shouldDismissAfterAlert
         alertMessage = nil
         pendingOpenNickname = nil
+        shouldDismissAfterAlert = false
         if let nickname {
             onAdded?(nickname)
+        }
+        if dismissSheet {
             dismiss()
         }
     }

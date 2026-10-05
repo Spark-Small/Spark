@@ -21,6 +21,12 @@
 
 `FeatureFlags.requireIdentityVerification`：Release 恒 true。
 
+二次复核（`IdentityRemoteReverifyService` / `identity/reverify`）：仅真实联网成功才写 `PhotoVerificationStore.remoteVerified`；演示代理、Flag 关、服务不可用回落本机时 UI 须显示「本机结果」，**禁止**冒充「服务端已确认」。分析事件 `identityRemoteVerified` 同口径。
+
+**实名认证（居民身份证 / 护照）**：`RealNameVerificationSheet`（滚轮选证件类型）+ Vision OCR + `ParseChineseResidentIDUseCase` / `ParsePassportIdentityUseCase`（护照优先 MRZ，其次可视区）。性别/出生日期（年龄）仅由证件本机解析写入，`EditProfile` 基本资料中性别与年龄**只读**。不存证件号明文（仅 SHA256 指纹 + 脱敏尾号）；UI / 徽章文案须标明「本机识别」，**禁止**冒充公安库 / 出入境机关 / 网证已核验。远程 KYC 未接前 Merge 须保留本机实名字段（含 `realNameDocumentKind` 与护照资料页文件名）。
+
+**分层**：形象门禁规则与文案在 `Features/Identity`（`IdentityCapability` / `IdentityAccessGate` / `IdentitySignals`）；业务 Tab 只经 `AppModel.requireIdentityAccess`；Trust / 好友卡徽章读 `app.identitySignals`，禁止手拼实名字段。钱包与身份门禁正交。
+
 ---
 
 ## 3. 隐私合规
@@ -44,8 +50,10 @@
 ## 5. 支付诚实（安全相关审核）
 
 - Release 禁止模拟外部支付到账  
-- 钱包为设备账本，须披露  
-- 不收集非必要支付字段  
+- 钱包默认设备账本投影，须披露；`useRemoteWallet` 时以服务端为准，未确认到账禁止本地加款  
+- 不收集非必要支付字段（卡号/CVV 等不进客户端）  
+- 充值渠道凭证仅经服务端 Webhook；客户端只持调起载荷  
+- 提现 / 开票未开放前不得伪装成功  
 
 ---
 

@@ -214,11 +214,12 @@
 │   ├── PlatformToolbarChrome.swift
 │   ├── PlatformConversationListChrome.swift
 │   ├── PlatformActivityChrome.swift
+│   ├── PlatformActivityChipsBadges.swift
 │   ├── PlatformFeedback.swift
 │   ├── PlatformTabRootChrome.swift
 │   ├── CredentialArt/            # 行程凭证 SVG 着色（CredentialArtTheme 白名单）
-│   ├── WalletPassFace.swift      # 「我的」夹长条预览
-│   └── WalletPassStack.swift
+│   ├── WalletPassFace.swift      # 「我的」夹长条预览（+ Chrome / Content / Factory）
+│   └── WalletPaymentCardFace.swift  # 钱包余额数字卡（非系统真卡）
 ├── Features/
 │   ├── Activities/                # +Browse / +Participation / +ParticipationJourney / +Hosting / +DemoJourney；Detail / NextUp
 │   ├── Buddies/                   # +Browse / +Organization / +Invites / +Bookings；BuddyZoomNavigation
@@ -283,7 +284,7 @@ Docs/                              # 本目录 + DESIGN_SYSTEM.md
 | Repository | `CoordinateDomain` 协议 + `CoordinateData` 本地 I/O + App `Remote*` / `SwiftData*Repository` | 五域 + engagement 快照均已迁入 `CoordinateData`；App 层可选 SwiftData |
 | 快照类型（SPM） | `CoordinateModels`：五域 `*Snapshot` + `Activity` / `ChatConversation` / `AppUser` 及消息实体；`.seed` 工厂在 `Models/PersistenceSnapshotSeeds.swift` |
 | API | `APIClient` + `APIEndpoint`（活动 / 资料 / 消息 / 广场 / 搭子快照端点） |
-| 偏好 Store | `MembershipStore`、`NotificationPreferencesStore`、`PrivacyPreferencesStore`、`YouthModeStore`、`LegalConsentStore`、`MembershipAdImpressionStore` | 会员 / 通知 / 隐私 / 青少年 / 协议 / 广告曝光 |
+| 偏好 Store | `MembershipStore`、`NotificationPreferencesStore`、`PrivacyPreferencesStore`、`YouthModeStore`、`LegalConsentStore` | 会员 / 通知 / 隐私 / 青少年 / 协议 |
 | 搭子 Model | `BuddiesModel+Browse` / `+Organization` / `+Invites` / `+Bookings` | 发现 / 圈子 / 邀约 / 预约扩展 |
 | 广场 Model | `CommunityModel+Engagement` / `+Compose` / `+Moderation` | 互动 / 发帖 / 审核 |
 | 消息 Model | `MessagesModel+DirectChat` / `+GroupChat` / `+ConversationDetail` / `+ConversationSharing` / `+Calling`；`+RichPayloads` / `+GroupAdmin` / `+FriendRequests` / `+FriendProfile` / `+Search` / `+Persistence` | 会话 / 群管 / 好友 / 搜索 |
@@ -370,7 +371,7 @@ Schema 演进：改 `@Model` 字段时升 `AppSwiftDataSchemaVn` 并添加 `Migr
 | Phase 0 | ✅ | `SWIFT_STRICT_CONCURRENCY=complete`（App + SPM）；CI `check-imports.sh`（含 Features 禁 `CoordinateData`） |
 | Phase 1.1 | ✅ 活动试点 | `CoordinateData` + `LocalActivitiesRepository` + `AppComposition` |
 | Phase 1.2 | ✅ 五域齐全 | 消息 / 搭子 / 广场 / 资料 JSON I/O + `*SnapshotCatalog` |
-| Phase 1.3 | ✅ 收尾 | JSON 经 `LocalSnapshotFileStore`；`EngagementRepository` → `CoordinateData`（`SnapshotFileActor` 未接线，见 Archive） |
+| Phase 1.3 | ✅ 收尾 | JSON 经 `LocalSnapshotFileStore`；`EngagementRepository` → `CoordinateData`（见 Archive） |
 | Phase 1.4 | ✅ 并发统一 | `@ModelActor` 快照读写；`SnapshotAsyncPersistenceBackend` + generation；`PersistenceMigration` |
 | Phase 2 | ✅ | Model 瘦身 + Environment DI；活动/搭子 UseCase 下沉 Domain |
 | Phase 2.1 | ✅ 活动参与 | `JoinActivityUseCase` 等 + `ActivitiesModel+Participation` 瘦身 |
@@ -464,7 +465,7 @@ flowchart LR
 
 | 界面 | 最重要操作 |
 |------|------------|
-| **活动 / 陪玩凭证展开** | **分享纪念票**（活动，memento 模式主 CTA）；**加入 Apple Wallet** 在「更多」；取消 / 退款为破坏性次要 |
+| **活动 / 陪玩凭证展开** | **分享纪念票**（活动，memento 模式主 CTA）；**无**加入系统 Wallet；取消 / 退款为破坏性次要 |
 | **订单列表** | **打开订单详情**（查看 / 退款入口） |
 | **信任看板** | **去认证 / 签到** 等推进信用的动作 |
 | **设置** | 无单一主 CTA；保存类在各编辑子页 |
@@ -493,7 +494,7 @@ flowchart LR
 | Zoom 进详情 | Photos / SwiftUI `matchedTransitionSource` + `navigationTransition(.zoom)` |
 | 可点大标题分类 | SwiftUI `toolbarTitleMenu` / `ToolbarTitleMenu`（Invites 等系统应用同类交互） |
 | 详情与设置页 | Settings：`Form` / `List` / `LabeledContent` |
-| 凭证与加钱包 | App 内票面 + CredentialArt；PassKit 导出与 `AddPassToWalletButton`（次要） |
+| 凭证 | App 内票面 + CredentialArt；不接系统 Wallet |
 | Tab 根标题 | `toolbarTitleDisplayMode(.inlineLarge)` + 系统 scroll edge |
 | 消息列表 | Messages：会话列表 + 未读、系统 List 密度 |
 | 信任与隐私 | 行为信用私有 / 公开展示分层（对齐 HIG 隐私最小化，非星级打卡墙） |

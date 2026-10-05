@@ -69,11 +69,22 @@ extension View {
         modifier(PlatformAccessibleGlassCircleModifier(controlSize: PlatformToolbarChrome.controlSize))
     }
 
-    /// List / Form 内嵌分段控件：系统 `Picker` + `.segmented`，清底贴边（消息 / 订单同族）。
+    /// List / Form 页内筛选分段：系统 `Picker` + `.segmented`。
+    /// iOS 26 起由系统自带 Liquid Glass，勿再叠自定义 `glassEffect`。
+    /// 清底；水平 inset 为 0，与上下 insetGrouped Section 卡同宽对齐（勿再叠 contentInset）。
     func platformSegmentedPickerChrome() -> some View {
-        pickerStyle(.segmented)
-            .listRowInsets(EdgeInsets())
+        labelsHidden()
+            .pickerStyle(.segmented)
+            .listRowInsets(
+                EdgeInsets(
+                    top: PlatformMetrics.inlineControlSpacing,
+                    leading: 0,
+                    bottom: PlatformMetrics.inlineControlSpacing,
+                    trailing: 0
+                )
+            )
             .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
     }
 
     /// Photos 式胶囊 glass（顶栏 principal）。
@@ -91,7 +102,8 @@ extension View {
         )
     }
 
-    /// 输入框胶囊 glass：降低透明度时用不透明填充。
+    /// Messages 输入字段：Liquid Glass 胶囊（与 + / 发送同属 `GlassEffectContainer`）。
+    /// 勿用 `secondarySystemFill` 实心浅灰；降透时用系统分组底而非 Fill。
     func platformComposerFieldChrome() -> some View {
         modifier(PlatformComposerFieldChromeModifier())
     }
@@ -238,7 +250,12 @@ private struct PlatformComposerFieldChromeModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         if reduceTransparency {
-            content.background(Color(.secondarySystemFill), in: Capsule())
+            // 降透：分组底描边，避免 secondarySystemFill 实心浅灰条。
+            content
+                .background(Color(.secondarySystemGroupedBackground), in: Capsule())
+                .overlay {
+                    Capsule().strokeBorder(Color(.separator), lineWidth: 0.5)
+                }
         } else {
             content.glassEffect(.regular.interactive(), in: .capsule)
         }

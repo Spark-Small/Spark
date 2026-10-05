@@ -2,15 +2,23 @@
 //  CommunityComposeCopy.swift
 //  坐标系
 //
-//  发分享 Sheet 文案。
+//  发帖 Sheet 文案：退出确认进草稿箱；后台离开静默自动存。
 //
 
 import Foundation
 
 enum CommunityComposeCopy {
-    static let navigationTitle = "发分享"
+    static let navigationTitle = "发帖"
     static let cancel = "取消"
     static let publish = "发布"
+
+    /// 退出确认（系统 confirmationDialog）
+    static let discardDraftTitle = "尚未发布"
+    static let discardDraftMessage = "要把内容存入草稿箱，还是直接丢弃？"
+    static let discardSave = "存入草稿箱"
+    static let discardDiscard = "不保存"
+    static let discardContinue = "继续编辑"
+    static let draftSavedFeedback = "已存入草稿箱"
 
     static let bodySection = "内容"
     static let bodyPlaceholder = "写下路线、体验或避坑…"

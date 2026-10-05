@@ -56,8 +56,12 @@ final class LocalAuthSession {
 
     var maskedPhoneLabel: String {
         let trimmed = phoneNumber.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard isSignedIn, provider == .phone, trimmed.count >= 7 else { return "—" }
+        guard isSignedIn, trimmed.count >= 7 else { return "—" }
         return "\(trimmed.prefix(3))****\(trimmed.suffix(4))"
+    }
+
+    var hasBoundPhone: Bool {
+        isSignedIn && !phoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     init(store: any AuthSessionPersisting = KeychainAuthSessionStore()) {
@@ -143,7 +147,56 @@ final class LocalAuthSession {
         signOut()
     }
 
+    /// 已登录用户绑定手机号：校验短信后写入会话，**保留**原 `provider`（不因绑定改成手机号登录）。
+    /// 远程：`auth/sms/login` 仅用于校验验证码，不调用 `applyLoginData`（专用 bind API 未接）。
+    @discardableResult
+    func bindPhone(
+        phone: String,
+        code: String,
+        source: AuthAnalytics.Source = .bindPhone
+    ) async -> String? {
+        guard isSignedIn else { return "请先登录" }
+        let trimmed = AuthCredentialFormat.sanitizedPhone(phone)
+        let otp = AuthCredentialFormat.sanitizedCode(code)
+        guard AuthCredentialFormat.isValidPhone(trimmed) else {
+            return "请输入 11 位手机号"
+        }
+        guard AuthCredentialFormat.isValidCode(otp) else {
+            return "请输入 \(AuthCredentialFormat.codeLength) 位验证码"
+        }
+
+        if FeatureFlags.useRemoteAuth {
+            do {
+                _ = try await RemoteAuthAPI.verifySMSLogin(phone: trimmed, code: otp)
+            } catch {
+                return error.localizedDescription
+            }
+        } else {
+            #if DEBUG
+            guard otp == Self.demoCode else { return "手机号或验证码不正确" }
+            #else
+            return "请使用短信验证码绑定。"
+            #endif
+        }
+
+        applyPhoneBinding(trimmed)
+        AuthAnalytics.smsLoginSucceeded(source: source)
+        return nil
+    }
+
     // MARK: - Private
+
+    private func applyPhoneBinding(_ phone: String) {
+        phoneNumber = phone
+        store.save(
+            AuthSessionSnapshot(
+                isSignedIn: isSignedIn,
+                provider: provider,
+                phoneNumber: phone
+            )
+        )
+    }
+
 
     @discardableResult
     private func applySignInResult(_ result: AuthSignInResult) -> String? {

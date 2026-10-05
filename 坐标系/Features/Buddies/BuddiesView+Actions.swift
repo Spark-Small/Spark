@@ -29,8 +29,7 @@ extension BuddiesView {
     func consumePendingSocialLanding() {
         guard model.pendingShowCircleDiscover else { return }
         model.pendingShowCircleDiscover = false
-        model.filter.kind = .clubs
-        discoverBrowseScrollRequest += 1
+        landOnDiscover(kind: .clubs)
     }
 
     func consumePendingBuddiesNavigation() {
@@ -38,9 +37,27 @@ extension BuddiesView {
         app.pendingBuddiesRoute = nil
         switch route {
         case .clubDiscover:
-            model.filter.kind = .clubs
-            discoverBrowseScrollRequest += 1
+            landOnDiscover(kind: .clubs)
+        case .paidBrowse:
+            landOnDiscover(kind: .paid)
+        case .socialBrowse:
+            landOnDiscover(kind: .free)
         }
+    }
+
+    /// 深链落地：退出「最近浏览」、重置栈、切模式，避免同 kind 时 onChange 不触发。
+    func landOnDiscover(kind: BuddyKind) {
+        isBrowsingRecents = false
+        navigation.reset()
+        switch kind {
+        case .free:
+            model.showSocialPage()
+        case .paid:
+            model.showPaidPage()
+        case .clubs:
+            model.filter.kind = .clubs
+        }
+        discoverBrowseScrollRequest += 1
     }
 
     /// 邀约接受 → 活动 Tab 打开关联场次（串联活动模块）

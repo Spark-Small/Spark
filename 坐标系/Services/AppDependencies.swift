@@ -36,7 +36,6 @@ struct AppDependencies {
     let privacyPreferencesStore: PrivacyPreferencesStore
     let youthModeStore: YouthModeStore
     let legalConsentStore: LegalConsentStore
-    let membershipAdImpressionStore: MembershipAdImpressionStore
     let photoVerificationStore: PhotoVerificationStore
     let opsContentStore: OpsContentStore
     let remoteBookingSync: any RemoteBookingSyncing
@@ -65,7 +64,6 @@ struct AppDependencies {
             privacyPreferencesStore: AppComposition.privacyPreferencesStore,
             youthModeStore: AppComposition.youthModeStore,
             legalConsentStore: AppComposition.legalConsentStore,
-            membershipAdImpressionStore: AppComposition.membershipAdImpressionStore,
             photoVerificationStore: AppComposition.photoVerificationStore,
             opsContentStore: AppComposition.opsContentStore,
             remoteBookingSync: RemoteBookingSyncService(client: .shared),
@@ -109,7 +107,6 @@ struct AppDependencies {
             privacyPreferencesStore: PrivacyPreferencesStore(),
             youthModeStore: YouthModeStore(),
             legalConsentStore: LegalConsentStore(),
-            membershipAdImpressionStore: MembershipAdImpressionStore(),
             photoVerificationStore: PhotoVerificationStore(trustService: trust),
             opsContentStore: OpsContentStore(),
             remoteBookingSync: DisabledRemoteBookingSync(),
@@ -182,6 +179,7 @@ extension AppDependencies {
             remoteBookingSync: remoteBookingSync,
             remoteInviteSync: remoteInviteSync,
             remoteClubSync: remoteClubSync,
+            notificationInbox: inAppNotificationStore,
             snapshot: snapshot,
             currentUserName: currentUserName,
             currentUserID: LocalUserIdentity.current

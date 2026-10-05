@@ -40,7 +40,6 @@ extension GroupManageSheet {
                     Button(BuddyMemberCopy.emptyMembersInviteCTA) {
                         showInviteSheet = true
                     }
-                    .activityPrimaryCTA(controlSize: .regular)
                 }
                 .listRowBackground(Color.clear)
                 .padding(.vertical, PlatformMetrics.minContentGap)

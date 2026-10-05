@@ -39,6 +39,7 @@ extension BuddiesModel {
         )
         persist()
         onRecordsChanged?()
+        recordInviteInbox(for: record, kind: .sent)
         scheduleInviteReplySimulation(for: record.id)
         if remoteInviteSync.isEnabled {
             Task { await submitInviteToRemote(record.id) }
@@ -56,11 +57,15 @@ extension BuddiesModel {
                 if merged.inviteeUserID == nil {
                     merged.inviteeUserID = remote.inviteeUserID
                 }
+                let previousStatus = merged.status
                 if merged.status == .pending, remote.status != .pending {
                     merged.status = remote.status
                 }
                 inviteRecords[index] = merged
                 persist()
+                if previousStatus == .pending, merged.status != .pending {
+                    recordInviteInbox(for: merged, kind: .status(merged.status))
+                }
             }
         } catch {
             flash(BuddyFeedbackCopy.remoteInviteSubmitFailed)
@@ -84,8 +89,13 @@ extension BuddiesModel {
         persist()
         onRecordsChanged?()
         flash(BuddyFeedbackCopy.inviteAccepted(inviteRecords[index].nickname))
+        recordInviteInbox(for: inviteRecords[index], kind: .status(.accepted))
         if let activityID = inviteRecords[index].relatedActivityID {
-            presentation.pendingOpenActivityAfterInviteID = activityID
+            if let open = onOpenActivityAfterInvite {
+                open(activityID)
+            } else {
+                presentation.pendingOpenActivityAfterInviteID = activityID
+            }
         }
     }
 
@@ -102,6 +112,46 @@ extension BuddiesModel {
         persist()
         onRecordsChanged?()
         flash(BuddyFeedbackCopy.inviteDeclined(inviteRecords[index].nickname))
+        recordInviteInbox(for: inviteRecords[index], kind: .status(.declined))
+    }
+
+    private enum InviteInboxKind {
+        case sent
+        case status(BuddyInviteStatus)
+    }
+
+    /// 活动邀约生命周期写入通知中心（不进「我的活动」库）。
+    private func recordInviteInbox(for record: BuddyInviteRecord, kind: InviteInboxKind) {
+        let title: String
+        let body: String
+        let activityKind: String
+        switch kind {
+        case .sent:
+            title = BuddyFeedbackCopy.activityInviteTitle
+            body = BuddyFeedbackCopy.inviteSent(
+                nickname: record.nickname,
+                activityTitle: record.activityTitle
+            )
+            activityKind = "activity-invite-sent"
+        case .status(.accepted):
+            title = BuddyFeedbackCopy.inviteAccepted(record.nickname)
+            body = record.activityTitle
+            activityKind = "activity-invite-accepted"
+        case .status(.declined):
+            title = BuddyFeedbackCopy.inviteDeclined(record.nickname)
+            body = record.activityTitle
+            activityKind = "activity-invite-declined"
+        case .status(.pending):
+            return
+        }
+        notificationInbox?.record(
+            category: .activity,
+            title: title,
+            body: body,
+            dedupeKey: "activity-invite-\(record.id.uuidString)-\(activityKind)",
+            activityID: record.relatedActivityID,
+            activityKind: activityKind
+        )
     }
 
     func deleteInvite(_ id: BuddyInviteRecord.ID) {

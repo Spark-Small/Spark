@@ -14,6 +14,8 @@ enum NotificationDeepLink: Equatable {
     case booking(UUID)
     case conversation(UUID)
     case communityPost(UUID)
+    /// 「我的」通知中心 → 活动邀约列表（不进「我的活动」Hub）。
+    case activityInvites
 
     static func parse(
         userInfo: [AnyHashable: Any],
@@ -22,8 +24,18 @@ enum NotificationDeepLink: Equatable {
         if let id = uuid(from: userInfo["communityPostID"]) {
             return .communityPost(id)
         }
+        let kind = userInfo["kind"] as? String
+        if let kind, kind.hasPrefix("activity-invite") {
+            if kind == "activity-invite-accepted",
+               let id = uuid(from: userInfo["activityID"]) {
+                return .activity(id, followUp: .none)
+            }
+            return .activityInvites
+        }
+        if identifier.hasPrefix("activity-invite-") {
+            return .activityInvites
+        }
         if let id = uuid(from: userInfo["activityID"]) {
-            let kind = userInfo["kind"] as? String
             let followUp: ActivityNotificationFollowUp = switch kind {
             case "activity-recap": .journeyFeedback
             case "activity-reminder": .openJourney

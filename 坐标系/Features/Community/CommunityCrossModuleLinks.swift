@@ -58,6 +58,9 @@ struct CommunityRecentPostLinkRow: View {
 struct CommunityAuthorRecentPostsSection: View {
     let authorName: String
     var sectionTitle: String = CommunityAuthorCopy.recentPostsSection
+    var showsEmptyState = false
+    var emptyTitle: String = CommunityAuthorCopy.recentPostsEmptyTitle
+    var emptyDescription: String = CommunityAuthorCopy.recentPostsEmptyDescription
 
     @Environment(CommunityModel.self) private var community
 
@@ -74,6 +77,18 @@ struct CommunityAuthorRecentPostsSection: View {
                 ForEach(recentPosts) { post in
                     CommunityRecentPostLinkRow(post: post)
                 }
+            }
+        } else if showsEmptyState {
+            Section {
+                ContentUnavailableView(
+                    emptyTitle,
+                    systemImage: "text.bubble",
+                    description: Text(emptyDescription)
+                )
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, PlatformMetrics.sectionSpacing)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
         }
     }

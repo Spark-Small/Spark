@@ -38,8 +38,13 @@ final class RemoteProfileRepository: ProfileRepository {
         }
         do {
             let remote = try await client.send(.profileSnapshot)
-            local.save(remote)
-            RemoteSyncStatus.recordSuccess("profile", detail: remote.user.name)
+            let previous = local.load()
+            let merged = MergeRemoteProfileSnapshotUseCase().execute(
+                remote: remote,
+                previous: previous
+            )
+            local.save(merged)
+            RemoteSyncStatus.recordSuccess("profile", detail: merged.user.name)
         } catch {
             RemoteSyncStatus.recordFailure("profile", error: error)
         }

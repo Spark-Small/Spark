@@ -18,6 +18,7 @@ struct CircleBuddyDetailView: View {
 
     @Environment(ActivitiesModel.self) private var activities
     @Environment(AppModel.self) private var app
+    @State private var pendingInviteDay: Date?
 
     private var relatedActivities: [Activity] {
         Array(
@@ -26,16 +27,28 @@ struct CircleBuddyDetailView: View {
         )
     }
 
-    var body: some View {
-        let matchSection = BuddyDetailMatchSection(profile: buddy.profile)
+    private var isSelfViewer: Bool {
+        buddy.profile.nickname.caseInsensitiveCompare(app.user.name) == .orderedSame
+    }
 
+    private var displayProfile: BuddyProfile {
+        isSelfViewer
+            ? PublicProfileProjection.buddyProfile(buddy.profile, from: app.user)
+            : buddy.profile
+    }
+
+    private var freeHeaderConfig: BuddyDetailProfileHeaderConfig {
+        var config = BuddyDetailProfileHeaderFactory.free(buddy: buddy)
+        config.showsGenderAge = isSelfViewer ? app.user.hasGenderAgeBadge : true
+        return config
+    }
+
+    var body: some View {
         Form {
-            // Meetup 式：封面 → 身份（含简介）→ 共同点 → 基本资料 → 圈子/档期 → 信任档案
+            // Meetup 式：封面 → 身份 → 推荐理由 → 基本资料 → 圈子/档期 → 信任档案
             Section {
-                BuddyDetailHeroGallery(profile: buddy.profile)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                BuddyDetailHeroGallery(profile: displayProfile)
+                    .platformFullBleedMediaFormRow()
             }
 
             if let line = source.contextLine {
@@ -48,31 +61,35 @@ struct CircleBuddyDetailView: View {
 
             Section {
                 BuddyDetailProfileHeader(
-                    profile: buddy.profile,
-                    config: BuddyDetailProfileHeaderFactory.free(buddy: buddy),
+                    profile: displayProfile,
+                    config: freeHeaderConfig,
                     groupAlias: groupAlias,
-                    showsFollow: true,
+                    showsFollow: !isSelfViewer,
                     isFollowing: app.isFollowing(buddy.profile.nickname),
                     onToggleFollow: { app.toggleFollow(buddy.profile.nickname) }
                 )
             }
 
-            if buddy.profile.hasVoiceIntro {
+            BuddyDetailAboutSection(profile: displayProfile)
+
+            if displayProfile.hasVoiceIntro {
                 Section {
-                    BuddyPublicVoiceIntroRow(profile: buddy.profile)
+                    BuddyPublicVoiceIntroRow(profile: displayProfile)
                 } header: {
                     Text(BuddyVoiceIntroCopy.publicSectionTitle)
                 }
             }
 
             Section {
-                matchSection
-            } header: {
-                Text(matchSection.sectionTitle)
-            }
-
-            Section {
-                BuddyDetailBasicInfoSection(profile: buddy.profile)
+                BuddyDetailBasicInfoSection(
+                    profile: displayProfile,
+                    showsDemographics: isSelfViewer ? app.user.hasPublicDemographics : true,
+                    omitUnsetDemographics: isSelfViewer,
+                    recordedGender: isSelfViewer
+                        ? PublicProfileProjection.buddyGender(from: app.user.gender)
+                        : nil,
+                    cityOverride: isSelfViewer ? app.user.city : nil
+                )
             } header: {
                 Text(BuddyDetailCopy.basicInfoTitle)
             }
@@ -87,15 +104,17 @@ struct CircleBuddyDetailView: View {
                 Text(BuddyDetailCopy.circleTitle)
             }
 
-            Section {
-                BuddyDetailScheduleSection(
-                    slots: buddy.scheduleSlots,
-                    allowsBooking: !buddy.scheduleSlots.isEmpty,
-                    scheduleHint: BuddyBookingFlowCopy.freeScheduleHint,
-                    onSelectBookableDay: { _ in onInvite() }
-                )
-            } header: {
-                Text(BuddyDetailCopy.scheduleTitle)
+            if !isSelfViewer {
+                Section {
+                    BuddyDetailScheduleSection(
+                        slots: buddy.scheduleSlots,
+                        allowsBooking: !buddy.scheduleSlots.isEmpty,
+                        scheduleHint: BuddyBookingFlowCopy.freeScheduleHint,
+                        onSelectBookableDay: { day in pendingInviteDay = day }
+                    )
+                } header: {
+                    Text(BuddyDetailCopy.scheduleTitle)
+                }
             }
 
             TrustPublicProfileSections(
@@ -133,8 +152,24 @@ struct CircleBuddyDetailView: View {
                 onInvite: onInvite
             )
         }
+        .confirmationDialog(
+            BuddyDetailCopy.scheduleInviteConfirmTitle,
+            isPresented: Binding(
+                get: { pendingInviteDay != nil },
+                set: { if !$0 { pendingInviteDay = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(BuddyDetailCopy.scheduleInviteConfirmAction) {
+                pendingInviteDay = nil
+                onInvite()
+            }
+            Button(BuddyDetailCopy.cancel, role: .cancel) {
+                pendingInviteDay = nil
+            }
+        } message: {
+            Text(BuddyDetailCopy.scheduleInviteConfirmMessage)
+        }
     }
 }
-
-// MARK: - Paid
 

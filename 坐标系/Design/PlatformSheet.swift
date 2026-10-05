@@ -67,6 +67,7 @@ private struct PlatformSheetModifier: ViewModifier {
                 .interactiveDismissDisabled(interactiveDismissDisabled)
         default:
             content
+                .modifier(PlatformSheetKeyboardChrome(kind: kind))
                 .presentationDetents(detents)
                 .presentationDragIndicator(.visible)
                 .interactiveDismissDisabled(interactiveDismissDisabled)
@@ -87,6 +88,21 @@ private struct PlatformSheetModifier: ViewModifier {
             [detent]
         case .action(let height):
             [.height(height)]
+        }
+    }
+}
+
+/// form / browser / filter / confirm 常含 TextField：统一交互式收键盘（见 `PlatformTextInputChrome`）。
+private struct PlatformSheetKeyboardChrome: ViewModifier {
+    let kind: PlatformSheetKind
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        switch kind {
+        case .form, .browser, .filter, .confirm:
+            content.platformTextInputScrollChrome()
+        default:
+            content
         }
     }
 }

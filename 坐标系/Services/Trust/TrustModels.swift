@@ -168,7 +168,7 @@ enum TrustBadgeKind: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .photoVerified: "认证"
+        case .photoVerified: "防欺诈"
         case .phoneVerified: "手机已验证"
         case .identityVerified: "实名认证"
         case .activeMember: "会员"
@@ -180,7 +180,7 @@ enum TrustBadgeKind: String, Codable, CaseIterable, Identifiable {
     /// 奖章格短标题（对外战士墙；比 chip 略完整）
     var showcaseTitle: String {
         switch self {
-        case .photoVerified: "形象认证"
+        case .photoVerified: "防欺诈认证"
         case .phoneVerified: "手机"
         case .identityVerified: "实名"
         case .activeMember: "会员"
@@ -297,6 +297,8 @@ struct TrustPrivateSignals: Hashable {
     var isGuest: Bool
     var hasPhone: Bool
     var photoVerified: Bool = false
+    /// 本机实名（证件识别）；不表示公安库核验。
+    var identityVerified: Bool = false
     var accountCreatedAt: Date?
     var friendCount: Int
     var liveHostedCount: Int

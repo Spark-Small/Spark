@@ -109,7 +109,7 @@ flowchart LR
 | 消息收件箱 | **Messages** | 统一列表；左通讯录、右加号；无品牌气泡皮 |
 | 广场 Feed | **News / 系统 List** | 标准列表密度；非电商货架 |
 | 我的 / 设置 | **Settings** | `List`/`Form` 分组；destructive 用 `.destructive` role |
-| 活动 / 陪玩凭证 | **Wallet / PassKit** | `AddPassToWalletButton`；夹 → 展开票面 → 系统 Wallet |
+| 活动 / 陪玩凭证 | **App 内凭证** | 展开票面 + 分享纪念票；不加入系统 Wallet |
 | 会员 | **StoreKit 订阅页** | 产品信息 + 恢复购买；无网演示走钱包兜底 |
 | 欢迎引导 | **半屏 Sheet**（非全屏 onboarding） | 可跳过；**兴趣标签**在登录后独立页采集，与意图引导分离 |
 | 空态 | **ContentUnavailableView** | 系统图标 + 标题 + 可选主操作 |
@@ -133,7 +133,7 @@ flowchart LR
 | FR-ACT-05 | 参加成功 → 活动群 + 日历 + 行程 | 自动入群；成功 Sheet 主 CTA「打开我的行程」；群从消息 / 行程打开 | 订机票后「加日历」 | 日历按钮有 label | ✅ |
 | FR-ACT-06 | 主办：发起/编辑/管理/取消 | 取消用 `.destructive`；退款说明 upfront | Settings 管理页 | 破坏性操作需 confirmationDialog | ✅ |
 | FR-ACT-07 | 收藏、评论、举报 | 收藏影响推荐；举报进 moderation | 标准 List 操作 | 举报入口可被 VoiceOver 发现 | ✅ |
-| FR-ACT-08 | App 内活动凭证 + 纪念分享 + 可选 Wallet | 参加后「我的」夹 Zoom 展开；履约态含条码；结束后 **分享纪念票**（9:16）；Wallet 在「更多」用系统按钮 | App 内凭证 + Share Sheet | 主 CTA 可访问；Add to Wallet 用 `AddPassToWalletButton` | ✅ |
+| FR-ACT-08 | App 内活动凭证 + 纪念分享 | 参加后「我的活动」展开行程；履约态含条码；结束后 **分享纪念票**（9:16）；**不**加系统 Wallet | App 内凭证 + Share Sheet | 主 CTA 可访问；无 `AddPassToWalletButton` | ✅ |
 | FR-ACT-09 | 隐式兴趣推荐 | 浏览/收藏/参加加权；日衰减 | 可解释推荐（「因为你喜欢」） | 推荐理由可读 | ✅ |
 | FR-ACT-10 | 远程活动目录 | 失败静默保留本地 | Background URLSession 模式预留 | — | 🔄 |
 
@@ -255,7 +255,7 @@ flowchart LR
 | NFR-DATA-02 | `@ModelActor` 写入；跨 actor 只传 Codable 快照 | SwiftData 并发文档 | 不传 `@Model` 跨 Task |
 | NFR-DATA-03 | 权限在价值上下文后请求 | HIG Privacy | 通知/定位不在首屏 |
 | NFR-DATA-04 | 删号清空行为账本与本地 PII | 账号删除最佳实践 | `deleteLocalAccount` |
-| NFR-DATA-05 | Pass 经 PassKit 官方分发链路 | PassKit | `AddPassToWalletButton` |
+| NFR-DATA-05 | App 内凭证本机签发 / 作废 | PassStore | 不强制系统 Wallet |
 | NFR-DATA-06 | 订阅经 StoreKit 2；可恢复购买 | StoreKit | 会员页恢复按钮 |
 | NFR-DATA-07 | Swift 6 `strict-concurrency=complete`；UI 在 MainActor；跨 Task 类型 `Sendable` | Swift 并发迁移指南 | `-warn-concurrency` build 通过 |
 
@@ -298,7 +298,7 @@ flowchart LR
 | B-10～B-12 | 浏览 / 对比 | FR-BUD-02、FR-BUD-03 | `BuddiesView`、`BuddyBrowseShelves` | ✅ |
 | B-20～B-21 | 读懂 / 下单前 | FR-BUD-06 | `BuddyBookingSheet`、详情底栏 | ✅ |
 | B-30 | 下单后等待 | FR-BUD-08、FR-MSG | 我的预约、`MessagesModel`；§6.3 `pendingConfirm` | ✅ |
-| B-31 | 接单后待支付 | FR-BUD-06、FR-BUD-08 | 我的订单待支付详情；§6.4 D1 | ✅ 🔄 |
+| B-31 | 接单后待支付 | FR-BUD-06、FR-BUD-08 | 「我的陪玩」/ 凭证详情待支付；通知催办；§6.4 D1 | ✅ 🔄 |
 | B-40 | 见面对齐 | FR-MSG-05 | 会话富 payload、私信 | ✅ |
 | B-45 / B-52 | 纠纷 / 评价 | FR-PRO-05、FR-PRO-07 | 退款、信任私密确认 | ✅ / 📋 |
 | B-12 好评率展示 | 行业参照 | — | V1 用行为信用，非公开好评墙 | 📋 |
@@ -347,12 +347,12 @@ flowchart LR
 
 | 状态 | 用户可见文案 | 含义 | 技控节点 | 列表 / 角标落点 |
 |------|-------------|------|----------|----------------|
-| `pendingConfirm` | 待确认 | 已提交，等陪玩接单 | B-23、B-30 | 我的订单；**非**凭证夹 |
-| `awaitingPayment` | 待支付 | 已接单，待用户支付 | B-31 | 我的订单 + 待办角标 |
+| `pendingConfirm` | 待确认 | 已提交，等陪玩接单 | B-23、B-30 | 「我的陪玩」+ 通知；**非**独立订单页 |
+| `awaitingPayment` | 待支付 | 已接单，待用户支付 | B-31 | 「我的陪玩」+ 通知催办 |
 | `paid` | 已支付 | 已支付，待履约 | B-32、B-33 | 凭证夹 + 订单 |
 | `inProgress` | 进行中 | 服务已开始（可选留痕） | B-42～B-43 | 凭证夹 |
 | `completed` | 已完成 | 服务结束 | B-43 | 凭证夹（历史） |
-| `refunding` | 退款中 | 退款申请处理中 | B-45 | 我的订单；凭证只读 |
+| `refunding` | 退款中 | 退款申请处理中 | B-45 | 凭证详情 + 钱包流水；凭证只读 |
 | `refunded` | 已退款 | 退款完成 | B-45 | 订单历史 |
 | `cancelled` | 已取消 | 拒单 / 撤回 / 违约取消 | B-30 | 订单历史 |
 
@@ -413,7 +413,7 @@ refunding → refunded | 恢复原履约态（退款拒绝）
 | 任务 | 落点 | 验收 |
 |------|------|------|
 | `acceptBooking` 移除链式 `beginPayment` | `BuddiesModel+Bookings.swift` | 接单后无支付 Sheet；状态为 `awaitingPayment` |
-| 待支付详情：订单摘要 + 主 CTA「去支付」 | `ProfileOrdersView` 或预约订单详情 | Given 已接单 When 打开订单 Then 见摘要且主钮为「去支付」 |
+| 待支付详情：订单摘要 + 主 CTA「去支付」 | `BookingCredentialExpandedView` / 「我的陪玩」 | Given 已接单 When 打开预约 Then 见摘要且主钮为「去支付」 |
 | 次 CTA「联系 TA」 | 同上 + `PeerChatEntry` / 深链 | 可进私信且带预约上下文 |
 | 仅 `beginPayment` 打开支付 Sheet | `BuddyCommerceChrome`、`LocalAuthSheet` | 用户未点「去支付」时不出现 Sheet |
 | 文案：`BuddyBookingFlowCopy` | `BuddyDetailCopy.swift` 等 | B-31「请在支付前核对订单」类提示 |
@@ -435,7 +435,7 @@ refunding → refunded | 恢复原履约态（退款拒绝）
 | `refund` 转移改为 `paid|inProgress → refunding` | `BuddiesBookingTypes`、`Validate…` | 退款申请后订单为「退款中」 |
 | `completeRefund` 仅 `refunding → refunded` | 同上 + `RefundFlow.swift` | 非法转移失败 |
 | 退款拒绝恢复履约态 | `RefundFlow` booking 分支 | `refunding → paid` 或 `inProgress` |
-| 订单列表 / 详情 badge「退款中」 | `ProfileOrdersView`、`BookingCredentialExpandedView` | 与活动 `refunding` 视觉一致 |
+| 详情 badge「退款中」 | `BookingCredentialExpandedView`、行程详情 | 与活动 `refunding` 视觉一致 |
 | 复用 `RefundStatusSheet` | 已有挂载点 | 退款中可查看进度 |
 | 退款中禁用 `rescheduleBooking` | `BuddiesModel+Bookings` | flash 或按钮不可用 |
 

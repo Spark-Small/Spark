@@ -69,10 +69,10 @@ enum DiscoverBuddyItem: Identifiable, Hashable {
         }
     }
 
-    /// 卡面一句状态：优先 lookingFor，否则回退状态行
+    /// 卡面一句状态：优先意图 / lookingFor，否则回退状态行
     @MainActor
     var cardMoodLine: String {
-        let looking = profile.lookingFor.trimmingCharacters(in: .whitespacesAndNewlines)
+        let looking = profile.intentDisplayLine
         if !looking.isEmpty { return looking }
         return cardStatusLine
     }

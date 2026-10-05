@@ -41,6 +41,41 @@ extension BuddiesView {
         browseKind == .paid ? paidPeople : socialPeople
     }
 
+    /// 整页空态（叠在 ScrollView 上居中）；分区空仍走 `sectionEmptyState`。
+    var showsBuddiesPageUnavailable: Bool {
+        if isBrowsingRecents {
+            return recentPeopleItems.isEmpty && recentCircles.isEmpty
+        }
+        switch browseKind {
+        case .clubs:
+            return model.allCircles.isEmpty
+        case .free, .paid:
+            return socialPeople.isEmpty
+                && paidPeople.isEmpty
+                && !model.hasActiveBrowseFilters
+        }
+    }
+
+    @ViewBuilder
+    var buddiesPageUnavailable: some View {
+        if isBrowsingRecents {
+            ContentUnavailableView {
+                Label(BuddyBrowseCopy.recentsEmptyTitle, systemImage: "clock.arrow.circlepath")
+            } description: {
+                Text(BuddyBrowseCopy.recentsEmptyDescription)
+            } actions: {
+                Button(BuddyBrowseCopy.Empty.recentsBackToBrowse) {
+                    selectBrowseKind(.free)
+                }
+            }
+            .platformContentUnavailablePageChrome()
+        } else if browseKind == .clubs {
+            clubsEmptyState
+        } else {
+            combinedEmptyState
+        }
+    }
+
     @ViewBuilder
     var unifiedBrowse: some View {
         switch browseKind {
@@ -51,8 +86,8 @@ extension BuddiesView {
                 let showFullPageEmpty = socialPeople.isEmpty
                     && paidPeople.isEmpty
                     && !model.hasActiveBrowseFilters
-                modeEmptyState
                 if !showFullPageEmpty {
+                    modeEmptyState
                     secondaryBrowse
                 }
             } else {
@@ -66,7 +101,7 @@ extension BuddiesView {
     var clubsBrowse: some View {
         let circles = model.filteredCircles(sortedBy: clubSort)
         if model.allCircles.isEmpty {
-            clubsEmptyState
+            EmptyView()
         } else if circles.isEmpty {
             sectionEmptyState(
                 message: BuddyBrowseCopy.Empty.clubsFilteredEmpty,
@@ -81,7 +116,14 @@ extension BuddiesView {
                 spacing: PlatformMetrics.discoverCardSpacing
             ) {
                 ForEach(circles) { circle in
-                    BuddyPosterShelfCard.circle(circle) {
+                    BuddyPosterShelfCard.circle(
+                        circle,
+                        memberCount: model.displayedMemberCount(
+                            for: circle,
+                            messages: messages,
+                            viewerName: app.user.name
+                        )
+                    ) {
                         navigation.openCircle(circle)
                     }
                 }
@@ -100,13 +142,11 @@ extension BuddiesView {
             Text(BuddyBrowseCopy.Empty.clubsEmptyBody)
         } actions: {
             Button(BuddyBrowseCopy.Empty.clubsEmptyAction) {
+                app.pendingProfileRoute = .myClubs
                 app.selectedTab = .profile
-                model.presentation.beginComposeClub()
             }
-            .activityPrimaryCTA(controlSize: .large)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
+        .platformContentUnavailablePageChrome()
     }
 
     func peerContactTitle(for item: DiscoverBuddyItem) -> String {
@@ -130,14 +170,10 @@ extension BuddiesView {
 
     @ViewBuilder
     var modeEmptyState: some View {
-        if socialPeople.isEmpty, paidPeople.isEmpty, !model.hasActiveBrowseFilters {
-            combinedEmptyState
-        } else {
-            sectionEmptyState(
-                message: sectionEmptyMessage(for: browseKind == .paid ? .paid : .free),
-                showsFilterAction: model.hasActiveBrowseFilters
-            )
-        }
+        sectionEmptyState(
+            message: sectionEmptyMessage(for: browseKind == .paid ? .paid : .free),
+            showsFilterAction: model.hasActiveBrowseFilters
+        )
     }
 
     @ViewBuilder

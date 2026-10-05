@@ -2,31 +2,34 @@
 //  MessagesView.swift
 //  坐标系
 //
-//  消息收件箱：会话列表为主转化；顶栏筛选 / 新聊天 / 通讯录分组。
+//  消息收件箱：会话列表为主转化；顶栏筛选 / 通讯录。
 //
 
 import SwiftUI
 import CoordinateModels
 
-private enum MessagesInboxRoute: Hashable {
+enum MessagesInboxRoute: Hashable {
     case friends
-    case conversation(ChatConversation)
+    /// 只存 ID，避免会话可变字段进 NavigationPath 导致栈身份抖动。
+    case conversation(ChatConversation.ID)
 }
 
 struct MessagesView: View {
-    @Environment(MessagesModel.self) private var model
+    @Environment(MessagesModel.self) var model
     @Environment(BuddiesModel.self) private var buddies
-    @Environment(AppModel.self) private var app
-    @State private var navigation = TabNavigationState()
-    @State private var focusMessageID: ChatMessage.ID?
-    @State private var inboxFilter: MessagesInboxFilter = .all
-    @State private var showStrangerMailbox = false
+    @Environment(AppModel.self) var app
+    @State var navigation = TabNavigationState()
+    @State private var focusByConversation: [ChatConversation.ID: ChatMessage.ID] = [:]
+    @State private var routedPendingCallID: CallSessionRecord.ID?
+    @State private var routedCallConversationID: ChatConversation.ID?
+    @State var inboxFilter: MessagesInboxFilter = .all
+    @State var showStrangerMailbox = false
 
-    private var blockedNames: [String] { Array(app.blockedUserNames) }
+    var blockedNames: [String] { Array(app.blockedUserNames) }
 
     private var showsEmptyOverlay: Bool {
         if model.isSearching {
-            return !model.hasSearchResults(blockedNames: blockedNames)
+            return !model.hasSearchResults(filter: inboxFilter, blockedNames: blockedNames)
         }
         return visibleItems.isEmpty
     }
@@ -36,7 +39,7 @@ struct MessagesView: View {
     }
 
     /// 与筛选 Menu 角标同源（`inboxItems`）。
-    private var visibleItems: [ChatConversation] {
+    var visibleItems: [ChatConversation] {
         model.inboxItems(filter: inboxFilter, blockedNames: blockedNames)
     }
 
@@ -54,14 +57,18 @@ struct MessagesView: View {
     }
 
     private var searchConversationMatches: [ChatConversation] {
-        model.matchingConversations(query: model.searchText, blockedNames: blockedNames)
+        model.matchingConversations(
+            query: model.searchText,
+            filter: inboxFilter,
+            blockedNames: blockedNames
+        )
     }
 
     private var searchHistoryMatches: [ChatHistoryHit] {
         model.searchHistory(query: model.searchText)
     }
 
-    private var isFilterEmptyOnly: Bool {
+    var isFilterEmptyOnly: Bool {
         !model.isSearching
             && !model.isEmptyInbox
             && visibleItems.isEmpty
@@ -108,18 +115,27 @@ struct MessagesView: View {
                         }
                     )
                     .toolbarVisibility(.hidden, for: .tabBar)
-                case .conversation(let conversation):
+                case .conversation(let conversationID):
                     ConversationDetailView(
-                        conversationID: conversation.id,
-                        focusMessageID: focusMessageID,
-                        pendingCallID: app.pendingCallID,
+                        conversationID: conversationID,
+                        focusMessageID: focusByConversation[conversationID],
+                        pendingCallID: routedPendingCallID
+                            .flatMap { callID in
+                                routedCallConversationID == conversationID ? callID : nil
+                            },
                         onOpenCircleInfo: { circle in
                             navigation.openCircle(circle)
                         }
                     )
                     .toolbarVisibility(.hidden, for: .tabBar)
-                    .onAppear { model.markRead(conversation.id) }
-                    .onDisappear { focusMessageID = nil }
+                    .onAppear { model.markRead(conversationID) }
+                    .onDisappear {
+                        focusByConversation[conversationID] = nil
+                        if routedCallConversationID == conversationID {
+                            routedPendingCallID = nil
+                            routedCallConversationID = nil
+                        }
+                    }
                 }
             }
             .circleBrowseStackChrome(
@@ -127,7 +143,10 @@ struct MessagesView: View {
                 messages: model,
                 memberName: app.user.name,
                 blockedUserNames: app.blockedUserNames,
-                onBrowseBuddies: { app.selectedTab = .buddies },
+                onBrowseBuddies: {
+                    app.pendingBuddiesRoute = .socialBrowse
+                    app.selectedTab = .buddies
+                },
                 openCircle: { navigation.openCircle($0) },
                 openConversation: { app.openMessages(conversationID: $0) }
             )
@@ -208,12 +227,12 @@ struct MessagesView: View {
 
     @ViewBuilder
     private func conversationLink(_ conversation: ChatConversation) -> some View {
-        NavigationLink(value: MessagesInboxRoute.conversation(conversation)) {
+        NavigationLink(value: MessagesInboxRoute.conversation(conversation.id)) {
             PlatformConversationRow(
                 title: conversation.title,
                 subtitle: conversation.inboxListSecondary,
                 time: conversation.updatedAt,
-                isUnread: conversation.unreadCount > 0,
+                isUnread: conversation.unreadCount > 0 && !conversation.isMuted,
                 isPinned: conversation.isPinned,
                 isMuted: conversation.isMuted,
                 showsPresence: conversation.kind == .direct && conversation.peerIsActive
@@ -222,51 +241,6 @@ struct MessagesView: View {
         .navigationLinkIndicatorVisibility(.hidden)
         .conversationSwipeActions(conversation, model: model)
         .platformConversationListRowChrome()
-    }
-
-    @ViewBuilder
-    private var emptyOverlay: some View {
-        if model.isSearching {
-            ContentUnavailableView.search(text: model.searchText)
-                .frame(maxWidth: .infinity)
-        } else if isFilterEmptyOnly {
-            ContentUnavailableView {
-                Label(MessagesCopy.filterEmptyTitle, systemImage: "line.3.horizontal.decrease.circle")
-            } description: {
-                Text(MessagesCopy.filterEmptyDescription)
-            } actions: {
-                Button(MessagesCopy.filterEmptyShowAll) {
-                    inboxFilter = .all
-                }
-                .activityPrimaryCTA(controlSize: .large)
-            }
-            .frame(maxWidth: .infinity)
-        } else if model.isEmptyInbox || visibleItems.isEmpty {
-            ContentUnavailableView {
-                Label(MessagesCopy.emptyInboxTitle, systemImage: "message")
-            } description: {
-                Text(MessagesCopy.emptyInboxDescription)
-            } actions: {
-                Button(MessagesCopy.friendsListTitle) {
-                    navigation.path.append(MessagesInboxRoute.friends)
-                }
-                .activityPrimaryCTA(controlSize: .large)
-
-                Button(MessagesCopy.emptyInboxBrowseActivities) {
-                    app.selectedTab = .activities
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-
-                Button(MessagesCopy.emptyInboxMeetBuddies) {
-                    app.selectedTab = .buddies
-                    app.buddies.showSocialPage()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-            }
-            .frame(maxWidth: .infinity)
-        }
     }
 
     @ToolbarContentBuilder
@@ -297,17 +271,32 @@ struct MessagesView: View {
         focusMessageID: ChatMessage.ID? = nil
     ) {
         guard let conversation else { return }
-        self.focusMessageID = focusMessageID
+        if let focusMessageID {
+            focusByConversation[conversation.id] = focusMessageID
+        } else {
+            focusByConversation[conversation.id] = nil
+        }
         model.markRead(conversation.id)
         navigation.reset()
-        navigation.path.append(MessagesInboxRoute.conversation(conversation))
+        navigation.path.append(MessagesInboxRoute.conversation(conversation.id))
     }
 
     private func consumePendingConversationOpen() {
         guard let id = app.pendingConversationID else { return }
         let focus = app.pendingFocusMessageID
+        let callID = app.pendingCallID
+        guard model.conversations.contains(where: { $0.id == id }) else {
+            // 会话缺失时一并清掉通话意图，避免孤儿 pendingCall 挂到下一场会话。
+            app.pendingConversationID = nil
+            app.pendingFocusMessageID = nil
+            app.pendingCallID = nil
+            return
+        }
         app.pendingConversationID = nil
         app.pendingFocusMessageID = nil
+        app.pendingCallID = nil
+        routedPendingCallID = callID
+        routedCallConversationID = id
         openConversation(
             model.conversations.first { $0.id == id },
             focusMessageID: focus

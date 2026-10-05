@@ -32,16 +32,44 @@ extension BuddiesView {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             if showsFilterAction {
-                Button(BuddyBrowseCopy.Empty.adjustFilters) {
-                    showFilterSheet = true
+                HStack(spacing: PlatformMetrics.cardInfoSpacing) {
+                    Button(BuddyBrowseCopy.Empty.clearFilters) {
+                        model.resetBrowseFilters()
+                        peopleSort = .recommended
+                        bookingSort = .recommended
+                    }
+                    .font(.footnote.weight(.semibold))
+                    .buttonStyle(.plain)
+                    .foregroundStyle(PlatformAction.brandAccent)
+
+                    Button(BuddyBrowseCopy.Empty.adjustFilters) {
+                        showFilterSheet = true
+                    }
+                    .font(.footnote.weight(.semibold))
+                    .buttonStyle(.plain)
+                    .foregroundStyle(PlatformAction.brandAccent)
                 }
-                .font(.footnote.weight(.semibold))
-                .buttonStyle(.plain)
-                .foregroundStyle(PlatformAction.brandAccent)
             }
         }
         .discoverBrowseContentInset()
         .padding(.vertical, PlatformMetrics.formRowVerticalPadding)
+    }
+
+    private var combinedEmptyTitle: String {
+        let filtered = model.hasActiveBrowseFilters
+        let locating = model.usesSystemLocation
+            && (model.locatedPlaceName == nil || model.locatedPlaceName?.isEmpty == true)
+        let supplyPending = !model.sampleCatalogEnabled && !filtered && !locating
+        if filtered {
+            return browseKind == .paid
+                ? BuddyBrowseCopy.Empty.noMatchTitlePaid
+                : BuddyBrowseCopy.Empty.noMatchTitleFree
+        }
+        if locating { return BuddyBrowseCopy.Empty.locatingTitle }
+        if supplyPending { return BuddiesSupplyPolicy.discoverEmptyTitle }
+        return browseKind == .paid
+            ? BuddyBrowseCopy.Empty.nearbyEmptyTitlePaid
+            : BuddyBrowseCopy.Empty.nearbyEmptyTitleFree
     }
 
     var combinedEmptyState: some View {
@@ -52,13 +80,7 @@ extension BuddiesView {
 
         return ContentUnavailableView {
             Label(
-                filtered
-                    ? BuddyBrowseCopy.Empty.noMatchTitle
-                    : (locating
-                        ? BuddyBrowseCopy.Empty.locatingTitle
-                        : (supplyPending
-                            ? BuddiesSupplyPolicy.discoverEmptyTitle
-                            : BuddyBrowseCopy.Empty.nearbyEmptyTitle)),
+                combinedEmptyTitle,
                 systemImage: filtered
                     ? "magnifyingglass"
                     : (locating
@@ -82,34 +104,27 @@ extension BuddiesView {
                     peopleSort = .recommended
                     bookingSort = .recommended
                 }
-                .activityPrimaryCTA(controlSize: .large)
                 Button(BuddyBrowseCopy.Empty.adjustFilters) {
                     showFilterSheet = true
                 }
-                .activitySecondaryCTA(controlSize: .large)
             } else if locating {
                 Button(BuddyBrowseCopy.Empty.pickCity) {
                     showFilterSheet = true
                 }
-                .activityPrimaryCTA(controlSize: .large)
             } else if supplyPending {
                 Button(BuddiesSupplyPolicy.browseActivitiesCTA) {
-                    app.selectedTab = .activities
+                    app.focusActivitiesDiscoverBrowse()
                 }
-                .activityPrimaryCTA(controlSize: .large)
                 Button(BuddiesSupplyPolicy.createClubCTA) {
+                    app.pendingProfileRoute = .myClubs
                     app.selectedTab = .profile
-                    model.presentation.beginComposeClub()
                 }
-                .activitySecondaryCTA(controlSize: .large)
             } else {
                 Button(BuddyBrowseCopy.Empty.relaxFilters) {
                     showFilterSheet = true
                 }
-                .activityPrimaryCTA(controlSize: .large)
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, PlatformMetrics.emptyStateVerticalPadding)
+        .platformContentUnavailablePageChrome()
     }
 }

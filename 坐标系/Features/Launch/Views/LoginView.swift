@@ -51,7 +51,7 @@ struct LoginView: View {
                     ScrollView {
                         loginForm
                     }
-                    .scrollDismissesKeyboard(.interactively)
+                    .platformTextInputScrollChrome()
                     .scrollBounceBehavior(.basedOnSize)
                     .navigationTitle(LoginAuthCopy.login)
                     .navigationBarTitleDisplayMode(.inline)
@@ -149,8 +149,7 @@ struct LoginView: View {
             if draft.hasRequestedCode {
                 Divider()
                 TextField(LoginAuthCopy.code, text: $draft.code)
-                    .loginCredentialFieldStyle()
-                    .textContentType(.oneTimeCode)
+                    .platformCredentialTextInput(.oneTimeCode)
                     .focused($focusedField, equals: .code)
                     .disabled(work.isBusy)
                     .loginFieldRowPadding()
@@ -172,8 +171,7 @@ struct LoginView: View {
     private var phoneRow: some View {
         HStack(spacing: PlatformMetrics.inlineControlSpacing) {
             TextField(LoginAuthCopy.phone, text: $draft.phone)
-                .loginCredentialFieldStyle()
-                .textContentType(.telephoneNumber)
+                .platformCredentialTextInput(.phone)
                 .focused($focusedField, equals: .phone)
                 .disabled(work.isBusy)
 

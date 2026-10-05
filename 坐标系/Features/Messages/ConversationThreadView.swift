@@ -52,7 +52,7 @@ struct ConversationThreadView<Row: View>: View {
                 }
             }
             .defaultScrollAnchor(.bottom)
-            .scrollDismissesKeyboard(.interactively)
+            .platformTextInputScrollChrome()
             .scrollEdgeEffectStyle(.soft, for: .top)
             .platformMessageThreadScrollMargins()
             .onChange(of: messageCount) { _, _ in

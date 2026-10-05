@@ -35,49 +35,53 @@ struct PlatformReviewsCommentsHost: View {
     var placeholder: String = ActivityDetailCopy.commentsPlaceholder
     var companionFilter: Binding<PlatformReviewFilter>? = nil
     var companionStats: PlatformReviewStats? = nil
+    /// 陪玩口碑区只读展示时为 false（写评价走订单凭证）。
+    var allowsReply: Bool = true
     var onChanged: () -> Void = {}
     /// 外部驱动刷新（社区详情 commentRevision），避免整页 `.id` 重置展开态。
     var refreshToken: Int = 0
     /// 与外部 Composer 共享展开态；nil 时用内部 State。
     var expandedThreadIDs: Binding<Set<UUID>>? = nil
 
-    @State private var internalDraft = ""
-    @State private var internalReplyTarget: PlatformReview?
-    @State private var reviews: [PlatformReview] = []
-    @State private var internalExpandedThreadIDs: Set<UUID> = []
-    @State private var didApplyDefaultExpansion = false
-    @State private var blockedWord: String?
-    @FocusState private var focused: Bool
+    // 跨文件 +Composer 需 internal。
+    @State var internalDraft = ""
+    @State var internalReplyTarget: PlatformReview?
+    @State var reviews: [PlatformReview] = []
+    @State var internalExpandedThreadIDs: Set<UUID> = []
+    @State var didApplyDefaultExpansion = false
+    @State var blockedWord: String?
+    @State var showWriteSheet = false
+    @FocusState var focused: Bool
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    private var draftBinding: Binding<String> {
+    var draftBinding: Binding<String> {
         externalDraft ?? $internalDraft
     }
 
-    private var replyTargetBinding: Binding<PlatformReview?> {
+    var replyTargetBinding: Binding<PlatformReview?> {
         externalReplyTarget ?? $internalReplyTarget
     }
 
-    private var expandedIDsBinding: Binding<Set<UUID>> {
+    var expandedIDsBinding: Binding<Set<UUID>> {
         expandedThreadIDs ?? $internalExpandedThreadIDs
     }
 
-    private var draft: String {
+    var draft: String {
         get { draftBinding.wrappedValue }
         nonmutating set { draftBinding.wrappedValue = newValue }
     }
 
-    private var replyTarget: PlatformReview? {
+    var replyTarget: PlatformReview? {
         get { replyTargetBinding.wrappedValue }
         nonmutating set { replyTargetBinding.wrappedValue = newValue }
     }
 
-    private var expandedIDs: Set<UUID> {
+    var expandedIDs: Set<UUID> {
         get { expandedIDsBinding.wrappedValue }
         nonmutating set { expandedIDsBinding.wrappedValue = newValue }
     }
 
-    private var displayedRoots: [PlatformReview] {
+    var displayedRoots: [PlatformReview] {
         if let companionFilter {
             return PlatformReviewCatalog.filtered(
                 reviews,
@@ -87,18 +91,18 @@ struct PlatformReviewsCommentsHost: View {
         return PlatformReviewCatalog.sortedRoots(reviews)
     }
 
-    private var showsInlineComposer: Bool {
+    var showsInlineComposer: Bool {
         composerPlacement == .inline && layout == .formRows
     }
 
-    private var usesListStyling: Bool {
+    var usesListStyling: Bool {
         switch layout {
         case .formRows, .sheetList: return true
         case .embedded: return false
         }
     }
 
-    private var commentRowStyle: CommunityCommentRowStyle {
+    var commentRowStyle: CommunityCommentRowStyle {
         switch layout {
         case .formRows:
             return .form
@@ -107,7 +111,7 @@ struct PlatformReviewsCommentsHost: View {
         }
     }
 
-    private var canSend: Bool {
+    var canSend: Bool {
         !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
@@ -128,7 +132,7 @@ struct PlatformReviewsCommentsHost: View {
                 .listStyle(.insetGrouped)
                 .scrollContentBackground(.visible)
                 .contentMargins(.top, 0, for: .scrollContent)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
+                .platformMessageComposerBottomBar {
                     bottomComposer
                 }
             case .embedded:
@@ -243,11 +247,13 @@ struct PlatformReviewsCommentsHost: View {
                 isLiked: review.isLiked,
                 onLike: { toggleLike(review) },
                 onDislike: { toggleDislike(review) },
-                onReply: { beginReply(to: review) }
+                onReply: allowsReply ? { beginReply(to: review) } : nil
             )
             .contextMenu {
-                Button(PlatformReviewsCopy.reply, systemImage: "arrowshape.turn.up.left") {
-                    beginReply(to: review)
+                if allowsReply {
+                    Button(PlatformReviewsCopy.reply, systemImage: "arrowshape.turn.up.left") {
+                        beginReply(to: review)
+                    }
                 }
                 if review.isOwned(by: currentUserName) {
                     Button(PlatformReviewsCopy.delete, systemImage: "trash", role: .destructive) {
@@ -267,11 +273,13 @@ struct PlatformReviewsCommentsHost: View {
                 ownerBadgeTitle: ownerBadgeTitle,
                 onLike: { toggleLike(review) },
                 onDislike: { toggleDislike(review) },
-                onReply: { beginReply(to: review) }
+                onReply: allowsReply ? { beginReply(to: review) } : nil
             )
             .contextMenu {
-                Button(PlatformReviewsCopy.reply, systemImage: "arrowshape.turn.up.left") {
-                    beginReply(to: review)
+                if allowsReply {
+                    Button(PlatformReviewsCopy.reply, systemImage: "arrowshape.turn.up.left") {
+                        beginReply(to: review)
+                    }
                 }
                 if review.isOwned(by: currentUserName) {
                     Button(PlatformReviewsCopy.delete, systemImage: "trash", role: .destructive) {
@@ -282,95 +290,5 @@ struct PlatformReviewsCommentsHost: View {
         }
     }
 
-    private var bottomComposer: some View {
-        PlatformMessageComposerBar(
-            draft: draftBinding,
-            placeholder: replyTarget == nil
-                ? placeholder
-                : PlatformReviewsCopy.replyPlaceholder(author: replyTarget?.author ?? ""),
-            isEnabled: true,
-            canSend: canSend,
-            isFocused: $focused,
-            replyPreview: replyTarget.map { ($0.author, $0.text) },
-            onCancelReply: { replyTarget = nil },
-            onSend: send
-        )
-    }
-
-    @ViewBuilder
-    private var inlineComposerRow: some View {
-        if showsInlineComposer {
-            TextField(placeholder, text: draftBinding, axis: .vertical)
-                .lineLimit(1...4)
-                .focused($focused)
-                .submitLabel(.send)
-                .onSubmit(send)
-                .platformMessagesSeparatorsHidden()
-        }
-    }
-
-    private func reload() {
-        reviews = PlatformReviewsStore.reviews(for: target)
-        autoExpandCompactThreads()
-    }
-
-    /// ≤2 条回复默认展开一次，避免每次 reload 把用户收起的楼又拉开。
-    private func autoExpandCompactThreads() {
-        guard !didApplyDefaultExpansion else { return }
-        didApplyDefaultExpansion = true
-        for root in PlatformReviewCatalog.sortedRoots(reviews) {
-            let replyCount = reviews.filter { $0.parentID == root.id }.count
-            if replyCount > 0, replyCount <= 2 {
-                expandedIDs.insert(root.id)
-            }
-        }
-    }
-
-    private func beginReply(to review: PlatformReview) {
-        replyTarget = review
-        let rootID = review.parentID ?? review.id
-        expandedIDs.insert(rootID)
-        focused = true
-    }
-
-    private func toggleLike(_ review: PlatformReview) {
-        PlatformReviewsStore.toggleLike(reviewID: review.id, target: target)
-        reload()
-        onChanged()
-    }
-
-    private func toggleDislike(_ review: PlatformReview) {
-        PlatformReviewsStore.toggleDislike(reviewID: review.id, target: target)
-        reload()
-        onChanged()
-    }
-
-    private func send() {
-        let outcome = PlatformReviewSubmission.submit(
-            draft,
-            target: target,
-            author: currentUserName,
-            parent: replyTarget
-        )
-        if let blockedWord = outcome.blockedWord {
-            self.blockedWord = blockedWord
-            return
-        }
-        if let parentID = outcome.expandedParentID {
-            expandedIDs.insert(parentID)
-        }
-        draft = ""
-        replyTarget = nil
-        focused = false
-        reload()
-        onChanged()
-    }
-
-    private func delete(_ review: PlatformReview) {
-        if replyTarget?.id == review.id { replyTarget = nil }
-        PlatformReviewsStore.delete(reviewID: review.id, target: target, author: currentUserName)
-        reload()
-        onChanged()
-    }
 }
 

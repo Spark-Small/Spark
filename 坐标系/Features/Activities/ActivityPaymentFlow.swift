@@ -79,9 +79,10 @@ enum ActivityPaymentStore {
         orders(for: activityID).first { $0.status == .paid }
     }
 
-    /// 详情页订单区：已支付优先，否则展示退款中 / 已退款。
+    /// 详情 / 行程商务条：待支付优先，其次已支付，再次退款态。
     static func displayOrder(for activityID: Activity.ID) -> ActivityOrder? {
-        paidOrder(for: activityID)
+        orders(for: activityID).first { $0.status == .pending }
+            ?? paidOrder(for: activityID)
             ?? orders(for: activityID).first {
                 $0.status == .refunded || $0.status == .refunding
             }
@@ -171,7 +172,7 @@ enum ActivityPaymentStore {
     }
 
     @discardableResult
-    static func markPaid(orderID: UUID, method: PaymentMethod = .wallet) -> PaymentOutcome {
+    static func markPaid(orderID: UUID, method: PaymentMethod = .wallet) async -> PaymentOutcome {
         guard let index = cache.firstIndex(where: { $0.id == orderID }) else {
             return .failed("订单不存在")
         }
@@ -180,19 +181,21 @@ enum ActivityPaymentStore {
             return .failed("订单状态已变更")
         }
         if method != .wallet, !CommercePaymentPolicy.allowsSimulatedExternalCheckout {
+            CommerceAnalytics.checkoutBlocked(method: method.rawValue)
             return .failed(CommercePaymentPolicy.externalCheckoutUnavailableMessage)
         }
         guard let wallet = requireWallet() else {
             return .failed("支付服务未就绪，请稍后重试")
         }
         let order = cache[index]
-        let outcome = wallet.charge(
+        let outcome = await wallet.chargeAsync(
             amountCents: order.amountCents,
             method: method,
             kind: .activityPayment,
             title: order.activityTitle,
             subtitle: "活动报名",
-            relatedID: order.id
+            relatedID: order.id,
+            orderType: "activity"
         )
         guard outcome == .success else { return outcome }
         cache[index].status = .paid
@@ -271,202 +274,5 @@ enum ActivityPaymentStore {
     static func resetAll() {
         cache = []
         persist()
-    }
-}
-
-// MARK: - 订单 / 退款
-
-struct ActivityOrdersSheet: View {
-    let activityID: Activity.ID?
-    var onRefundCompleted: (() -> Void)?
-
-    @Environment(RefundFlowService.self) private var refunds
-    @Environment(ActivitiesModel.self) private var activities
-    @Environment(AppModel.self) private var app
-    @Environment(\.dismiss) private var dismiss
-    @State private var orders: [ActivityOrder] = []
-    @State private var refundError: String?
-    @State private var refundTarget: ActivityOrder?
-    @State private var presentedRefundRequestID: UUID?
-
-    var body: some View {
-        NavigationStack {
-            List {
-                if orders.isEmpty {
-                    ContentUnavailableView {
-                        Label(ActivityDetailCopy.ordersEmptyTitle, systemImage: "doc.text")
-                    } description: {
-                        Text(ActivityDetailCopy.ordersEmptySubtitle)
-                    } actions: {
-                        Button(ActivityDetailCopy.ordersEmptyAction) {
-                            dismiss()
-                            app.selectedTab = .activities
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    .listRowBackground(Color.clear)
-                } else {
-                    ForEach(orders) { order in
-                        ActivityOrderRow(
-                            order: order,
-                            refundRequest: refunds.latestRequest(forOrderID: order.id)
-                        ) {
-                            refundTarget = order
-                        }
-                    }
-                }
-            }
-            .navigationTitle(ActivityDetailCopy.ordersTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .platformSheetConfirmationToolbar()
-            .alert("无法退款", isPresented: Binding(
-                get: { refundError != nil },
-                set: { if !$0 { refundError = nil } }
-            )) {
-                Button("好的", role: .cancel) {}
-            } message: {
-                Text(refundError ?? "")
-            }
-            .sheet(item: $refundTarget) { order in
-                let activity = activities.activity(id: order.activityID)
-                let notes = activity.map { ActivityDetailBlueprint.make(for: $0).refundNotes } ?? []
-                RefundRequestSheet.activityOrder(order, activity: activity, refundNotes: notes) { reason, detail, _ in
-                    beginRefund(order, reason: reason, detail: detail)
-                }
-                .toolbarVisibility(.hidden, for: .tabBar)
-            }
-            .sheet(isPresented: Binding(
-                get: { presentedRefundRequestID != nil },
-                set: { if !$0 { presentedRefundRequestID = nil } }
-            )) {
-                if let requestID = presentedRefundRequestID {
-                    RefundStatusSheet(requestID: requestID)
-                        .toolbarVisibility(.hidden, for: .tabBar)
-                }
-            }
-            .onAppear(perform: reload)
-        }
-        .platformSheet(.browser)
-    }
-
-    private func reload() {
-        if let activityID {
-            orders = ActivityPaymentStore.orders(for: activityID)
-        } else {
-            orders = ActivityPaymentStore.allOrders()
-        }
-    }
-
-    @discardableResult
-    private func beginRefund(_ order: ActivityOrder, reason: String, detail: String) -> Bool {
-        let activity = activities.activity(id: order.activityID)
-        let notes = activity.map { ActivityDetailBlueprint.make(for: $0).refundNotes } ?? []
-        let result = refunds.submitActivityRefund(
-            order: order,
-            activity: activity,
-            refundNotes: notes,
-            reason: reason,
-            detail: detail,
-            cancelRegistration: false
-        )
-        switch result {
-        case .success(let record):
-            presentedRefundRequestID = record.id
-            reload()
-            onRefundCompleted?()
-            return true
-        case .failure(let error):
-            refundError = error.localizedDescription
-            return false
-        }
-    }
-}
-
-struct ActivityOrderRow: View {
-    let order: ActivityOrder
-    var refundRequest: RefundRequestRecord?
-    var onRefund: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading) {
-                    Text(order.activityTitle)
-                        .font(.subheadline.weight(.semibold))
-                    Text(Formatters.conversationListTime(from: order.createdAt))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-                Text(ActivityPaymentStore.statusLabel(for: order.status))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(statusColor)
-                    .padding(.horizontal, PlatformMetrics.chipPaddingHorizontalMini)
-                    .padding(.vertical, PlatformMetrics.chipPaddingVerticalMini)
-                    .background(PlatformSurface.tertiaryFill, in: Capsule())
-            }
-
-            HStack {
-                Text(ActivityFeeParser.formattedPrice(cents: order.amountCents))
-                    .font(.subheadline.weight(.semibold))
-                Text("· \(order.paymentMethod)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            if order.status == .paid, refundRequest == nil {
-                Button(ActivityDetailCopy.refundCTA, role: .destructive) {
-                    onRefund()
-                }
-                .font(.subheadline.weight(.semibold))
-            } else if order.status == .refunding || refundRequest?.status == .submitted || refundRequest?.status == .processing {
-                if let refundRequest {
-                    Text("\(ActivityDetailCopy.refundProcessing) · \(refundRequest.status.label)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text(ActivityDetailCopy.refundProcessing)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            } else if order.status == .refunded {
-                Text(ActivityDetailCopy.refundedHint)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private var statusColor: Color {
-        switch order.status {
-        case .paid: PlatformStatus.success
-        case .pending, .refunding: PlatformStatus.warning
-        case .refunded, .cancelled: .secondary
-        }
-    }
-}
-
-struct ActivityDetailOrderBanner: View {
-    let order: ActivityOrder
-    var onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack {
-                Image(systemName: "doc.text.fill")
-                    .foregroundStyle(PlatformStatus.accent)
-                VStack(alignment: .leading) {
-                    Text(ActivityDetailCopy.orderBannerTitle)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                    Text("\(ActivityPaymentStore.statusLabel(for: order.status)) · \(ActivityFeeParser.formattedPrice(cents: order.amountCents))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-        }
-        .buttonStyle(.borderless)
-        .accessibilityHint("查看订单")
     }
 }

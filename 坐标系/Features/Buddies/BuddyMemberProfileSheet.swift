@@ -47,8 +47,6 @@ struct BuddyMemberProfileSheet: View {
                             .font(.body)
                             .foregroundStyle(.secondary)
                             .lineLimit(4)
-                    } header: {
-                        Text(BuddyDetailCopy.aboutTitle)
                     }
                 }
 

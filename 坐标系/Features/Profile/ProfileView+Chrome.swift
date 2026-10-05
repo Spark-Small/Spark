@@ -31,20 +31,17 @@ func profileOpenClubConversation(
 extension View {
     func profileRootPresentations(
         app: AppModel,
-        showEditProfile: Binding<Bool>,
-        showSettingsFromTip: Binding<Bool>,
+        showLikesReceivedInfo: Binding<Bool>,
+        likesReceivedCount: Int,
         youthBlockedMessage: Binding<String?>
     ) -> some View {
-        sheet(isPresented: showEditProfile) {
-            EditProfileSheet(user: Binding(
-                get: { app.user },
-                set: { updated in app.updateProfile(updated) }
-            ))
-            .platformHiddenTabBar()
-        }
-        .navigationDestination(isPresented: showSettingsFromTip) {
-            ProfileSettingsView()
-                .platformHiddenTabBar()
+        alert(
+            ProfileSocialCopy.likesTitle(name: app.user.name, count: likesReceivedCount),
+            isPresented: showLikesReceivedInfo
+        ) {
+            Button(ProfileSocialCopy.likesDismiss, role: .cancel) {}
+        } message: {
+            Text(ProfileSocialCopy.likesDescription)
         }
         .alert("青少年模式", isPresented: youthBlockedMessage.isOptionalPresented) {
             Button("好的", role: .cancel) { youthBlockedMessage.wrappedValue = nil }
@@ -64,16 +61,15 @@ extension View {
             CommunityPostDetailView(postID: post.id)
                 .platformHiddenTabBar()
         }
-        .navigationDestination(for: CommunityLibraryDestination.self) { destination in
-            CommunityLibraryRouter(destination: destination)
-                .platformHiddenTabBar()
-        }
         .circleBrowseStackChrome(
             buddies: buddies,
             messages: messages,
             memberName: app.user.name,
             blockedUserNames: app.blockedUserNames,
-            onBrowseBuddies: { app.selectedTab = .buddies },
+            onBrowseBuddies: {
+                app.pendingBuddiesRoute = .socialBrowse
+                app.selectedTab = .buddies
+            },
             openCircle: { navigation.openCircle($0) },
             openConversation: { conversationID in
                 profileOpenClubConversation(
@@ -85,6 +81,8 @@ extension View {
                 )
             }
         )
+        // 邀约/预约详情「搭子资料」走 BuddyZoomRoute，须在「我的」栈注册。
+        .buddyZoomNavigationDestination(namespace: activityZoomNamespace)
         .activityPeerChatNavigationDestination()
         .activityZoomNavigationDestination(namespace: activityZoomNamespace)
         .navigationDestination(for: ProfileRoute.self) { route in

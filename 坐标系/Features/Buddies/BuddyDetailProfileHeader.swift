@@ -10,22 +10,16 @@ import CoordinateModels
 
 // MARK: - Identity
 
-struct BuddyDetailProfileStat: Identifiable, Hashable {
-    let id: String
-    var value: String
-    var label: String
-}
-
 struct BuddyDetailProfileHeaderConfig {
     var statusLine: String?
     var statusTint: Color = .secondary
     var traitTags: [String] = []
-    var stats: [BuddyDetailProfileStat] = []
     var hotBadge: BuddyPaidHotBadge?
     var isVerified = false
     var isOnline = false
-    var showsVoicePlay = false
     var rankIconCount = 0
+    /// 本人无录入位时不展示年龄/性别（见 `Project/17`）。
+    var showsGenderAge = true
 }
 
 @MainActor
@@ -38,7 +32,6 @@ enum BuddyDetailProfileHeaderFactory {
             statusLine: isOnline ? BuddyDetailCopy.online : nil,
             statusTint: PlatformStatus.success,
             traitTags: Array(profile.tags.prefix(3)),
-            stats: [],
             isOnline: isOnline
         )
     }
@@ -46,19 +39,15 @@ enum BuddyDetailProfileHeaderFactory {
     static func paid(companion: PaidCompanion) -> BuddyDetailProfileHeaderConfig {
         let profile = companion.profile
         let rankIcons = min(3, max(1, companion.orderCount / 40))
-        let highlights = BuddyPaidMarketCatalog.leaderboardHighlights(for: companion, limit: 2)
-        let tags = Array(profile.tags.prefix(1))
 
         return BuddyDetailProfileHeaderConfig(
             statusLine: companion.isAvailable
                 ? BuddyDetailCopy.available
                 : BuddyDetailCopy.unavailable,
             statusTint: companion.isAvailable ? PlatformStatus.success : .secondary,
-            traitTags: tags + highlights,
-            stats: [],
-            hotBadge: BuddyPaidHotBadge.forCompanion(companion, rank: 1),
+            traitTags: Array(profile.tags.prefix(3)),
+            hotBadge: BuddyPaidHotBadge.forCompanion(companion),
             isVerified: companion.isVerified,
-            showsVoicePlay: companion.serviceType == .voice,
             rankIconCount: rankIcons
         )
     }
@@ -94,6 +83,7 @@ struct BuddyDetailProfileHeader: View {
 
     @Environment(AppModel.self) private var app
     @Environment(CommunityModel.self) private var community
+    @Environment(MessagesModel.self) private var messages
 
     private var displayNickname: String {
         GroupNicknameDisplay.formatted(realName: profile.nickname, groupAlias: groupAlias)
@@ -109,27 +99,32 @@ struct BuddyDetailProfileHeader: View {
 
     var body: some View {
         VStack {
-            HStack(alignment: .center, spacing: PlatformConversationListRow.imageToTextPadding) {
-                HStack(alignment: .top, spacing: PlatformConversationListRow.imageToTextPadding) {
-                    avatar
+            HStack(alignment: .top, spacing: PlatformConversationListRow.imageToTextPadding) {
+                avatar
 
-                    VStack(alignment: .leading, spacing: PlatformMetrics.minContentGap) {
-                        titleRow
-                        metaRow
-                        if !displayTraitTags.isEmpty {
-                            traitRow
-                        }
+                VStack(alignment: .leading, spacing: PlatformMetrics.minContentGap) {
+                    titleRow
+                    metaRow
+                    if !displayTraitTags.isEmpty {
+                        traitRow
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .layoutPriority(1)
 
                 if showsFollow {
-                    Spacer(minLength: 0)
                     followButton
+                        .fixedSize()
                 }
             }
 
             ProfileSocialStatsRow(
-                postCount: ProfileSocialStats.postCount(for: profile.nickname, community: community),
+                likesCount: ProfileSocialStats.likesReceived(for: profile.nickname, community: community),
+                mutualCount: ProfileSocialStats.mutualCount(
+                    for: profile.nickname,
+                    app: app,
+                    messages: messages
+                ),
                 followingCount: ProfileSocialStats.followingCount(for: profile.nickname, app: app),
                 fansCount: ProfileSocialStats.fansCount(for: profile.nickname, app: app)
             )
@@ -147,20 +142,7 @@ struct BuddyDetailProfileHeader: View {
                         .strokeBorder(Color(.separator).opacity(0.35), lineWidth: 1)
                 }
 
-            if config.showsVoicePlay {
-                Image(systemName: "play.fill")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 28, height: 28)
-                    .background(PlatformAction.brandAccent.opacity(0.92), in: Circle())
-                    .overlay {
-                        Circle().strokeBorder(Color(.systemBackground), lineWidth: 2)
-                    }
-                    .frame(width: 44, height: 44)
-                    .contentShape(Circle())
-                    .offset(x: 4, y: 4)
-                    .accessibilityLabel(BuddyDetailCopy.voicePlayLabel)
-            } else if config.isOnline {
+            if config.isOnline {
                 Circle()
                     .fill(PlatformStatus.success)
                     .frame(width: 12, height: 12)
@@ -175,29 +157,59 @@ struct BuddyDetailProfileHeader: View {
     }
 
     private var titleRow: some View {
+        // 宽：名字完整 + 年龄/可约同行；放不下则换行（勿用 Spacer 骗过 ViewThatFits 导致名字变 …）。
+        ViewThatFits(in: .horizontal) {
+            titleRowSingleLine
+            titleRowWrapped
+        }
+    }
+
+    private var titleBadges: some View {
+        HStack(spacing: PlatformMetrics.minContentGap) {
+            if config.showsGenderAge {
+                genderAgeBadge
+            }
+            if let statusLine = config.statusLine {
+                statusBadge(statusLine)
+            }
+        }
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    /// 理想宽度 = 全名 + 徽章（名字 `fixedSize`，装不下就交给 wrapped）。
+    private var titleRowSingleLine: some View {
         HStack(alignment: .center, spacing: PlatformMetrics.minContentGap) {
             Text(displayNickname)
                 .font(.title3.weight(.bold))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
-
-            genderAgeBadge
-
-            if let statusLine = config.statusLine {
-                Text(statusLine)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(config.statusTint)
-                    .padding(.horizontal, PlatformMetrics.captionBadgePaddingHorizontal)
-                    .padding(.vertical, PlatformMetrics.captionBadgePaddingVertical)
-                    .background(config.statusTint.opacity(0.12), in: Capsule())
-            }
-
-            Spacer(minLength: 0)
-
+                .fixedSize(horizontal: true, vertical: false)
+            titleBadges
             if config.rankIconCount > 0 {
                 rankStack
+                    .fixedSize(horizontal: true, vertical: false)
             }
         }
+    }
+
+    private var titleRowWrapped: some View {
+        VStack(alignment: .leading, spacing: PlatformMetrics.minContentGap) {
+            HStack(alignment: .center, spacing: PlatformMetrics.minContentGap) {
+                Text(displayNickname)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .layoutPriority(1)
+                Spacer(minLength: 0)
+                if config.rankIconCount > 0 {
+                    rankStack
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+            }
+            titleBadges
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var genderAgeBadge: some View {
@@ -213,6 +225,15 @@ struct BuddyDetailProfileHeader: View {
         .padding(.vertical, PlatformMetrics.captionBadgePaddingVertical)
         .background(profile.gender.tint.opacity(0.88), in: Capsule())
         .accessibilityLabel("\(profile.gender.rawValue)，\(BuddyDetailCopy.ageValue(profile.age))")
+    }
+
+    private func statusBadge(_ statusLine: String) -> some View {
+        Text(statusLine)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(config.statusTint)
+            .padding(.horizontal, PlatformMetrics.captionBadgePaddingHorizontal)
+            .padding(.vertical, PlatformMetrics.captionBadgePaddingVertical)
+            .background(config.statusTint.opacity(0.12), in: Capsule())
     }
 
     private var rankStack: some View {
@@ -266,19 +287,16 @@ struct BuddyDetailProfileHeader: View {
         }
     }
 
+    @ViewBuilder
     private var followButton: some View {
-        Button {
-            onToggleFollow?()
-        } label: {
-            Text(isFollowing ? BuddyDetailCopy.following : BuddyDetailCopy.follow)
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, PlatformMetrics.chipPaddingHorizontalRegular)
-                .padding(.vertical, PlatformMetrics.chipPaddingVerticalMini)
+        // 与详情内服务档「预约」、底栏 CTA 同族 glass；档位 `.regular` 对齐行内操作。
+        if isFollowing {
+            Button(BuddyDetailCopy.following) { onToggleFollow?() }
+                .activitySecondaryCTA(controlSize: .regular)
+        } else {
+            Button(BuddyDetailCopy.follow) { onToggleFollow?() }
+                .activityPrimaryCTA(controlSize: .regular)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(isFollowing ? Color(.tertiarySystemFill) : .accentColor)
-        .foregroundStyle(isFollowing ? Color.secondary : Color.white)
-        .controlSize(.small)
     }
 }
 

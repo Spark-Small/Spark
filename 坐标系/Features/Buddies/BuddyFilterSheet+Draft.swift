@@ -17,6 +17,7 @@ extension BuddyFilterSheet {
             BuddyFilterDistance.maximumKilometers
         )
         draftHobby = filter.hobby
+        draftIntents = filter.intents
         draftUsesSystemLocation = usesSystemLocation
         draftSelectedCityID = selectedCityID
     }
@@ -24,6 +25,7 @@ extension BuddyFilterSheet {
     func resetDraft() {
         draftMaxDistanceKM = BuddyFilterDistance.maximumKilometers
         draftHobby = nil
+        draftIntents = []
         draftUsesSystemLocation = true
         draftSelectedCityID = BuddyCityCatalog.default.id
         path = NavigationPath()
@@ -34,6 +36,7 @@ extension BuddyFilterSheet {
         case .free:
             filter.maxDistanceKM = draftMaxDistanceKM
             filter.hobby = draftHobby
+            filter.intents = draftIntents
         case .paid:
             filter.maxDistanceKM = draftMaxDistanceKM
         case .clubs:

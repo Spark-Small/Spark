@@ -37,12 +37,11 @@ nonisolated enum BuddyBookingFlowCopy {
     static func priceReplyCaption(priceText: String, responseTime: String) -> String {
         "\(priceText) · \(responseTime) 回复"
     }
-    static let bookingDate = "预约日期"
     static let availableSlotsHeader = "可选档期"
-    static let availableSlotsFooter = "先选日期，再选当日可约时段。"
+    static let availableSlotsFooter = "仅「可约」日期可选；选中后再选当日时段。已满 / 待开放不可约。"
     static let emptyDayFull = "当天档期已满，请换一天。"
     static let emptyDayPending = "当天档期待开放，请稍后再约或换一天。"
-    static let emptyDayDefault = "当天暂无可约时段。"
+    static let emptyDayDefault = "当天暂无可约时段，请点选标了「可约」的日期。"
     static let inviteNoteSection = "留言"
     static let inviteSelectPromptPrefix = "邀请"
     static let inviteSelectPromptSuffix = "一起参加"
@@ -60,9 +59,9 @@ nonisolated enum BuddyBookingFlowCopy {
     static let timeLabel = "时间"
     static var submittedHint: String {
         if FeatureFlags.useRemoteBuddies {
-            return "接单后可在「我的 → 我的订单」核对并完成支付；陪玩确认后会在 App 内通知你。"
+            return "接单后可在「我的 → 我的陪玩」核对并完成支付；陪玩确认后会在 App 内通知你。"
         }
-        return "接单后可在「我的 → 我的订单」查看进度；陪玩通常在 30 分钟内确认，超时将自动取消。"
+        return "接单后可在「我的 → 我的陪玩」查看进度；陪玩通常在 30 分钟内确认，超时将自动取消。"
     }
     static let companionAcceptedPayHint = "对方已接单，请核对订单后完成支付"
     static let companionDeclinedHint = "对方已拒单"
@@ -137,11 +136,11 @@ nonisolated enum BuddyBookingFlowCopy {
     static let back = "返回"
     static let loadingOrder = "加载订单…"
     static let orderProcessing = "订单处理中"
-    static let withdrawBooking = "撤销预约"
+    static let withdrawBooking = "撤回预约"
     static let waitInBackground = "在后台等待"
     static let gotIt = "知道了"
     static let contactCompanion = "联系陪玩"
-    static let openMyBookings = "查看陪玩预约"
+    static let openMyBookings = "查看我的陪玩"
     static let feeLabel = "费用"
     static let hoursUnit = "小时"
     static let confirmServiceCompleted = "确认服务已完成"
@@ -154,7 +153,7 @@ nonisolated enum BuddyBookingFlowCopy {
 
     static let orderNotPayableYet = "订单尚未可支付"
     static let orderNotFound = "订单不存在"
-    static let bookingCancelled = "已取消预约"
+    static let bookingCancelled = "已撤回预约"
     static let bookingStarted = "预约已开始"
     static let bookingCompletedWithCheckIn = "订单已完成，可确认履约情况"
     static let bookingCompleted = "订单已完成"

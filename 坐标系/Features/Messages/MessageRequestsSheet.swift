@@ -11,8 +11,11 @@ import CoordinateModels
 
 struct MessageRequestsSheet: View {
     @Environment(MessagesModel.self) private var model
+    @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     var onOpen: (ChatConversation) -> Void
+
+    @State private var showAddFriendByUID = false
 
     private var pendingFriendRequests: [FriendRequest] {
         model.friendRequests
@@ -48,6 +51,14 @@ struct MessageRequestsSheet: View {
                     onDelete: { declineFriendRequest(request.id) }
                 )
             }
+            .sheet(isPresented: $showAddFriendByUID) {
+                AddFriendByUIDSheet { nickname in
+                    dismiss()
+                    if let convo = app.startDirectChat(with: nickname, deliverGreeting: false) {
+                        onOpen(convo)
+                    }
+                }
+            }
         }
     }
 
@@ -56,6 +67,10 @@ struct MessageRequestsSheet: View {
             Label(MessagesCopy.messageRequestsEmptyTitle, systemImage: "person.crop.circle.badge.questionmark")
         } description: {
             Text(MessagesCopy.messageRequestsEmptyDescription)
+        } actions: {
+            Button(MessagesCopy.addFriendByUID) {
+                showAddFriendByUID = true
+            }
         }
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)

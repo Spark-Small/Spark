@@ -57,6 +57,13 @@ extension View {
         safeAreaBar(edge: .bottom, spacing: 0, content: bar)
     }
 
+    /// 会话 / 帖评 Composer 底栏：官方 `safeAreaBar`（滚动边缘渐进模糊，勿用 `safeAreaInset` 硬切出第三块长方形）。
+    func platformMessageComposerBottomBar<Bar: View>(
+        @ViewBuilder bar: () -> Bar
+    ) -> some View {
+        safeAreaBar(edge: .bottom, spacing: 0, content: bar)
+    }
+
     /// 分类 chip 顶条（可选）：与导航栏 / soft scroll edge 材质联动。
     /// Tab 根若叠 `searchable`，`safeAreaBar(.top)` 易被吃掉高度；改用 `safeAreaInset`。
     /// 广场 Feed 已改为 List 首 Section 挂载 chip（对齐通知中心），一般不再使用本 API。

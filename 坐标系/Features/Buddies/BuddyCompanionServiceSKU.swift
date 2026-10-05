@@ -218,6 +218,8 @@ enum PaidCompanionDetailTab: String, CaseIterable, Identifiable {
     case profile
     case service
     case reviews
+    /// 广场最近分享（从服务 Tab 拆出，避免服务区过长）。
+    case posts
 
     var id: String { rawValue }
 
@@ -226,6 +228,7 @@ enum PaidCompanionDetailTab: String, CaseIterable, Identifiable {
         case .profile: BuddyBrowseCopy.PaidShelf.tabProfile
         case .service: BuddyBrowseCopy.PaidShelf.tabService
         case .reviews: BuddyBrowseCopy.PaidShelf.tabReviews
+        case .posts: BuddyBrowseCopy.PaidShelf.tabPosts
         }
     }
 }

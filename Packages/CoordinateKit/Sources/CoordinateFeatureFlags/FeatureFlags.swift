@@ -75,6 +75,15 @@ public enum FeatureFlags {
         #endif
     }
 
+    /// 远程钱包 / 充值 / 余额扣款（契约已备）。Release / DEBUG 默认关；后端真到账后再开，不得本地假入账。
+    public static var useRemoteWallet: Bool {
+        #if DEBUG
+        UserDefaults.standard.bool(forKey: Keys.useRemoteWallet)
+        #else
+        false
+        #endif
+    }
+
     /// 发现页使用 `SampleData` 人设目录。Release 恒关闭（避免与虚构人设交易）。
     /// DEBUG：远程搭子关着时始终开样例（避免联调一键关掉 Sample 后永久空页）；远程开着时尊重显式开关。
     public static var useSampleBuddiesCatalog: Bool {
@@ -225,6 +234,16 @@ public enum FeatureFlags {
         UserDefaults.standard.set(enabled, forKey: Keys.useRemoteBuddiesWrite)
     }
 
+    public static func setUseRemoteWallet(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: Keys.useRemoteWallet)
+    }
+
+    /// 钱包远程联调（需后端 wallet/topups/charges 已通）。不自动勾 16 B1。
+    public static func enableWalletRemoteIntegration() {
+        setUseRemoteWallet(true)
+        setUseRemoteAuth(true)
+    }
+
     public static func setUseSampleBuddiesCatalog(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: Keys.useSampleBuddiesCatalog)
     }
@@ -312,6 +331,7 @@ public enum FeatureFlags {
         static let useRemoteCommunity = "feature.useRemoteCommunity"
         static let useRemoteBuddies = "feature.useRemoteBuddies"
         static let useRemoteBuddiesWrite = "feature.useRemoteBuddiesWrite"
+        static let useRemoteWallet = "feature.useRemoteWallet"
         static let useSampleBuddiesCatalog = "feature.useSampleBuddiesCatalog"
         static let useRemoteAuth = "feature.useRemoteAuth"
         static let simulateBookingCompanionAcceptance = "feature.simulateBookingCompanionAcceptance"

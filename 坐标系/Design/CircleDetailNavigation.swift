@@ -236,7 +236,10 @@ private struct IndependentNavigationSheetChrome: ViewModifier {
             .environment(\.hasCircleBrowseDestination, false)
             .environment(\.hasBuddyZoomDestination, false)
             .environment(\.hasActivityPeerChatDestination, false)
+            .environment(\.hasCirclePeerChatDestination, false)
             .environment(\.buddyZoomNamespace, nil)
+            // Sheet 自有栈，勿把 Tab 的 path 写成「发消息」目的地。
+            .environment(\.tabNavigationStateRef, nil)
     }
 }
 

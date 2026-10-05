@@ -34,6 +34,8 @@ nonisolated enum MessagesCopy {
     static let filterEmptyTitle = "这个筛选下还没有会话"
     static let filterEmptyDescription = "换个筛选看看，或去发现活动、找搭子"
     static let filterEmptyShowAll = "看全部"
+    static let blockedOnlyEmptyTitle = "暂无可见会话"
+    static let blockedOnlyEmptyDescription = "屏蔽联系人后，相关私聊不会出现在收件箱。可发起新聊天，或去活动、搭子认识新伙伴。"
     static let activityGroupBadge = "活动群"
     static let circleGroupBadge = "俱乐部"
     static func activityGroupWelcome(title: String) -> String {
@@ -53,12 +55,13 @@ nonisolated enum MessagesCopy {
     static let friendsListSearch = "搜索通讯录"
     static let friendsListChat = "发消息"
     static let inviteFriends = "邀请好友"
-    static let inviteFriendsShareText = "来坐标系一起玩活动、找搭子！双方各得 20 积分"
+    static let inviteFriendsShareText = "来坐标系一起玩活动、找搭子！"
 
     static let emptyInboxTitle = "还没有会话"
     static let emptyInboxDescription = "参加活动会自动创建活动群；加入俱乐部或去搭子页打招呼，会话会出现在这里"
     static let emptyInboxBrowseActivities = "去发现活动"
     static let emptyInboxMeetBuddies = "去找搭子"
+    static let emptyInboxOpenStrangers = "查看陌生人信箱"
     static let startChatTitle = "发起聊天"
     static let startChatFooter = "选一位好友开始聊天；选多位好友将创建群聊。"
     static let startChatEmptyTitle = "暂无可选好友"

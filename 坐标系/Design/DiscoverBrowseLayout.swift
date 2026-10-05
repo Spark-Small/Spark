@@ -137,6 +137,31 @@ extension DiscoverBrowseSection where Header == DiscoverSectionTitleRow<EmptyVie
     }
 }
 
+extension DiscoverBrowseSection {
+    /// 标题行带 trailing（如榜期 Menu）：与标题同排，副标题仍独占下一行。
+    init<Trailing: View>(
+        title: String,
+        subtitle: String? = nil,
+        showsChevron: Bool = false,
+        onSeeAll: (() -> Void)? = nil,
+        @ViewBuilder trailing: @escaping () -> Trailing,
+        @ViewBuilder content: @escaping () -> Content
+    ) where Header == DiscoverSectionTitleRow<Trailing> {
+        self.init(
+            header: {
+                DiscoverSectionTitleRow(
+                    title: title,
+                    subtitle: subtitle,
+                    showsChevron: showsChevron,
+                    onSeeAll: onSeeAll,
+                    trailing: trailing
+                )
+            },
+            content: content
+        )
+    }
+}
+
 // MARK: - Horizontal rails
 
 /// 横滑轨道：官方 scrollTargetLayout + viewAligned
@@ -208,7 +233,7 @@ extension View {
     /// 发现类 ScrollView 页：分组底 + 底 safe inset；默认顶边 soft scroll edge（官方栏下滚动交互）。
     /// - Parameter softTopEdge: 是否启用顶边 soft scroll edge。
     func discoverBrowseScrollChrome(softTopEdge: Bool = true) -> some View {
-        scrollDismissesKeyboard(.interactively)
+        platformTextInputScrollChrome()
             .modifier(DiscoverBrowseSoftTopEdgeModifier(enabled: softTopEdge))
             .background(PlatformSurface.groupedPage)
             .safeAreaInset(edge: .bottom) {

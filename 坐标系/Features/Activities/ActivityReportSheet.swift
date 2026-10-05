@@ -33,7 +33,7 @@ struct ActivityReportSheet: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            Form {
                 Section {
                     LabeledContent(ActivityDetailCopy.reportTargetLabel) {
                         Text(activity.title)
@@ -54,7 +54,7 @@ struct ActivityReportSheet: View {
 
                 Section {
                     TextField(ActivityDetailCopy.reportDetailPlaceholder, text: $detail, axis: .vertical)
-                        .lineLimit(4...8)
+                        .platformFormTextInput(.report)
                 } header: {
                     Text(ActivityDetailCopy.reportDetailLabel)
                 } footer: {

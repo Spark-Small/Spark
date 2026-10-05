@@ -74,8 +74,13 @@ struct CallSessionView: View {
             .navigationBarTitleDisplayMode(.inline)
             .task(id: call?.status) {
                 guard let call, call.status == .ringing else { return }
+                // Release 无真通话通道：保持振铃，由用户挂断；勿假装已接通。
+                #if DEBUG
                 try? await Task.sleep(for: .milliseconds(900))
                 model.connectCall(callID)
+                #else
+                _ = call
+                #endif
             }
         }
     }

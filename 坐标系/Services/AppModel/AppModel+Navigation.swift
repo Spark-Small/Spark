@@ -45,13 +45,18 @@ extension AppModel {
         router.apply(.activity(id), selectedTab: &selectedTab)
     }
 
-    /// 通知：打开「我的 → 陪玩预约」（可定位到具体单）
+    /// 通知：打开「我的 → 我的陪玩」（可定位到具体单）
     func openMyBookings(bookingID: BuddyBookingRecord.ID? = nil) {
         router.apply(.booking(bookingID), selectedTab: &selectedTab)
     }
 
     func openClubDiscover() {
         router.apply(.buddies(.clubDiscover), selectedTab: &selectedTab)
+    }
+
+    /// 行程下一步等：切到搭子 Tab 并打开「约陪玩」。
+    func openPaidCompanionBrowse() {
+        router.apply(.buddies(.paidBrowse), selectedTab: &selectedTab)
     }
 
     func handleNotificationDeepLink(_ link: NotificationDeepLink) {

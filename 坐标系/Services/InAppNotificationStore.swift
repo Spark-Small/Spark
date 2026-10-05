@@ -87,6 +87,12 @@ struct InAppNotificationItem: Identifiable, Codable, Hashable, Sendable {
         if let communityPostID {
             return .communityPost(communityPostID)
         }
+        if let kind = activityKind, kind.hasPrefix("activity-invite") {
+            if kind == "activity-invite-accepted", let activityID {
+                return .activity(activityID, followUp: .none)
+            }
+            return .activityInvites
+        }
         if let activityID {
             let followUp: ActivityNotificationFollowUp = switch activityKind {
             case "activity-recap": .journeyFeedback

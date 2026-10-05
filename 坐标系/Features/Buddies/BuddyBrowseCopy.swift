@@ -21,7 +21,6 @@ nonisolated enum BuddyBrowseCopy {
         static let paidWallTitle = "更多陪玩"
     }
 
-    static let circlesTitle = "同城俱乐部"
     static let availableOnlyChip = "仅可约"
     static let leaderboardRankTitle = "榜期"
     /// 发现 / 详情 / Context 陪玩主动词（短口语，对齐 Calendar「预约」）
@@ -35,46 +34,36 @@ nonisolated enum BuddyBrowseCopy {
         static let share = "分享"
     }
 
-    enum MyBookings {
-        static func statusFooter(count: Int, needsAttention: Int) -> String {
-            if needsAttention > 0 {
-                return "\(needsAttention) 笔待确认或待支付 · 共 \(count) 笔进行中"
-            }
-            return "\(count) 笔进行中"
-        }
-    }
-
     enum Toolbar {
         static let filter = "筛选"
         static let filterActive = "筛选（已启用）"
     }
 
     enum Empty {
-        static let noMatchTitle = "没有找到可约的人"
+        static let noMatchTitleFree = "没有找到合适的同好"
+        static let noMatchTitlePaid = "没有找到可约的陪玩"
         static let noMatchBody = "放宽性别、距离或兴趣后再试"
         static let locatingTitle = "正在获取位置…"
-        static let locatingBody = "定位后会按同城推荐可约的人；也可在筛选里指定城市"
-        static let nearbyEmptyTitle = "附近暂时没有可约的人"
-        static let nearbyEmptyBody = "扩大距离，或换个城市再找搭子 / 陪玩"
-        static let noPaidNearby = "附近暂无可约的陪玩"
+        /// 与 `matchesBrowseLocation` 软启动行为对齐：GPS 不硬筛样例/远程目录。
+        static let locatingBody = "定位用于天气与当前位置展示；发现列表暂不按 GPS 硬筛，也可在筛选里指定城市"
+        static let nearbyEmptyTitle = "暂时没有合适的人"
+        static let nearbyEmptyTitleFree = "暂时没有合适的同好"
+        static let nearbyEmptyTitlePaid = "暂时没有可约的陪玩"
+        static let nearbyEmptyBody = "可放宽距离、性别或兴趣；在筛选里指定城市后才会按城过滤"
+        static let noPaidNearby = "暂无可约的陪玩"
         static let noFreeFiltered = "没有符合条件的同好"
         static let noPaidFiltered = "没有符合条件的陪玩"
         static let clearFilters = "清除筛选，重新找人"
         static let adjustFilters = "调整找人条件"
         static let pickCity = "指定城市找人"
         static let relaxFilters = "放宽条件继续找"
+        static let recentsBackToBrowse = "回找搭子继续看"
         static let clubsEmptyTitle = "暂时没有可加入的俱乐部"
-        static let clubsEmptyBody = "附近暂时没有新俱乐部；可在「我的」创建，或稍后再来"
-        static let clubsEmptyAction = "去我的创建"
+        static let clubsEmptyBody = "软启动暂不按定位硬筛；可在筛选指定城市，或在「我的 · 我的俱乐部」创建"
+        static let clubsEmptyAction = "去我的俱乐部"
         static let clubsFilteredEmpty = "没有符合条件的俱乐部"
     }
 
-    enum Guilds {
-        static let listTitle = "我的工会"
-        static let emptyTitle = "还没有关注工会"
-        static let emptyBody = "在搭子 · 陪玩页关注工会后，会出现在这里。"
-        static let browseCTA = "去搭子看看"
-    }
 
     enum ShelfA11y {
         static let enterVoiceHall = "进厅"
@@ -107,12 +96,17 @@ nonisolated enum BuddyBrowseCopy {
 
     enum ModeSwitch {
         static let picker = "浏览模式"
+        static let menuHint = "切换找搭子、约陪玩、俱乐部或最近浏览"
     }
 
     static let recentsTitle = "最近浏览"
     static let recentsEmptyTitle = "还没有浏览记录"
     static let recentsEmptyDescription = "查看搭子、陪玩或俱乐部详情后会出现在这里"
     static let recentsClear = "清空"
+    static let recentsBack = "返回"
+    static func recentsBackHint(_ previousTitle: String) -> String {
+        "回到\(previousTitle)"
+    }
     static let recentsSectionPeople = "看过的人"
     static let recentsSectionClubs = "看过的俱乐部"
 
@@ -129,6 +123,7 @@ nonisolated enum BuddyBrowseCopy {
         static let tabProfile = "资料"
         static let tabService = "服务"
         static let tabReviews = "评价"
+        static let tabPosts = "动态"
         static let detailTabPicker = "详情分区"
         static func tabReviewsCount(_ n: Int) -> String { "评价 \(n)" }
     }

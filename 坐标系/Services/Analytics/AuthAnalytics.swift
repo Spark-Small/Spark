@@ -11,6 +11,7 @@ enum AuthAnalytics {
     enum Source: String {
         case login
         case createAccount = "create_account"
+        case bindPhone = "bind_phone"
     }
 
     enum Method: String {

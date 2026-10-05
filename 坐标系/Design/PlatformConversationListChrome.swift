@@ -8,16 +8,19 @@
 import SwiftUI
 import UIKit
 
-/// 行程等「卡入 List」行边距：几何收在 Design，Features 只调此 API
-enum PlatformCardListRow {
+/// insetGrouped 内目录横卡行边距（备用）：水平交给分组 Layout Margins；
+/// 垂直各半个 `discoverCardSpacing`（与活动发现竖列卡距同构）。
+/// 「我的活动」主路径走 ScrollView + `discoverBrowseContentInset`，不经此枚举。
+enum PlatformCatalogCardListRow {
     static var insets: EdgeInsets {
-        EdgeInsets(
-            top: PlatformMetrics.sectionHeaderSpacing,
-            leading: PlatformMetrics.contentInset,
-            bottom: PlatformMetrics.sectionHeaderSpacing,
-            trailing: PlatformMetrics.contentInset
-        )
+        let vertical = PlatformMetrics.discoverCardSpacing / 2
+        return EdgeInsets(top: vertical, leading: 0, bottom: vertical, trailing: 0)
     }
+}
+
+/// 旧名：与 `PlatformCatalogCardListRow` 同几何（行程 / 我的活动卡入 List）。
+enum PlatformCardListRow {
+    static var insets: EdgeInsets { PlatformCatalogCardListRow.insets }
 }
 
 /// Form / 普通 List 内媒体或系统按钮行：水平交给系统 margins，垂直用 subtitleCell。
@@ -83,7 +86,9 @@ enum PlatformConversationListRow {
     /// 图↔文 = `subtitleCell.imageToTextPadding`
     static var imageToTextPadding: CGFloat {
         let padding = configuration.imageToTextPadding
-        return padding > 0 ? padding : PlatformMetrics.minContentGap
+        return padding > 0
+            ? padding
+            : UIFont.preferredFont(forTextStyle: .body).pointSize
     }
 
     /// 主↔副文 = `subtitleCell.textToSecondaryTextVerticalPadding`
@@ -149,6 +154,15 @@ extension View {
     func platformWalletPassCredentialRow() -> some View {
         self
             .listRowInsets(PlatformWalletPassListRow.insets)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .navigationLinkIndicatorVisibility(.hidden)
+    }
+
+    /// insetGrouped 内目录横卡：清分隔线；垂直半个 `discoverCardSpacing`；水平不叠 contentInset。
+    func platformCatalogCardListRow() -> some View {
+        self
+            .listRowInsets(PlatformCatalogCardListRow.insets)
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
             .navigationLinkIndicatorVisibility(.hidden)

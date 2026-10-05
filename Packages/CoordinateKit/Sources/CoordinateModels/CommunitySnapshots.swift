@@ -17,6 +17,9 @@ public struct CommunityComment: Identifiable, Hashable, Codable, Sendable {
     public var dislikeCount: Int
     /// 当前用户是否已踩（运行时）
     public var isDisliked: Bool
+    /// 本机语音评论文件名（LocalMediaLibrary）；未上云。
+    public var voiceLocalName: String?
+    public var voiceDuration: Double?
 
     public init(
         id: UUID,
@@ -29,7 +32,9 @@ public struct CommunityComment: Identifiable, Hashable, Codable, Sendable {
         region: String? = nil,
         isLiked: Bool = false,
         dislikeCount: Int = 0,
-        isDisliked: Bool = false
+        isDisliked: Bool = false,
+        voiceLocalName: String? = nil,
+        voiceDuration: Double? = nil
     ) {
         self.id = id
         self.author = author
@@ -42,6 +47,8 @@ public struct CommunityComment: Identifiable, Hashable, Codable, Sendable {
         self.isLiked = isLiked
         self.dislikeCount = dislikeCount
         self.isDisliked = isDisliked
+        self.voiceLocalName = voiceLocalName
+        self.voiceDuration = voiceDuration
     }
 
     public init(from decoder: Decoder) throws {
@@ -57,6 +64,8 @@ public struct CommunityComment: Identifiable, Hashable, Codable, Sendable {
         isLiked = try container.decodeIfPresent(Bool.self, forKey: .isLiked) ?? false
         dislikeCount = try container.decodeIfPresent(Int.self, forKey: .dislikeCount) ?? 0
         isDisliked = try container.decodeIfPresent(Bool.self, forKey: .isDisliked) ?? false
+        voiceLocalName = try container.decodeIfPresent(String.self, forKey: .voiceLocalName)
+        voiceDuration = try container.decodeIfPresent(Double.self, forKey: .voiceDuration)
     }
 
     public var isReply: Bool { parentID != nil }

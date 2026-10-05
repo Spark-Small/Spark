@@ -22,8 +22,7 @@ enum CommunityBrowseCopy {
     static let emptyTitle = "还没有分享"
     static let emptyDescription = "把好玩的局、路线和探店记下来，让更多人看见"
     static let retryLoad = "重试"
-    static let searchPrompt = "搜索分享、作者或标签"
-    static let composeAccessibility = "发分享"
+    static let composeAccessibility = "发帖"
 
     static let filterAll = "全部"
     static let filterFollowing = "关注"
@@ -31,7 +30,7 @@ enum CommunityBrowseCopy {
     static let filterConversation = "热议"
     /// 关联你参加/主办的活动，或正文提到你（非纯 @ 社交 Inbox）。
     static let filterMention = "与我相关"
-    /// 发现未关注作者的供给（与「关注」互斥）；切勿写成「你关注的用户」。
+    /// 发现未关注作者的供给（与「关注」互斥）；关注后本会话帖保留，离档后再筛。
     static let filterPeopleYouFollow = "发现作者"
     static let filterBarAccessibility = "广场筛选"
 
@@ -53,13 +52,12 @@ enum CommunityBrowseCopy {
     static let feedEmptyConversationHint = "去「全部」逛逛，参与评论后会出现在这里"
     static let feedEmptyConversationAction = "看全部"
     static let feedEmptyMention = "还没有与你相关的分享"
-    static let feedEmptyMentionHint = "参加活动或发分享后，关联内容会出现在这里"
+    static let feedEmptyMentionHint = "参加活动或发帖后，关联内容会出现在这里"
     static let feedEmptyMentionAction = "看全部"
     static let viewShare = "查看分享"
-    static let openPostDetailHint = "打开分享详情"
     static let feedMediaDoubleTapLikeHint = "左右滑动切换图片，双击点赞"
     /// 远程写未开：诚实披露本机可见，禁止暗示全网已达。
-    static let publishSuccess = "分享已保存到本机广场"
+    static let publishSuccess = "帖子已保存到本机广场"
     static let reportSubmitted = "已提交举报，该分享已从你的信息流隐藏"
     static let postMissingTitle = "分享不存在"
     static let postMissingDescription = "可能已被删除，或尚未同步到本机。"

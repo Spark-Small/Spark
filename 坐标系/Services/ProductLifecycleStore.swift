@@ -200,7 +200,7 @@ final class ProductLifecycleStore {
                 ProductLifecycleTip(
                     id: "first-order",
                     title: "完成一次轻履约",
-                    detail: "参加一场活动或预约陪玩，订单会出现在「我的订单」。",
+                    detail: "参加一场活动或预约陪玩，会分别出现在「我的活动」「我的陪玩」。",
                     systemImage: "checkmark.seal"
                 )
             )

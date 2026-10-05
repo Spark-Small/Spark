@@ -21,7 +21,7 @@ enum BuddyScheduleSlot {
             switch self {
             case .bookable: BuddyDetailCopy.available
             case .full: ActivityCardStatus.full
-            case .pending: "待开放"
+            case .pending: BuddyDetailCopy.schedulePending
             case .none: nil
             }
         }
@@ -128,6 +128,22 @@ enum BuddyScheduleSlot {
             .filter { calendar.isDate($0.start, inSameDayAs: dayStart) }
     }
 
+    /// 最近一个可约自然日（不含过去）。
+    static func firstBookableDay(
+        slots: [String],
+        reference: Date = .now,
+        calendar: Calendar = .current
+    ) -> Date? {
+        let today = calendar.startOfDay(for: reference)
+        return dayAvailabilityMap(slots: slots, reference: reference, calendar: calendar)
+            .compactMap { day, status -> Date? in
+                guard status == .bookable, day >= today else { return nil }
+                return day
+            }
+            .sorted()
+            .first
+    }
+
     private static func resolveRelativeDay(
         _ label: String,
         calendar: Calendar,
@@ -197,10 +213,10 @@ enum BuddyScheduleSlot {
         return resolved
     }
 
+    /// `weekday`：Calendar 惯例（1=周日 … 7=周六）。同一天返回 0（再由时刻决定是否顺延）。
     private static func daysUntil(weekday: Int, from date: Date, calendar: Calendar) -> Int {
         let current = calendar.component(.weekday, from: date)
-        let delta = (weekday - current + 7) % 7
-        return delta == 0 ? 7 : delta
+        return (weekday - current + 7) % 7
     }
 
     private static func nextWeekday(from date: Date, calendar: Calendar) -> Int {

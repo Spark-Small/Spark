@@ -17,7 +17,7 @@ CredentialArt 为 **App 内活动行程凭证** 的头图彩绘系统，与 **Pa
 | **纪念分享卡** | `ActivityJourneyMementoShareCard`（9:16，无条码） |
 | **Wallet 导出** | `PassPackageBuilder` 生成 strip PNG；字段对齐 `ActivityPassFieldBuilder` |
 
-用户主路径是「我的」夹 → Zoom 展开行程页 → **分享纪念票**；**加入 Apple Wallet** 在「更多」菜单，非主 CTA。
+用户主路径是「我的活动 / 我的陪玩」→ 展开行程/凭证 → **分享纪念票**；**不**提供「加入 Apple Wallet」。
 
 ---
 

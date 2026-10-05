@@ -116,7 +116,7 @@ struct ContentView: View {
             Tab("搭子", systemImage: "person.2", value: AppTab.buddies) {
                 BuddiesView()
             }
-            .badge(model.buddies.actionableBookingCount)
+            .badge(model.buddies.pendingBookingAttentionCount)
 
             if !mergesCommunity {
                 Tab("广场", systemImage: "bubble.left.and.bubble.right", value: AppTab.community) {
@@ -147,7 +147,6 @@ struct ContentView: View {
         .environment(model.privacyPreferencesStore)
         .environment(model.youthModeStore)
         .environment(model.legalConsentStore)
-        .environment(model.membershipAdImpressionStore)
         .environment(model.photoVerificationStore)
         .environment(model.opsContentStore)
         .environment(model.walletPassStore)

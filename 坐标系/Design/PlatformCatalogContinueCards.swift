@@ -21,6 +21,7 @@ struct PlatformContinueCard: View {
     var isJoined = false
     var isWaitlisted = false
     var isFull = false
+    var isLifecycleEnded = false
     var onJoin: (() -> Void)?
 
     private var prefersStacked: Bool {
@@ -56,6 +57,7 @@ struct PlatformContinueCard: View {
             isJoined: isJoined,
             isWaitlisted: isWaitlisted,
             isFull: isFull,
+            isLifecycleEnded: isLifecycleEnded,
             onJoin: onJoin
         )
     }
@@ -96,6 +98,7 @@ struct PlatformEventCard: View {
     var isJoined = false
     var isWaitlisted = false
     var isFull = false
+    var isLifecycleEnded = false
     var onCoverTap: (() -> Void)? = nil
     var onJoin: (() -> Void)?
 
@@ -135,6 +138,7 @@ struct PlatformEventCard: View {
             isJoined: isJoined,
             isWaitlisted: isWaitlisted,
             isFull: isFull,
+            isLifecycleEnded: isLifecycleEnded,
             onJoin: onJoin
         )
     }

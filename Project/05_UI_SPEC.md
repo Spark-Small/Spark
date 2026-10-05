@@ -39,7 +39,7 @@
 - Trailing：`ToolbarItemGroup` + `ToolbarSpacer` 分组；筛选生效换顶栏 SF Symbol（当前主条件图标，无角标）；好友请求等计数仍可用 `.badge`；图标 `.platformNavigationBarItemChrome()`（系统 `.primary`）  
 - **不**挂自定义 clover `.tint`；主按钮跟随系统 AccentColor  
 - **不**手绘 NavigationBar；**不**用空 principal 压制 compact title；**不**提供 scroll-away / `navigationSubtitle` / 回顶令牌  
-- 活动 / 搭子：额外 `toolbarTitleMenu`（系统 leading 标题菜单）  
+- 活动：额外 `toolbarTitleMenu`（系统 leading 标题菜单）；搭子：模式切换在 Trailing Menu（筛选右侧）  
 
 ## 3. 字体
 
@@ -67,9 +67,9 @@
 |-----|------|----------|----------|---------------|
 | 活动 | Scroll 货架 | 仅 `discoverBrowseContentInset` / Rail `contentMargins`；标题 `DiscoverSectionTitleRow` 一条 gutter | 外层 `VStack(spacing: 0)` 锚点 + 内层 `LazyVStack(spacing: sectionSpacing)`（**发现专用**） | 再手写水平魔法 padding；标题+内容双重页边；锚点与首块同处 `sectionSpacing` 栈；把 List 行距套进货架 |
 | 搭子 | 同上 | 同上 | 同上（与活动同构） | 同上 |
-| 消息 | plain List | `platformConversationListChrome` contentMargins；行距 subtitleCell；Features **只用** `PlatformMessagesChrome` / `PlatformConversationListRow` | 旁路 `listRowInsets(…contentInset…)`；发现 `railCardSpacing`；List 空态再叠 `emptyStateVerticalPadding` |
+| 消息 | plain List | `platformConversationListChrome` contentMargins；行距 subtitleCell；Features **只用** `PlatformMessagesChrome` / `PlatformConversationListRow`；空态 `ContentUnavailableView` 裸 Button | 旁路 `listRowInsets(…contentInset…)`；发现 `railCardSpacing`；空态再叠业务 CTA 皮 / `emptyStateVerticalPadding` |
 | 广场 | plain List / Detail Scroll | `communityFeedChrome` / `communityDetailScrollChrome` → `PlatformConversationListRow.horizontalInset` | Feed：`listSectionSpacing` + 卡内 `communityRowToContentSpacing` / `communityInlineSpacing`；行栈禁止默认 `VStack`/`HStack` spacing；Leading 走系统 Dynamic Type，**不**设 `.lineSpacing` | 旁路魔法 inset；行与 List `contentMargins` 双重水平缩进；embedded 评论再叠 `contentInset` |
-| 我的 | insetGrouped | **系统分组页边**；Banner/全宽行 leading/trailing = 0 | 系统默认分节距（**非** `.compact`）；与 Settings 同族 | 再叠 `leading: contentInset`；用发现 `LazyVStack` 节奏冒充 Settings |
+| 我的 | insetGrouped / 货架 | Settings 同族走 `profileSecondaryListChrome`（系统分组页边；默认**非** compact；可选 `flushTop`）；全宽卡 `profileGroupedFullBleedRowChrome`；库页货架 `profileLibraryBrowseChrome` + `discoverBrowseContentInset` / `discoverCardSpacing` | 根 List：`platformTabRootListChrome(compactSections: false)` | 二级页强制 `.compact`；再叠 `leading: contentInset`；营销头双重水平页边；库页缺 soft 顶边 |
 
 品牌色：系统 AccentColor；**禁止**内容区挂自定义 clover `.tint`。
 

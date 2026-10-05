@@ -55,12 +55,33 @@ extension ActivitiesView {
         navigation.path.append(ActivityZoomSource(activityID: activity.id, slot: "programmatic"))
     }
 
+    /// 发现根落地：退出「最近看过」、清成功 Sheet、重置栈（对齐搭子 `landOnDiscover`）。
+    func landOnActivitiesDiscoverRoot() {
+        model.exitBrowseRecents()
+        model.dismissJoinSuccess()
+        model.dismissPublishSuccess()
+        navigation.reset()
+        discoverBrowseScrollRequest += 1
+    }
+
+    func consumeDiscoverFocusLandIfNeeded() {
+        let token = app.activitiesDiscoverBrowseFocusToken
+        guard token > 0, token != consumedDiscoverFocusToken else { return }
+        consumedDiscoverFocusToken = token
+        landOnActivitiesDiscoverRoot()
+    }
+
+    func landOnEmbeddedCommunityFeed() {
+        landOnActivitiesDiscoverRoot()
+        navigation.path.append(ActivitiesBrowseRoute.communityFeed)
+    }
+
     func consumePendingActivityOpen() {
         guard let id = app.pendingActivityID else { return }
         let followUp = app.pendingActivityFollowUp
         app.pendingActivityID = nil
         app.pendingActivityFollowUp = .none
-        navigation.reset()
+        landOnActivitiesDiscoverRoot()
 
         switch followUp {
         case .none:

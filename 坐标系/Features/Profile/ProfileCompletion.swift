@@ -2,34 +2,33 @@
 //  ProfileCompletion.swift
 //  坐标系
 //
-//  「我的」资料完整度：首页环形进度与编辑页共用。
+//  「好读懂」资料完整度：编辑环与「我的」进度共用（软激励，非硬门闸）。
 //
 
 import Foundation
 import UIKit
 import CoordinateModels
 
-/// 7 项资料：头像（自定义上传）、昵称、ID、城市、简介、搭子宣言、兴趣标签。
+/// 6 项「好读懂」：头像、≥3 墙图、简介、≥1 Prompt、性别、年龄。
 enum ProfileCompletion {
-    static let fieldCount = 7
+    static let fieldCount = 6
+    static let galleryReadableMinimum = 3
 
     static func ratio(
         hasAvatar: Bool,
-        name: String,
-        handle: String,
-        city: String,
+        galleryCount: Int,
         bio: String,
-        lookingFor: String = "",
-        interestsCount: Int
+        promptsCount: Int,
+        hasGender: Bool,
+        hasAge: Bool
     ) -> Double {
         let filled = [
             hasAvatar,
-            !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            !handle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            !city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            galleryCount >= galleryReadableMinimum,
             !bio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            !lookingFor.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            interestsCount > 0
+            promptsCount >= 1,
+            hasGender,
+            hasAge
         ].filter(\.self).count
         return Double(filled) / Double(fieldCount)
     }
@@ -37,12 +36,11 @@ enum ProfileCompletion {
     static func ratio(for user: AppUser) -> Double {
         ratio(
             hasAvatar: user.avatarLocalName != nil,
-            name: user.name,
-            handle: user.handle,
-            city: user.city,
+            galleryCount: user.galleryLocalNames.count,
             bio: user.bio,
-            lookingFor: user.lookingFor,
-            interestsCount: user.interests.count
+            promptsCount: user.prompts.count,
+            hasGender: user.gender != nil,
+            hasAge: (user.age ?? 0) > 0
         )
     }
 }

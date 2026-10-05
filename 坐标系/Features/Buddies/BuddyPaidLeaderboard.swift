@@ -34,15 +34,10 @@ struct BuddyPaidLeaderboard: View {
             title: BuddyBrowseCopy.PaidShelf.leaderboardTitle,
             subtitle: BuddyBrowseCopy.PaidShelf.leaderboardSubtitle,
             showsChevron: onSeeAll != nil,
-            onSeeAll: onSeeAll
+            onSeeAll: onSeeAll,
+            trailing: { periodMenu }
         ) {
             VStack(spacing: PlatformMetrics.discoverCardSpacing) {
-                HStack {
-                    Spacer(minLength: 0)
-                    periodMenu
-                }
-                .discoverBrowseContentInset()
-
                 if !topThree.isEmpty {
                     DiscoverHorizontalRail {
                         ForEach(Array(topThree.enumerated()), id: \.element.id) { index, item in
@@ -74,24 +69,16 @@ struct BuddyPaidLeaderboard: View {
         }
     }
 
+    /// 官方分区：标题同行 trailing Menu（Music / App Store 货架筛选项气质）。
     private var periodMenu: some View {
-        Menu {
+        Picker(BuddyBrowseCopy.leaderboardRankTitle, selection: $period) {
             ForEach(BuddyPaidBoardPeriod.allCases) { option in
-                Button {
-                    period = option
-                } label: {
-                    Label(option.rawValue, systemImage: period == option ? "checkmark" : "")
-                }
+                Text(option.rawValue).tag(option)
             }
-        } label: {
-            HStack(spacing: PlatformMetrics.hairlineSpacing) {
-                Text(period.rawValue)
-                    .font(.caption.weight(.medium))
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.caption2)
-            }
-            .foregroundStyle(.secondary)
         }
+        .pickerStyle(.menu)
+        .labelsHidden()
+        .tint(.secondary)
         .accessibilityLabel(BuddyBrowseCopy.leaderboardRankTitle)
         .accessibilityValue(period.rawValue)
     }

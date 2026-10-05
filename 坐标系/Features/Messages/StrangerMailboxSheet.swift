@@ -20,7 +20,7 @@ struct StrangerMailboxSheet: View {
 
     var body: some View {
         MessagesBrowserSheet(title: MessagesCopy.strangerMailboxTitle) {
-            List {
+            Group {
                 if threads.isEmpty {
                     ContentUnavailableView {
                         Label(
@@ -30,40 +30,41 @@ struct StrangerMailboxSheet: View {
                     } description: {
                         Text(MessagesCopy.strangerMailboxEmptyDescription)
                     }
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                    .platformContentUnavailablePageChrome()
                     .accessibilityElement(children: .combine)
                 } else {
-                    ForEach(threads) { conversation in
-                        Button {
-                            openThread(conversation)
-                        } label: {
-                            PlatformConversationRow(
-                                title: conversation.title,
-                                subtitle: conversation.inboxListSecondary,
-                                time: conversation.updatedAt,
-                                isUnread: conversation.unreadCount > 0
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .messagesListRow()
-                        .accessibilityHint(MessagesCopy.strangerMailboxOpenHint)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    List {
+                        ForEach(threads) { conversation in
                             Button {
-                                moveToInbox(conversation)
+                                openThread(conversation)
                             } label: {
-                                Image(systemName: "tray.and.arrow.down")
+                                PlatformConversationRow(
+                                    title: conversation.title,
+                                    subtitle: conversation.inboxListSecondary,
+                                    time: conversation.updatedAt,
+                                    isUnread: conversation.unreadCount > 0
+                                )
                             }
-                            .tint(.accentColor)
-                            .accessibilityLabel(MessagesCopy.strangerMailboxMoveToInbox)
-                        }
-                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                model.declineMessageRequest(conversation.id)
-                            } label: {
-                                Image(systemName: "trash")
+                            .buttonStyle(.plain)
+                            .messagesListRow()
+                            .accessibilityHint(MessagesCopy.strangerMailboxOpenHint)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button {
+                                    moveToInbox(conversation)
+                                } label: {
+                                    Image(systemName: "tray.and.arrow.down")
+                                }
+                                .tint(.accentColor)
+                                .accessibilityLabel(MessagesCopy.strangerMailboxMoveToInbox)
                             }
-                            .accessibilityLabel(MessagesCopy.strangerMailboxDelete)
+                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    model.declineMessageRequest(conversation.id)
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                                .accessibilityLabel(MessagesCopy.strangerMailboxDelete)
+                            }
                         }
                     }
                 }

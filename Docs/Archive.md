@@ -60,7 +60,7 @@
 
 | 旧文件 | 新文件 |
 |--------|--------|
-| `BuddyOrgInfoViews.swift` | `BuddyOrgInfoScaffold`、`CircleGroupManageViews`、`ProfileCircleDetailView`、`ProfileGuildsListView` |
+| `BuddyOrgInfoViews.swift` | `BuddyOrgInfoScaffold`、`CircleGroupManageViews`、`ProfileCircleDetailView`（`ProfileGuildsListView` 已删，工会入口走「我的俱乐部」） |
 | `MessagesModel+Social.swift` | `+RichPayloads` / `+GroupAdmin` / `+FriendRequests` / `+FriendProfile` / `+Search` / `+Persistence` |
 | `LocalRepositories.swift`（App 层聚合） | `Packages/CoordinateKit/.../CoordinateData/Local*Repository.swift` |
 | `EngagementRepository.swift`（App 层 typealias） | 直接使用 `CoordinateDomain.EngagementRepository` |
@@ -79,7 +79,10 @@
 | `ContentView` `@State chromeMeasurements` | `PlatformChromeRoot` @ `坐标系App` |
 | `@MainActor static var defaultValue`（EnvironmentKey） | `MainActor.assumeIsolated` 惰性单例（见 DevelopmentGuide §7.4） |
 | `.tabPushDestination`（文档曾用名） | 目的地直接 `.toolbarVisibility(.hidden, for: .tabBar)` |
-| `SnapshotFileActor`（包内存在但未接线） | JSON 回退实际走 `LocalSnapshotFileStore` |
+| `SnapshotFileActor`（已删除） | JSON 回退实际走 `LocalSnapshotFileStore` |
+| `WalletPassStack` / `WalletRecordFace` | 票面走 `WalletPassFace*`；余额卡走 `WalletPaymentCardFace` |
+| `ChatTypes.swift` | `ChatConversation` / `ChatMessage` / `ChatGroupTypes` |
+| `ActivitiesWriting` / `BuddiesWriting` | 写路径收口 Domain UC + Model 扩展 |
 | `BuddyPeopleBrowseHeader` / `BuddyBookingCatalogHeader` / `BuddyServiceCard` | 已移除；见 DESIGN_SYSTEM |
 | `PassFaceModel.stripIllustrationName` | 彩绘改走 `CredentialArtCatalog` |
 | App 内票面右上角「加入 Wallet」主 CTA | 主 CTA **分享纪念票**；Wallet 在「更多」菜单 |

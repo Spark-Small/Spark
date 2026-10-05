@@ -21,7 +21,16 @@ enum SampleData {
         hostedCount: 6,
         buddyCount: 42,
         interests: currentUserInterests,
-        lookingFor: "周末羽毛球局、夜骑、咖啡探店"
+        lookingFor: "周末羽毛球局、夜骑、咖啡探店",
+        intents: [.findPeers, .joinActivities],
+        prompts: [
+            ProfilePrompt(
+                promptKey: "weekPlan",
+                answer: "想组一场夜场羽毛球，打完吃火锅"
+            )
+        ],
+        occupation: .employed,
+        meetRadius: .sameCity
     )
 
     // MARK: - Helpers

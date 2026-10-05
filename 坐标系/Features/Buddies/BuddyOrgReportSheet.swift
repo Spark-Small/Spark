@@ -58,7 +58,7 @@ struct BuddyOrgReportSheet: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            Form {
                 Section {
                     LabeledContent(BuddyOrgReportCopy.targetLabel, value: targetName)
                 }
@@ -75,7 +75,7 @@ struct BuddyOrgReportSheet: View {
 
                 Section {
                     TextField(BuddyOrgReportCopy.detailPlaceholder, text: $detail, axis: .vertical)
-                        .lineLimit(4...8)
+                        .platformFormTextInput(.report)
                 } header: {
                     Text(BuddyOrgReportCopy.detailLabel)
                 } footer: {

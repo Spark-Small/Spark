@@ -287,9 +287,7 @@ struct BuddyOrgInviteMembersSheet: View {
                             dismiss()
                             onBrowseBuddies?()
                         }
-                        .activityPrimaryCTA(controlSize: .large)
                         Button(BuddyOrgJoinCopy.close) { dismiss() }
-                            .activitySecondaryCTA(controlSize: .large)
                     }
                 } else {
                     List {
@@ -332,7 +330,9 @@ struct BuddyOrgInviteMembersSheet: View {
                         dismiss()
                     }
                     .fontWeight(.semibold)
-                    .disabled(selected.isEmpty)
+                    // 发送通道未接：禁用，避免点「发送」后假成功。
+                    .disabled(true)
+                    .accessibilityHint(BuddyOrgJoinCopy.inviteUnavailable)
                 }
             }
         }

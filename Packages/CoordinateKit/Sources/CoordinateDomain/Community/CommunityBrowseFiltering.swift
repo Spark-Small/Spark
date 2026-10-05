@@ -18,12 +18,14 @@ public enum CommunityBrowseFilterKind: String, CaseIterable, Sendable, Hashable 
 }
 
 public enum CommunityBrowseFiltering: Sendable {
+    /// - Parameter retainedAuthorNames: 「发现作者」会话内刚关注的作者，帖仍保留至离开该筛选（成熟 App：关注→已关注，不立刻撕卡）。
     public static func posts(
         _ posts: [CommunityPost],
         filter: CommunityBrowseFilterKind,
         followedUserNames: Set<String>,
         currentUserName: String,
-        joinedActivityTitles: Set<String>
+        joinedActivityTitles: Set<String>,
+        retainedAuthorNames: Set<String> = []
     ) -> [CommunityPost] {
         switch filter {
         case .all:
@@ -32,7 +34,11 @@ public enum CommunityBrowseFiltering: Sendable {
             return posts.filter { followedUserNames.contains($0.author) }
         case .peopleYouFollow:
             return posts.filter {
-                $0.author != currentUserName && !followedUserNames.contains($0.author)
+                $0.author != currentUserName
+                    && (
+                        !followedUserNames.contains($0.author)
+                            || retainedAuthorNames.contains($0.author)
+                    )
             }
         case .conversation:
             // UI「热议」：有人评论过的分享

@@ -11,11 +11,14 @@ import CoordinateModels
 enum ActivityBrowseCopy {
     static let reloadFailed = "活动列表刷新失败，请稍后重试"
     static let favoritesLibrary = "我的收藏"
-    static let favoritesLibraryHint = "查看我收藏的活动"
     static let recentsTitle = "最近看过"
     static let recentsEmptyTitle = "还没有看过的活动"
     static let recentsEmptyDescription = "打开活动详情后会出现在这里"
     static let recentsClear = "清空"
+    static let recentsBack = "返回"
+    static func recentsBackHint(_ previousTitle: String) -> String {
+        "回到\(previousTitle)"
+    }
 
     // MARK: - 长列表推荐分区（活动域）
 
@@ -35,8 +38,9 @@ enum ActivityBrowseCopy {
         static let description = "换个分类再找，或自己开一场邀请朋友参加"
         static var action: String { ActivityComposeCopy.createTitle }
         static let filteredTitle = "没有符合条件的局"
-        static let filteredDescription = "放宽筛选后再找一场参加"
+        static let filteredDescription = "可在顶栏筛选菜单调整条件，或清除后重新找"
         static let filteredAction = "清除条件"
+        static let openCommunityFeed = "去看广场动态"
     }
 
     enum ScrollAnchor {

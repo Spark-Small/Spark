@@ -22,6 +22,7 @@ struct TrustPrivateDashboardView: View {
         _ = trust.revision
         _ = photoVerification.isVerified
         let friends = messages.conversations.filter(\.isFriendChat).count
+        let identity = app.identitySignals
         return trust.privateStatus(
             userName: app.user.name,
             signals: TrustPrivateSignals(
@@ -29,7 +30,8 @@ struct TrustPrivateDashboardView: View {
                 isMember: membership.isEntitled,
                 isGuest: false,
                 hasPhone: !app.auth.phoneNumber.isEmpty,
-                photoVerified: photoVerification.isVerified(for: app.user),
+                photoVerified: identity.photoVerified,
+                identityVerified: identity.realNameVerified,
                 accountCreatedAt: lifecycle.installAt,
                 friendCount: friends,
                 liveHostedCount: activities.hostedActivities.count
@@ -48,22 +50,6 @@ struct TrustPrivateDashboardView: View {
                 Text("信用状态")
             } footer: {
                 Text("根据近 90 天履约与互动计算，仅自己可见。")
-            }
-
-            Section {
-                NavigationLink {
-                    PhotoVerificationView()
-                } label: {
-                    Label(
-                        photoOK ? "管理形象认证" : "开始形象认证",
-                        systemImage: photoOK ? "checkmark.seal.fill" : "camera.viewfinder"
-                    )
-                    .platformContentSymbolStyle()
-                }
-            } header: {
-                Text("防欺诈认证")
-            } footer: {
-                Text("摄像头采集人脸与资料认证照本机比对；影像不上传。认证照可设是否对外展示。")
             }
 
             Section {
@@ -126,6 +112,7 @@ struct TrustPrivateDashboardView: View {
                 Text("隐私与拉黑可在设置中管理。")
             }
         }
+        .profileSecondaryListChrome()
         .navigationTitle("我的认证")
         .navigationBarTitleDisplayMode(.inline)
     }

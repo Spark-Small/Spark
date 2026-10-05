@@ -83,6 +83,7 @@ struct CircleGroupRenameSheet: View {
             Form {
                 Section {
                     TextField(CircleGroupCopy.chatName, text: $draft)
+                        .platformFormTextInput(.singleLine)
                 }
             }
             .navigationTitle(CircleGroupManageCopy.renameTitle)
@@ -223,7 +224,7 @@ struct GroupNicknameEditView: View {
         Form {
             Section {
                 TextField(CircleGroupManageCopy.groupNicknameField, text: $draft)
-                    .textInputAutocapitalization(.never)
+                    .platformFormTextInput(.identifier)
             } footer: {
                 Text(CircleGroupManageCopy.groupNicknameFooter(realName: realName))
             }

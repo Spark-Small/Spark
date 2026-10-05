@@ -286,6 +286,9 @@ private struct ActivityPeerChatDestinationModifier: ViewModifier {
 struct ActivityBrowserSheet: View {
     let activity: Activity
 
+    @Environment(AppModel.self) private var app
+    @Environment(BuddiesModel.self) private var buddies
+    @Environment(MessagesModel.self) private var messages
     @Namespace private var zoomNamespace
     @State private var navigation = TabNavigationState()
 
@@ -298,8 +301,22 @@ struct ActivityBrowserSheet: View {
                 .platformSheetCancellationToolbar(ActivityDetailCopy.closeSheet)
         }
         .tabNavigationState(navigation)
+        // 清掉呈现方（消息/活动 Tab）继承的 destination 标记，避免问发起人 / 俱乐部死链。
+        .independentNavigationSheetChrome()
         .activityPeerChatNavigationDestination()
         .activityZoomNavigationDestination(namespace: zoomNamespace)
+        .circleBrowseStackChrome(
+            buddies: buddies,
+            messages: messages,
+            memberName: app.user.name,
+            blockedUserNames: app.blockedUserNames,
+            onBrowseBuddies: {
+                app.pendingBuddiesRoute = .socialBrowse
+                app.selectedTab = .buddies
+            },
+            openCircle: { navigation.openCircle($0) },
+            openConversation: { app.openMessages(conversationID: $0) }
+        )
     }
 }
 

@@ -67,11 +67,16 @@ struct BuddyDetailRouteView: View {
                     groupAlias: groupAlias,
                     greetTitle: greetTitle(for: .paid(companion)),
                     onGreet: { openGreet(for: .paid(companion)) },
-                    onQuickBook: { buddies.book(companion) },
+                    onQuickBook: {
+                        guard app.requireIdentityAccess(source: .buddyBooking) else { return }
+                        buddies.book(companion)
+                    },
                     onBookDay: { day in
+                        guard app.requireIdentityAccess(source: .buddyBooking) else { return }
                         buddies.book(companion, initialDay: day)
                     },
                     onBookService: { sku in
+                        guard app.requireIdentityAccess(source: .buddyBooking) else { return }
                         buddies.book(companion, serviceSKU: sku)
                     }
                 )
@@ -141,10 +146,9 @@ struct BuddyDetailRouteView: View {
             targetKind: .person
         )
         buddies.hidePerson(nickname: nickname)
+        // 列表根已挂 `platformFeedbackAlert`（presentation.toastMessage）。
         buddies.flash(BuddyFeedbackCopy.reportSubmitted)
         dismiss()
     }
 }
-
-// MARK: - Free
 

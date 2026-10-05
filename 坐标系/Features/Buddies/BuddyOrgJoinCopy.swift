@@ -14,7 +14,8 @@ nonisolated enum BuddyOrgJoinCopy {
     static let ok = "好的"
     static let send = "发送"
     static let enterChat = "进入群聊"
-    static let inviteLocalFooter = "邀请会记在本机；接通消息后对方才能实时收到。"
+    static let inviteLocalFooter = "成员邀请发送尚未接入，当前不会假装发出。"
+    static let inviteUnavailable = "邀请发送尚未开放，本次未发出。"
 
     static let confirmCircleTitle = "加入俱乐部"
     static let confirmGuildTitle = "关注工会"
@@ -61,6 +62,10 @@ nonisolated enum BuddyFeedbackCopy {
     static let remoteInviteSubmitFailed = "邀约已保存在本机，同步服务器失败，稍后会重试"
     static let remoteClubSyncFailed = "俱乐部已保存在本机，同步服务器失败，可稍后重试"
     static let remoteBookingSubmitFailed = "预约已保存在本机，同步服务器失败，将继续尝试拉取状态"
+    static let activityInviteTitle = "活动邀约"
+    static func inviteSent(nickname: String, activityTitle: String) -> String {
+        "已邀请 \(nickname) 参加 \(activityTitle)"
+    }
     static func inviteAccepted(_ nickname: String) -> String { "\(nickname) 已接受邀约" }
     static func inviteDeclined(_ nickname: String) -> String { "\(nickname) 婉拒了邀约" }
 }

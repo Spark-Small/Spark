@@ -19,13 +19,23 @@ enum BuddyMatchScorer {
         }
     }
 
-    /// 共同爱好 > 可约 > 更近 > 活跃
+    /// 共同爱好 > 可约 > 更近 > 活跃；出行半径轻加权
     static func score(for profile: BuddyProfile) -> Int {
         var value = sharedHobbies(with: profile).count * MatchWeights.sharedHobby
         if !profile.availability.contains("已满") { value += MatchWeights.availableBonus }
         value += max(0, 15 - Int(profile.distanceKM))
         if profile.lastActiveText.contains("刚刚") || profile.lastActiveText.contains(BuddyDetailCopy.online) {
             value += MatchWeights.onlineBonus
+        }
+        switch profile.meetRadius {
+        case .sameCity where profile.distanceKM <= RecommendationConfig.nearbyKM:
+            value += 4
+        case .crossCity:
+            value += 2
+        case .chatFirst where profile.distanceKM > RecommendationConfig.nearbyKM:
+            value += 3
+        default:
+            break
         }
         return value
     }
@@ -35,8 +45,9 @@ enum BuddyMatchScorer {
         if !shared.isEmpty {
             return "共同爱好：\(shared.prefix(2).joined(separator: " · "))"
         }
-        if !profile.lookingFor.isEmpty {
-            return profile.lookingFor
+        let intent = profile.intentDisplayLine
+        if !intent.isEmpty {
+            return intent
         }
         return "爱好 · \(profile.hobbiesText)"
     }
@@ -59,8 +70,9 @@ enum BuddyMatchScorer {
         if !shared.isEmpty {
             return "因为你们都喜欢\(shared.prefix(3).joined(separator: "、"))，且\(profile.availability)"
         }
-        if !profile.lookingFor.isEmpty {
-            return "\(profile.lookingFor) · \(profile.availability)"
+        let intent = profile.intentDisplayLine
+        if !intent.isEmpty {
+            return "\(intent) · \(profile.availability)"
         }
         return "\(cardHobbyLine(for: profile)) · \(profile.availability)"
     }
@@ -112,9 +124,13 @@ enum BuddyMatchScorer {
         return profile.matchesQuery(intent)
     }
 
-    /// 打招呼带上对方意图或共同兴趣，避免空话
+    /// 打招呼带上对方 Prompt / 意图或共同兴趣，避免空话
     static func greetMessage(for profile: BuddyProfile) -> String {
-        let looking = profile.lookingFor.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let prompt = profile.prompts.first {
+            let title = ProfilePromptCatalog.title(for: prompt.promptKey)
+            return "你好，看到你写「\(title)：\(prompt.answer)」，想一起聊聊吗？"
+        }
+        let looking = profile.intentDisplayLine
         if !looking.isEmpty {
             return "你好，看到你想「\(looking)」，我也想一起，方便聊聊吗？"
         }
@@ -128,7 +144,7 @@ enum BuddyMatchScorer {
 }
 
 extension BuddyProfile {
-    /// 人墙匹配：条件按 `filter.kind` 分流（找搭子看兴趣；约陪玩不看兴趣；可约在陪玩列表层判定）。
+    /// 人墙匹配：条件按 `filter.kind` 分流（找搭子看兴趣·意图·距离；约陪玩看距离）。
     func matches(_ filter: BuddyFilter) -> Bool {
         if let gender = filter.gender, self.gender != gender { return false }
 
@@ -138,6 +154,14 @@ extension BuddyProfile {
             if let hobby = filter.hobby,
                !tags.contains(where: { $0.localizedCaseInsensitiveContains(hobby) }) {
                 return false
+            }
+            if !filter.intents.isEmpty {
+                let mine = Set(intents)
+                let overlap = !mine.isDisjoint(with: filter.intents)
+                let legacyHit = filter.intents.contains { intent in
+                    lookingFor.localizedCaseInsensitiveContains(intent.rawValue)
+                }
+                if !overlap && !legacyHit { return false }
             }
         case .paid:
             if distanceKM > filter.maxDistanceKM { return false }
@@ -151,12 +175,15 @@ extension BuddyProfile {
     }
 
     func matchesQuery(_ query: String) -> Bool {
-        let haystacks = [nickname, lookingFor, bio, hobbiesText, availability] + tags
+        let intentText = intentDisplayLine
+        let haystacks = [nickname, lookingFor, intentText, bio, hobbiesText, availability] + tags
+            + intents.map(\.rawValue)
         return haystacks.contains { $0.localizedCaseInsensitiveContains(query) }
     }
 
     func matchesKeywords(_ keywords: [String]) -> Bool {
-        let haystacks = [lookingFor, bio, hobbiesText, availability] + tags
+        let haystacks = [lookingFor, intentDisplayLine, bio, hobbiesText, availability] + tags
+            + intents.map(\.rawValue)
         return keywords.contains { key in
             haystacks.contains { $0.localizedCaseInsensitiveContains(key) }
         }

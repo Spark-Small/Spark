@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 import CoordinateModels
 
-enum BuddyPaidBoardPeriod: String, CaseIterable, Identifiable {
+enum BuddyPaidBoardPeriod: String, CaseIterable, Identifiable, Hashable {
     case day = "日榜"
     case week = "周榜"
     case month = "月榜"
@@ -58,9 +58,9 @@ enum BuddyPaidMarketCatalog {
         }
     }
 
-    /// 榜行展示分：优先读评价库，无数据时用成单量推导
+    /// 榜行展示分：仅真实评价均分。
     @MainActor
-    static func displayRating(for companion: PaidCompanion) -> Double {
+    static func displayRating(for companion: PaidCompanion) -> Double? {
         PlatformReviewCatalog.displayRating(for: companion)
     }
 

@@ -32,7 +32,7 @@ struct PlatformReviewRatedCard: View {
     private var formRowBody: some View {
         VStack(alignment: .leading) {
             HStack(alignment: .firstTextBaseline, spacing: PlatformConversationListRow.textToSecondarySpacing) {
-                Text(review.author)
+                Text(review.displayAuthor)
                     .font(PlatformListTypography.primary)
                     .lineLimit(1)
 
@@ -55,10 +55,13 @@ struct PlatformReviewRatedCard: View {
                     .lineLimit(2)
             }
 
-            Text(review.text)
-                .font(PlatformListTypography.body)
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
+            voiceChip
+            if showsTextBody {
+                Text(review.text)
+                    .font(PlatformListTypography.body)
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             if review.hasPhotos {
                 photoGrid
@@ -73,10 +76,10 @@ struct PlatformReviewRatedCard: View {
     private var cardRowBody: some View {
         VStack(alignment: .leading, spacing: rowSpacing) {
             HStack(alignment: .top, spacing: PlatformConversationListRow.imageToTextPadding) {
-                PlatformListAvatarView(name: review.author, side: 36)
+                PlatformListAvatarView(name: review.displayAuthor, side: 36)
 
                 VStack(alignment: .leading, spacing: metadataSpacing) {
-                    Text(review.author)
+                    Text(review.displayAuthor)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
 
@@ -102,10 +105,13 @@ struct PlatformReviewRatedCard: View {
                 }
             }
 
-            Text(review.text)
-                .font(.subheadline)
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
+            voiceChip
+            if showsTextBody {
+                Text(review.text)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             if review.hasPhotos {
                 photoGrid
@@ -115,6 +121,23 @@ struct PlatformReviewRatedCard: View {
         }
         .padding(.vertical, PlatformMetrics.captionBadgePaddingVertical)
         .accessibilityElement(children: .combine)
+    }
+
+    private var showsTextBody: Bool {
+        let trimmed = review.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        if review.hasVoice, trimmed == PlatformReviewsCopy.voicePlaceholder { return false }
+        return true
+    }
+
+    @ViewBuilder
+    private var voiceChip: some View {
+        if review.hasVoice, let duration = review.voiceDuration {
+            PlatformVoiceNoteChip(
+                fileURL: review.voiceLocalName.flatMap(LocalMediaLibrary.fileURL(named:)),
+                duration: duration
+            )
+        }
     }
 
     private var formActionRow: some View {

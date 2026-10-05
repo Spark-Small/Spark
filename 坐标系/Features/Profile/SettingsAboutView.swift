@@ -51,6 +51,7 @@ struct SettingsAboutView: View {
             }
             #endif
         }
+        .profileSecondaryListChrome()
         .navigationTitle("关于坐标系")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarVisibility(.hidden, for: .tabBar)

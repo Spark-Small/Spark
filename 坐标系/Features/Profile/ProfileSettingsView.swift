@@ -15,6 +15,7 @@ struct ProfileSettingsView: View {
     @Environment(ProductLifecycleStore.self) private var lifecycle
     @State private var confirmSignOut = false
     @State private var confirmDeleteAccount = false
+    @State private var offlineLegalDocument: LegalHostedDocument?
     #if DEBUG
     @State private var confirmResetDemo = false
     @State private var confirmClearCaches = false
@@ -85,20 +86,6 @@ struct ProfileSettingsView: View {
                     openLegalDocument(.privacy)
                 } label: {
                     Label("隐私政策", systemImage: "hand.raised")
-                        .platformContentSymbolStyle()
-                }
-                NavigationLink {
-                    UserAgreementView()
-                        .toolbarVisibility(.hidden, for: .tabBar)
-                } label: {
-                    Label("用户协议（离线）", systemImage: "doc.text")
-                        .platformContentSymbolStyle()
-                }
-                NavigationLink {
-                    PrivacyPolicyView()
-                        .toolbarVisibility(.hidden, for: .tabBar)
-                } label: {
-                    Label("隐私政策（离线）", systemImage: "hand.raised")
                         .platformContentSymbolStyle()
                 }
                 NavigationLink {
@@ -174,6 +161,17 @@ struct ProfileSettingsView: View {
         .navigationTitle("设置")
         .navigationBarTitleDisplayMode(.inline)
         .platformHiddenTabBar()
+        .navigationDestination(item: $offlineLegalDocument) { document in
+            Group {
+                switch document {
+                case .agreement:
+                    UserAgreementView()
+                case .privacy:
+                    PrivacyPolicyView()
+                }
+            }
+            .toolbarVisibility(.hidden, for: .tabBar)
+        }
         #if DEBUG
         .confirmationDialog("恢复演示数据？", isPresented: $confirmResetDemo, titleVisibility: .visible) {
             Button("恢复演示数据", role: .destructive) {
@@ -210,10 +208,14 @@ struct ProfileSettingsView: View {
         }
     }
 
+    /// 托管 HTTPS 优先；无法打开时回落 App 内离线长文（与登录同意同策略）。
     private func openLegalDocument(_ document: LegalHostedDocument) {
         let url = document.hostedURL
-        guard UIApplication.shared.canOpenURL(url) else { return }
-        UIApplication.shared.open(url)
+        if UIApplication.shared.canOpenURL(url) {
+            UIApplication.shared.open(url)
+            return
+        }
+        offlineLegalDocument = document
     }
 
     private var productTips: [ProductLifecycleTip] {

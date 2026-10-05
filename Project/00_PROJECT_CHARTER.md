@@ -94,6 +94,7 @@ Design / Platform*（系统容器优先，业务少做布局决策）
 | 门闸顺序 | `02` + `11` |
 | 单屏职责 | `17` |
 | 分层 import | `07` + `Scripts/check-imports.sh` |
+| 文本输入皮 | `12` + `DESIGN_SYSTEM` §7.2.1 + `Scripts/check-text-input.sh`（经 `check-imports`） |
 | API 是否已接 | `09`（勿在 PR 描述里「假装已接」） |
 | 上线能否提审 | `16` |
 | 怎么合码 | `21` |
@@ -112,7 +113,7 @@ AI 会话纪律（指令收窄、自检、强制交付、B 表一项、诚实门
 | 登录 / 会话 | 高（UseCase、Keychain、Release 远程） | 软启动可联调；Apple 服务端校验 / 微信 SDK 仍欠 |
 | 活动发现 UX | 高（货架 + Form + Zoom） | 软启动 UX 可测 |
 | 活动数据底座 | 中（Domain 写规则齐；本地快照） | **未**正式供给；写 API 未默认远程 |
-| 支付 | 中（诚实门控） | Release 仅本机钱包；无真 PSP |
+| 支付 | 中（诚实门控） | Release 仅本机钱包投影；远程契约已备（`useRemoteWallet` 默认关）；真 PSP 到账前 B1 未清 |
 | 搭子 / 消息 / 广场 | 有实现 | 供给 / IM 仍阻塞正式闭环 |
 | 文档完备度 | 00–21 覆盖模块→屏→工程 | 实现仍以代码为准；冲突改 `Project/` |
 

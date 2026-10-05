@@ -129,7 +129,7 @@
 | 货架 UI / 查看全部 | `BuddyBrowseShelves` |
 | 搜索 | 工具栏放大镜 → `BuddyBrowseSearchSheet`（无 `.searchable`） |
 | 陪玩预约 | `ProfileView` → `ProfileRoute.bookingCredentials` |
-| 预约市场 | `BuddyPaidMarketViews`（精选轨 / 排行榜） |
+| 预约市场 | `BuddyPaidMarketCatalog` / `BuddyPaidLeaderboard` / `BuddyPaidTopCard`（精选轨 / 排行榜） |
 | 人列表 | `BuddyGridCard` / `BuddyPickRail` |
 | 筛选 | `BuddyFilterSheet`（含排序；与活动同 Form + 重置/完成） |
 | 信任模型 | [TrustBehaviorModel.md](TrustBehaviorModel.md) |

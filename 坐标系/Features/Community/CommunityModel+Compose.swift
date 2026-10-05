@@ -96,6 +96,10 @@ extension CommunityModel {
             ),
             at: 0
         )
+        if let draftID = presentation.editingDraftID {
+            // 媒体已挂到新帖；删草稿元数据时保留文件。
+            deletePostDraft(id: draftID, deleteMedia: false)
+        }
         presentation.endCompose()
         presentation.clearPendingCompose()
         presentation.flash(CommunityBrowseCopy.publishSuccess)

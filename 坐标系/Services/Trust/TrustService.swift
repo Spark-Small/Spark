@@ -99,7 +99,7 @@ final class TrustService {
         let verification = TrustVerification(
             photoVerified: signals.photoVerified,
             phoneVerified: signals.hasPhone,
-            identityVerified: false
+            identityVerified: signals.identityVerified
         )
         let badges = TrustScoring.badges(
             level: level,
@@ -211,7 +211,7 @@ final class TrustService {
             return TrustVerification(
                 photoVerified: signals.photoVerified,
                 phoneVerified: signals.hasPhone,
-                identityVerified: false
+                identityVerified: signals.identityVerified
             )
         }
         switch buddyItem {

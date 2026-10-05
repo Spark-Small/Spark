@@ -75,9 +75,10 @@ final class ActivityComposeDraft {
     var isPreparingMedia = false
     var moderationAlert: String?
 
-    private(set) var editingActivityID: Activity.ID?
-    private var didPrefill = false
-    private var editingBaseline: FieldSnapshot?
+    /// 跨文件扩展（`+Persistence` / `+Media`）读写，故非 `private`。
+    var editingActivityID: Activity.ID?
+    var didPrefill = false
+    var editingBaseline: FieldSnapshot?
     /// 新建预览用稳定 id，避免每次打开预览换封面种子。
     private let previewSessionID = UUID()
 
@@ -246,99 +247,6 @@ final class ActivityComposeDraft {
         endDate = date.addingTimeInterval(3600 * 2)
     }
 
-    func removeMedia(at index: Int) {
-        guard mediaNames.indices.contains(index) else { return }
-        let name = mediaNames.remove(at: index)
-        mediaPreviews.removeValue(forKey: name)
-    }
-
-    func prefill(from activity: Activity?) {
-        guard !didPrefill else { return }
-        didPrefill = true
-        guard let activity else {
-            syncEndDate()
-            if let snapshot = ActivityComposeDraftStore.load() {
-                apply(snapshot: snapshot)
-            }
-            return
-        }
-
-        editingActivityID = activity.id
-        tags = activity.tags
-        title = activity.title
-        category = activity.category.isBrowseAggregate ? .outdoorSports : activity.category
-        location = activity.location
-        date = max(activity.date, Date())
-        syncEndDate()
-        capacity = max(activity.capacity, 2)
-        summary = activity.summary
-        latitude = activity.latitude
-        longitude = activity.longitude
-
-        var media: [String] = []
-        if let cover = activity.localCoverName {
-            media.append(cover)
-        }
-        let gallery = ActivityDetailContentStore.override(for: activity.id)?.galleryPhotoNames ?? []
-        for name in gallery where !media.contains(name) {
-            media.append(name)
-            if media.count >= Self.maxMediaCount { break }
-        }
-        mediaNames = media
-        baselineMediaNames = media
-        Task { await hydrateMediaPreviews() }
-
-        feeKind = ActivityComposeFeeKind.infer(from: activity.fee)
-        switch feeKind {
-        case .free:
-            feeAmountText = ""
-            feeAAEstimateText = ""
-        case .venueAA:
-            feeAmountText = ""
-            feeAAEstimateText = Self.displayAAEstimate(from: activity.fee)
-        case .paid:
-            feeAmountText = Self.displayAmount(from: activity.fee)
-            feeAAEstimateText = ""
-        }
-
-        editingBaseline = currentFieldSnapshot
-    }
-
-    /// 发布时只写入发起人真实内容（相册、AA 约价说明）。
-    /// 行程 / 费用明细 / 准备 / 须知交给类别模板兜底，避免用稀疏默认覆盖完整模板。
-    func persistContentOverride(for id: Activity.ID) {
-        var override = ActivityDetailContentStore.override(for: id) ?? ActivityDetailContentOverride()
-
-        if feeKind == .venueAA {
-            let estimate = feeAAEstimateText.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !estimate.isEmpty {
-                let line = "现场大约人均 \(estimate)"
-                if let existing = override.hostNote, !existing.isEmpty {
-                    if !existing.contains("大约人均") {
-                        override.hostNote = existing + "\n" + line
-                    }
-                } else {
-                    override.hostNote = line
-                }
-            }
-        }
-
-        commitMediaRemovalsIfNeeded()
-        let extras = galleryPhotoNames
-        override.galleryPhotoNames = extras.isEmpty ? nil : extras
-
-        ActivityDetailContentStore.save(override, for: id)
-    }
-
-    func discardUncommittedMediaIfNeeded() {
-        LocalMediaLibrary.discardUncommitted(current: mediaNames, baseline: baselineMediaNames)
-    }
-
-    func commitMediaRemovalsIfNeeded() {
-        LocalMediaLibrary.commitRemovals(current: mediaNames, baseline: baselineMediaNames)
-        baselineMediaNames = mediaNames
-    }
-
     func moderationBlockReason() -> String? {
         let combined = [title, summary, location, feeAmountText, feeAAEstimateText]
             .joined(separator: "\n")
@@ -348,80 +256,9 @@ final class ActivityComposeDraft {
         return nil
     }
 
-    func loadMedia(_ items: [PhotosPickerItem], actorKey: String) async {
-        guard !items.isEmpty else { return }
-        isPreparingMedia = true
-        defer {
-            isPreparingMedia = false
-            mediaPickerItems = []
-        }
-
-        for item in items {
-            guard mediaNames.count < Self.maxMediaCount else { break }
-            guard let name = await LocalMediaLibrary.savePickerItem(item),
-                  let url = LocalMediaLibrary.fileURL(named: name)
-            else { continue }
-
-            let preview: UIImage?
-            if LocalMediaLibrary.isVideo(url: url) {
-                preview = await LocalMediaLibrary.posterImage(for: url)
-            } else {
-                preview = await PlatformLocalImageCache.loadAsync(atPath: url.path)
-            }
-            guard let preview else {
-                LocalMediaLibrary.delete(named: name)
-                continue
-            }
-
-            let decision = await MediaModerationService.moderateImage(
-                preview,
-                context: .activityCover,
-                actorKey: actorKey
-            )
-            if case .block(let reason) = decision {
-                LocalMediaLibrary.delete(named: name)
-                moderationAlert = reason
-                continue
-            }
-
-            mediaNames.append(name)
-            mediaPreviews[name] = preview
-        }
-    }
-
-    @discardableResult
-    func saveDraftSnapshot() -> Bool {
-        guard shouldPersistDraftOnCancel else { return false }
-        syncEndDate()
-        let snapshot = ActivityComposeDraftSnapshot(
-            title: title,
-            categoryRaw: category.rawValue,
-            location: location,
-            date: date,
-            endDate: endDate,
-            capacity: capacity,
-            feeKindRaw: feeKind.rawValue,
-            feeAmountText: feeAmountText,
-            feeAAEstimateText: feeAAEstimateText,
-            summary: summary,
-            tags: tags,
-            localCoverName: localCoverName,
-            galleryPhotoNames: galleryPhotoNames,
-            latitude: latitude,
-            longitude: longitude
-        )
-        ActivityComposeDraftStore.save(snapshot)
-        baselineMediaNames = mediaNames
-        return true
-    }
-
-    func clearDraftStoreAfterPublish() {
-        ActivityComposeDraftStore.clear()
-    }
-
     // MARK: - Private
 
-    private struct FieldSnapshot: Equatable {
+    struct FieldSnapshot: Equatable {
         var title: String
         var category: ActivityCategory
         var location: String
@@ -445,7 +282,7 @@ final class ActivityComposeDraft {
         }
     }
 
-    private var currentFieldSnapshot: FieldSnapshot {
+    var currentFieldSnapshot: FieldSnapshot {
         FieldSnapshot(
             title: title,
             category: category,
@@ -462,81 +299,4 @@ final class ActivityComposeDraft {
         )
     }
 
-    private func apply(snapshot: ActivityComposeDraftSnapshot) {
-        title = snapshot.title
-        if let category = ActivityCategory(rawValue: snapshot.categoryRaw), !category.isBrowseAggregate {
-            self.category = category
-        }
-        location = snapshot.location
-        date = max(snapshot.date, Date())
-        endDate = max(snapshot.endDate, date.addingTimeInterval(3600 * 2))
-        capacity = min(max(snapshot.capacity, 2), 40)
-        feeKind = ActivityComposeFeeKind(rawValue: snapshot.feeKindRaw) ?? .free
-        feeAmountText = snapshot.feeAmountText
-        feeAAEstimateText = snapshot.feeAAEstimateText
-        summary = snapshot.summary
-        tags = snapshot.tags
-        latitude = snapshot.latitude
-        longitude = snapshot.longitude
-
-        var media: [String] = []
-        if let cover = snapshot.localCoverName {
-            media.append(cover)
-        }
-        for name in snapshot.galleryPhotoNames where !media.contains(name) {
-            media.append(name)
-            if media.count >= Self.maxMediaCount { break }
-        }
-        mediaNames = media
-        baselineMediaNames = media
-        Task { await hydrateMediaPreviews() }
-    }
-
-    private func hydrateMediaPreviews() async {
-        for name in mediaNames {
-            guard mediaPreviews[name] == nil else { continue }
-            if let image = await Self.previewImage(named: name) {
-                mediaPreviews[name] = image
-            }
-        }
-    }
-
-    private static func previewImage(named name: String) async -> UIImage? {
-        guard let url = LocalMediaLibrary.fileURL(named: name) else { return nil }
-        if LocalMediaLibrary.isVideo(url: url) {
-            return await LocalMediaLibrary.posterImage(for: url)
-        }
-        return await PlatformLocalImageCache.loadAsync(atPath: url.path)
-    }
-
-    private static func displayAmount(from fee: String) -> String {
-        let trimmed = fee.trimmingCharacters(in: .whitespacesAndNewlines)
-        var digits = ""
-        var started = false
-        for character in trimmed {
-            if character.isNumber {
-                digits.append(character)
-                started = true
-            } else if character == ".", started, !digits.contains(".") {
-                digits.append(character)
-            } else if started {
-                break
-            }
-        }
-        if !digits.isEmpty { return digits }
-        return trimmed
-            .replacingOccurrences(of: "¥", with: "")
-            .replacingOccurrences(of: "￥", with: "")
-            .replacingOccurrences(of: "/人", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private static func displayAAEstimate(from fee: String) -> String {
-        let trimmed = fee.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let range = trimmed.range(of: "约") {
-            return String(trimmed[range.upperBound...])
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        return ""
-    }
 }

@@ -70,9 +70,14 @@ while IFS= read -r file; do
   fi
 done < <(find "$ROOT/Packages/CoordinateKit/Sources/CoordinateModels" -name '*.swift' 2>/dev/null | sort)
 
+echo "→ Text input surfaces（调用 Scripts/check-text-input.sh）"
+if ! bash "$ROOT/Scripts/check-text-input.sh"; then
+  FAILED=1
+fi
+
 if [[ "$FAILED" -ne 0 ]]; then
   echo ""
-  echo "Import boundary check failed."
+  echo "Import / text-input boundary check failed."
   exit 1
 fi
 

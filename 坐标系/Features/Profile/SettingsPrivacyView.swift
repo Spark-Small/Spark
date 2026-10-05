@@ -26,6 +26,7 @@ struct SettingsPrivacyView: View {
                 Text("距离与在线影响搭子卡 / 详情展示；「允许陌生人邀约」会记入信任中心，正式版用于拦截入站邀约。")
             }
         }
+        .profileSecondaryListChrome()
         .navigationTitle("隐私")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarVisibility(.hidden, for: .tabBar)

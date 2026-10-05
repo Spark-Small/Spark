@@ -174,6 +174,9 @@ struct GroupManageSheet: View {
         if conversation?.isPeerGroup == true {
             return MessagesCopy.leavePeerGroupTitle
         }
+        if conversation?.isCircleGroup == true {
+            return MessagesCopy.leaveCircleConfirmTitle
+        }
         return MessagesCopy.groupLeaveConfirmTitle
     }
 
@@ -183,6 +186,12 @@ struct GroupManageSheet: View {
         }
         if conversation?.isPeerGroup == true {
             return MessagesCopy.leavePeerGroupMessage
+        }
+        if conversation?.isCircleGroup == true {
+            return MessagesCopy.leaveCircleConfirmMessage
+        }
+        if conversation?.isActivityGroup == true {
+            return MessagesCopy.leaveActivityGroupConfirmMessage
         }
         return MessagesCopy.groupLeaveConfirmMessage
     }
@@ -214,7 +223,12 @@ struct GroupManageSheet: View {
             if isOwner {
                 model.dissolveGroup(conversationID: conversationID)
             } else if let activityID = conversation.relatedActivityID {
-                app.cancelActivityRegistration(activityID)
+                // 仅退群，不取消报名（取消报名走活动行程）。
+                model.leaveGroupChat(
+                    activityID: activityID,
+                    leaverName: app.user.name,
+                    currentUserIsOwner: false
+                )
             } else {
                 model.requestDelete(conversation)
             }
@@ -226,6 +240,9 @@ struct GroupManageSheet: View {
             }
         } else if let circleID = conversation.relatedCircleID {
             model.leaveCircleChat(circleID: circleID, leaverName: app.user.name)
+            if let circle = buddies.circle(id: circleID) {
+                buddies.leaveCircle(circle)
+            }
         } else {
             model.delete(conversationID)
         }

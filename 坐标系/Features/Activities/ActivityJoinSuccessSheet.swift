@@ -2,7 +2,7 @@
 //  ActivityJoinSuccessSheet.swift
 //  坐标系
 //
-//  参加 / 发布成功半屏：庆祝 + 唯一入口「我的行程」。
+//  参加 / 发布成功半屏：单一主后续（参加→行程；发布→群）；日历/群为次要。
 //
 
 import SwiftUI
@@ -22,7 +22,7 @@ enum ActivitySuccessContext {
     var subtitle: String {
         switch self {
         case .joined:
-            "下一步：打开我的行程，完成准备并关注活动群"
+            "下一步：到我的行程，查看凭证与准备清单"
         case .published:
             "建议在管理页完善行程与费用说明；活动群已创建"
         }
@@ -147,8 +147,8 @@ struct ActivityJoinSuccessSheet: View {
                 .multilineTextAlignment(.center)
 
             VStack(alignment: .leading, spacing: PlatformMetrics.hairlineSpacing) {
-                Label("打开我的行程，完成准备清单", systemImage: "checklist")
-                Label(ActivityCardStatus.joinSuccessGroupHint, systemImage: "bubble.left.and.bubble.right")
+                Label("行程里完成准备清单与查看凭证", systemImage: "checklist")
+                Label("日历提醒与活动群为辅助入口", systemImage: "calendar")
             }
             .font(.footnote)
             .foregroundStyle(.secondary)
@@ -204,6 +204,17 @@ struct ActivityJoinSuccessSheet: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
+
+            if onOpenGroup != nil {
+                Button {
+                    dismissThen { onOpenGroup?() }
+                } label: {
+                    Label(context.openGroupLabel, systemImage: "bubble.left.and.bubble.right")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+            }
         }
     }
 

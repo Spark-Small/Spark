@@ -40,24 +40,25 @@ Environment 标记：`hasCircleBrowseDestination` 等向下传递；**已注册�
 | 栏材质 | `.toolbarBackground(.automatic)` + `.toolbarBackgroundVisibility(.automatic)` |
 | Trailing | `platformTabRootToolbar`；`ToolbarItemGroup` + `ToolbarSpacer` 分组；图标 `.platformNavigationBarItemChrome()` |
 | Badge | 筛选生效数、通讯录请求、通知未读、Tab（消息未读 / 搭子待办预约） |
-| 标题菜单 | 仅活动分类、搭子模式：`platformTabRootTitleMenu`（`toolbarTitleMenu`） |
+| 标题菜单 | 仅活动分类：`platformTabRootTitleMenu`（`toolbarTitleMenu`）；搭子模式改 Trailing Menu |
 
-说明：`.inlineLarge` 下滚动后标题多为 **leading**（系统行为）；带 `toolbarTitleMenu` 的 Tab（活动 / 搭子）尤其如此。勿手绘第二套 NavigationBar。
+说明：`.inlineLarge` 下滚动后标题多为 **leading**（系统行为）；带 `toolbarTitleMenu` 的活动 Tab 尤其如此。勿手绘第二套 NavigationBar。
 
 | Tab | Trailing 分组（现行） | 备注 |
 |-----|----------------------|------|
 | 活动 | 分类菜单在标题；筛选等见活动规范 | — |
-| 搭子 | 找人筛选 | 无系统搜索框 |
-| 广场 | 发分享 · 搜索按钮（点按后才出 `searchable`，无常驻抽屉搜索框） | 收藏/赞过/我的分享/转发/公约 →「我的」 |
-| 消息 | 通讯录 | Badge = 好友请求 |
-| 我的 | 通知 · 设置 | Badge = 站内未读；`ProfileRoute.notifications` |
+| 搭子 | 筛选 → 模式 Menu（找搭子 / 约陪玩 / 俱乐部 / 最近浏览） | 无系统搜索框；创建在「我的 · 我的俱乐部」；Tab Badge = 待确认/待支付 |
+| 广场 | 发帖 | 收藏/赞过/我的分享/转发/公约 →「我的」；顶栏搜索 / `searchable` |
+| 消息 | 筛选 → 发起聊天 → 通讯录（`ToolbarSpacer` 分组） | Badge = 好友请求；筛选含陌生人信箱 |
+| 我的 | 通知 · 设置 | Badge = 站内未读；`ProfileRoute.notifications` / `.settings` 同栈 push（含 tip「去设置」）；身份区获赞系统 alert / `socialGraph` 列表 |
 
 | Tab | 菜单 | 行为 |
 |-----|------|------|
 | 活动 | 分类 | 切换目录；滚动回顶 |
-| 搭子 | 找搭子 / 约陪玩 / 俱乐部 | 写 `BuddiesModel.filter.kind`；切换独立货架；滚动回顶 |
+| 搭子 | 找搭子 / 约陪玩 / 俱乐部 / 最近浏览 | Trailing 模式 Menu 写 `BuddiesModel.filter.kind`（或进最近浏览）；切换独立货架；滚动回顶 |
 
-模式切换**不**占用 Trailing；三模式筛选均在 toolbar trailing（无系统搜索框）；Menu 条件按找搭子 / 约陪玩 / 俱乐部分流。
+搭子 Trailing 顺序：筛选 → **模式 Menu**（无系统搜索框）；筛选条件按找搭子 / 约陪玩 / 俱乐部分流。`CircleComposeSheet` 由「我的 · 我的俱乐部」呈现（`ProfileRoute.myClubs`）。标题只显示当前表面，**不用** `toolbarTitleMenu`。  
+「最近浏览 / 最近看过」为同级临时表面（非 push）：Trailing 文本「返回」退出，回到进入前的模式/分类（进入时不改写 `filter.kind` / `selectedCategory`）。
 
 ---
 
@@ -109,6 +110,7 @@ NavigationStack(path: $navigation.path) {
 - `AppModel` pending activity / map navigation 等在根消费  
 - 打开活动：优先进活动 Tab 再 push/zoom  
 - 打开广场帖：一律 `openCommunityPost`（合并 Tab → 活动栈 + `CommunityPendingPostNavigationModifier`；缺帖先 reload）  
+- 活动行程赴约四件套含可选约陪玩：`openPaidCompanionBrowse()` → `BuddiesRoute.paidBrowse` → 搭子 Tab `showPaidPage()`  
 - 登录门闸未过：深链**排队**，登录 + 兴趣完成后再消费  
 - 协议待签 / 兴趣硬门：不丢 pending，也不绕过门闸  
 
@@ -127,7 +129,8 @@ NavigationStack(path: $navigation.path) {
 
 ## 7. 工具栏与 Tab Bar
 
-- Push 次级页：`.toolbarVisibility(.hidden, for: .tabBar)`（或项目既有 helper）  
+- Push 次级页：`.toolbarVisibility(.hidden, for: .tabBar)`（或项目既有 helper）；**Tab 根不**再强制 `.visible`（交系统随 pop 恢复）  
+- 搭子 / 活动栈已注册 `PeerChatRoute` 时：私聊走 `NavigationPath`（`peerContactDestination` 认 `hasActivityPeerChatDestination` **或** `hasCirclePeerChatDestination`），勿并行 `navigationDestination(item:)` 推同一路由  
 - 详情底栏 CTA：`safeAreaBar(.bottom)` / 项目 `activityDetailBottomBarChrome`  
 
 ---

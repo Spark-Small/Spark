@@ -140,12 +140,22 @@ enum RemoteAuthAPI {
         code: String,
         client: APIClient = .shared
     ) async throws -> RemoteAuthLoginData {
-        let deviceID = LocalUserIdentity.current.uuidString
-        let data = try await client.send(
-            try .smsLogin(phone: phone, code: code, deviceID: deviceID, platform: "ios")
-        )
+        let data = try await verifySMSLogin(phone: phone, code: code, client: client)
         applyLoginData(data)
         return data
+    }
+
+    /// 仅校验短信验证码（走 `auth/sms/login`），**不**写入 JWT / 切换本机用户。
+    /// 用于已登录用户绑定手机；专用 bind API 未接前的诚实校验路径。
+    static func verifySMSLogin(
+        phone: String,
+        code: String,
+        client: APIClient = .shared
+    ) async throws -> RemoteAuthLoginData {
+        let deviceID = LocalUserIdentity.current.uuidString
+        return try await client.send(
+            try .smsLogin(phone: phone, code: code, deviceID: deviceID, platform: "ios")
+        )
     }
 
     static func loginApple(

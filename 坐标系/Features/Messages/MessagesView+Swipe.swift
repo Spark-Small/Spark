@@ -3,8 +3,7 @@
 //  坐标系
 //
 //  收件箱 swipe 对齐系统「邮件」：左 = 未读 / 置顶；右 = 删除 / 免打扰。
-//  纯图标 + a11y；满滑删除立即生效（不弹确认，避免与 swipe 动画死锁）。
-//  需确认的删除仍走会话「更多」→ requestDelete。
+//  纯图标 + a11y；删除与「更多」同源走 requestDelete 确认（关闭满滑，避免与 Alert 死锁）。
 //
 
 import SwiftUI
@@ -37,10 +36,9 @@ extension View {
                 .tint(.orange)
                 .accessibilityLabel(conversation.isPinned ? MessagesCopy.unpin : MessagesCopy.pin)
             }
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                // 信息 / 邮件：满滑删除立即移除，不在此弹 Alert
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 Button(role: .destructive) {
-                    model.delete(conversation.id)
+                    model.requestDelete(conversation)
                 } label: {
                     Image(systemName: "trash")
                 }

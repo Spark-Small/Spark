@@ -51,9 +51,13 @@ struct ProfileCircleDetailView: View {
         return Array(byNickname.values)
     }
 
-    /// 详情页标题与成员区对齐，不用浏览卡片上的种子 `memberCount`。
+    /// 与发现海报同源（`BuddiesModel.displayedMemberCount`）。
     private var memberCountLabel: Int {
-        members.count + (isJoined ? 1 : 0)
+        buddies.displayedMemberCount(
+            for: circle,
+            messages: messages,
+            viewerName: app.user.name
+        )
     }
 
     private var profileSource: BuddyProfileSource {

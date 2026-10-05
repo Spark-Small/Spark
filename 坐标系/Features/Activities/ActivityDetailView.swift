@@ -35,6 +35,7 @@ struct ActivityDetailView: View {
     @State var cancelFeedbackMessage: String?
     @State var cancelRefundActivityID: Activity.ID?
     @State var cancelUnpaidActivityID: Activity.ID?
+    @State var leaveWaitlistActivityID: Activity.ID?
     /// 取消参加并走退款申请表单时暂存的已支付订单
     @State var cancelAndRefundOrder: ActivityOrder?
     @State var presentedRefundRequestID: UUID?
@@ -194,6 +195,10 @@ struct ActivityDetailView: View {
                             intent: .participantPass
                         )
                     )
+                },
+                onOpenGroup: {
+                    model.dismissJoinSuccess()
+                    openGroupChat(for: live)
                 }
             )
         }

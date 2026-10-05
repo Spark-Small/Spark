@@ -45,8 +45,9 @@
 | POST | `auth/apple/login` | 已接（**服务端校验闭环仍欠**） |
 | POST | `auth/wechat/login` | 已接契约；SDK 未配置则无入口 |
 | POST | `auth/token/refresh` | 已接 |
+| POST | `auth/phone/bind`（或等价） | **未做**；个人资料「绑定手机号」临时用 `auth/sms/login` **只校验**验证码（`RemoteAuthAPI.verifySMSLogin`，不写 JWT），号码写入本机会话并保留原登录方式 |
 
-DEBUG：`useRemoteAuth == false` 时演示码登录，**不 mint JWT**。
+DEBUG：`useRemoteAuth == false` 时演示码登录 / 绑定，**不 mint JWT**。
 
 ---
 
@@ -55,12 +56,12 @@ DEBUG：`useRemoteAuth == false` 时演示码登录，**不 mint JWT**。
 | Path | Flag | 行为 |
 |------|------|------|
 | GET `activities/catalog` | `useRemoteCatalog` | 成功 → **Merge** 入本地；失败保留本地 |
-| GET `profile` | `useRemoteProfile` | 装饰器同步 |
+| GET `profile` | `useRemoteProfile` | 成功 → **Merge**（`MergeRemoteProfileSnapshotUseCase`：公开字段采信远程；本机独有墙/认证照/语音/Prompt 在远程为空时保留；拉黑/关注并集）；失败保留本地；**禁止** `local.save(remote)` 整包覆盖；Release 默认关 |
 | GET `messages/snapshot` | `useRemoteMessages` | Release 倾向开 |
 | GET `community/snapshot` | `useRemoteCommunity` | 成功 → **Merge**（`MergeRemoteCommunitySnapshotUseCase`：远程帖 upsert、本机独有帖与赞/藏/转并集保留）；失败保留本地；**禁止** `local.save(remote)` 整包覆盖 |
-| GET `buddies/snapshot` | `useRemoteBuddies` | 成功 → **Merge**（`MergeRemoteBuddiesSnapshotUseCase`）；失败保留本地；可选字段 `discoverCatalog`（`BuddiesDiscoverCatalog`）为发现货架契约，客户端可映射；**未下发真人数据前 B4 仍未清** |
+| GET `buddies/snapshot` | `useRemoteBuddies` | 成功 → **Merge**（`MergeRemoteBuddiesSnapshotUseCase`）；失败保留本地；可选字段 `discoverCatalog`（`BuddiesDiscoverCatalog`，可含 `galleryImageURLs` / `intents`）为发现货架契约，客户端可映射；**未下发真人数据前 B4 仍未清** |
 
-活动目录、搭子快照与广场快照：**禁止** `local.save(remote)` 整包覆盖（均经 Merge UC）。
+活动目录、搭子快照、广场快照与资料快照：**禁止** `local.save(remote)` 整包覆盖（均经 Merge UC）。
 
 ### 广场写路径（契约未备 · 默认关）
 
@@ -113,7 +114,7 @@ DEBUG：`useRemoteAuth == false` 时演示码登录，**不 mint JWT**。
 |------|--------|
 | 真人发现目录运营下发 | B4 |
 | 邀约 / 私聊真达对方（IM/APNs） | B5 |
-| 外部支付 | B1 |
+| 外部支付真到账 | B1（契约见 §4.1；Flag 默认关） |
 
 演示接单：`simulateBookingCompanionAcceptance` 仅 DEBUG 且远程预约未开时可用；联调一键关。
 
@@ -137,6 +138,31 @@ DEBUG：`useRemoteAuth == false` 时演示码登录，**不 mint JWT**。
 
 ---
 
+## 4.1 钱包 / 支付（契约已备 · 默认未开 · `useRemoteWallet`）
+
+实现：`APIEndpoint+Wallet.swift` + `RemoteWalletClient` + Domain `ChargeWalletUseCase` / `CreateWalletTopUpIntentUseCase` / `MergeRemoteWalletLedgerUseCase`；本地投影 `WalletStore`（`refreshFromRemoteIfEnabled` / `projectRemoteAccount`）。
+
+| Method | Path | 用途 | 客户端 |
+|--------|------|------|--------|
+| GET | `v1/wallet` | 余额账户 | **已接**（Flag 开时刷新投影） |
+| GET | `v1/wallet/ledger` | 分页流水（`cursor`） | **已接首页**（远程权威替换本地投影；空=诚实空态） |
+| POST | `v1/wallet/topups` | 创建充值意图（`amountCents` / `channel` / `idempotencyKey`） | **已接** |
+| GET | `v1/wallet/topups/{id}` | 充值意图状态（轮询到账） | **已接** |
+| POST | `v1/commerce/charges` | 余额扣款（活动/陪玩；幂等键） | **已接** |
+| POST | `v1/commerce/refunds` | 退款申请 | **已接** |
+
+Webhook（仅服务端）：微信 / 支付宝通知入账；**不进客户端**。
+
+渠道：`wechat` / `alipay`（充值）；结账消费优先 `wallet`。Apple Pay 通道未真接通前 Release **不展示**。
+
+**现状（客户端）**：契约 + 充值意图/轮询 + 账户/流水读 + 扣款投影已接线；`useRemoteWallet` **默认关**；未确认到账禁止本地加款；流水空态禁止「已全网同步」话术。
+
+接通顺序：后端真到账 → DEBUG `FeatureFlags.enableWalletRemoteIntegration()` → 验证入账与扣款 → 再考虑 Release 默认开 Flag → **达标后勾 `16` B1**。未真到账前 **禁止**勾 B1、禁止本地假加款。
+
+错误语义（目标）：余额不足、意图过期、渠道维护、重复幂等、青年模式拒绝。
+
+---
+
 ## 5. 其他
 
 | 域 | 状态 |
@@ -145,8 +171,9 @@ DEBUG：`useRemoteAuth == false` 时演示码登录，**不 mint JWT**。
 | Buddies invites / clubs | 契约已备；`useRemoteBuddiesWrite` 默认关 |
 | Community snapshot 读 | Merge；`useRemoteCommunity` |
 | Community 写 | **本机 only**；远程写契约未备 |
-| Media moderation / identity reverify | 有 Endpoint；代理/远程由 Flag |
-| 真支付 PSP / IM | **未做**客户端正式通道 |
+| Media moderation / identity reverify | 有 Endpoint；`useRemoteIdentityReverify` / 演示代理 Flag；**仅 `usedNetwork` 才记 remoteVerified**（禁止冒充服务端确认） |
+| 钱包 / 充值 / 扣款 | **客户端已接**（账户/流水读 + topups/charges）；`useRemoteWallet` 默认关；真到账前 B1 未清 |
+| IM | **未做**客户端正式通道 |
 
 ---
 
@@ -158,6 +185,9 @@ FeatureFlags.enableReadPathRemoteIntegration()
 
 FeatureFlags.enableBuddiesRemoteIntegration()
 // 另开 useRemoteBuddiesWrite（邀约/俱乐部）；需后端写 API 已通
+
+FeatureFlags.enableWalletRemoteIntegration()
+// 另开 useRemoteWallet；需后端 wallet/topups/charges 真通；不自动勾 B1
 ```
 
 不自动开启活动远程写；不自动勾 `16` B4/B5/B1。

@@ -151,11 +151,9 @@ extension View {
             .presentationDragIndicator(.visible)
     }
 
+    /// 兼容转发 → `platformCredentialTextInput(.phone)`；新代码请直调 Platform 模块。
     func loginCredentialFieldStyle() -> some View {
-        font(.body)
-            .keyboardType(.numberPad)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
+        platformCredentialTextInput(.phone)
     }
 }
 

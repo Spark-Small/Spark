@@ -2,8 +2,8 @@
 //  ProfileView+Sections.swift
 //  坐标系
 //
-//  「我的」根 List：身份 → 待办（条件）→ 服务 → 我的内容。
-//  最近浏览归活动/搭子标题菜单；会员入口在服务区列表行。
+//  「我的」根 List：身份单 cell（头像账户头+四列）→ 服务 → 我的内容。
+//  形象认证入口在个人资料；我的内容：活动 / 陪玩 / 发帖 / 俱乐部。
 //
 
 import SwiftData
@@ -11,13 +11,6 @@ import SwiftUI
 import CoordinateModels
 
 extension ProfileView {
-    var profilePromoKind: ActivityNextUpPresentation.BrowsePromoHeader? {
-        ActivityNextUpPresentation.BrowsePromoHeader.resolve(
-            hasSeenWelcomeGuide: app.welcomeGuide.hasSeenGuide,
-            from: activities
-        )
-    }
-
     // MARK: - Sections
 
     @ViewBuilder
@@ -27,7 +20,9 @@ extension ProfileView {
                 ProductLifecycleTipSectionContent(
                     tip: tip,
                     onDismiss: { lifecycle.dismissTip(tip.id) },
-                    onOpenSettings: tip.id == "privacy" ? { showSettingsFromTip = true } : nil
+                    onOpenSettings: tip.id == "privacy"
+                        ? { navigation.path.append(ProfileRoute.privacy) }
+                        : nil
                 )
             } header: {
                 Label(tip.title, systemImage: tip.systemImage)
@@ -36,78 +31,78 @@ extension ProfileView {
         }
     }
 
+    /// 身份：单 List cell（官方路径）— 账户头 + 四列，块距用 subtitleCell 行 margin。
     var identitySection: some View {
         Section {
-            VStack(alignment: .leading, spacing: PlatformConversationListRow.textToSecondarySpacing) {
-                Button(action: openIdentity) {
-                    HStack(alignment: .center, spacing: PlatformConversationListRow.imageToTextPadding) {
-                        ProfileAvatarView(user: app.user)
-
-                        VStack(alignment: .leading) {
-                            Text(app.user.name)
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                            Text(app.user.handle)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Spacer(minLength: 0)
-
-                        Image(systemName: "chevron.right")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.tertiary)
+            VStack(alignment: .leading, spacing: PlatformAccountHeaderMetrics.headerToFooterSpacing) {
+                // Settings「Apple ID」：整行账户头 + 系统 disclosure（层级进入个人资料）。
+                NavigationLink {
+                    EditProfileSheet(
+                        user: Binding(
+                            get: { app.user },
+                            set: { app.updateProfile($0) }
+                        ),
+                        embedsOwnNavigationChrome: false
+                    )
+                    .toolbarVisibility(.hidden, for: .tabBar)
+                } label: {
+                    PlatformAccountHeaderLabel(
+                        title: app.user.name,
+                        subtitle: identitySubtitle,
+                        showsPhotoVerified: photoVerified,
+                        showsMemberVIP: membership.isEntitled
+                    ) {
+                        PlatformListAvatarView(
+                            name: app.user.name,
+                            photo: app.user.localAvatarImage,
+                            side: PlatformAccountHeaderMetrics.avatarSide
+                        )
                     }
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .accessibilityHint("打开个人资料编辑")
+                .accessibilityHint("打开个人资料")
                 .accessibilityLabel(identityAccessibilityLabel)
 
-                Button {
-                    navigation.path.append(ProfileRoute.trust)
-                } label: {
-                    TrustCredentialBadgeStrip(
-                        photoVerified: photoVerified,
-                        isMember: membership.isEntitled
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint(ProfileDashboardCopy.trustBadgeAccessibilityHint)
-
                 ProfileSocialStatsRow(
-                    postCount: ProfileSocialStats.postCount(for: app.user.name, community: community),
+                    likesCount: ProfileSocialStats.likesReceived(for: app.user.name, community: community),
+                    mutualCount: ProfileSocialStats.mutualCount(
+                        for: app.user.name,
+                        app: app,
+                        messages: messages
+                    ),
                     followingCount: ProfileSocialStats.followingCount(for: app.user.name, app: app),
-                    fansCount: ProfileSocialStats.fansCount(for: app.user.name, app: app)
+                    fansCount: ProfileSocialStats.fansCount(for: app.user.name, app: app),
+                    onLikesTap: { showLikesReceivedInfo = true },
+                    onMutualTap: { navigation.path.append(ProfileRoute.socialGraph(.mutual)) },
+                    onFollowingTap: { navigation.path.append(ProfileRoute.socialGraph(.following)) },
+                    onFansTap: { navigation.path.append(ProfileRoute.socialGraph(.fans)) }
                 )
             }
-            .listRowSeparator(.hidden)
+            .accessibilityElement(children: .contain)
         }
     }
 
-    /// 有下一场时才出现；订单待办用「服务 · 我的订单」角标，避免双入口。
-    @ViewBuilder
-    var attentionSection: some View {
-        if case .nextUp(let summary) = profilePromoKind {
-            Section {
-                nextUpFormRow(summary)
-                    .id(summary.promoIdentity(calendarSyncRevision: activities.calendarSyncRevision))
-            } header: {
-                Text(ProfileDashboardCopy.attentionSectionTitle)
-            }
+    /// 生活照片墙：身份区下、服务区上（Ins 式三列，选完即写本机）。
+    var lifePhotosSection: some View {
+        Section {
+            ProfileLifePhotosGrid()
+                .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
+        } header: {
+            Text(ProfileGalleryCopy.sectionTitle)
         }
     }
 
-    /// 会员 · 钱包 · 订单。
+    /// 会员 · 钱包（与系统「账户服务」同形态，无广告印象轨）。
     var servicesSection: some View {
         Section {
-            ProfileMembershipAdContentView(
-                isActive: membership.isEntitled,
-                onTap: {
-                    openCommerce { navigation.path.append(ProfileRoute.membership) }
-                }
-            )
+            ProfileFormGatedRow(
+                title: membership.isEntitled
+                    ? ProfileDashboardCopy.membershipCenter
+                    : ProfileDashboardCopy.membershipOpen,
+                systemImage: membership.isEntitled ? "checkmark.seal.fill" : "crown.fill"
+            ) {
+                openCommerce { navigation.path.append(ProfileRoute.membership) }
+            }
 
             ProfileFormGatedRow(
                 title: ProfileDashboardCopy.walletEntry,
@@ -115,44 +110,17 @@ extension ProfileView {
             ) {
                 openCommerce { navigation.path.append(ProfileRoute.wallet) }
             }
-
-            NavigationLink(value: ProfileRoute.orders(nil)) {
-                LabeledContent {
-                    let pending = orderAttentionCount
-                    if pending > 0 {
-                        Text("\(pending)")
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                } label: {
-                    Label(ProfileDashboardCopy.ordersTitle, systemImage: "list.clipboard.fill")
-                        .platformContentSymbolStyle()
-                }
-            }
         } header: {
             Text(ProfileDashboardCopy.servicesSectionTitle)
-        } footer: {
-            if orderAttentionCount > 0 {
-                Text(ProfileDashboardCopy.ordersPendingBookingFooter)
-            }
         }
     }
 
-    /// ≤4 行：活动与行程 / 陪玩预约 / 俱乐部 / 广场内容。
+    /// Form：我的活动 / 我的陪玩 / 我的发帖 / 我的俱乐部。
     var librarySection: some View {
         Section {
             NavigationLink(value: ProfileRoute.activitiesLibrary) {
-                LabeledContent {
-                    let invites = buddies.inviteRecords.filter { $0.status == .pending }.count
-                    if invites > 0 {
-                        Text("\(invites)")
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                } label: {
-                    Label(ProfileDashboardCopy.activitiesLibraryTitle, systemImage: "calendar")
-                        .platformContentSymbolStyle()
-                }
+                Label(ProfileDashboardCopy.activitiesTitle, systemImage: "calendar")
+                    .platformContentSymbolStyle()
             }
 
             NavigationLink(value: ProfileRoute.bookingCredentials) {
@@ -169,74 +137,67 @@ extension ProfileView {
                             .monospacedDigit()
                     }
                 } label: {
-                    Label(ProfileDashboardCopy.bookingCredentials, systemImage: "ticket.fill")
+                    Label(ProfileDashboardCopy.myCompanionEntry, systemImage: "ticket.fill")
                         .platformContentSymbolStyle()
                 }
             }
 
-            NavigationLink(value: ProfileRoute.myClubs) {
+            NavigationLink(value: ProfileRoute.myPosts) {
                 LabeledContent {
-                    let count = buddies.joinedCircles.count
+                    // 草稿优先（待完成），否则已发布数——对齐陪玩「待处理优先」。
+                    let drafts = community.postDrafts.count
+                    let posts = ProfileSocialStats.postCount(for: app.user.name, community: community)
+                    let count = drafts > 0 ? drafts : posts
                     if count > 0 {
                         Text("\(count)")
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
                 } label: {
-                    Label(ProfileDashboardCopy.myClubsTitle, systemImage: "person.3.fill")
+                    Label(ProfileDashboardCopy.myPostsEntry, systemImage: "square.and.pencil")
                         .platformContentSymbolStyle()
                 }
             }
 
-            NavigationLink(value: ProfileRoute.communityLibrary) {
-                Label(ProfileDashboardCopy.communityLibraryTitle, systemImage: "square.grid.2x2.fill")
-                    .platformContentSymbolStyle()
+            NavigationLink(value: ProfileRoute.myClubs) {
+                LabeledContent {
+                    let count = buddies.membershipClubs.count
+                    if count > 0 {
+                        Text("\(count)")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                } label: {
+                    Label(ProfileDashboardCopy.myClubsEntry, systemImage: "person.3.fill")
+                        .platformContentSymbolStyle()
+                }
             }
         } header: {
             Text(ProfileDashboardCopy.librarySectionTitle)
-        } footer: {
-            if buddies.actionableBookingCount > 0 {
-                Text(
-                    BuddyBrowseCopy.MyBookings.statusFooter(
-                        count: buddies.actionableBookingCount,
-                        needsAttention: buddies.pendingBookingAttentionCount
-                    )
-                )
-            }
         }
-    }
-
-    /// 「下一场」Form 行。
-    func nextUpFormRow(_ summary: ActivityNextUpPresentation.Summary) -> some View {
-        Button {
-            switch summary.primaryAction {
-            case .openJourney:
-                openJourney(summary.activity)
-            case .navigate:
-                navigateActivity = summary.activity
-            }
-        } label: {
-            LabeledContent {
-                Text(summary.pendingHint ?? summary.headline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            } label: {
-                Label(summary.activity.title, systemImage: "flag.checkered")
-                    .platformContentSymbolStyle()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.primary)
-        .accessibilityLabel(summary.promoAccessibilitySummary)
-        .accessibilityHint(summary.trailingActionTitle)
     }
 
     // MARK: - Derived
 
+    /// 账户头副文：@账号 · MBTI · 星座（有则拼，短、好扫）。
+    var identitySubtitle: String? {
+        var parts: [String] = []
+        let handle = app.user.handle.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !handle.isEmpty {
+            parts.append(handle.hasPrefix("@") ? handle : "@\(handle)")
+        }
+        if let mbti = app.user.mbti {
+            parts.append(mbti.rawValue)
+        }
+        if let zodiac = app.user.displayZodiac {
+            parts.append(zodiac.rawValue)
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
     var identityAccessibilityLabel: String {
-        var parts = [app.user.name, app.user.handle]
+        var parts = [app.user.name]
+        if let identitySubtitle { parts.append(identitySubtitle) }
         parts.append(
             [
                 photoVerified ? "认证已通过" : "认证未认证",
@@ -244,14 +205,6 @@ extension ProfileView {
             ].joined(separator: " · ")
         )
         return parts.filter { !$0.isEmpty }.joined(separator: "，")
-    }
-
-    var orderAttentionCount: Int {
-        let counts = ProfileOrderShortcutCounts.compute(
-            activityOrders: ActivityPaymentStore.allOrders(),
-            bookingRecords: buddies.bookingRecords
-        )
-        return counts.pendingPayment + counts.pendingConfirm
     }
 
     var lifecycleTips: [ProductLifecycleTip] {

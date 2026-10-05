@@ -82,6 +82,19 @@ enum LocalMediaLibrary {
         try CommunityPhotoStore.copyMovie(from: file)
     }
 
+    @MainActor
+    @discardableResult
+    static func importAudio(from file: URL) -> String? {
+        let name = CommunityPhotoStore.importAudio(from: file)
+        if name == nil {
+            PersistenceWriteFailureReporter.record(
+                domainKey: "localMedia",
+                error: CocoaError(.fileWriteUnknown)
+            )
+        }
+        return name
+    }
+
     static func resetAll() {
         CommunityPhotoStore.resetAll()
     }
