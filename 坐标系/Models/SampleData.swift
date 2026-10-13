@@ -557,29 +557,8 @@ enum SampleData {
 
     // MARK: - Buddies
 
-    /// 用户投放的样板封面（BuddyPhotos → Assets `BuddyPhoto01`…`25`）
-    private static let buddyCoverPool: [String] = (1...25).map { String(format: "BuddyPhoto%02d", $0) }
-
-    /// 按免费池顺序固定封面组；预约同昵称共用。每组 2–4 张供发现卡左右滑。
-    private static let buddyNickCoverOrder: [String] = [
-        "Mia", "阿凯", "阿禾", "小周", "Yuna", "林夏", "Leo", "Noon", "Coco", "阿哲",
-        "阿川", "小满", "叙叙", "南栀", "老白", "青禾", "木子", "江晚", "北辰", "半夏",
-        "青杉", "柚子", "老陈", "安安", "阿梨", "言午", "小满满", "禾川", "苏苏", "阿白",
-        "豆豆", "阿泽", "禾禾", "清清", "石头", "橙子"
-    ]
-
-    private static func coverAssets(for nick: String) -> [String] {
-        let start: Int
-        if let index = buddyNickCoverOrder.firstIndex(of: nick) {
-            start = index % buddyCoverPool.count
-        } else {
-            start = abs(nick.utf8.reduce(0) { ($0 &+ Int($1)) &+ 17 }) % buddyCoverPool.count
-        }
-        let count = 2 + (start % 3)
-        return (0..<count).map { offset in
-            buddyCoverPool[(start + offset) % buddyCoverPool.count]
-        }
-    }
+    /// 示例搭子不再绑定本地图片素材；`photoAssetNames` 为空时走 `photoSeeds` 占位。
+    private static func coverAssets(for nick: String) -> [String] { [] }
 
     private static func buddy(
         nick: String, gender: BuddyGender, age: Int, h: Int, w: Int, km: Double,
