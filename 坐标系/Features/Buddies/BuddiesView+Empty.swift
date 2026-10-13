@@ -126,5 +126,6 @@ extension BuddiesView {
             }
         }
         .platformContentUnavailablePageChrome()
+        .platformScrollEmbeddedEmptyChrome()
     }
 }

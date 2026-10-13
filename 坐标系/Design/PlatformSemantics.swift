@@ -17,9 +17,9 @@
 import SwiftUI
 
 enum PlatformSurface {
-    /// 发现类列表页（活动、搭子）
+    /// 系统分组底（Form / insetGrouped）；语义色，非品牌色。
     static var groupedPage: Color { Color(.systemGroupedBackground) }
-    /// 内容流页（社区、详情正文）
+    /// 系统内容底（`systemBackground`）；需要显式铺底时用，Tab 根优先交给系统默认。
     static var canvas: Color { Color(.systemBackground) }
     /// 分组页上的卡片（活动列表卡、详情信息块）
     static var elevated: Color { Color(.secondarySystemGroupedBackground) }

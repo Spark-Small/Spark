@@ -92,9 +92,16 @@ enum PlatformConversationListRow {
     }
 
     /// 主↔副文 = `subtitleCell.textToSecondaryTextVerticalPadding`
+    /// 注意：系统 `subtitleCell` 此项常为 **0**（比 `cell()` 更密），勿用于多行正文/简介。
     static var textToSecondarySpacing: CGFloat {
         let padding = configuration.textToSecondaryTextVerticalPadding
         return padding > 0 ? padding : PlatformMetrics.sectionSubtitleSpacing
+    }
+
+    /// 主↔副文（`cell()` 探针）：适合标题下的说明/简介；`subtitleCell` 为 0 时回退行垂直 margin。
+    static var cellTextToSecondarySpacing: CGFloat {
+        let padding = UIListContentConfiguration.cell().textToSecondaryTextVerticalPadding
+        return padding > 0 ? padding : verticalInset
     }
 
     /// 含头像行 ↔ 下方独立内容块（配图等）= subtitleCell 行垂直 margin
@@ -115,7 +122,7 @@ extension View {
             .listSectionSeparator(.hidden)
     }
 
-    /// 消息 / 好友共用 List 容器：plain + Apple subtitleCell 测得的水平页边与分节距
+    /// 消息 / 好友共用 List 容器：plain + subtitleCell 水平页边 / 分节距；底色交给系统。
     func platformConversationListChrome() -> some View {
         self
             .listStyle(.plain)
@@ -124,7 +131,6 @@ extension View {
             .contentMargins(.horizontal, PlatformConversationListRow.horizontalInset, for: .scrollContent)
             .environment(\.defaultMinListRowHeight, 0)
             .scrollEdgeEffectStyle(.soft, for: .top)
-            .background(PlatformSurface.canvas)
     }
 
     /// 消息页级水平边距（ScrollView / 线程）

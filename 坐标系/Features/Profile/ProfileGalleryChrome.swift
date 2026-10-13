@@ -10,10 +10,10 @@ import SwiftUI
 import UIKit
 
 enum ProfileGalleryCopy {
-    /// 「我的」根照片墙分区（Ins / Facebook 式网格，不在个人资料 Form）。
+    /// 对外只读照片墙文案（好友/作者资料等）。
     static let sectionTitle = "照片"
     static let emptyDetail = "还没有照片"
-    static let emptyHint = "添加对外展示的生活照片"
+    static let emptyHint = "暂无可展示的照片"
     static let addAccessibility = "添加照片或视频"
     static let removeAccessibility = "删除照片"
     static func countAccessibility(_ count: Int) -> String {
@@ -21,6 +21,12 @@ enum ProfileGalleryCopy {
     }
     static func itemAccessibility(index: Int) -> String {
         "照片 \(index)"
+    }
+    static let openPhotoHint = "打开大图"
+    static let swipeHint = "左右滑动切换照片"
+    /// 大图导航标题：`2/5`。
+    static func pagerTitle(index: Int, total: Int) -> String {
+        "\(index)/\(total)"
     }
 }
 
@@ -37,11 +43,10 @@ struct ProfileGalleryReadonlyGrid: View {
         }
     }
 
-    private let columns = [
-        GridItem(.flexible(), spacing: PlatformMetrics.minContentGap),
-        GridItem(.flexible(), spacing: PlatformMetrics.minContentGap),
-        GridItem(.flexible(), spacing: PlatformMetrics.minContentGap)
-    ]
+    private let columns = Array(
+        repeating: GridItem(.flexible(), spacing: PlatformMetrics.profilePhotoGridSpacing),
+        count: 3
+    )
 
     var body: some View {
         let items = displayRefs
@@ -52,7 +57,7 @@ struct ProfileGalleryReadonlyGrid: View {
                     .foregroundStyle(.secondary)
             }
         } else {
-            LazyVGrid(columns: columns, spacing: PlatformMetrics.minContentGap) {
+            LazyVGrid(columns: columns, spacing: PlatformMetrics.profilePhotoGridSpacing) {
                 ForEach(Array(items.enumerated()), id: \.offset) { _, ref in
                     CommunityRemotePhoto(ref: ref)
                         .frame(minHeight: PlatformMetrics.galleryEditorThumb)
@@ -96,7 +101,7 @@ struct ProfileGalleryThumb: View {
                     .resizable()
                     .scaledToFill()
             } else {
-                Color.secondary.opacity(0.12)
+                PlatformSurface.tertiaryFill
             }
             if isVideo {
                 Image(systemName: "play.circle.fill")

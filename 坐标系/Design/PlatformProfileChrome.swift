@@ -16,8 +16,19 @@ enum PlatformAccountHeaderMetrics {
     static let avatarSide: CGFloat = 60
     static var imageToTextPadding: CGFloat { PlatformConversationListRow.imageToTextPadding }
     static var textToSecondarySpacing: CGFloat { PlatformConversationListRow.textToSecondarySpacing }
+    /// 昵称 ↔ 自我介绍：仅 `cell().textToSecondaryTextVerticalPadding`（约 3pt）；
+    /// 不用 subtitleCell（常为 0），也不叠整行 `verticalInset`（会偏高）。
+    static var nameToBioSpacing: CGFloat {
+        PlatformConversationListRow.cellTextToSecondarySpacing
+    }
     /// 单 cell 内：账户头 ↔ 下方内容块（四列等）= subtitleCell 行垂直 margin（非整行叠两份 inset）。
     static var headerToFooterSpacing: CGFloat { PlatformConversationListRow.rowToContentSpacing }
+    /// 「我的」主页头：身份区头像 ≈ 列表标准边长 × 2（介于 Settings 60 与编辑 × 2.5 大图）。
+    static var profileHomeAvatarSide: CGFloat {
+        (PlatformConversationListRow.imageSide * 2).rounded(.toNearestOrAwayFromZero)
+    }
+    /// 身份块 / 简介 / 双 CTA 之间 = 一行 subtitleCell 垂直 margin（比分节顶距紧、比主副文距松）。
+    static var profileHomeBlockSpacing: CGFloat { headerToFooterSpacing }
 }
 
 /// `NavigationLink` label：大圆头像 + 名（可选认证勾 / VIP）/ 副文（系统 disclosure 由外层 Link 提供）。

@@ -180,6 +180,11 @@ enum PlatformMetrics {
     }
     /// 紧凑叠字间距 = 系统 subtitleCell 主↔副文垂直间距（非自建 grid）。
     static var hairlineSpacing: CGFloat { systemTextToSecondaryPadding }
+    /// 系统物理细线（1px → pt）：分隔线 / 三列照片缝 / 选中指示条。
+    static var separatorHairline: CGFloat {
+        let scale = UITraitCollection.current.displayScale
+        return scale > 0 ? (1 / scale) : 1
+    }
     static var formRowVerticalPadding: CGFloat {
         max(2, (systemListVertical * 0.35).rounded(.toNearestOrAwayFromZero))
     }

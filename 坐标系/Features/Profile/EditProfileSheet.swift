@@ -73,8 +73,10 @@ struct EditProfileSheet: View {
     var body: some View {
         Group {
             if embedsOwnNavigationChrome {
-                NavigationStack { formChrome }
-                    .platformSheet(.form)
+                NavigationStack {
+                    formChrome
+                }
+                .platformSheet(.form)
             } else {
                 formChrome
             }
@@ -87,7 +89,7 @@ struct EditProfileSheet: View {
             if app.pendingIdentityEditProfile {
                 identityGateBanner
             }
-            // Settings 序：身份头 → 介绍 → 基本事实 → 问答 → 兴趣 → 安全（生活照片在「我的」根墙）。
+            // Settings 序：身份头 → 介绍 → 基本事实 → 问答 → 兴趣 → 安全。
             identityHeroSection
             aboutYouSection
             demographicsSection

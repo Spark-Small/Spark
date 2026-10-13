@@ -230,12 +230,10 @@ private struct DiscoverRailSnapBehaviorModifier: ViewModifier {
 // MARK: - Page chrome
 
 extension View {
-    /// 发现类 ScrollView 页：分组底 + 底 safe inset；默认顶边 soft scroll edge（官方栏下滚动交互）。
-    /// - Parameter softTopEdge: 是否启用顶边 soft scroll edge。
+    /// Tab / 发现 Scroll 页皮：soft 顶边、输入皮、底 inset；底色交给系统。
     func discoverBrowseScrollChrome(softTopEdge: Bool = true) -> some View {
         platformTextInputScrollChrome()
             .modifier(DiscoverBrowseSoftTopEdgeModifier(enabled: softTopEdge))
-            .background(PlatformSurface.groupedPage)
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: PlatformMetrics.sectionSpacing)
             }

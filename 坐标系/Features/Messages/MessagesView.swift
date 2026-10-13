@@ -27,7 +27,7 @@ struct MessagesView: View {
 
     var blockedNames: [String] { Array(app.blockedUserNames) }
 
-    private var showsEmptyOverlay: Bool {
+    private var showsEmptyContent: Bool {
         if model.isSearching {
             return !model.hasSearchResults(filter: inboxFilter, blockedNames: blockedNames)
         }
@@ -80,20 +80,23 @@ struct MessagesView: View {
         @Bindable var model = model
 
         NavigationStack(path: $navigation.path) {
-            List {
-                Group {
-                    if model.isSearching {
-                        searchResultsList
-                    } else {
-                        inboxList
+            Group {
+                if showsEmptyContent {
+                    emptyContent
+                } else {
+                    List {
+                        Group {
+                            if model.isSearching {
+                                searchResultsList
+                            } else {
+                                inboxList
+                            }
+                        }
                     }
+                    .platformConversationListChrome()
                 }
             }
-            .platformConversationListChrome()
             .platformTabRootListChrome(title: MessagesCopy.rootTitle)
-            .opacity(showsEmptyOverlay ? 0 : 1)
-            .allowsHitTesting(!showsEmptyOverlay)
-            .overlay { emptyOverlay }
             .searchable(
                 text: $model.searchText,
                 placement: .navigationBarDrawer(displayMode: .automatic),

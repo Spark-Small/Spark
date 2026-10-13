@@ -81,8 +81,8 @@
 | Token | API | 用途 |
 |-------|-----|------|
 | `brandAccent` | `PlatformAction.brandAccent`（= `Color.accentColor`） | **系统强调色**别名；主 CTA / 选中态跟随环境 tint |
-| `groupedPage` | `Color(.systemGroupedBackground)` | 发现页、列表底 |
-| `canvas` | `Color(.systemBackground)` | 内容流、部分详情正文场景 |
+| `groupedPage` | `Color(.systemGroupedBackground)` | Form / insetGrouped 等需显式分组底时 |
+| `canvas` | `Color(.systemBackground)` | 需显式铺内容底时；**五 Tab 根不手铺**，交给系统窗口/栈默认 |
 | `elevated` | `Color(.secondarySystemGroupedBackground)` | 分组上的卡片面 |
 | `groupedBlock` | `Color(.secondarySystemBackground)` | canvas 上的信息块 |
 | `primary` / `secondary` / `tertiary` | SwiftUI 语义 | 主文 / 副文 / 更弱元信息 |
@@ -292,12 +292,20 @@
 - 货架：单模式单 Hero；辅轨 ≤1；陪玩榜 Top3+查看全部
 - 「最近浏览」：人=`BuddyPersonGrid`、俱乐部=海报双列网格，禁止纯文字行；Trailing「返回」退出并回到进入前模式
 
-**我的（统一顶栏）**
+**我的（统一顶栏 · 社交主页）**
 
-- Trailing：通知 + 设置
-- 身份区：头像 | 昵称列（`@账号`、认证/会员胶囊与昵称左齐、社交四列：获赞数/互关/关注/粉丝数）→ 编辑资料；徽章点进「我的认证」
-- **照片墙**（身份下、服务上）：Ins 式三列方格 + 官方 `PhotosPicker` / `LazyVGrid`；选完即写本机 `galleryLocalNames`；**不**进个人资料 Form
-- 服务：开通会员 / 会员中心 · 钱包（无独立「我的订单」；催办走通知；支付/履约在行程与陪玩凭证展开页；无顶栏促销条；无根上待办 Form）
+- Trailing：通知 + 齿轮设置
+- **根页 = Scroll 社交主页**（与活动/搭子同构）：外层 `VStack(spacing: 0)` + 内层 `VStack(sectionSpacing)` + `discoverBrowsePageColumn` / `discoverBrowseScrollChrome` / `scrollBounceBehavior(.basedOnSize)` / `platformTabRootScrollChrome`；底色交给系统。**禁止**根层再套 `LazyVStack` 包住四档内 `LazyVGrid`/`LazyVStack`（嵌套 lazy 滑动易卡死）；粉丝叠头像按文案左侧剩余宽公式算槽（硬上限 8、单行、溢出 `+N`），**禁止** `ViewThatFits` 多候选试宽
+- 资料头：`ProfileHomeHeaderView`（首行头像+昵称/简介点按进编辑资料；昵称↔简介仅 `cell()` 主副文距≈3pt；下一行折叠叠头像 → Sheet；**不用** subtitleCell=0、不叠整行 margin）
+- DEBUG：本人粉丝/关注可注预览名单（Sheet footer 披露）；Release 粉丝图仍诚实空
+- **四档**：发帖 / 活动 / 陪玩 / 俱乐部（图标+底边选中）；档条与内容共用 `discoverBrowseContentInset`（勿贴物理屏边）；均**页内直展**（不进库页）
+- **发帖档**：一帖一格三列；外圈 `discoverBrowseContentInset`，格缝 `minContentGap`（与陪玩/俱乐部嵌体同源，**不用**发丝缝全出血）；多图角标 inset/阴影走 `profileMediaGlyph*`；点格进帖详情
+- **活动/陪玩/俱乐部档**：嵌 `ProfileMyActivitiesCard` / `ProfileMyCompanionsCard` / `BuddyPosterShelfCard`（空态可去发现；创建俱乐部仍在「我的俱乐部」库页）
+- **四档空态**（社交主页）：`ProfileHomeTabEmptyRegion` 在档条**下** + `platformScrollEmbeddedEmptyChrome()` 随滚；库页纯空用 `ProfileLibraryEmptyView`（pageChrome）。**禁止** overlay 钉死、塞 Scroll 首行顶对齐、或再叠 `sectionSpacing` / `emptyStateVerticalPadding`
+- **四档图标**：SF Symbol + 系统 `.body`（选中 `.semibold`）；随 Dynamic Type，无手写 pt
+- **深链**：`myPosts` / `activitiesLibrary` / `bookingCredentials` / `myClubs` → 选中对应档（不 push 库页）
+- **生活照片**：个人资料编辑已移除墙；`galleryLocalNames` 仍可在好友/作者等只读面展示（有数据时）
+- **会员 / 钱包**：仅设置根「服务」；主页不挂；无根上订单/促销/假面板
 - 会员中心：无后端时用 StoreKit Configuration；未开通 `SubscriptionStoreView`；已开通 Form（方案/到期/来源）+ `manageSubscriptionsSheet` / 恢复购买；商品失败诚实空态；禁止自绘第二套付费墙
 - 我的内容 Form 三行：我的活动（Menu 文案分类 + 横卡；角标与 `ActivityCardStatus` 看齐；报名→活动行程）/ 我的陪玩（搭子式筛选图标 Menu + 双列人像小卡；角标用 `BookingOrderStatus`；点进预约凭证展开）/ 我的发帖（系统 List + searchable + 筛选 Menu/发帖；Notes·Music Library 气质）；活动行程下一步 **LazyVGrid 双列** 四件套（约陪玩可选 + 群聊 + 导航 + 签到；合适类目扩展装备/须知；无障碍单列）；履约 checklist 只在单场行程
 - 成为陪玩：设置 → 账号与安全
@@ -411,7 +419,7 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
 
 ## 6.3 阴影与边框
 
-卡片**无**描边装饰阴影；分组感来自页面 `groupedPage` 与媒体本身。
+卡片**无**描边装饰阴影；分组感来自系统页面底与媒体本身。
 
 ## 6.4 Zoom Clip
 
@@ -455,7 +463,7 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
 
 | 场景 | API |
 |------|-----|
-| 收件箱 / 好友 / 消息二级 List | `platformConversationListChrome()` → plain + `canvas` + `contentMargins`；行 `platformConversationListRowChrome()` **仅垂直**；勿再叠行水平 insets |
+| 收件箱 / 好友 / 消息二级 List | `platformConversationListChrome()` → plain + `contentMargins`（底色系统默认）；行 `platformConversationListRowChrome()` **仅垂直**；勿再叠行水平 insets |
 | 会话线程 ScrollView | `platformMessageThreadScrollMargins()` |
 | 输入栏 / @ 条 / 通话页边 | `platformMessagePagePadding()` 或 `PlatformMessagesChrome.pageHorizontalInset` |
 | 行内栈间距 | `PlatformMessagesChrome.stackSpacing` / `bubbleAvatarSpacing`（subtitleCell 探针） |
@@ -500,7 +508,7 @@ Zoom 性能：转场期间不改源列表（浏览埋点延后）；详情相关
 
 全 App 空态统一 `ContentUnavailableView`：
 - 结构：`Label` + `description` + 可选裸 `Button` actions；搜索用 `.search(text:)`
-- 放置：页面级用 `platformContentUnavailablePageChrome()`（铺满后系统垂直居中），或 `List.overlay` 叠固有尺寸居中；**禁止**整页空态做 List 行 / ScrollView 首子视图（会顶在上方）
+- 放置：**纯空页** `Group` 替换 + `platformContentUnavailablePageChrome()`；**Scroll 货架**内容内嵌 + `platformScrollEmbeddedEmptyChrome()` 随滚。**禁止** `List`/`Scroll` `.overlay` 钉死、空态做 List 行 / Scroll 首子视图顶对齐
 - **禁止**空态挂 `activityPrimaryCTA` / `.borderedProminent` / 自设字号 / UIKit 空态旁路
 - **禁止**再叠 `emptyStateVerticalPadding`
 - `activityPrimaryCTA` 仅用于卡片/底栏主操作，不进空态 actions

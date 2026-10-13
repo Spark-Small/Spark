@@ -3,7 +3,7 @@
 //  坐标系
 //
 //  活动发现「最近看过」表面：标题菜单入口，有记录才出现。
-//  空态由 ActivitiesView overlay 居中。
+//  空态由 ActivitiesView Scroll 内嵌（platformScrollEmbeddedEmptyChrome）。
 //
 
 import SwiftUI

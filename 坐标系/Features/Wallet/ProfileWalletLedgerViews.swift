@@ -94,19 +94,7 @@ struct ProfileWalletLedgerAllView: View {
     }
 
     var body: some View {
-        List {
-            if !wallet.entries.isEmpty, !filteredEntries.isEmpty {
-                ForEach(monthSections, id: \.title) { section in
-                    Section(section.title) {
-                        ForEach(section.entries) { entry in
-                            WalletLedgerRow(entry: entry)
-                        }
-                    }
-                }
-            }
-        }
-        .profileSecondaryListChrome()
-        .overlay {
+        Group {
             if wallet.entries.isEmpty {
                 ContentUnavailableView {
                     Label(ProfileWalletCopy.ledgerEmptyTitle, systemImage: "list.bullet.rectangle")
@@ -117,6 +105,17 @@ struct ProfileWalletLedgerAllView: View {
             } else if filteredEntries.isEmpty {
                 ContentUnavailableView.search(text: searchText)
                     .platformContentUnavailablePageChrome()
+            } else {
+                List {
+                    ForEach(monthSections, id: \.title) { section in
+                        Section(section.title) {
+                            ForEach(section.entries) { entry in
+                                WalletLedgerRow(entry: entry)
+                            }
+                        }
+                    }
+                }
+                .profileSecondaryListChrome()
             }
         }
         .searchable(text: $searchText, prompt: ProfileWalletCopy.ledgerSearchPrompt)

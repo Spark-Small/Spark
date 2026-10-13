@@ -28,6 +28,9 @@ enum ProfileSocialCopy {
     static let mutualLabel = "互关"
     static let followingLabel = "关注"
     static let fansLabel = "粉丝数"
+    /// Ins 头三列短标签。
+    static let postsLabel = "帖子"
+    static let fansShortLabel = "粉丝"
 
     static let likesDismiss = "我知道了"
     static let likesAccessibilityHint = "查看获赞说明"
@@ -35,6 +38,18 @@ enum ProfileSocialCopy {
     static let mutualTitle = "互关"
     static let followingTitle = "关注"
     static let fansTitle = "粉丝"
+
+    static let graphSheetTitle = "关注与粉丝"
+    static let graphSheetDone = "完成"
+    static let graphSheetPickerAccessibility = "粉丝或关注"
+    static let openSocialGraphHint = "查看粉丝与关注"
+
+    /// 折叠行文案：有粉丝数优先「N位粉丝」；否则本机关注数「N位关注」；皆无则中性入口。
+    static func collapsedSocialCaption(fansCount: Int, followingCount: Int) -> String {
+        if fansCount > 0 { return "\(fansCount)位粉丝" }
+        if followingCount > 0 { return "\(followingCount)位关注" }
+        return graphSheetTitle
+    }
 
     static let searchPrompt = "搜索"
     static let unfollow = "取消关注"
@@ -50,6 +65,9 @@ enum ProfileSocialCopy {
     static let mutualFooter = "互关 = 已关注且已是好友。"
     static let followingFooter = "仅本机已关注的作者；取消关注后列表会更新。"
     static let fansFooter = "反向粉丝图尚未接入；不展示示例人数。"
+    #if DEBUG
+    static let fansDebugPreviewFooter = "DEBUG：以下为布局预览用模拟粉丝，非服务端关系图。"
+    #endif
 
     static func likesTitle(name: String, count: Int) -> String {
         "「\(name)」共获得 \(count) 个赞"

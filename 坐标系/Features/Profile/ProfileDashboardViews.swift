@@ -11,18 +11,15 @@ import CoordinateModels
 // MARK: - Copy
 
 enum ProfileDashboardCopy {
-    static let activitiesTitle = "我的活动"
     static let rootTitle = "我的"
     static let settingsAccessibilityLabel = "设置"
-    /// 根 Form 行：我的陪玩入口文案。
-    static let myCompanionEntry = ProfileMyCompanionsCopy.navigationTitle
-    /// 根 Form 行：直达我的发帖库。
-    static let myPostsEntry = ProfileMyPostsCopy.navigationTitle
-    /// 根 Form 行：我的俱乐部（创建入口在此页，不在搭子 Tab）。
-    static let myClubsEntry = ProfileMyClubsCopy.navigationTitle
+    /// 编辑资料无障碍 / 全称。
+    static let editProfileCTA = "编辑资料"
+    /// 昵称行右侧短按钮。
+    static let editProfileShort = "编辑"
     static let activityInvites = "活动邀约"
+    /// 设置「服务」区（会员 / 钱包主入口；主页不挂 CTA）。
     static let servicesSectionTitle = "服务"
-    static let librarySectionTitle = "我的内容"
     /// 防欺诈认证文案（个人资料 / 设置·账号）。
     static let photoVerifyRowTitle = "防欺诈认证"
     static let photoVerifyStart = "开始认证"

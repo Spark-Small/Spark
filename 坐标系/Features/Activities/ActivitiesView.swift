@@ -44,31 +44,30 @@ struct ActivitiesView: View {
                             .id(ActivityBrowseCopy.ScrollAnchor.discoverBrowse)
 
                         if model.isBrowsingRecents {
-                            if !activityRecentActivities.isEmpty {
+                            if activityRecentActivities.isEmpty {
+                                ContentUnavailableView {
+                                    Label(ActivityBrowseCopy.recentsEmptyTitle, systemImage: "clock.arrow.circlepath")
+                                } description: {
+                                    Text(ActivityBrowseCopy.recentsEmptyDescription)
+                                } actions: {
+                                    Button(ActivityBrowseCopy.Empty.filteredAction) {
+                                        model.selectBrowseCategory(.forYou)
+                                    }
+                                }
+                                .platformContentUnavailablePageChrome()
+                                .platformScrollEmbeddedEmptyChrome()
+                            } else {
                                 recentsBrowseContent
                             }
-                        } else if !model.filtered.isEmpty {
+                        } else if model.filtered.isEmpty {
+                            emptyState
+                                .platformContentUnavailablePageChrome()
+                                .platformScrollEmbeddedEmptyChrome()
+                        } else {
                             browseContent
                         }
                     }
                     .discoverBrowsePageColumn()
-                }
-                .overlay {
-                    if model.isBrowsingRecents, activityRecentActivities.isEmpty {
-                        ContentUnavailableView {
-                            Label(ActivityBrowseCopy.recentsEmptyTitle, systemImage: "clock.arrow.circlepath")
-                        } description: {
-                            Text(ActivityBrowseCopy.recentsEmptyDescription)
-                        } actions: {
-                            Button(ActivityBrowseCopy.Empty.filteredAction) {
-                                model.selectBrowseCategory(.forYou)
-                            }
-                        }
-                        .platformContentUnavailablePageChrome()
-                    } else if !model.isBrowsingRecents, model.filtered.isEmpty {
-                        emptyState
-                            .platformContentUnavailablePageChrome()
-                    }
                 }
                 .discoverBrowseScrollChrome()
                 .platformTabRootScrollChrome(title: model.browseNavigationTitle)

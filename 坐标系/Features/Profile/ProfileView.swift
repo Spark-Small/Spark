@@ -2,7 +2,8 @@
 //  ProfileView.swift
 //  坐标系
 //
-//  「我的」Tab 根：身份 / 凭证库 / 钱包 / 设置；分区见 +Sections，栈 chrome 见 +Chrome。
+//  「我的」Tab 根：资料头 + 四档内容；顶栏通知+齿轮。
+//  滚动骨架与活动/搭子同构：外层 spacing 0 + 内层 sectionSpacing（系统 List 分节顶距）。
 //
 
 import SwiftUI
@@ -10,39 +11,24 @@ import CoordinateModels
 
 struct ProfileView: View {
     @Environment(AppModel.self) var app
-    @Environment(CommunityModel.self) var community
     @Environment(BuddiesModel.self) var buddies
     @Environment(MessagesModel.self) var messages
-    @Environment(MembershipStore.self) var membership
+    @Environment(CommunityModel.self) var community
     @Environment(ProductLifecycleStore.self) var lifecycle
-    @Environment(PhotoVerificationStore.self) var photoVerification
     @Environment(InAppNotificationStore.self) var notificationInbox
 
-    @State var showLikesReceivedInfo = false
-    @State var youthBlockedMessage: String?
     @State var navigateActivity: Activity?
     @State var navigation = TabNavigationState()
     @Namespace var activityZoomNamespace
-
-    var photoVerified: Bool {
-        photoVerification.isVerified(for: app.user)
-    }
+    @State var homeContentTab: ProfileHomeContentTab = .posts
 
     var body: some View {
         @Bindable var navigation = navigation
+        @Bindable var community = community
 
         NavigationStack(path: $navigation.path) {
-            profileList
+            profileHome
                 .platformTabRootToolbar { tabToolbar }
-                .profileRootPresentations(
-                    app: app,
-                    showLikesReceivedInfo: $showLikesReceivedInfo,
-                    likesReceivedCount: ProfileSocialStats.likesReceived(
-                        for: app.user.name,
-                        community: community
-                    ),
-                    youthBlockedMessage: $youthBlockedMessage
-                )
                 .profileRootDestinations(
                     navigation: navigation,
                     buddies: buddies,
@@ -51,12 +37,15 @@ struct ProfileView: View {
                     activityZoomNamespace: activityZoomNamespace
                 )
                 .activityMapNavigationSheet(activity: $navigateActivity)
-                .onAppear {
-                    consumePendingProfileNavigation()
+                .sheet(
+                    isPresented: $community.presentation.isComposing,
+                    onDismiss: { community.presentation.endCompose() }
+                ) {
+                    CommunityComposeSheet()
+                        .toolbarVisibility(.hidden, for: .tabBar)
                 }
-                .task {
-                    await notificationInbox.syncDeliveredFromSystem()
-                }
+                .onAppear { consumePendingProfileNavigation() }
+                .task { await notificationInbox.syncDeliveredFromSystem() }
                 .onChange(of: app.pendingProfileRoute) { _, route in
                     guard route != nil else { return }
                     consumePendingProfileNavigation()
@@ -70,18 +59,22 @@ struct ProfileView: View {
         .tabNavigationState(navigation)
     }
 
-    private var profileList: some View {
-        List {
-            lifecycleTipSection
-            identitySection
-            lifePhotosSection
-            servicesSection
-            librarySection
+    private var profileHome: some View {
+        ScrollView {
+            // 根层只用 VStack：四档内已有 LazyVGrid/LazyVStack，勿再套外层 Lazy（嵌套 lazy 滑动易卡死）。
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: PlatformMetrics.sectionSpacing) {
+                    lifecycleTipBanner
+                    profileHomeHero
+                    profileHomeContent
+                }
+            }
+            .discoverBrowsePageColumn()
         }
-        .platformTabRootListChrome(title: ProfileDashboardCopy.rootTitle, compactSections: false)
-        .refreshable {
-            await app.resyncRemoteReadPath()
-        }
+        .discoverBrowseScrollChrome()
+        .scrollBounceBehavior(.basedOnSize)
+        .platformTabRootScrollChrome(title: ProfileDashboardCopy.rootTitle)
+        .refreshable { await app.resyncRemoteReadPath() }
     }
 
     @ToolbarContentBuilder
@@ -112,20 +105,17 @@ struct ProfileView: View {
         }
     }
 
-    func openCommerce(_ action: () -> Void) {
-        if YouthModePreference.isEnabled {
-            youthBlockedMessage = CommerceAccessCopy.youthCommerceReason
-            return
-        }
-        action()
-    }
-
     func consumePendingProfileNavigation() {
         guard let route = app.pendingProfileRoute else { return }
         app.pendingProfileRoute = nil
         app.pendingBookingID = nil
         // 深链重置栈，避免在已打开的子页上再叠一层同路由。
         navigation.path = NavigationPath()
+        // 库类路由落在主页四档（页内直展）；其余仍 push。
+        if let tab = ProfileHomeContentTab(profileRoute: route) {
+            homeContentTab = tab
+            return
+        }
         navigation.path.append(route)
     }
 }

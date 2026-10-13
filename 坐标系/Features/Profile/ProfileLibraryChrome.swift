@@ -84,6 +84,7 @@ private struct ProfileLibraryFilterChromeModifier: ViewModifier {
 }
 
 /// 库页空态：官方 ContentUnavailableView + 页面铺满居中；CTA 仅裸 Button。
+/// Scroll 货架内嵌时，调用方再套 `platformScrollEmbeddedEmptyChrome()`。
 struct ProfileLibraryEmptyView<Actions: View>: View {
     let title: String
     let systemImage: String

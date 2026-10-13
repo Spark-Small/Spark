@@ -54,20 +54,19 @@ struct BuddiesView: View {
 
                         LazyVStack(alignment: .leading, spacing: PlatformMetrics.sectionSpacing) {
                             if isBrowsingRecents {
-                                if !showsBuddiesPageUnavailable {
+                                if showsBuddiesPageUnavailable {
+                                    buddiesPageUnavailable
+                                } else {
                                     recentsBrowseContent
                                 }
+                            } else if showsBuddiesPageUnavailable {
+                                buddiesPageUnavailable
                             } else {
                                 unifiedBrowse
                             }
                         }
                     }
                     .discoverBrowsePageColumn()
-                }
-                .overlay {
-                    if showsBuddiesPageUnavailable {
-                        buddiesPageUnavailable
-                    }
                 }
                 .discoverBrowseScrollChrome()
                 .scrollBounceBehavior(.basedOnSize)

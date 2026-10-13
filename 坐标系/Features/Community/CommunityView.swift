@@ -37,27 +37,36 @@ struct CommunityFeedStack: View {
     var body: some View {
         @Bindable var model = model
 
-        List {
-            Section {
-                CommunityFeedFilterBar(filter: $feedFilter)
-                    .communityFeedFilterRowChrome()
-            }
-
-            if showsDynamicsRail, !showsFeedUnavailable {
-                dynamicsSection
-            }
-
-            if !showsFeedUnavailable {
-                Section {
-                    feedPostsSection
-                }
-            }
-        }
-        .communityFeedChrome()
-        .overlay {
-            // 仅叠系统空态本体（固有尺寸居中）；勿铺满，以免挡住顶栏筛选点击。
+        Group {
             if showsFeedUnavailable {
-                feedUnavailableOverlay
+                // 筛选条可点 + 空态随滚（禁止 List.overlay 钉死）。
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        CommunityFeedFilterBar(filter: $feedFilter)
+                            .padding(.horizontal, PlatformConversationListRow.horizontalInset)
+                        feedUnavailableContent
+                            .platformContentUnavailablePageChrome()
+                            .communityEmptyStateChrome()
+                    }
+                }
+                .scrollEdgeEffectStyle(.soft, for: .top)
+                .platformTextInputScrollChrome()
+            } else {
+                List {
+                    Section {
+                        CommunityFeedFilterBar(filter: $feedFilter)
+                            .communityFeedFilterRowChrome()
+                    }
+
+                    if showsDynamicsRail {
+                        dynamicsSection
+                    }
+
+                    Section {
+                        feedPostsSection
+                    }
+                }
+                .communityFeedChrome()
             }
         }
         .environment(\.communityRetainFollowedAuthor) { author in

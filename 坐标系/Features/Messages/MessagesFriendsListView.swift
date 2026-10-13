@@ -64,14 +64,14 @@ struct MessagesFriendsListView: View {
             }
     }
 
-    private var showsEmptyOverlay: Bool {
+    private var showsEmptyContent: Bool {
         friends.isEmpty || filteredFriends.isEmpty
     }
 
     var body: some View {
         Group {
-            if showsEmptyOverlay {
-                emptyOverlay
+            if showsEmptyContent {
+                emptyContent
             } else {
                 PlatformContactsTableView(
                     sections: tableSections,
@@ -134,7 +134,7 @@ struct MessagesFriendsListView: View {
     }
 
     @ViewBuilder
-    private var emptyOverlay: some View {
+    private var emptyContent: some View {
         Group {
             if friends.isEmpty {
                 ContentUnavailableView {

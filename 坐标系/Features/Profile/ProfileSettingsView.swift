@@ -12,6 +12,7 @@ import CoordinateModels
 struct ProfileSettingsView: View {
     @Environment(AppModel.self) private var app
     @Environment(BuddiesModel.self) private var buddies
+    @Environment(MembershipStore.self) private var membership
     @Environment(ProductLifecycleStore.self) private var lifecycle
     @State private var confirmSignOut = false
     @State private var confirmDeleteAccount = false
@@ -30,6 +31,30 @@ struct ProfileSettingsView: View {
                     Label("账号与安全", systemImage: "lock.shield")
                         .platformContentSymbolStyle()
                 }
+            }
+
+            // 会员 / 钱包：设置「服务」为主入口（主页不挂 CTA）。
+            Section {
+                NavigationLink {
+                    ProfileMembershipView()
+                } label: {
+                    Label(
+                        ProfileDashboardCopy.membershipTitle(entitled: membership.isEntitled),
+                        systemImage: ProfileDashboardCopy.membershipSystemImage(
+                            entitled: membership.isEntitled
+                        )
+                    )
+                    .platformContentSymbolStyle()
+                }
+
+                NavigationLink {
+                    ProfileWalletView()
+                } label: {
+                    Label(ProfileDashboardCopy.walletEntry, systemImage: "creditcard.fill")
+                        .platformContentSymbolStyle()
+                }
+            } header: {
+                Text(ProfileDashboardCopy.servicesSectionTitle)
             }
 
             Section {

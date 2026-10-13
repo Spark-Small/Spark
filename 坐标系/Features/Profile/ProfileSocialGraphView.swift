@@ -66,7 +66,15 @@ struct ProfileSocialGraphView: View {
                             }
                         }
                     } footer: {
+                        #if DEBUG
+                        if kind == .fans {
+                            Text(ProfileSocialCopy.fansDebugPreviewFooter)
+                        } else {
+                            Text(ProfileSocialCopy.footer(for: kind))
+                        }
+                        #else
                         Text(ProfileSocialCopy.footer(for: kind))
+                        #endif
                     }
                 }
                 .profileSecondaryListChrome()

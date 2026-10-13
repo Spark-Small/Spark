@@ -34,7 +34,7 @@ extension CommunityFeedStack {
         return posts
     }
 
-    /// 整页空态（叠在 List 上居中）；有帖时只渲染行。
+    /// 整页空态（筛选下 Scroll 内嵌随滚）；有帖时只渲染行。
     var showsFeedUnavailable: Bool {
         if model.loadErrorMessage != nil, model.items.isEmpty { return true }
         if model.items.isEmpty { return true }
@@ -42,7 +42,7 @@ extension CommunityFeedStack {
     }
 
     @ViewBuilder
-    var feedUnavailableOverlay: some View {
+    var feedUnavailableContent: some View {
         if let error = model.loadErrorMessage, model.items.isEmpty {
             errorState(message: error)
         } else if model.items.isEmpty {

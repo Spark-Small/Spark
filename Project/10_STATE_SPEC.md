@@ -38,7 +38,7 @@
 | 结构 | `Label(title, systemImage:)` + `description: Text` + 可选 `actions: { Button… }` |
 | 行动 | 裸 `Button`（系统 tint 文字）；**禁止**空态挂 `activityPrimaryCTA` / `activitySecondaryCTA` / `.borderedProminent` / `.buttonSizing` |
 | 留白 | 交给系统居中；**禁止**再叠 `emptyStateVerticalPadding` 业务空态皮 |
-| 放置 | 页面级空态用 `platformContentUnavailablePageChrome()` 或 `List.overlay` 居中；**禁止**把整页空态塞进 List 行 / ScrollView 首行（会顶对齐） |
+| 放置 | **纯空页**：`Group { if empty { … } else { List } }` + `platformContentUnavailablePageChrome()`。**Scroll 货架 / 社交主页**：空态作内容子视图（头/档条下）+ `platformScrollEmbeddedEmptyChrome()` 随滚区内居中。**禁止** `List`/`Scroll` `.overlay` 钉死、空态做 List 行 / Scroll **首行**顶对齐、再叠业务垂直 padding |
 | 文案 | 进 `*Copy`；诚实说明，不塞假供给 |
 
 | 场景 | 行动示例 |

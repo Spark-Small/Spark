@@ -2,7 +2,7 @@
 //  ProfileView+Chrome.swift
 //  坐标系
 //
-//  「我的」根：Sheet / Alert / 栈目的地与深链辅助。
+//  「我的」根：栈目的地与深链辅助。
 //
 
 import SwiftUI
@@ -29,27 +29,6 @@ func profileOpenClubConversation(
 }
 
 extension View {
-    func profileRootPresentations(
-        app: AppModel,
-        showLikesReceivedInfo: Binding<Bool>,
-        likesReceivedCount: Int,
-        youthBlockedMessage: Binding<String?>
-    ) -> some View {
-        alert(
-            ProfileSocialCopy.likesTitle(name: app.user.name, count: likesReceivedCount),
-            isPresented: showLikesReceivedInfo
-        ) {
-            Button(ProfileSocialCopy.likesDismiss, role: .cancel) {}
-        } message: {
-            Text(ProfileSocialCopy.likesDescription)
-        }
-        .alert("青少年模式", isPresented: youthBlockedMessage.isOptionalPresented) {
-            Button("好的", role: .cancel) { youthBlockedMessage.wrappedValue = nil }
-        } message: {
-            Text(youthBlockedMessage.wrappedValue ?? "")
-        }
-    }
-
     func profileRootDestinations(
         navigation: TabNavigationState,
         buddies: BuddiesModel,
@@ -81,7 +60,6 @@ extension View {
                 )
             }
         )
-        // 邀约/预约详情「搭子资料」走 BuddyZoomRoute，须在「我的」栈注册。
         .buddyZoomNavigationDestination(namespace: activityZoomNamespace)
         .activityPeerChatNavigationDestination()
         .activityZoomNavigationDestination(namespace: activityZoomNamespace)
@@ -89,16 +67,5 @@ extension View {
             ProfileRouteDestination(route: route)
                 .platformHiddenTabBar()
         }
-    }
-}
-
-fileprivate extension Binding where Value == String? {
-    var isOptionalPresented: Binding<Bool> {
-        Binding<Bool>(
-            get: { wrappedValue != nil },
-            set: { isPresented in
-                if !isPresented { wrappedValue = nil }
-            }
-        )
     }
 }

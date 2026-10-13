@@ -81,6 +81,15 @@ struct ProfileSocialStatsRow: View {
 
 @MainActor
 enum ProfileSocialStats {
+    #if DEBUG
+    /// DEBUG 预览用本人粉丝昵称（搭子样板 nick，便于叠封面）；Release 不编译。
+    private static let debugPreviewFanNicknames = [
+        "Mia", "阿凯", "林夏", "小周", "Yuna", "Leo", "阿哲"
+    ]
+    /// DEBUG 预览用本人关注（与真实 `followedUserNames` 合并展示）。
+    private static let debugPreviewFollowingNicknames = ["Leo", "Yuna", "小周", "Noon"]
+    #endif
+
     /// 原创帖获赞合计（不含转发）。
     static func likesReceived(for name: String, community: CommunityModel) -> Int {
         community.posts
@@ -105,14 +114,22 @@ enum ProfileSocialStats {
 
     static func followingCount(for name: String, app: AppModel) -> Int {
         if name.caseInsensitiveCompare(app.user.name) == .orderedSame {
+            #if DEBUG
+            return followingNamesForSelf(app: app).count
+            #else
             return app.followedUserNames.count
+            #endif
         }
         return 0
     }
 
     static func fansCount(for name: String, app: AppModel) -> Int {
         if name.caseInsensitiveCompare(app.user.name) == .orderedSame {
+            #if DEBUG
+            return debugPreviewFanNicknames.count
+            #else
             return 0
+            #endif
         }
         return app.isFollowing(name) ? 1 : 0
     }
@@ -149,14 +166,34 @@ enum ProfileSocialStats {
                 .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
         case .following:
             guard isSelf else { return [] }
+            #if DEBUG
+            return followingNamesForSelf(app: app)
+            #else
             return app.followedUserNames.sorted {
                 $0.localizedStandardCompare($1) == .orderedAscending
             }
+            #endif
         case .fans:
-            if isSelf { return [] }
+            if isSelf {
+                #if DEBUG
+                return debugPreviewFanNicknames.sorted {
+                    $0.localizedStandardCompare($1) == .orderedAscending
+                }
+                #else
+                return []
+                #endif
+            }
             return app.isFollowing(subject) ? [app.user.name] : []
         }
     }
+
+    #if DEBUG
+    private static func followingNamesForSelf(app: AppModel) -> [String] {
+        var merged = app.followedUserNames
+        merged.formUnion(debugPreviewFollowingNicknames)
+        return merged.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+    #endif
 
     private static func friendNicknames(in messages: MessagesModel) -> Set<String> {
         Set(

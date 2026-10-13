@@ -69,7 +69,7 @@
 | 搭子 | 同上 | 同上 | 同上（与活动同构） | 同上 |
 | 消息 | plain List | `platformConversationListChrome` contentMargins；行距 subtitleCell；Features **只用** `PlatformMessagesChrome` / `PlatformConversationListRow`；空态 `ContentUnavailableView` 裸 Button | 旁路 `listRowInsets(…contentInset…)`；发现 `railCardSpacing`；空态再叠业务 CTA 皮 / `emptyStateVerticalPadding` |
 | 广场 | plain List / Detail Scroll | `communityFeedChrome` / `communityDetailScrollChrome` → `PlatformConversationListRow.horizontalInset` | Feed：`listSectionSpacing` + 卡内 `communityRowToContentSpacing` / `communityInlineSpacing`；行栈禁止默认 `VStack`/`HStack` spacing；Leading 走系统 Dynamic Type，**不**设 `.lineSpacing` | 旁路魔法 inset；行与 List `contentMargins` 双重水平缩进；embedded 评论再叠 `contentInset` |
-| 我的 | insetGrouped / 货架 | Settings 同族走 `profileSecondaryListChrome`（系统分组页边；默认**非** compact；可选 `flushTop`）；全宽卡 `profileGroupedFullBleedRowChrome`；库页货架 `profileLibraryBrowseChrome` + `discoverBrowseContentInset` / `discoverCardSpacing` | 根 List：`platformTabRootListChrome(compactSections: false)` | 二级页强制 `.compact`；再叠 `leading: contentInset`；营销头双重水平页边；库页缺 soft 顶边 |
+| 我的 | 根 = Scroll 货架（与活动/搭子同构）；二级 insetGrouped | 根：`discoverBrowseContentInset` / `discoverBrowsePageColumn`；二级 Settings 同族 `profileSecondaryListChrome`（默认**非** compact）；库页 `profileLibraryBrowseChrome` | 根：外层 `VStack(spacing: 0)` + 内层 `VStack(sectionSpacing)`（**勿**再套 Lazy；四档内才 `LazyVGrid`/`LazyVStack`）+ `scrollBounceBehavior(.basedOnSize)`；二级 `platformTabRootListChrome` 仅非根 | 根嵌套双 Lazy 滑动卡死；根再叠手写分节距；二级强制 `.compact`；营销头双重水平页边 |
 
 品牌色：系统 AccentColor；**禁止**内容区挂自定义 clover `.tint`。
 

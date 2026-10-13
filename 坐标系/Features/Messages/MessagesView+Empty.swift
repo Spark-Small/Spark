@@ -18,7 +18,7 @@ extension MessagesView {
     }
 
     @ViewBuilder
-    var emptyOverlay: some View {
+    var emptyContent: some View {
         Group {
             if model.isSearching {
                 ContentUnavailableView.search(text: model.searchText)

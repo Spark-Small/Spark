@@ -41,7 +41,7 @@ extension BuddiesView {
         browseKind == .paid ? paidPeople : socialPeople
     }
 
-    /// 整页空态（叠在 ScrollView 上居中）；分区空仍走 `sectionEmptyState`。
+    /// 整页空态（Scroll 内嵌随滚）；分区空仍走 `sectionEmptyState`。
     var showsBuddiesPageUnavailable: Bool {
         if isBrowsingRecents {
             return recentPeopleItems.isEmpty && recentCircles.isEmpty
@@ -69,6 +69,7 @@ extension BuddiesView {
                 }
             }
             .platformContentUnavailablePageChrome()
+            .platformScrollEmbeddedEmptyChrome()
         } else if browseKind == .clubs {
             clubsEmptyState
         } else {
@@ -147,6 +148,7 @@ extension BuddiesView {
             }
         }
         .platformContentUnavailablePageChrome()
+        .platformScrollEmbeddedEmptyChrome()
     }
 
     func peerContactTitle(for item: DiscoverBuddyItem) -> String {

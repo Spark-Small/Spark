@@ -44,7 +44,6 @@ struct BuddyBrowseSeeAllView: View {
             )
             .padding(.vertical, PlatformMetrics.sectionSpacing)
         }
-        .background(PlatformSurface.groupedPage)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarVisibility(.hidden, for: .tabBar)

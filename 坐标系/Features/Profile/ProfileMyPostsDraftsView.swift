@@ -108,7 +108,7 @@ private struct ProfileMyPostsDraftRow: View {
         Group {
             if LocalMediaLibrary.isVideo(url: url) {
                 ZStack {
-                    Color.secondary.opacity(0.18)
+                    PlatformSurface.tertiaryFill
                     Image(systemName: "play.circle.fill")
                         .font(PlatformListTypography.title3)
                         .symbolRenderingMode(.hierarchical)
@@ -119,7 +119,7 @@ private struct ProfileMyPostsDraftRow: View {
                     .resizable()
                     .scaledToFill()
             } else {
-                Color.secondary.opacity(0.12)
+                PlatformSurface.tertiaryFill
             }
         }
         .frame(

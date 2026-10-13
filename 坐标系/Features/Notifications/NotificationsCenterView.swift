@@ -28,49 +28,57 @@ struct NotificationsCenterView: View {
     }
 
     var body: some View {
-        List {
-            Section {
-                filterBar
-                    .listRowInsets(PlatformFormControlListRow.insets)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
-
-            if !visibleItems.isEmpty {
-                if !todayItems.isEmpty {
-                    Section {
-                        ForEach(todayItems) { item in
-                            notificationRow(item)
-                        }
-                    } header: {
-                        Text(NotificationsCopy.sectionToday)
-                    }
-                }
-                if !earlierItems.isEmpty {
-                    Section {
-                        ForEach(earlierItems) { item in
-                            notificationRow(item)
-                        }
-                    } header: {
-                        Text(NotificationsCopy.sectionEarlier)
-                    }
-                }
-            }
-        }
-        .profileSecondaryListChrome()
-        .overlay {
+        Group {
             if visibleItems.isEmpty {
-                ContentUnavailableView {
-                    Label(NotificationsCopy.emptyTitle, systemImage: "bell.slash")
-                } description: {
-                    Text(NotificationsCopy.emptyDescription)
-                } actions: {
-                    NavigationLink {
-                        SettingsNotificationsView()
-                    } label: {
-                        Text(NotificationsCopy.settings)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        filterBar
+                            .padding(.horizontal, PlatformMetrics.contentInset)
+                            .padding(.vertical, PlatformConversationListRow.verticalInset)
+                        ContentUnavailableView {
+                            Label(NotificationsCopy.emptyTitle, systemImage: "bell.slash")
+                        } description: {
+                            Text(NotificationsCopy.emptyDescription)
+                        } actions: {
+                            NavigationLink {
+                                SettingsNotificationsView()
+                            } label: {
+                                Text(NotificationsCopy.settings)
+                            }
+                        }
+                        .platformContentUnavailablePageChrome()
+                        .platformScrollEmbeddedEmptyChrome()
                     }
                 }
+            } else {
+                List {
+                    Section {
+                        filterBar
+                            .listRowInsets(PlatformFormControlListRow.insets)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    }
+
+                    if !todayItems.isEmpty {
+                        Section {
+                            ForEach(todayItems) { item in
+                                notificationRow(item)
+                            }
+                        } header: {
+                            Text(NotificationsCopy.sectionToday)
+                        }
+                    }
+                    if !earlierItems.isEmpty {
+                        Section {
+                            ForEach(earlierItems) { item in
+                                notificationRow(item)
+                            }
+                        } header: {
+                            Text(NotificationsCopy.sectionEarlier)
+                        }
+                    }
+                }
+                .profileSecondaryListChrome()
             }
         }
         .navigationTitle(NotificationsCopy.centerTitle)

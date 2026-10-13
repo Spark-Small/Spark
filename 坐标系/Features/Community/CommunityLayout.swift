@@ -26,11 +26,10 @@ enum CommunityLayout {
 // MARK: - Feed / Detail chrome
 
 extension View {
-    /// 广场信息流：对齐消息 List chrome（soft 顶边 + 系统水平页边），底面用内容 canvas。
+    /// 广场信息流：对齐消息 List chrome（soft 顶边 + 系统水平页边）；底色交给系统。
     func communityFeedChrome() -> some View {
         self
             .listStyle(.plain)
-            .scrollContentBackground(.hidden)
             .listSectionSpacing(PlatformConversationListRow.listSectionSpacing)
             .environment(\.defaultMinListRowHeight, 0)
             .contentMargins(
@@ -40,7 +39,6 @@ extension View {
             )
             .scrollEdgeEffectStyle(.soft, for: .top)
             .platformTextInputScrollChrome()
-            .background(PlatformSurface.canvas)
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: PlatformConversationListRow.listSectionSpacing)
             }
@@ -63,9 +61,9 @@ extension View {
             .listRowBackground(Color.clear)
     }
 
-    /// 广场空态：页面级铺满居中（与 `platformContentUnavailablePageChrome` 同口径）。
+    /// 广场空态：Scroll/筛选下内嵌随滚（与 `platformScrollEmbeddedEmptyChrome` 同口径）。
     func communityEmptyStateChrome() -> some View {
-        platformContentUnavailablePageChrome()
+        platformScrollEmbeddedEmptyChrome()
     }
 
     /// 帖子卡片底部 ↔ 下一帖作者行：系统 List 分节间距。

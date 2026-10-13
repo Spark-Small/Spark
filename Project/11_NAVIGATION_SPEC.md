@@ -50,14 +50,14 @@ Environment 标记：`hasCircleBrowseDestination` 等向下传递；**已注册�
 | 搭子 | 筛选 → 模式 Menu（找搭子 / 约陪玩 / 俱乐部 / 最近浏览） | 无系统搜索框；创建在「我的 · 我的俱乐部」；Tab Badge = 待确认/待支付 |
 | 广场 | 发帖 | 收藏/赞过/我的分享/转发/公约 →「我的」；顶栏搜索 / `searchable` |
 | 消息 | 筛选 → 发起聊天 → 通讯录（`ToolbarSpacer` 分组） | Badge = 好友请求；筛选含陌生人信箱 |
-| 我的 | 通知 · 设置 | Badge = 站内未读；`ProfileRoute.notifications` / `.settings` 同栈 push（含 tip「去设置」）；身份区获赞系统 alert / `socialGraph` 列表 |
+| 我的 | 通知 · 设置 | Badge = 站内未读；`ProfileRoute.notifications` / `.settings` / 会员·钱包等同栈 push；`myPosts` / `activitiesLibrary` / `bookingCredentials` / `myClubs` **不**再 push 库页，改为主页四档选中；创建俱乐部在「我的俱乐部」库页 |
 
 | Tab | 菜单 | 行为 |
 |-----|------|------|
 | 活动 | 分类 | 切换目录；滚动回顶 |
 | 搭子 | 找搭子 / 约陪玩 / 俱乐部 / 最近浏览 | Trailing 模式 Menu 写 `BuddiesModel.filter.kind`（或进最近浏览）；切换独立货架；滚动回顶 |
 
-搭子 Trailing 顺序：筛选 → **模式 Menu**（无系统搜索框）；筛选条件按找搭子 / 约陪玩 / 俱乐部分流。`CircleComposeSheet` 由「我的 · 我的俱乐部」呈现（`ProfileRoute.myClubs`）。标题只显示当前表面，**不用** `toolbarTitleMenu`。  
+搭子 Trailing 顺序：筛选 → **模式 Menu**（无系统搜索框）；筛选条件按找搭子 / 约陪玩 / 俱乐部分流。`CircleComposeSheet` 由「我的」主页**俱乐部档**呈现（深链 `ProfileRoute.myClubs` → 选中该档）。标题只显示当前表面，**不用** `toolbarTitleMenu`。  
 「最近浏览 / 最近看过」为同级临时表面（非 push）：Trailing 文本「返回」退出，回到进入前的模式/分类（进入时不改写 `filter.kind` / `selectedCategory`）。
 
 ---
